@@ -4,7 +4,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 const API_BASE_URL = "https://beautycare-uat.amcare.vn"
 // Create axios instance for Management API
 const managementApi: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL + '/api',
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -198,7 +198,7 @@ export interface AuthResponse {
 export const authAPI = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const response: AxiosResponse<{ access: string; refresh: string; user: any }> =
-      await managementApi.post('/users/token/', credentials);
+      await managementApi.post('/api-hrm/users/token/', credentials);
     
     // Convert the response to match the expected AuthResponse format
     return {
@@ -233,7 +233,7 @@ export const authAPI = {
 
   getProfile: async (): Promise<{ user: User }> => {
     const response: AxiosResponse<any> =
-      await managementApi.get('/users/profile/');
+      await managementApi.get('/api/users/profile/');
     
     // The API returns user fields directly at the top level, not wrapped in a 'user' object
     const userData = response.data;
@@ -268,7 +268,7 @@ export const authAPI = {
     currentPassword: string;
     newPassword: string;
   }): Promise<void> => {
-    await managementApi.post('/users/change-password/', data);
+    await managementApi.post('/api/users/change-password/', data);
   },
 };
 
