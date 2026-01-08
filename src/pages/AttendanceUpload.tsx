@@ -282,14 +282,38 @@ const AttendanceUpload: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Employee Filter */}
+              {/* Employee Filter with Search */}
               <div>
-                <label htmlFor="view-employee" className="block text-sm font-medium text-gray-700 mb-2">
-                  <div className="flex items-center">
-                    <UserIcon className="h-4 w-4 text-gray-500 mr-1" />
-                    Xem theo nhân viên
+                <div className="flex justify-between items-center mb-2">
+                  <label htmlFor="view-employee" className="block text-sm font-medium text-gray-700">
+                    <div className="flex items-center">
+                      <UserIcon className="h-4 w-4 text-gray-500 mr-1" />
+                      Xem theo nhân viên
+                    </div>
+                  </label>
+                  <div className="text-xs text-gray-500">
+                    {employees.length} nhân viên
                   </div>
-                </label>
+                </div>
+                
+                {/* Search input for employees */}
+                <div className="mb-2">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Tìm theo tên hoặc mã nhân viên..."
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
                 <select
                   id="view-employee"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -300,12 +324,18 @@ const AttendanceUpload: React.FC = () => {
                   }}
                 >
                   <option value="">-- Chọn nhân viên --</option>
-                  {employees.map((emp) => (
+                  {filteredEmployees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.code} - {emp.name}
+                      {emp.code} - {emp.name} ({emp.department})
                     </option>
                   ))}
                 </select>
+                
+                {searchQuery && filteredEmployees.length === 0 && (
+                  <div className="mt-2 text-xs text-red-600">
+                    Không tìm thấy nhân viên phù hợp với "{searchQuery}"
+                  </div>
+                )}
               </div>
 
               {/* Department Filter */}
