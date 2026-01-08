@@ -28,6 +28,7 @@ import {
   Area,
 } from 'recharts';
 import { dashboardAPI } from '@/utils/api';
+import HRStats from '../components/HRStats';
 
 interface CTODashboardStats {
   overview: {
@@ -317,6 +318,9 @@ const Dashboard = () => {
           </div>
         ))}
       </div>
+
+      {/* HR Stats */}
+      <HRStats />
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
