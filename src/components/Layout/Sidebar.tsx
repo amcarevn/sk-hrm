@@ -33,13 +33,13 @@ const navigationItems = [
     roles: ['ADMIN', 'USER'],
   },
   {
-    name: 'Quản lý chấm công',
+    name: 'Chấm công',
     href: '/dashboard/attendance',
     icon: ClockIcon,
     roles: ['ADMIN', 'USER'],
   },
   {
-    name: 'Chấm công',
+    name: 'Quản lý chấm công',
     href: '/dashboard/attendance/upload',
     icon: CloudArrowUpIcon,
     roles: ['ADMIN', 'HR'],
@@ -87,10 +87,12 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const isSuperAdmin = user?.is_super_admin || false;
   
   // If user is super admin, show all navigation items
-  // Otherwise, filter based on user role
+  // Otherwise, filter based on user role (case-insensitive comparison)
   const navigation = isSuperAdmin 
     ? navigationItems 
-    : navigationItems.filter((item) => item.roles.includes(userRole));
+    : navigationItems.filter((item) => 
+        item.roles.some(role => role.toUpperCase() === userRole)
+      );
 
   const handleCollapseToggle = () => {
     const newCollapsedState = !isCollapsed;

@@ -16,8 +16,9 @@ const AttendanceUpload: React.FC = () => {
   }>>([]);
 
   // Check if user has permission to upload attendance files
-  // Only ADMIN, HR staff, and super admins can upload
-  const canUploadAttendance = user?.role === 'ADMIN' || user?.role === 'HR' || user?.is_super_admin;
+  // Only ADMIN, HR staff, and super admins can upload (case-insensitive role check)
+  const userRole = user?.role ? user.role.toUpperCase() : '';
+  const canUploadAttendance = userRole === 'ADMIN' || userRole === 'HR' || user?.is_super_admin;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
