@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceCalendar from '../components/AttendanceCalendar';
-import { XMarkIcon, DocumentPlusIcon, ClockIcon, CalendarIcon, UserIcon } from '@heroicons/react/24/outline';
+import { 
+  XMarkIcon, 
+  DocumentPlusIcon, 
+  ClockIcon, 
+  CalendarIcon, 
+  UserIcon,
+  BuildingOfficeIcon,
+  FunnelIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  EyeIcon
+} from '@heroicons/react/24/outline';
 
 const AttendanceManagement: React.FC = () => {
   const { user } = useAuth();
@@ -244,6 +255,7 @@ const AttendanceManagement: React.FC = () => {
           </div>
         </div>
       )}
+
 
       {/* Calendar Section */}
       <div className="mb-6">
@@ -593,6 +605,7 @@ const AttendanceManagement: React.FC = () => {
           </div>
         </div>
       )}
+
 
       {/* Summary Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

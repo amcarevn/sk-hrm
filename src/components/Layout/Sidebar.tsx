@@ -20,6 +20,7 @@ import {
   UserCircleIcon,
   BriefcaseIcon,
   ChartBarIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 
 // Define navigation items with role requirements

@@ -51,6 +51,7 @@ import PositionCreate from './pages/PositionCreate';
 import PositionEdit from './pages/PositionEdit';
 import AttendanceManagement from './pages/AttendanceManagement';
 import AttendanceUpload from './pages/AttendanceUpload';
+import AttendanceView from './pages/AttendanceView';
 import Approvals from './pages/Approvals';
 import Onboarding from './pages/Onboarding';
 import Offboarding from './pages/Offboarding';
@@ -510,6 +511,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AttendanceUpload />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/attendance/view"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AttendanceView />
                 </Layout>
               </ProtectedRoute>
             }
