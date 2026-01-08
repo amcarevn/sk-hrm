@@ -45,6 +45,7 @@ import EmployeeEdit from './pages/EmployeeEdit';
 import DepartmentList from './pages/DepartmentList';
 import DepartmentCreate from './pages/DepartmentCreate';
 import DepartmentEdit from './pages/DepartmentEdit';
+import DepartmentEmployees from './pages/DepartmentEmployees';
 import PositionList from './pages/PositionList';
 import PositionCreate from './pages/PositionCreate';
 import PositionEdit from './pages/PositionEdit';
@@ -448,6 +449,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <DepartmentEdit />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/departments/:id/employees"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DepartmentEmployees />
                 </Layout>
               </ProtectedRoute>
             }

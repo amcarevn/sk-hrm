@@ -49,59 +49,55 @@ const Profile: React.FC = () => {
     try {
       setLoading(true);
       
-      // In a real implementation, we would get the employee ID from the user context
-      // For now, we'll fetch the first employee or use a mock
-      const employeesResponse = await employeesAPI.list({ page_size: 1 });
-      if (employeesResponse.results.length > 0) {
-        const emp = employeesResponse.results[0];
-        setEmployee(emp);
-        
-        // Set initial form values
-        setEditForm({
-          phone_number: emp.phone_number || '',
-          personal_email: emp.personal_email || '',
-          bank_name: emp.bank_name || '',
-          bank_account: emp.bank_account || '',
-        });
+      // Fetch the current authenticated user's employee profile
+      const emp = await employeesAPI.me();
+      setEmployee(emp);
+      
+      // Set initial form values
+      setEditForm({
+        phone_number: emp.phone_number || '',
+        personal_email: emp.personal_email || '',
+        bank_name: emp.bank_name || '',
+        bank_account: emp.bank_account || '',
+      });
 
-        // Fetch department details
-        if (emp.department?.id) {
-          try {
-            const dept = await departmentsAPI.getById(emp.department.id);
-            setDepartment(dept);
-          } catch (err) {
-            console.error('Error fetching department:', err);
-          }
+      // Fetch department details
+      if (emp.department?.id) {
+        try {
+          const dept = await departmentsAPI.getById(emp.department.id);
+          setDepartment(dept);
+        } catch (err) {
+          console.error('Error fetching department:', err);
         }
+      }
 
-        // Fetch manager details
-        if (emp.manager?.id) {
-          try {
-            const mgr = await employeesAPI.getById(emp.manager.id);
-            setManager(mgr);
-          } catch (err) {
-            console.error('Error fetching manager:', err);
-          }
+      // Fetch manager details
+      if (emp.manager?.id) {
+        try {
+          const mgr = await employeesAPI.getById(emp.manager.id);
+          setManager(mgr);
+        } catch (err) {
+          console.error('Error fetching manager:', err);
         }
+      }
 
-        // Fetch team members (employees in same department)
-        if (emp.department?.id) {
-          try {
-            const deptEmployees = await departmentsAPI.employees(emp.department.id, { page_size: 20 });
-            const team = deptEmployees.results
-              .filter(e => e.id !== emp.id)
-              .map(e => ({
-                id: e.id,
-                employee_id: e.employee_id,
-                full_name: e.full_name,
-                position_title: e.position?.title || 'Chưa phân chức vụ',
-                phone_number: e.phone_number,
-                personal_email: e.personal_email,
-              }));
-            setTeamMembers(team);
-          } catch (err) {
-            console.error('Error fetching team members:', err);
-          }
+      // Fetch team members (employees in same department)
+      if (emp.department?.id) {
+        try {
+          const deptEmployees = await departmentsAPI.employees(emp.department.id, { page_size: 20 });
+          const team = deptEmployees.results
+            .filter(e => e.id !== emp.id)
+            .map(e => ({
+              id: e.id,
+              employee_id: e.employee_id,
+              full_name: e.full_name,
+              position_title: e.position?.title || 'Chưa phân chức vụ',
+              phone_number: e.phone_number,
+              personal_email: e.personal_email,
+            }));
+          setTeamMembers(team);
+        } catch (err) {
+          console.error('Error fetching team members:', err);
         }
       }
       

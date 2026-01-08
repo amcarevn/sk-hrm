@@ -1573,7 +1573,11 @@ export interface Position {
   title: string;
   code: string;
   description?: string;
-  department?: number;
+  department?: {
+    id: number;
+    name: string;
+    code: string;
+  };
   level: number;
   parent_position?: number;
   is_management: boolean;
@@ -1649,6 +1653,11 @@ export const employeesAPI = {
 
   getById: async (id: number): Promise<Employee> => {
     const response: AxiosResponse<Employee> = await managementApi.get(`/api-hrm/employees/${id}/`);
+    return response.data;
+  },
+
+  me: async (): Promise<Employee> => {
+    const response: AxiosResponse<Employee> = await managementApi.get('/api-hrm/employees/me/');
     return response.data;
   },
 
