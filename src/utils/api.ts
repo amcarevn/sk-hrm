@@ -1510,6 +1510,328 @@ export const botPermissionsAPI = {
   },
 };
 
+// Employee API Types
+export interface Employee {
+  id: number;
+  employee_id: string;
+  full_name: string;
+  gender: 'M' | 'F' | 'O';
+  date_of_birth?: string;
+  phone_number?: string;
+  personal_email?: string;
+  bank_name?: string;
+  bank_account?: string;
+  employment_status: 'ACTIVE' | 'INACTIVE' | 'PROBATION';
+  start_date?: string;
+  end_date?: string;
+  position?: {
+    id: number;
+    title: string;
+    code: string;
+  };
+  department?: {
+    id: number;
+    name: string;
+    code: string;
+  };
+  manager?: {
+    id: number;
+    employee_id: string;
+    full_name: string;
+  };
+  user?: {
+    id: number;
+    username: string;
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Department {
+  id: number;
+  name: string;
+  code: string;
+  description?: string;
+  parent_department?: number;
+  manager?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Position {
+  id: number;
+  title: string;
+  code: string;
+  description?: string;
+  department?: number;
+  level: number;
+  parent_position?: number;
+  is_management: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeCreateData {
+  employee_id: string;
+  full_name: string;
+  gender: 'M' | 'F' | 'O';
+  date_of_birth?: string;
+  phone_number?: string;
+  personal_email?: string;
+  bank_name?: string;
+  bank_account?: string;
+  employment_status?: 'ACTIVE' | 'INACTIVE' | 'PROBATION';
+  start_date?: string;
+  end_date?: string;
+  username: string;
+  password: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  position_id?: number;
+  department_id?: number;
+  manager_id?: number;
+}
+
+export interface EmployeeUpdateData {
+  employee_id?: string;
+  full_name?: string;
+  gender?: 'M' | 'F' | 'O';
+  date_of_birth?: string;
+  phone_number?: string;
+  personal_email?: string;
+  bank_name?: string;
+  bank_account?: string;
+  employment_status?: 'ACTIVE' | 'INACTIVE' | 'PROBATION';
+  start_date?: string;
+  end_date?: string;
+  user_id?: number;
+  position_id?: number;
+  department_id?: number;
+  manager_id?: number;
+}
+
+// Employees API
+export const employeesAPI = {
+  list: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    employment_status?: string;
+    department?: number;
+    position?: number;
+    gender?: string;
+    ordering?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Employee[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: Employee[];
+    }> = await managementApi.get('/api-hrm/employees/', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<Employee> => {
+    const response: AxiosResponse<Employee> = await managementApi.get(`/api-hrm/employees/${id}/`);
+    return response.data;
+  },
+
+  create: async (data: EmployeeCreateData): Promise<Employee> => {
+    const response: AxiosResponse<Employee> = await managementApi.post('/api-hrm/employees/', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: EmployeeUpdateData): Promise<Employee> => {
+    const response: AxiosResponse<Employee> = await managementApi.put(`/api-hrm/employees/${id}/`, data);
+    return response.data;
+  },
+
+  partialUpdate: async (id: number, data: Partial<EmployeeUpdateData>): Promise<Employee> => {
+    const response: AxiosResponse<Employee> = await managementApi.patch(`/api-hrm/employees/${id}/`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/employees/${id}/`);
+  },
+
+  stats: async (): Promise<{
+    total: number;
+    active: number;
+    inactive: number;
+    probation: number;
+    department_stats: Array<{
+      department_id: number;
+      department_name: string;
+      count: number;
+    }>;
+    gender_stats: {
+      male: number;
+      female: number;
+      other: number;
+    };
+  }> => {
+    const response: AxiosResponse<{
+      total: number;
+      active: number;
+      inactive: number;
+      probation: number;
+      department_stats: Array<{
+        department_id: number;
+        department_name: string;
+        count: number;
+      }>;
+      gender_stats: {
+        male: number;
+        female: number;
+        other: number;
+      };
+    }> = await managementApi.get('/api-hrm/employees/stats/');
+    return response.data;
+  },
+
+  activate: async (id: number): Promise<Employee> => {
+    const response: AxiosResponse<Employee> = await managementApi.post(`/api-hrm/employees/${id}/activate/`);
+    return response.data;
+  },
+
+  deactivate: async (id: number): Promise<Employee> => {
+    const response: AxiosResponse<Employee> = await managementApi.post(`/api-hrm/employees/${id}/deactivate/`);
+    return response.data;
+  },
+};
+
+// Departments API
+export const departmentsAPI = {
+  list: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    parent_department?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Department[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: Department[];
+    }> = await managementApi.get('/api-hrm/departments/', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<Department> => {
+    const response: AxiosResponse<Department> = await managementApi.get(`/api-hrm/departments/${id}/`);
+    return response.data;
+  },
+
+  create: async (data: Partial<Department>): Promise<Department> => {
+    const response: AxiosResponse<Department> = await managementApi.post('/api-hrm/departments/', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: Partial<Department>): Promise<Department> => {
+    const response: AxiosResponse<Department> = await managementApi.put(`/api-hrm/departments/${id}/`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/departments/${id}/`);
+  },
+
+  employees: async (id: number, params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Employee[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: Employee[];
+    }> = await managementApi.get(`/api-hrm/departments/${id}/employees/`, { params });
+    return response.data;
+  },
+};
+
+// Positions API
+export const positionsAPI = {
+  list: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    department?: number;
+    is_management?: boolean;
+    level?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Position[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: Position[];
+    }> = await managementApi.get('/api-hrm/positions/', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<Position> => {
+    const response: AxiosResponse<Position> = await managementApi.get(`/api-hrm/positions/${id}/`);
+    return response.data;
+  },
+
+  create: async (data: Partial<Position>): Promise<Position> => {
+    const response: AxiosResponse<Position> = await managementApi.post('/api-hrm/positions/', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: Partial<Position>): Promise<Position> => {
+    const response: AxiosResponse<Position> = await managementApi.put(`/api-hrm/positions/${id}/`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/positions/${id}/`);
+  },
+
+  employees: async (id: number, params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Employee[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: Employee[];
+    }> = await managementApi.get(`/api-hrm/positions/${id}/employees/`, { params });
+    return response.data;
+  },
+};
+
 export default {
   auth: authAPI,
   chatbots: chatbotsAPI,
@@ -1523,4 +1845,7 @@ export default {
   roles: rolesAPI,
   media: mediaAPI,
   domains: domainsAPI,
+  employees: employeesAPI,
+  departments: departmentsAPI,
+  positions: positionsAPI,
 };

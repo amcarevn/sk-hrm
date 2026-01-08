@@ -39,6 +39,7 @@ import BotPermissionCreate from './pages/BotPermissionCreate';
 import BotPermissionEdit from './pages/BotPermissionEdit';
 import RoleEdit from './pages/RoleEdit';
 import EmployeeList from './pages/EmployeeList';
+import EmployeeCreate from './pages/EmployeeCreate';
 import AttendanceManagement from './pages/AttendanceManagement';
 import Approvals from './pages/Approvals';
 import Onboarding from './pages/Onboarding';
@@ -374,6 +375,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <EmployeeList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/employees/create"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <EmployeeCreate />
                 </Layout>
               </ProtectedRoute>
             }
