@@ -38,6 +38,11 @@ import BotPermissions from './pages/BotPermissions';
 import BotPermissionCreate from './pages/BotPermissionCreate';
 import BotPermissionEdit from './pages/BotPermissionEdit';
 import RoleEdit from './pages/RoleEdit';
+import EmployeeList from './pages/EmployeeList';
+import AttendanceManagement from './pages/AttendanceManagement';
+import Approvals from './pages/Approvals';
+import Onboarding from './pages/Onboarding';
+import Offboarding from './pages/Offboarding';
 
 function App() {
   return (
@@ -358,6 +363,57 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <BotPermissionEdit />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* HRM Routes */}
+          <Route
+            path="/dashboard/employees"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <EmployeeList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/attendance"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AttendanceManagement />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/approvals"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Approvals />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/onboarding"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Onboarding />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/offboarding"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Offboarding />
                 </Layout>
               </ProtectedRoute>
             }

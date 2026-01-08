@@ -2,21 +2,19 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-  ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
-  DocumentTextIcon,
-  KeyIcon,
   Squares2X2Icon,
-  UserGroupIcon,
   XMarkIcon,
   Bars3Icon,
-  GlobeAltIcon,
   ArrowRightOnRectangleIcon,
-  UsersIcon,
-  ShieldCheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  UserIcon,
+  ClockIcon,
+  CheckCircleIcon,
   UserPlusIcon,
+  UserMinusIcon,
+  BuildingOfficeIcon,
 } from '@heroicons/react/24/outline';
 
 // Define navigation items with role requirements
@@ -28,51 +26,33 @@ const navigationItems = [
     roles: ['ADMIN', 'USER'],
   },
   {
-    name: 'Trợ lý AI',
-    href: '/dashboard/chatbots',
-    icon: ChatBubbleLeftRightIcon,
+    name: 'Quản lý nhân viên',
+    href: '/dashboard/employees',
+    icon: UserIcon,
     roles: ['ADMIN', 'USER'],
   },
   {
-    name: 'Cuộc trò chuyện',
-    href: '/dashboard/conversations',
-    icon: UserGroupIcon,
+    name: 'Quản lý chấm công',
+    href: '/dashboard/attendance',
+    icon: ClockIcon,
     roles: ['ADMIN', 'USER'],
   },
   {
-    name: 'Tài liệu',
-    href: '/dashboard/documents',
-    icon: DocumentTextIcon,
+    name: 'Phê duyệt',
+    href: '/dashboard/approvals',
+    icon: CheckCircleIcon,
     roles: ['ADMIN', 'USER'],
   },
   {
-    name: 'Trang Facebook',
-    href: '/dashboard/facebook-pages',
-    icon: GlobeAltIcon,
-    roles: ['ADMIN', 'USER'],
-  },
-  {
-    name: 'API Keys',
-    href: '/dashboard/api-keys',
-    icon: KeyIcon,
-    roles: ['ADMIN', 'USER'],
-  },
-  {
-    name: 'Quản lý người dùng',
-    href: '/dashboard/users',
-    icon: UsersIcon,
-    roles: ['ADMIN'],
-  },
-  {
-    name: 'Quản lý vai trò',
-    href: '/dashboard/roles',
-    icon: ShieldCheckIcon,
-    roles: ['ADMIN'],
-  },
-  {
-    name: 'Phân quyền Bot',
-    href: '/dashboard/bot-permissions',
+    name: 'Onboard nhân sự',
+    href: '/dashboard/onboarding',
     icon: UserPlusIcon,
+    roles: ['ADMIN'],
+  },
+  {
+    name: 'Offboard nhân sự',
+    href: '/dashboard/offboarding',
+    icon: UserMinusIcon,
     roles: ['ADMIN'],
   },
   {
@@ -95,8 +75,10 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const { user, logout } = useAuth();
 
   // Filter navigation items based on user role
+  // Convert user role to uppercase to match navigation item roles
+  const userRole = user?.role ? user.role.toUpperCase() : 'USER';
   const navigation = navigationItems.filter((item) =>
-    item.roles.includes(user?.role || 'USER')
+    item.roles.includes(userRole)
   );
 
   const handleCollapseToggle = () => {
@@ -186,12 +168,12 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                   <div className="flex items-center space-x-2">
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        user.role === 'ADMIN'
+                        userRole === 'ADMIN'
                           ? 'bg-red-100 text-red-800'
                           : 'bg-blue-100 text-blue-800'
                       }`}
                     >
-                      {user.role}
+                      {userRole}
                     </span>
                   </div>
                 </div>
@@ -305,12 +287,12 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                   <div className="flex items-center space-x-2">
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        user.role === 'ADMIN'
+                        userRole === 'ADMIN'
                           ? 'bg-red-100 text-red-800'
                           : 'bg-blue-100 text-blue-800'
                       }`}
                     >
-                      {user.role}
+                      {userRole}
                     </span>
                   </div>
                 </div>
