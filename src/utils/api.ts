@@ -1094,6 +1094,12 @@ export const dashboardAPI = {
     return response.data.data;
   },
 
+  getHRMStats: async (): Promise<any> => {
+    const response: AxiosResponse<any> =
+      await managementApi.get('/api-hrm/dashboard/');
+    return response.data;
+  },
+
   clearCache: async (): Promise<void> => {
     await managementApi.post('/dashboard/cache/clear');
   },
