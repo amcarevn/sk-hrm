@@ -644,7 +644,7 @@ const AttendanceUpload: React.FC = () => {
         </div>
       </div>
 
-      {/* Detail View Modal with Calendar */}
+      {/* Detail View Modal with Calendar and Hierarchy */}
       {showDetailView && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -659,7 +659,9 @@ const AttendanceUpload: React.FC = () => {
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
                     <div className="flex justify-between items-center">
                       <h3 className="text-lg leading-6 font-medium text-gray-900">
-                        Xem chi tiết chấm công
+                        {viewMode === 'department' && 'Chọn phòng ban'}
+                        {viewMode === 'employee' && !selectedEmployee && `Nhân viên ${departments.find(d => d.id === selectedDepartment)?.name}`}
+                        {selectedEmployee && `Chấm công ${employees.find(e => e.id === selectedEmployee)?.name}`}
                       </h3>
                       <button
                         onClick={handleBack}
@@ -670,78 +672,227 @@ const AttendanceUpload: React.FC = () => {
                     </div>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Calendar hiển thị chấm công theo lịch. Click vào ngày để xem chi tiết.
+                        {viewMode === 'department' && 'Chọn phòng ban để xem danh sách nhân viên'}
+                        {viewMode === 'employee' && !selectedEmployee && 'Chọn nhân viên để xem chi tiết chấm công'}
+                        {selectedEmployee && 'Xem chi tiết chấm công của nhân viên'}
                       </p>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-6">
-                  {/* Calendar Section */}
-                  <div className="mb-6">
-                    <AttendanceCalendar onDateClick={handleDateClick} />
+                  {/* Breadcrumb Navigation */}
+                  <div className="flex items-center mb-6 text-sm">
+                    <button
+                      onClick={handleBack}
+                      className="text-primary-600 hover:text-primary-800"
+                    >
+                      Trang chính
+                    </button>
+                    {viewMode === 'employee' && (
+                      <>
+                        <span className="mx-2 text-gray-400">/</span>
+                        <button
+                          onClick={handleBackToDepartments}
+                          className="text-primary-600 hover:text-primary-800"
+                        >
+                          Phòng ban
+                        </button>
+                      </>
+                    )}
+                    {selectedEmployee && (
+                      <>
+                        <span className="mx-2 text-gray-400">/</span>
+                        <button
+                          onClick={handleBackToEmployees}
+                          className="text-primary-600 hover:text-primary-800"
+                        >
+                          Nhân viên
+                        </button>
+                      </>
+                    )}
                   </div>
 
-                  {/* Selected Date Info */}
-                  {selectedDate && (
-                    <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                      <div className="flex items-center">
-                        <svg className="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <div>
-                          <h4 className="font-medium text-blue-900">Ngày đã chọn</h4>
-                          <p className="text-sm text-blue-700">
-                            {selectedDate.toLocaleDateString('vi-VN', { 
-                              weekday: 'long', 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
-                            })}
-                          </p>
+                  {/* Search Bar (for employee list) */}
+                  {(viewMode === 'employee' || selectedEmployee) && (
+                    <div className="mb-6">
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
                         </div>
+                        <input
+                          type="text"
+                          placeholder="Tìm kiếm theo tên hoặc mã nhân viên..."
+                          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                       </div>
                     </div>
                   )}
 
-                  {/* Summary */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-green-900 text-sm">Ngày đủ công</h4>
-                      <p className="text-xl font-bold text-green-700 mt-1">18</p>
+                  {/* Department List View */}
+                  {viewMode === 'department' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                      {departments.map((dept) => (
+                        <div
+                          key={dept.id}
+                          className="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-400 hover:shadow-md transition-all cursor-pointer"
+                          onClick={() => handleSelectDepartment(dept.id)}
+                        >
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                              <BuildingOfficeIcon className="h-8 w-8 text-gray-400" />
+                            </div>
+                            <div className="ml-4">
+                              <h4 className="text-sm font-medium text-gray-900">{dept.name}</h4>
+                              <p className="text-xs text-gray-500 mt-1">{dept.employeeCount} nhân viên</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex justify-end">
+                            <span className="text-xs text-primary-600 font-medium">Xem nhân viên →</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="bg-yellow-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-yellow-900 text-sm">Ngày đi muộn</h4>
-                      <p className="text-xl font-bold text-yellow-700 mt-1">3</p>
-                    </div>
-                    <div className="bg-red-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-red-900 text-sm">Ngày vắng mặt</h4>
-                      <p className="text-xl font-bold text-red-700 mt-1">1</p>
-                    </div>
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-blue-900 text-sm">Tổng ngày</h4>
-                      <p className="text-xl font-bold text-blue-700 mt-1">22</p>
-                    </div>
-                  </div>
+                  )}
 
-                  {/* Action Buttons */}
-                  <div className="flex justify-between items-center">
-                    <button
-                      onClick={handleBack}
-                      className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                    >
-                      <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                      Trở về
-                    </button>
-                    <div className="flex space-x-3">
-                      <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                        Xuất báo cáo
-                      </button>
-                      <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                        In lịch
-                      </button>
+                  {/* Employee List View */}
+                  {viewMode === 'employee' && !selectedEmployee && (
+                    <div className="mb-6">
+                      <div className="bg-gray-50 p-3 rounded-lg mb-4">
+                        <div className="flex items-center">
+                          <BuildingOfficeIcon className="h-5 w-5 text-gray-500 mr-2" />
+                          <div>
+                            <h4 className="font-medium text-gray-900">Phòng ban: {departments.find(d => d.id === selectedDepartment)?.name}</h4>
+                            <p className="text-sm text-gray-600">Chọn nhân viên để xem chi tiết chấm công</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {departmentEmployees.length === 0 ? (
+                        <div className="text-center py-8">
+                          <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 3.75V21m-10.5-7.75V21m-4.5 0h.01" />
+                          </svg>
+                          <p className="text-gray-500">Không tìm thấy nhân viên</p>
+                          <p className="text-gray-400 text-sm mt-1">Thử tìm kiếm với từ khóa khác</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {departmentEmployees.map((emp) => (
+                            <div
+                              key={emp.id}
+                              className="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-400 hover:shadow-md transition-all cursor-pointer"
+                              onClick={() => handleSelectEmployee(emp.id)}
+                            >
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                  <UserIcon className="h-8 w-8 text-gray-400" />
+                                </div>
+                                <div className="ml-4 flex-1">
+                                  <h4 className="text-sm font-medium text-gray-900">{emp.name}</h4>
+                                  <p className="text-xs text-gray-500 mt-1">Mã: {emp.code}</p>
+                                  <p className="text-xs text-gray-500">Phòng ban: {emp.department}</p>
+                                </div>
+                              </div>
+                              <div className="mt-3 flex justify-end">
+                                <span className="text-xs text-primary-600 font-medium">Xem chấm công →</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  )}
+
+                  {/* Employee Detail View with Calendar */}
+                  {selectedEmployee && (
+                    <div>
+                      {/* Employee Info */}
+                      <div className="bg-blue-50 p-4 rounded-lg mb-6">
+                        <div className="flex items-center">
+                          <UserIcon className="h-6 w-6 text-blue-500 mr-3" />
+                          <div>
+                            <h4 className="font-medium text-blue-900">
+                              {employees.find(e => e.id === selectedEmployee)?.name} ({employees.find(e => e.id === selectedEmployee)?.code})
+                            </h4>
+                            <p className="text-sm text-blue-700">
+                              Phòng ban: {employees.find(e => e.id === selectedEmployee)?.department}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Calendar Section */}
+                      <div className="mb-6">
+                        <AttendanceCalendar onDateClick={handleDateClick} />
+                      </div>
+
+                      {/* Selected Date Info */}
+                      {selectedDate && (
+                        <div className="bg-green-50 p-4 rounded-lg mb-4">
+                          <div className="flex items-center">
+                            <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <div>
+                              <h4 className="font-medium text-green-900">Ngày đã chọn</h4>
+                              <p className="text-sm text-green-700">
+                                {selectedDate.toLocaleDateString('vi-VN', { 
+                                  weekday: 'long', 
+                                  year: 'numeric', 
+                                  month: 'long', 
+                                  day: 'numeric' 
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Summary */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div className="bg-green-50 p-3 rounded-lg">
+                          <h4 className="font-medium text-green-900 text-sm">Ngày đủ công</h4>
+                          <p className="text-xl font-bold text-green-700 mt-1">18</p>
+                        </div>
+                        <div className="bg-yellow-50 p-3 rounded-lg">
+                          <h4 className="font-medium text-yellow-900 text-sm">Ngày đi muộn</h4>
+                          <p className="text-xl font-bold text-yellow-700 mt-1">3</p>
+                        </div>
+                        <div className="bg-red-50 p-3 rounded-lg">
+                          <h4 className="font-medium text-red-900 text-sm">Ngày vắng mặt</h4>
+                          <p className="text-xl font-bold text-red-700 mt-1">1</p>
+                        </div>
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <h4 className="font-medium text-blue-900 text-sm">Tổng ngày</h4>
+                          <p className="text-xl font-bold text-blue-700 mt-1">22</p>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex justify-between items-center">
+                        <button
+                          onClick={handleBack}
+                          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                        >
+                          <ArrowLeftIcon className="h-5 w-5 mr-2" />
+                          Trở về
+                        </button>
+                        <div className="flex space-x-3">
+                          <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            Xuất báo cáo
+                          </button>
+                          <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            In lịch
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
