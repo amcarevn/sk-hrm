@@ -9,7 +9,7 @@ export default function Footer() {
                 <img src="/bot-logo.png" alt="Logo" className="h-full w-full" />
               </div>
               <span className="ml-3 text-2xl font-bold text-white">
-                Chatbot AI
+                AI HRM
               </span>
             </div>
             <p className="text-sm leading-6 text-gray-300">
@@ -83,7 +83,7 @@ export default function Footer() {
         </div>
         <div className="mt-16 border-t border-white/10 pt-8 sm:mt-20 lg:mt-24">
           <p className="text-xs leading-5 text-gray-400 text-center">
-            &copy; 2024 Chatbot AI. All rights reserved.
+            &copy; 2024 AI HRM. All rights reserved.
           </p>
         </div>
       </div>

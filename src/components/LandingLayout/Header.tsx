@@ -13,13 +13,13 @@ export default function Header() {
       >
         <div className="flex lg:flex-1">
           <Link to="/" className="-m-1.5 p-1.5">
-            <span className="sr-only">Chatbot AI</span>
+            <span className="sr-only">AI HRM</span>
             <div className="flex items-center">
               <div className="h-8 w-8 rounded-lg flex items-center justify-center">
                 <img src="/bot-logo.png" alt="Logo" className="h-full w-full" />
               </div>
               <span className="ml-2 text-xl font-bold text-gray-900">
-                Chatbot AI
+                AI HRM
               </span>
             </div>
           </Link>
@@ -71,7 +71,7 @@ export default function Header() {
           <div className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
             <div className="flex items-center justify-between">
               <Link to="/" className="-m-1.5 p-1.5">
-                <span className="sr-only">Chatbot AI</span>
+                <span className="sr-only">AI HRM</span>
                 <div className="flex items-center">
                   <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                     <svg
@@ -87,7 +87,7 @@ export default function Header() {
                     </svg>
                   </div>
                   <span className="ml-2 text-xl font-bold text-gray-900">
-                    Chatbot AI
+                    AI HRM
                   </span>
                 </div>
               </Link>

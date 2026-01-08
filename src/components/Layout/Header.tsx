@@ -25,7 +25,7 @@ export default function Header() {
               <img src="/bot-logo.png" alt="Logo" className="h-full w-full" />
             </div>
             <span className="ml-2 text-lg font-bold text-gray-900">
-              Chatbot AI
+              AI HRM
             </span>
           </Link>
         </div>
