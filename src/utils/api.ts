@@ -1833,6 +1833,334 @@ export const positionsAPI = {
   },
 };
 
+// Asset API Types
+export interface Asset {
+  id: number;
+  asset_code: string;
+  name: string;
+  asset_type: string;
+  asset_type_display: string;
+  brand: string;
+  model: string;
+  serial_number?: string;
+  status: string;
+  status_display: string;
+  condition: string;
+  condition_display: string;
+  department?: number;
+  department_name?: string;
+  assigned_to?: number;
+  assigned_to_name?: string;
+  assigned_date?: string;
+  purchase_date?: string;
+  purchase_price: number;
+  warranty_expiry?: string;
+  invoice_number?: string;
+  supplier?: string;
+  location?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssetAssignmentHistory {
+  id: number;
+  asset: number;
+  asset_code: string;
+  asset_name: string;
+  assigned_to: number;
+  assigned_to_name: string;
+  assigned_date: string;
+  assigned_condition: string;
+  assigned_condition_display: string;
+  assigned_notes?: string;
+  returned_date?: string;
+  returned_condition?: string;
+  returned_condition_display?: string;
+  returned_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssetMaintenance {
+  id: number;
+  asset: number;
+  asset_code: string;
+  asset_name: string;
+  maintenance_date: string;
+  maintenance_type: string;
+  maintenance_type_display: string;
+  description: string;
+  performed_by?: string;
+  performed_by_employee?: number;
+  performed_by_employee_name?: string;
+  cost: number;
+  result: string;
+  next_maintenance_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssetStats {
+  total: number;
+  in_use: number;
+  idle: number;
+  under_maintenance: number;
+  damaged: number;
+  retired: number;
+  total_value: number;
+  expired_warranty: number;
+  type_stats: Array<{
+    asset_type: string;
+    asset_type_display: string;
+    count: number;
+  }>;
+  department_stats: Array<{
+    department_id: number;
+    department_name: string;
+    count: number;
+  }>;
+}
+
+// Assets API
+export const assetsAPI = {
+  list: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    asset_type?: string;
+    status?: string;
+    condition?: string;
+    department?: number;
+    assigned_to?: number;
+    ordering?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Asset[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: Asset[];
+    }> = await managementApi.get('/api-hrm/assets/', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<Asset> => {
+    const response: AxiosResponse<Asset> = await managementApi.get(`/api-hrm/assets/${id}/`);
+    return response.data;
+  },
+
+  create: async (data: Partial<Asset>): Promise<Asset> => {
+    const response: AxiosResponse<Asset> = await managementApi.post('/api-hrm/assets/', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: Partial<Asset>): Promise<Asset> => {
+    const response: AxiosResponse<Asset> = await managementApi.put(`/api-hrm/assets/${id}/`, data);
+    return response.data;
+  },
+
+  partialUpdate: async (id: number, data: Partial<Asset>): Promise<Asset> => {
+    const response: AxiosResponse<Asset> = await managementApi.patch(`/api-hrm/assets/${id}/`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/assets/${id}/`);
+  },
+
+  stats: async (): Promise<AssetStats> => {
+    const response: AxiosResponse<AssetStats> = await managementApi.get('/api-hrm/assets/stats/');
+    return response.data;
+  },
+
+  assign: async (id: number, data: {
+    employee_id: number;
+    assigned_date?: string;
+    notes?: string;
+  }): Promise<Asset> => {
+    const response: AxiosResponse<Asset> = await managementApi.post(`/api-hrm/assets/${id}/assign/`, data);
+    return response.data;
+  },
+
+  returnAsset: async (id: number, data: {
+    return_date?: string;
+    condition?: string;
+    notes?: string;
+  }): Promise<Asset> => {
+    const response: AxiosResponse<Asset> = await managementApi.post(`/api-hrm/assets/${id}/return_asset/`, data);
+    return response.data;
+  },
+
+  assignmentHistory: async (id: number, params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AssetAssignmentHistory[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AssetAssignmentHistory[];
+    }> = await managementApi.get(`/api-hrm/assets/${id}/assignment_history/`, { params });
+    return response.data;
+  },
+
+  maintenanceHistory: async (id: number, params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AssetMaintenance[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AssetMaintenance[];
+    }> = await managementApi.get(`/api-hrm/assets/${id}/maintenance_history/`, { params });
+    return response.data;
+  },
+};
+
+// Asset Assignment History API
+export const assetAssignmentsAPI = {
+  list: async (params?: {
+    page?: number;
+    page_size?: number;
+    asset?: number;
+    assigned_to?: number;
+    returned_date?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AssetAssignmentHistory[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AssetAssignmentHistory[];
+    }> = await managementApi.get('/api-hrm/asset-assignments/', { params });
+    return response.data;
+  },
+
+  currentAssignments: async (params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AssetAssignmentHistory[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AssetAssignmentHistory[];
+    }> = await managementApi.get('/api-hrm/asset-assignments/current_assignments/', { params });
+    return response.data;
+  },
+
+  employeeAssignments: async (employeeId: number, params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AssetAssignmentHistory[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AssetAssignmentHistory[];
+    }> = await managementApi.get(`/api-hrm/asset-assignments/employee_assignments/?employee_id=${employeeId}`, { params });
+    return response.data;
+  },
+};
+
+// Asset Maintenance API
+export const assetMaintenanceAPI = {
+  list: async (params?: {
+    page?: number;
+    page_size?: number;
+    asset?: number;
+    maintenance_type?: string;
+    performed_by_employee?: number;
+    search?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AssetMaintenance[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AssetMaintenance[];
+    }> = await managementApi.get('/api-hrm/asset-maintenance/', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<AssetMaintenance> => {
+    const response: AxiosResponse<AssetMaintenance> = await managementApi.get(`/api-hrm/asset-maintenance/${id}/`);
+    return response.data;
+  },
+
+  create: async (data: Partial<AssetMaintenance>): Promise<AssetMaintenance> => {
+    const response: AxiosResponse<AssetMaintenance> = await managementApi.post('/api-hrm/asset-maintenance/', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: Partial<AssetMaintenance>): Promise<AssetMaintenance> => {
+    const response: AxiosResponse<AssetMaintenance> = await managementApi.put(`/api-hrm/asset-maintenance/${id}/`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/asset-maintenance/${id}/`);
+  },
+
+  upcomingMaintenance: async (params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AssetMaintenance[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AssetMaintenance[];
+    }> = await managementApi.get('/api-hrm/asset-maintenance/upcoming_maintenance/', { params });
+    return response.data;
+  },
+
+  assetMaintenanceSummary: async (): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.get('/api-hrm/asset-maintenance/asset_maintenance_summary/');
+    return response.data;
+  },
+};
+
+// Update default export to include asset APIs
 export default {
   auth: authAPI,
   chatbots: chatbotsAPI,
@@ -1849,4 +2177,7 @@ export default {
   employees: employeesAPI,
   departments: departmentsAPI,
   positions: positionsAPI,
+  assets: assetsAPI,
+  assetAssignments: assetAssignmentsAPI,
+  assetMaintenance: assetMaintenanceAPI,
 };

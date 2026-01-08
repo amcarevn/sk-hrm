@@ -122,12 +122,23 @@ const EmployeeList: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900">Danh sách nhân viên</h2>
             <p className="text-gray-500 text-sm">Tổng số: {stats.total} nhân viên</p>
           </div>
-          <button 
-            className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
-            onClick={() => window.location.href = '/dashboard/employees/create'}
-          >
-            + Thêm nhân viên
-          </button>
+          <div className="flex space-x-2">
+            <button 
+              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center"
+              onClick={() => window.location.href = '/dashboard/organization-chart'}
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Sơ đồ tổ chức
+            </button>
+            <button 
+              className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
+              onClick={() => window.location.href = '/dashboard/employees/create'}
+            >
+              + Thêm nhân viên
+            </button>
+          </div>
         </div>
 
         {loading ? (

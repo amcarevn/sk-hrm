@@ -16,6 +16,7 @@ import {
   UserMinusIcon,
   BuildingOfficeIcon,
   CloudArrowUpIcon,
+  ComputerDesktopIcon,
 } from '@heroicons/react/24/outline';
 
 // Define navigation items with role requirements
@@ -42,6 +43,12 @@ const navigationItems = [
     name: 'Quản lý chấm công',
     href: '/dashboard/attendance/upload',
     icon: CloudArrowUpIcon,
+    roles: ['ADMIN', 'HR'],
+  },
+  {
+    name: 'Quản lý tài sản',
+    href: '/dashboard/assets',
+    icon: ComputerDesktopIcon,
     roles: ['ADMIN', 'HR'],
   },
   {

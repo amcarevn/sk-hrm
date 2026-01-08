@@ -45,6 +45,8 @@ import AttendanceUpload from './pages/AttendanceUpload';
 import Approvals from './pages/Approvals';
 import Onboarding from './pages/Onboarding';
 import Offboarding from './pages/Offboarding';
+import AssetList from './pages/asset/AssetList';
+import OrganizationChart from './pages/OrganizationChart';
 
 function App() {
   return (
@@ -436,6 +438,28 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Offboarding />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Asset Management Routes */}
+          <Route
+            path="/dashboard/assets"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AssetList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Organization Chart Route */}
+          <Route
+            path="/dashboard/organization-chart"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <OrganizationChart />
                 </Layout>
               </ProtectedRoute>
             }
