@@ -18,6 +18,8 @@ import {
   CloudArrowUpIcon,
   ComputerDesktopIcon,
   UserCircleIcon,
+  BriefcaseIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 // Define navigation items with role requirements
@@ -41,6 +43,18 @@ const navigationItems = [
     roles: ['ADMIN', 'USER'],
   },
   {
+    name: 'Quản lý phòng ban',
+    href: '/dashboard/departments',
+    icon: BuildingOfficeIcon,
+    roles: ['ADMIN', 'HR'],
+  },
+  {
+    name: 'Quản lý vị trí',
+    href: '/dashboard/positions',
+    icon: BriefcaseIcon,
+    roles: ['ADMIN', 'HR'],
+  },
+  {
     name: 'Chấm công',
     href: '/dashboard/attendance',
     icon: ClockIcon,
@@ -57,6 +71,12 @@ const navigationItems = [
     href: '/dashboard/assets',
     icon: ComputerDesktopIcon,
     roles: ['ADMIN', 'HR'],
+  },
+  {
+    name: 'Sơ đồ tổ chức',
+    href: '/dashboard/organization-chart',
+    icon: ChartBarIcon,
+    roles: ['ADMIN', 'USER'],
   },
   {
     name: 'Phê duyệt',

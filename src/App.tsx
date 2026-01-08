@@ -42,6 +42,12 @@ import EmployeeList from './pages/EmployeeList';
 import EmployeeCreate from './pages/EmployeeCreate';
 import EmployeeShow from './pages/EmployeeShow';
 import EmployeeEdit from './pages/EmployeeEdit';
+import DepartmentList from './pages/DepartmentList';
+import DepartmentCreate from './pages/DepartmentCreate';
+import DepartmentEdit from './pages/DepartmentEdit';
+import PositionList from './pages/PositionList';
+import PositionCreate from './pages/PositionCreate';
+import PositionEdit from './pages/PositionEdit';
 import AttendanceManagement from './pages/AttendanceManagement';
 import AttendanceUpload from './pages/AttendanceUpload';
 import Approvals from './pages/Approvals';
@@ -411,6 +417,68 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <EmployeeEdit />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Department Management Routes */}
+          <Route
+            path="/dashboard/departments"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DepartmentList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/departments/create"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DepartmentCreate />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/departments/:id/edit"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DepartmentEdit />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Position Management Routes */}
+          <Route
+            path="/dashboard/positions"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PositionList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/positions/create"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PositionCreate />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/positions/:id/edit"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PositionEdit />
                 </Layout>
               </ProtectedRoute>
             }
