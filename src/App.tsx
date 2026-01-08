@@ -40,6 +40,8 @@ import BotPermissionEdit from './pages/BotPermissionEdit';
 import RoleEdit from './pages/RoleEdit';
 import EmployeeList from './pages/EmployeeList';
 import EmployeeCreate from './pages/EmployeeCreate';
+import EmployeeShow from './pages/EmployeeShow';
+import EmployeeEdit from './pages/EmployeeEdit';
 import AttendanceManagement from './pages/AttendanceManagement';
 import AttendanceUpload from './pages/AttendanceUpload';
 import Approvals from './pages/Approvals';
@@ -389,6 +391,26 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <EmployeeCreate />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/employees/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <EmployeeShow />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/employees/:id/edit"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <EmployeeEdit />
                 </Layout>
               </ProtectedRoute>
             }

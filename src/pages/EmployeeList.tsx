@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { employeesAPI, Employee } from '../utils/api';
+import { useNavigate } from 'react-router-dom';
+import { employeesAPI, departmentsAPI, Employee } from '../utils/api';
 
 const EmployeeList: React.FC = () => {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,9 +60,8 @@ const EmployeeList: React.FC = () => {
 
   const fetchDepartments = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://beautycare-uat.amcare.vn'}/api-hrm/departments/`);
-      const data = await response.json();
-      setDepartments(data.results || []);
+      const response = await departmentsAPI.list();
+      setDepartments(response.results || []);
     } catch (err) {
       console.error('Error fetching departments:', err);
     }
@@ -281,7 +282,7 @@ const EmployeeList: React.FC = () => {
           <div className="flex space-x-2">
             <button 
               className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center"
-              onClick={() => window.location.href = '/dashboard/organization-chart'}
+              onClick={() => navigate('/dashboard/organization-chart')}
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -290,7 +291,7 @@ const EmployeeList: React.FC = () => {
             </button>
             <button 
               className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
-              onClick={() => window.location.href = '/dashboard/employees/create'}
+              onClick={() => navigate('/dashboard/employees/create')}
             >
               + Thêm nhân viên
             </button>
@@ -412,13 +413,13 @@ const EmployeeList: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
                           <button 
-                            onClick={() => window.location.href = `/employees/${employee.id}`}
+                            onClick={() => navigate(`/dashboard/employees/${employee.id}`)}
                             className="text-primary-600 hover:text-primary-900"
                           >
                             Xem
                           </button>
                           <button 
-                            onClick={() => window.location.href = `/employees/${employee.id}/edit`}
+                            onClick={() => navigate(`/dashboard/employees/${employee.id}/edit`)}
                             className="text-blue-600 hover:text-blue-900"
                           >
                             Sửa
