@@ -28,6 +28,8 @@ const AttendanceUpload: React.FC = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'department' | 'employee'>('department');
+  const [mainViewDepartment, setMainViewDepartment] = useState<string>('');
+  const [mainViewEmployee, setMainViewEmployee] = useState<string>('');
 
   // Mock data for departments
   const departments = [
@@ -58,9 +60,30 @@ const AttendanceUpload: React.FC = () => {
 
   const handleViewDetail = () => {
     setShowDetailView(true);
-    setViewMode('department'); // Start with department view
-    setSelectedDepartment('');
-    setSelectedEmployee('');
+    
+    if (mainViewEmployee) {
+      // If an employee is selected in main view, show that employee's detail
+      setSelectedEmployee(mainViewEmployee);
+      setViewMode('employee');
+      // Find the department for this employee
+      const emp = employees.find(e => e.id === mainViewEmployee);
+      if (emp) {
+        const dept = departments.find(d => d.name === emp.department);
+        if (dept) {
+          setSelectedDepartment(dept.id);
+        }
+      }
+    } else if (mainViewDepartment) {
+      // If a department is selected in main view, show employee list for that department
+      setSelectedDepartment(mainViewDepartment);
+      setViewMode('employee');
+      setSelectedEmployee('');
+    } else {
+      // If nothing is selected, start with department list
+      setViewMode('department');
+      setSelectedDepartment('');
+      setSelectedEmployee('');
+    }
   };
 
   const handleBack = () => {
@@ -270,11 +293,18 @@ const AttendanceUpload: React.FC = () => {
                 <select
                   id="view-employee"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  value={mainViewEmployee}
+                  onChange={(e) => {
+                    setMainViewEmployee(e.target.value);
+                    setMainViewDepartment(''); // Clear department if employee is selected
+                  }}
                 >
                   <option value="">-- Chọn nhân viên --</option>
-                  <option value="1">NV001 - Nguyễn Văn A</option>
-                  <option value="2">NV002 - Trần Thị B</option>
-                  <option value="3">NV003 - Lê Văn C</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.code} - {emp.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -289,11 +319,18 @@ const AttendanceUpload: React.FC = () => {
                 <select
                   id="view-department"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  value={mainViewDepartment}
+                  onChange={(e) => {
+                    setMainViewDepartment(e.target.value);
+                    setMainViewEmployee(''); // Clear employee if department is selected
+                  }}
                 >
                   <option value="">-- Chọn phòng ban --</option>
-                  <option value="1">IT - Công nghệ thông tin</option>
-                  <option value="2">HR - Nhân sự</option>
-                  <option value="3">SALE - Kinh doanh</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name} ({dept.employeeCount} nhân viên)
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -309,121 +346,155 @@ const AttendanceUpload: React.FC = () => {
               </ul>
             </div>
 
-            {/* Preview Table */}
+            {/* Employee List or Attendance Table */}
             <div className="border rounded-lg overflow-hidden">
               <div className="bg-gray-50 px-6 py-3 border-b">
-                <h3 className="font-medium text-gray-900">Kết quả chấm công</h3>
-                <p className="text-sm text-gray-600">Hiển thị dữ liệu chấm công theo bộ lọc đã chọn</p>
+                <h3 className="font-medium text-gray-900">
+                  {mainViewDepartment ? `Danh sách nhân viên - ${departments.find(d => d.id === mainViewDepartment)?.name}` : 
+                   mainViewEmployee ? `Chấm công - ${employees.find(e => e.id === mainViewEmployee)?.name}` :
+                   'Kết quả chấm công'}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {mainViewDepartment ? `Hiển thị danh sách nhân viên trong phòng ban` :
+                   mainViewEmployee ? `Hiển thị chấm công của nhân viên` :
+                   'Chọn nhân viên hoặc phòng ban để xem dữ liệu'}
+                </p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Ngày
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Nhân viên
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Giờ vào
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Giờ ra
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Tổng giờ
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Trạng thái
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        09/01/2026
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        Nguyễn Văn A (NV001)
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        08:00
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        17:30
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        8.5 giờ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Đủ công
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        08/01/2026
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        Nguyễn Văn A (NV001)
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        08:15
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        17:45
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        8.5 giờ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          Đi muộn
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        07/01/2026
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        Nguyễn Văn A (NV001)
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        08:00
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        17:00
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        8 giờ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Đủ công
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div className="bg-gray-50 px-6 py-3 border-t">
-                <div className="flex justify-between items-center">
-                  <div className="text-sm text-gray-700">
-                    Hiển thị <span className="font-medium">3</span> bản ghi
+              
+              {mainViewDepartment ? (
+                // Employee List for selected department
+                <div className="p-6">
+                  <div className="mb-4">
+                    <div className="flex items-center bg-blue-50 p-3 rounded-lg">
+                      <BuildingOfficeIcon className="h-5 w-5 text-blue-500 mr-2" />
+                      <div>
+                        <h4 className="font-medium text-blue-900">Phòng ban: {departments.find(d => d.id === mainViewDepartment)?.name}</h4>
+                        <p className="text-sm text-blue-700">
+                          {employees.filter(emp => departments.find(d => d.id === mainViewDepartment)?.name === emp.department).length} nhân viên
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                      Trước
-                    </button>
-                    <button className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                      Sau
-                    </button>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {employees
+                      .filter(emp => departments.find(d => d.id === mainViewDepartment)?.name === emp.department)
+                      .map((emp) => (
+                        <div key={emp.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-400 hover:shadow-md transition-all">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0">
+                              <UserIcon className="h-10 w-10 text-gray-400" />
+                            </div>
+                            <div className="ml-4 flex-1">
+                              <h4 className="text-sm font-medium text-gray-900">{emp.name}</h4>
+                              <p className="text-xs text-gray-500 mt-1">Mã: {emp.code}</p>
+                              <p className="text-xs text-gray-500">Phòng ban: {emp.department}</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 flex justify-end">
+                            <button
+                              onClick={() => {
+                                setSelectedEmployee(emp.id);
+                                setShowDetailView(true);
+                                setViewMode('employee');
+                                setSelectedDepartment(mainViewDepartment);
+                              }}
+                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                            >
+                              <EyeIcon className="h-3 w-3 mr-1" />
+                              Xem chi tiết
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 </div>
-              </div>
+              ) : mainViewEmployee ? (
+                // Attendance table for selected employee
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Ngày
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Nhân viên
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Giờ vào
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Giờ ra
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tổng giờ
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Trạng thái
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          09/01/2026
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {employees.find(e => e.id === mainViewEmployee)?.name} ({employees.find(e => e.id === mainViewEmployee)?.code})
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          08:00
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          17:30
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          8.5 giờ
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Đủ công
+                          </span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          08/01/2026
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {employees.find(e => e.id === mainViewEmployee)?.name} ({employees.find(e => e.id === mainViewEmployee)?.code})
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          08:15
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          17:45
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          8.5 giờ
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Đi muộn
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                // Default message when nothing is selected
+                <div className="p-8 text-center">
+                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">Chưa có dữ liệu</h4>
+                  <p className="text-gray-600">
+                    Vui lòng chọn nhân viên hoặc phòng ban để xem dữ liệu chấm công.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
