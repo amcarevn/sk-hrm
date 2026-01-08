@@ -47,6 +47,7 @@ import Onboarding from './pages/Onboarding';
 import Offboarding from './pages/Offboarding';
 import AssetList from './pages/asset/AssetList';
 import OrganizationChart from './pages/OrganizationChart';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -460,6 +461,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <OrganizationChart />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Profile Route */}
+          <Route
+            path="/dashboard/me"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
                 </Layout>
               </ProtectedRoute>
             }

@@ -448,4 +448,202 @@ const Profile: React.FC = () => {
                   {editingField === 'bank_account' ? (
                     <div className="flex space-x-1">
                       <button
-                        onClick
+                        onClick={() => handleSave('bank_account')}
+                        className="text-green-600 hover:text-green-900"
+                      >
+                        <CheckIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={handleCancel}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <XMarkIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleEdit('bank_account')}
+                      className="text-blue-600 hover:text-blue-900 text-sm"
+                    >
+                      <PencilIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {editingField === 'bank_account' ? (
+                  <input
+                    type="text"
+                    value={editForm.bank_account}
+                    onChange={(e) => handleInputChange('bank_account', e.target.value)}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                    placeholder="Nhập số tài khoản"
+                  />
+                ) : (
+                  <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                    <BanknotesIcon className="h-5 w-5 text-gray-400 mr-2" />
+                    <span className="text-gray-900">
+                      {employee.bank_account || 'Chưa cập nhật'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Department and Team Info */}
+        <div className="space-y-6">
+          {/* Department Info Card */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-6">Thông tin phòng ban</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phòng ban
+                </label>
+                <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                  <BuildingOfficeIcon className="h-5 w-5 text-gray-400 mr-2" />
+                  <span className="text-gray-900">
+                    {department?.name || employee.department?.name || 'Chưa phân phòng'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mã phòng ban
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <span className="text-gray-900">
+                    {department?.code || employee.department?.code || 'N/A'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mô tả
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <span className="text-gray-900">
+                    {department?.description || 'Không có mô tả'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Manager Info Card */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-6">Quản lý trực tiếp</h2>
+            
+            {manager ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Họ tên
+                  </label>
+                  <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                    <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
+                    <span className="text-gray-900">{manager.full_name}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mã nhân viên
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    <span className="text-gray-900">{manager.employee_id}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Chức vụ
+                  </label>
+                  <div className="p-3 bg-gray-50 rounded-md">
+                    <span className="text-gray-900">
+                      {manager.position?.title || 'Chưa phân chức vụ'}
+                    </span>
+                  </div>
+                </div>
+
+                {manager.phone_number && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Số điện thoại
+                    </label>
+                    <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                      <PhoneIcon className="h-5 w-5 text-gray-400 mr-2" />
+                      <span className="text-gray-900">{manager.phone_number}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <p className="mt-2 text-sm text-gray-500">Không có quản lý trực tiếp</p>
+              </div>
+            )}
+          </div>
+
+          {/* Team Members Card */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-medium text-gray-900">Thành viên trong team</h2>
+              <span className="text-sm text-gray-500">{teamMembers.length} thành viên</span>
+            </div>
+            
+            {teamMembers.length > 0 ? (
+              <div className="space-y-4">
+                {teamMembers.slice(0, 5).map((member) => (
+                  <div key={member.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{member.full_name}</h4>
+                        <p className="text-sm text-gray-500">{member.position_title}</p>
+                        <p className="text-sm text-gray-500">Mã NV: {member.employee_id}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      {member.phone_number && (
+                        <div className="flex items-center text-gray-600">
+                          <PhoneIcon className="h-4 w-4 mr-1" />
+                          <span>{member.phone_number}</span>
+                        </div>
+                      )}
+                      {member.personal_email && (
+                        <div className="flex items-center text-gray-600">
+                          <EnvelopeIcon className="h-4 w-4 mr-1" />
+                          <span className="truncate">{member.personal_email}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {teamMembers.length > 5 && (
+                  <div className="text-center pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-500">
+                      Và {teamMembers.length - 5} thành viên khác
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <p className="mt-2 text-sm text-gray-500">Không có thành viên trong team</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Profile;
