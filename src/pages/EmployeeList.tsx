@@ -9,22 +9,27 @@ const EmployeeList: React.FC = () => {
     total: 0,
     active: 0,
     probation: 0,
-    inactive: 0
+    inactive: 0,
+    male: 0,
+    female: 0,
+    other: 0
   });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = async (search = '', status = 'all', department = 'all') => {
     try {
       setLoading(true);
-      const response = await employeesAPI.list();
+      const params: any = {};
+      if (search) params.search = search;
+      if (status !== 'all') params.employment_status = status;
+      if (department !== 'all') params.department = department;
+      
+      const response = await employeesAPI.list(params);
       setEmployees(response.results);
-      
-      // Calculate stats from the data
-      const total = response.count;
-      const active = response.results.filter(emp => emp.employment_status === 'ACTIVE').length;
-      const probation = response.results.filter(emp => emp.employment_status === 'PROBATION').length;
-      const inactive = response.results.filter(emp => emp.employment_status === 'INACTIVE').length;
-      
-      setStats({ total, active, probation, inactive });
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách nhân viên');
@@ -41,17 +46,62 @@ const EmployeeList: React.FC = () => {
         total: statsData.total,
         active: statsData.active,
         probation: statsData.probation,
-        inactive: statsData.inactive
+        inactive: statsData.inactive,
+        male: statsData.gender_stats.male,
+        female: statsData.gender_stats.female,
+        other: statsData.gender_stats.other
       });
     } catch (err) {
       console.error('Error fetching stats:', err);
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://beautycare-uat.amcare.vn'}/api-hrm/departments/`);
+      const data = await response.json();
+      setDepartments(data.results || []);
+    } catch (err) {
+      console.error('Error fetching departments:', err);
+    }
+  };
+
   useEffect(() => {
     fetchEmployees();
     fetchStats();
+    fetchDepartments();
   }, []);
+
+  // Effect for real-time search with debouncing
+  useEffect(() => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    const timeout = setTimeout(() => {
+      fetchEmployees(searchTerm, statusFilter, departmentFilter);
+    }, 300); // 300ms debounce delay
+
+    setSearchTimeout(timeout);
+
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTerm, statusFilter, departmentFilter]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchEmployees(searchTerm, statusFilter, departmentFilter);
+  };
+
+  const handleReset = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setDepartmentFilter('all');
+    // Don't call fetchEmployees here, the useEffect will handle it
+  };
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa nhân viên này?')) {
@@ -117,10 +167,116 @@ const EmployeeList: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
+        {/* Statistics Section - At the top as requested */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Thống kê nhân viên</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h3 className="font-medium text-blue-900 text-sm">Tổng số</h3>
+              <p className="text-2xl font-bold text-blue-700 mt-1">{stats.total}</p>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h3 className="font-medium text-green-900 text-sm">Đang làm việc</h3>
+              <p className="text-2xl font-bold text-green-700 mt-1">{stats.active}</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-lg">
+              <h3 className="font-medium text-yellow-900 text-sm">Thử việc</h3>
+              <p className="text-2xl font-bold text-yellow-700 mt-1">{stats.probation}</p>
+            </div>
+            <div className="bg-red-50 p-4 rounded-lg">
+              <h3 className="font-medium text-red-900 text-sm">Đã nghỉ</h3>
+              <p className="text-2xl font-bold text-red-700 mt-1">{stats.inactive}</p>
+            </div>
+            <div className="bg-indigo-50 p-4 rounded-lg">
+              <h3 className="font-medium text-indigo-900 text-sm">Nam</h3>
+              <p className="text-2xl font-bold text-indigo-700 mt-1">{stats.male}</p>
+            </div>
+            <div className="bg-pink-50 p-4 rounded-lg">
+              <h3 className="font-medium text-pink-900 text-sm">Nữ</h3>
+              <p className="text-2xl font-bold text-pink-700 mt-1">{stats.female}</p>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <h3 className="font-medium text-purple-900 text-sm">Khác</h3>
+              <p className="text-2xl font-bold text-purple-700 mt-1">{stats.other}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Filter Section */}
+        <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Tìm kiếm nhân viên</h3>
+            {loading && (
+              <div className="flex items-center text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                Đang tìm kiếm...
+              </div>
+            )}
+          </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tìm kiếm theo mã, tên, số điện thoại
+                </label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nhập mã NV, tên hoặc số điện thoại..."
+                />
+                <p className="text-xs text-gray-500 mt-1">Tìm kiếm tự động khi bạn gõ</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Trạng thái
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="ACTIVE">Đang làm việc</option>
+                  <option value="PROBATION">Thử việc</option>
+                  <option value="INACTIVE">Đã nghỉ</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phòng ban
+                </label>
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Tất cả phòng ban</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleReset}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Đặt lại bộ lọc
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Danh sách nhân viên</h2>
-            <p className="text-gray-500 text-sm">Tổng số: {stats.total} nhân viên</p>
+            <p className="text-gray-500 text-sm">Tổng số: {employees.length} nhân viên</p>
           </div>
           <div className="flex space-x-2">
             <button 
@@ -156,7 +312,7 @@ const EmployeeList: React.FC = () => {
             <p className="text-lg font-medium text-gray-900">Đã xảy ra lỗi</p>
             <p className="text-gray-500 mt-1">{error}</p>
             <button 
-              onClick={fetchEmployees}
+              onClick={() => fetchEmployees()}
               className="mt-4 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
             >
               Thử lại
@@ -297,25 +453,6 @@ const EmployeeList: React.FC = () => {
             </div>
           </>
         )}
-
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="font-medium text-blue-900">Tổng số nhân viên</h3>
-            <p className="text-3xl font-bold text-blue-700 mt-2">{stats.total}</p>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg">
-            <h3 className="font-medium text-green-900">Đang làm việc</h3>
-            <p className="text-3xl font-bold text-green-700 mt-2">{stats.active}</p>
-          </div>
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <h3 className="font-medium text-yellow-900">Đang thử việc</h3>
-            <p className="text-3xl font-bold text-yellow-700 mt-2">{stats.probation}</p>
-          </div>
-          <div className="bg-red-50 p-4 rounded-lg">
-            <h3 className="font-medium text-red-900">Đã nghỉ việc</h3>
-            <p className="text-3xl font-bold text-red-700 mt-2">{stats.inactive}</p>
-          </div>
-        </div>
       </div>
     </div>
   );
