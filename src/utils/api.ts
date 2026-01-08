@@ -1,12 +1,10 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 // API Configuration
-const API_BASE_URL =
-  import.meta.env.VITE_MANAGEMENT_API_URL || 'https://cbbackend.runagent.io';
-
+const API_BASE_URL = "https://beautycare-uat.amcare.vn"
 // Create axios instance for Management API
 const managementApi: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL + '/api/v1',
+  baseURL: API_BASE_URL + '/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -199,9 +197,32 @@ export interface AuthResponse {
 // Authentication API
 export const authAPI = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response: AxiosResponse<{ success: boolean; data: AuthResponse }> =
-      await managementApi.post('/auth/login', credentials);
-    return response.data.data;
+    const response: AxiosResponse<{ access: string; refresh: string; user: any }> =
+      await managementApi.post('/users/token/', credentials);
+    
+    // Convert the response to match the expected AuthResponse format
+    return {
+      user: {
+        id: response.data.user.id.toString(),
+        username: response.data.user.username,
+        email: response.data.user.email || '',
+        firstName: response.data.user.first_name || '',
+        lastName: response.data.user.last_name || '',
+        phone: response.data.user.phone_number || '',
+        role: response.data.user.role || 'user',
+        isActive: response.data.user.is_active !== undefined ? response.data.user.is_active : true,
+        lastLoginAt: new Date().toISOString(),
+        loginCount: 0,
+        emailVerified: false,
+        phoneVerified: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      tokens: {
+        accessToken: response.data.access,
+        refreshToken: response.data.refresh,
+      },
+    };
   },
 
   register: async (data: RegisterData): Promise<AuthResponse> => {
@@ -211,20 +232,43 @@ export const authAPI = {
   },
 
   getProfile: async (): Promise<{ user: User }> => {
-    const response: AxiosResponse<{ success: boolean; data: { user: User } }> =
-      await managementApi.get('/auth/profile');
-    return response.data.data;
+    const response: AxiosResponse<any> =
+      await managementApi.get('/users/profile/');
+    
+    // The API returns user fields directly at the top level, not wrapped in a 'user' object
+    const userData = response.data;
+    return {
+      user: {
+        id: userData.user_id.toString(),
+        username: userData.username,
+        email: userData.email || '',
+        firstName: userData.first_name || '',
+        lastName: userData.last_name || '',
+        phone: userData.phone_number || userData.username || '', // phone_number might not be in response
+        role: userData.role || 'user',
+        isActive: userData.is_active !== undefined ? userData.is_active : true,
+        lastLoginAt: new Date().toISOString(),
+        loginCount: 0,
+        emailVerified: false,
+        phoneVerified: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    };
   },
 
   logout: async (): Promise<void> => {
-    await managementApi.post('/auth/logout');
+    // JWT doesn't have a server-side logout endpoint typically
+    // Just clear tokens client-side in AuthContext
+    // We'll return a resolved promise
+    return Promise.resolve();
   },
 
   changePassword: async (data: {
     currentPassword: string;
     newPassword: string;
   }): Promise<void> => {
-    await managementApi.post('/auth/change-password', data);
+    await managementApi.post('/users/change-password/', data);
   },
 };
 

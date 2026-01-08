@@ -1,14 +1,29 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Login() {
+  const { isAuthenticated, loading } = useAuth();
+
+  // Redirect to dashboard if already authenticated
+  if (!loading && isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Show loading spinner while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
   const [formData, setFormData] = useState({
     username: '',
     password: '',
   });
-  const [loading, setLoading] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -16,7 +31,7 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setIsLoggingIn(true);
     setError('');
 
     try {
@@ -25,7 +40,7 @@ export default function Login() {
     } catch (err: any) {
       setError(err.response?.data?.message || 'Đăng nhập thất bại');
     } finally {
-      setLoading(false);
+      setIsLoggingIn(false);
     }
   };
 
@@ -97,10 +112,10 @@ export default function Login() {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={isLoggingIn}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+              {isLoggingIn ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </div>
         </form>

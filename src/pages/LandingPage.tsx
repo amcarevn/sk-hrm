@@ -1,3 +1,6 @@
+import { useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   UserGroupIcon,
   ClockIcon,
@@ -21,6 +24,21 @@ import {
 } from '@heroicons/react/24/outline';
 
 export default function LandingPage() {
+  const { isAuthenticated, loading } = useAuth();
+
+  // Redirect to dashboard if already authenticated
+  if (!loading && isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Show loading spinner while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
   return (
     <div className="bg-white">
       {/* Hero Section */}
