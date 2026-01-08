@@ -41,6 +41,7 @@ import RoleEdit from './pages/RoleEdit';
 import EmployeeList from './pages/EmployeeList';
 import EmployeeCreate from './pages/EmployeeCreate';
 import AttendanceManagement from './pages/AttendanceManagement';
+import AttendanceUpload from './pages/AttendanceUpload';
 import Approvals from './pages/Approvals';
 import Onboarding from './pages/Onboarding';
 import Offboarding from './pages/Offboarding';
@@ -395,6 +396,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AttendanceManagement />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/attendance/upload"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AttendanceUpload />
                 </Layout>
               </ProtectedRoute>
             }

@@ -60,6 +60,7 @@ export interface User {
   updatedAt: string;
   userRoles?: UserRole[];
   permissions?: Permission[];
+  is_super_admin?: boolean;
 }
 
 export interface Permission {

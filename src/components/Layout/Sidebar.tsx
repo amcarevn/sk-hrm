@@ -15,6 +15,7 @@ import {
   UserPlusIcon,
   UserMinusIcon,
   BuildingOfficeIcon,
+  CloudArrowUpIcon,
 } from '@heroicons/react/24/outline';
 
 // Define navigation items with role requirements
@@ -36,6 +37,12 @@ const navigationItems = [
     href: '/dashboard/attendance',
     icon: ClockIcon,
     roles: ['ADMIN', 'USER'],
+  },
+  {
+    name: 'Chấm công',
+    href: '/dashboard/attendance/upload',
+    icon: CloudArrowUpIcon,
+    roles: ['ADMIN', 'HR'],
   },
   {
     name: 'Phê duyệt',
@@ -77,9 +84,13 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   // Filter navigation items based on user role
   // Convert user role to uppercase to match navigation item roles
   const userRole = user?.role ? user.role.toUpperCase() : 'USER';
-  const navigation = navigationItems.filter((item) =>
-    item.roles.includes(userRole)
-  );
+  const isSuperAdmin = user?.is_super_admin || false;
+  
+  // If user is super admin, show all navigation items
+  // Otherwise, filter based on user role
+  const navigation = isSuperAdmin 
+    ? navigationItems 
+    : navigationItems.filter((item) => item.roles.includes(userRole));
 
   const handleCollapseToggle = () => {
     const newCollapsedState = !isCollapsed;
