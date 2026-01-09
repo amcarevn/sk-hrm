@@ -1553,6 +1553,27 @@ export interface Employee {
     first_name?: string;
     last_name?: string;
   };
+  
+  // New fields for onboarding and HR
+  basic_salary?: number;
+  contract_type?: string;
+  contract_type_display?: string;
+  probation_end_date?: string;
+  probation_months?: number;
+  file_status?: string;
+  file_status_display?: string;
+  file_submission_deadline?: string;
+  file_submission_date?: string;
+  file_review_notes?: string;
+  training_presentation_viewed?: boolean;
+  training_presentation_viewed_at?: string;
+  vneid_screenshot?: string;
+  cccd_number?: string;
+  cccd_issue_date?: string;
+  cccd_issue_place?: string;
+  birth_place?: string;
+  permanent_residence?: string;
+  
   created_at: string;
   updated_at: string;
 }

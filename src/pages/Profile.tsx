@@ -14,6 +14,15 @@ import {
   UserGroupIcon,
   IdentificationIcon,
   BriefcaseIcon,
+  DocumentTextIcon,
+  DocumentCheckIcon,
+  DocumentDuplicateIcon,
+  CurrencyDollarIcon,
+  ClockIcon,
+  PhotoIcon,
+  MapPinIcon,
+  HomeIcon,
+  AcademicCapIcon,
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 
@@ -637,6 +646,244 @@ const Profile: React.FC = () => {
                 <p className="mt-2 text-sm text-gray-500">Không có thành viên trong team</p>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* New Onboarding and HR Information Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Contract and Salary Information */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-medium text-gray-900">Thông tin hợp đồng & Lương</h2>
+            <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Loại hợp đồng
+              </label>
+              <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-2" />
+                <span className="text-gray-900">
+                  {employee.contract_type_display || employee.contract_type || 'Chưa cập nhật'}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Lương cơ bản
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <span className="text-gray-900">
+                    {employee.basic_salary ? 
+                      new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(employee.basic_salary) 
+                      : 'Chưa cập nhật'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tháng thử việc
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <span className="text-gray-900">
+                    {employee.probation_months ? `${employee.probation_months} tháng` : 'Chưa cập nhật'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ngày kết thúc thử việc
+              </label>
+              <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                <ClockIcon className="h-5 w-5 text-gray-400 mr-2" />
+                <span className="text-gray-900">
+                  {employee.probation_end_date ? formatDate(employee.probation_end_date) : 'Chưa cập nhật'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Employee File Status */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-medium text-gray-900">Trạng thái hồ sơ</h2>
+            <DocumentCheckIcon className="h-5 w-5 text-gray-400" />
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Trạng thái hồ sơ
+              </label>
+              <div className={`flex items-center p-3 rounded-md ${
+                employee.file_status === 'COMPLETE' ? 'bg-green-50 text-green-800' :
+                employee.file_status === 'NEED_SUPPLEMENT' ? 'bg-yellow-50 text-yellow-800' :
+                employee.file_status === 'NOT_SUBMITTED' ? 'bg-red-50 text-red-800' :
+                'bg-gray-50 text-gray-800'
+              }`}>
+                <DocumentDuplicateIcon className="h-5 w-5 mr-2" />
+                <span className="font-medium">
+                  {employee.file_status_display || employee.file_status || 'Chưa cập nhật'}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Hạn nộp hồ sơ
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <span className="text-gray-900">
+                    {employee.file_submission_deadline ? formatDate(employee.file_submission_deadline) : 'Chưa cập nhật'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ngày nộp hồ sơ
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <span className="text-gray-900">
+                    {employee.file_submission_date ? formatDate(employee.file_submission_date) : 'Chưa nộp'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {employee.file_review_notes && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ghi chú rà soát
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <p className="text-gray-900 text-sm">{employee.file_review_notes}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Training and Personal Information Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Training Information */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-medium text-gray-900">Đào tạo hội nhập</h2>
+            <AcademicCapIcon className="h-5 w-5 text-gray-400" />
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Bài thuyết trình đào tạo
+              </label>
+              <div className={`flex items-center p-3 rounded-md ${
+                employee.training_presentation_viewed ? 'bg-green-50 text-green-800' : 'bg-gray-50 text-gray-800'
+              }`}>
+                <DocumentTextIcon className="h-5 w-5 mr-2" />
+                <span className="font-medium">
+                  {employee.training_presentation_viewed ? 'Đã xem' : 'Chưa xem'}
+                </span>
+                {employee.training_presentation_viewed_at && (
+                  <span className="text-sm ml-2">
+                    ({formatDate(employee.training_presentation_viewed_at)})
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ảnh chụp thông tin VNEID
+              </label>
+              <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                <PhotoIcon className="h-5 w-5 text-gray-400 mr-2" />
+                <span className="text-gray-900">
+                  {employee.vneid_screenshot ? 'Đã tải lên' : 'Chưa tải lên'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CCCD and Personal Information */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-medium text-gray-900">Thông tin CCCD</h2>
+            <IdentificationIcon className="h-5 w-5 text-gray-400" />
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Số CCCD
+              </label>
+              <div className="p-3 bg-gray-50 rounded-md">
+                <span className="text-gray-900">
+                  {employee.cccd_number || 'Chưa cập nhật'}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ngày cấp
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <span className="text-gray-900">
+                    {employee.cccd_issue_date ? formatDate(employee.cccd_issue_date) : 'Chưa cập nhật'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nơi cấp
+                </label>
+                <div className="p-3 bg-gray-50 rounded-md">
+                  <span className="text-gray-900">
+                    {employee.cccd_issue_place || 'Chưa cập nhật'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nơi khai sinh
+              </label>
+              <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                <MapPinIcon className="h-5 w-5 text-gray-400 mr-2" />
+                <span className="text-gray-900">
+                  {employee.birth_place || 'Chưa cập nhật'}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nơi thường trú
+              </label>
+              <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                <HomeIcon className="h-5 w-5 text-gray-400 mr-2" />
+                <span className="text-gray-900">
+                  {employee.permanent_residence || 'Chưa cập nhật'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
