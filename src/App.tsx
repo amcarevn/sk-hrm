@@ -58,6 +58,14 @@ import Offboarding from './pages/Offboarding';
 import AssetList from './pages/asset/AssetList';
 import OrganizationChart from './pages/OrganizationChart';
 import Profile from './pages/Profile';
+import CompanyConfigList from './pages/CompanyConfigList';
+import CompanyConfigCreate from './pages/CompanyConfigCreate';
+import CompanyConfigEdit from './pages/CompanyConfigEdit';
+import TrainingDocuments from './pages/company/TrainingDocuments';
+import LaborRules from './pages/company/LaborRules';
+import InternalForms from './pages/company/InternalForms';
+import WorkProcedures from './pages/company/WorkProcedures';
+import Home from './pages/Home';
 
 function App() {
   return (
@@ -577,6 +585,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* Home Route */}
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Home />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           {/* Profile Route */}
           <Route
             path="/dashboard/me"
@@ -584,6 +603,78 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Profile />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Company Configuration Routes */}
+          <Route
+            path="/dashboard/company-configs"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CompanyConfigList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/company-configs/create"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CompanyConfigCreate />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/company-configs/:id/edit"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CompanyConfigEdit />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Company Information Routes */}
+          <Route
+            path="/company/training"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <TrainingDocuments />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/labor-rules"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <LaborRules />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/internal-forms"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <InternalForms />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/work-procedures"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <WorkProcedures />
                 </Layout>
               </ProtectedRoute>
             }

@@ -2175,6 +2175,480 @@ export const assetMaintenanceAPI = {
   },
 };
 
+// Company Configuration API Types
+export interface CompanyConfig {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  default_working_hours_per_day: number;
+  default_working_days_per_week: number;
+  overtime_multiplier_weekday: number;
+  overtime_multiplier_weekend: number;
+  overtime_multiplier_holiday: number;
+  late_threshold_minutes: number;
+  early_leave_threshold_minutes: number;
+  half_day_threshold_hours: number;
+  annual_leave_days_per_year: number;
+  sick_leave_days_per_year: number;
+  maternity_leave_days: number;
+  paternity_leave_days: number;
+  is_active: boolean;
+  effective_from: string;
+  effective_to?: string;
+  created_by?: number;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+  is_current?: boolean;
+}
+
+export interface ShiftConfig {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  start_time: string;
+  end_time: string;
+  break_start_time?: string;
+  break_end_time?: string;
+  break_duration_minutes?: number;
+  total_hours: number;
+  working_hours: number;
+  shift_type: string;
+  shift_type_display: string;
+  apply_to_departments?: number[];
+  apply_to_positions?: number[];
+  apply_to_employees?: number[];
+  effective_from: string;
+  effective_to?: string;
+  is_active: boolean;
+  is_default: boolean;
+  created_by?: number;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+  is_current?: boolean;
+}
+
+export interface HolidayConfig {
+  id: number;
+  name: string;
+  description?: string;
+  holiday_date: string;
+  is_recurring: boolean;
+  holiday_type: string;
+  holiday_type_display: string;
+  is_working_day: boolean;
+  allow_voluntary_work: boolean;
+  overtime_multiplier: number;
+  apply_to_all: boolean;
+  excluded_departments?: number[];
+  excluded_positions?: number[];
+  excluded_employees?: number[];
+  notes?: string;
+  is_active: boolean;
+  created_by?: number;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+  is_today?: boolean;
+  is_holiday_today?: boolean;
+}
+
+export interface CurrentCompanyConfig {
+  company_config?: CompanyConfig;
+  current_shifts: ShiftConfig[];
+  upcoming_holidays: HolidayConfig[];
+  today_holidays: HolidayConfig[];
+  today: string;
+}
+
+// Company Configuration API
+export const companyConfigAPI = {
+  // Company Configs
+  listCompanyConfigs: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    is_active?: boolean;
+    is_current?: string;
+    start_date?: string;
+    end_date?: string;
+    ordering?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: CompanyConfig[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: CompanyConfig[];
+    }> = await managementApi.get('/api-hrm/company-configs/', { params });
+    return response.data;
+  },
+
+  getCompanyConfigById: async (id: number): Promise<CompanyConfig> => {
+    const response: AxiosResponse<CompanyConfig> = await managementApi.get(`/api-hrm/company-configs/${id}/`);
+    return response.data;
+  },
+
+  createCompanyConfig: async (data: Partial<CompanyConfig>): Promise<CompanyConfig> => {
+    const response: AxiosResponse<CompanyConfig> = await managementApi.post('/api-hrm/company-configs/', data);
+    return response.data;
+  },
+
+  updateCompanyConfig: async (id: number, data: Partial<CompanyConfig>): Promise<CompanyConfig> => {
+    const response: AxiosResponse<CompanyConfig> = await managementApi.put(`/api-hrm/company-configs/${id}/`, data);
+    return response.data;
+  },
+
+  partialUpdateCompanyConfig: async (id: number, data: Partial<CompanyConfig>): Promise<CompanyConfig> => {
+    const response: AxiosResponse<CompanyConfig> = await managementApi.patch(`/api-hrm/company-configs/${id}/`, data);
+    return response.data;
+  },
+
+  deleteCompanyConfig: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/company-configs/${id}/`);
+  },
+
+  getCurrentCompanyConfig: async (): Promise<CompanyConfig> => {
+    const response: AxiosResponse<CompanyConfig> = await managementApi.get('/api-hrm/company-configs/current/');
+    return response.data;
+  },
+
+  getCompanyConfigStats: async (): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.get('/api-hrm/company-configs/stats/');
+    return response.data;
+  },
+
+  // Shift Configs
+  listShiftConfigs: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    is_active?: boolean;
+    is_default?: boolean;
+    shift_type?: string;
+    is_current?: string;
+    employee_id?: number;
+    department_id?: number;
+    start_date?: string;
+    end_date?: string;
+    ordering?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: ShiftConfig[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: ShiftConfig[];
+    }> = await managementApi.get('/api-hrm/shift-configs/', { params });
+    return response.data;
+  },
+
+  getShiftConfigById: async (id: number): Promise<ShiftConfig> => {
+    const response: AxiosResponse<ShiftConfig> = await managementApi.get(`/api-hrm/shift-configs/${id}/`);
+    return response.data;
+  },
+
+  createShiftConfig: async (data: Partial<ShiftConfig>): Promise<ShiftConfig> => {
+    const response: AxiosResponse<ShiftConfig> = await managementApi.post('/api-hrm/shift-configs/', data);
+    return response.data;
+  },
+
+  updateShiftConfig: async (id: number, data: Partial<ShiftConfig>): Promise<ShiftConfig> => {
+    const response: AxiosResponse<ShiftConfig> = await managementApi.put(`/api-hrm/shift-configs/${id}/`, data);
+    return response.data;
+  },
+
+  partialUpdateShiftConfig: async (id: number, data: Partial<ShiftConfig>): Promise<ShiftConfig> => {
+    const response: AxiosResponse<ShiftConfig> = await managementApi.patch(`/api-hrm/shift-configs/${id}/`, data);
+    return response.data;
+  },
+
+  deleteShiftConfig: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/shift-configs/${id}/`);
+  },
+
+  getCurrentShiftConfigs: async (): Promise<ShiftConfig[]> => {
+    const response: AxiosResponse<ShiftConfig[]> = await managementApi.get('/api-hrm/shift-configs/current/');
+    return response.data;
+  },
+
+  getEmployeeShiftConfigs: async (employeeId: number): Promise<ShiftConfig[]> => {
+    const response: AxiosResponse<ShiftConfig[]> = await managementApi.get(`/api-hrm/shift-configs/employee_shifts/?employee_id=${employeeId}`);
+    return response.data;
+  },
+
+  getShiftConfigStats: async (): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.get('/api-hrm/shift-configs/stats/');
+    return response.data;
+  },
+
+  // Holiday Configs
+  listHolidayConfigs: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    is_active?: boolean;
+    is_recurring?: boolean;
+    holiday_type?: string;
+    is_working_day?: boolean;
+    allow_voluntary_work?: boolean;
+    start_date?: string;
+    end_date?: string;
+    is_today?: string;
+    employee_id?: number;
+    ordering?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: HolidayConfig[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: HolidayConfig[];
+    }> = await managementApi.get('/api-hrm/holiday-configs/', { params });
+    return response.data;
+  },
+
+  getHolidayConfigById: async (id: number): Promise<HolidayConfig> => {
+    const response: AxiosResponse<HolidayConfig> = await managementApi.get(`/api-hrm/holiday-configs/${id}/`);
+    return response.data;
+  },
+
+  createHolidayConfig: async (data: Partial<HolidayConfig>): Promise<HolidayConfig> => {
+    const response: AxiosResponse<HolidayConfig> = await managementApi.post('/api-hrm/holiday-configs/', data);
+    return response.data;
+  },
+
+  updateHolidayConfig: async (id: number, data: Partial<HolidayConfig>): Promise<HolidayConfig> => {
+    const response: AxiosResponse<HolidayConfig> = await managementApi.put(`/api-hrm/holiday-configs/${id}/`, data);
+    return response.data;
+  },
+
+  partialUpdateHolidayConfig: async (id: number, data: Partial<HolidayConfig>): Promise<HolidayConfig> => {
+    const response: AxiosResponse<HolidayConfig> = await managementApi.patch(`/api-hrm/holiday-configs/${id}/`, data);
+    return response.data;
+  },
+
+  deleteHolidayConfig: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/holiday-configs/${id}/`);
+  },
+
+  getUpcomingHolidays: async (): Promise<HolidayConfig[]> => {
+    const response: AxiosResponse<HolidayConfig[]> = await managementApi.get('/api-hrm/holiday-configs/upcoming/');
+    return response.data;
+  },
+
+  getTodayHolidays: async (): Promise<HolidayConfig[]> => {
+    const response: AxiosResponse<HolidayConfig[]> = await managementApi.get('/api-hrm/holiday-configs/today/');
+    return response.data;
+  },
+
+  getEmployeeHolidays: async (employeeId: number, startDate?: string, endDate?: string): Promise<HolidayConfig[]> => {
+    const params: any = { employee_id: employeeId };
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+    
+    const response: AxiosResponse<HolidayConfig[]> = await managementApi.get('/api-hrm/holiday-configs/employee_holidays/', { params });
+    return response.data;
+  },
+
+  getHolidayConfigStats: async (): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.get('/api-hrm/holiday-configs/stats/');
+    return response.data;
+  },
+
+  // Current Company Config
+  getCurrentCompanyConfiguration: async (): Promise<CurrentCompanyConfig> => {
+    const response: AxiosResponse<CurrentCompanyConfig> = await managementApi.get('/api-hrm/current-company-config/');
+    return response.data;
+  },
+};
+
+// HRM Company Information API
+export const hrmAPI = {
+  // Company Documents
+  getEmployeeCompanyInfo: async (): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.get('/api-hrm/company-info/employee/');
+    return response.data;
+  },
+
+  getCompanyDocuments: async (params?: {
+    page?: number;
+    page_size?: number;
+    document_type?: string;
+    access_level?: string;
+    department?: number;
+    status?: string;
+    is_current?: boolean;
+    search?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: any[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: any[];
+    }> = await managementApi.get('/api-hrm/company-documents/', { params });
+    return response.data;
+  },
+
+  getCompanyDocumentById: async (id: number): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.get(`/api-hrm/company-documents/${id}/`);
+    return response.data;
+  },
+
+  recordDocumentView: async (documentId: number): Promise<void> => {
+    await managementApi.post(`/api-hrm/company-documents/${documentId}/record-view/`);
+  },
+
+  // Company Announcements
+  getCompanyAnnouncements: async (params?: {
+    page?: number;
+    page_size?: number;
+    announcement_type?: string;
+    priority?: string;
+    is_active?: boolean;
+    is_current?: boolean;
+    search?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: any[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: any[];
+    }> = await managementApi.get('/api-hrm/company-announcements/', { params });
+    return response.data;
+  },
+
+  getCompanyAnnouncementById: async (id: number): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.get(`/api-hrm/company-announcements/${id}/`);
+    return response.data;
+  },
+
+  acknowledgeAnnouncement: async (announcementId: number): Promise<void> => {
+    await managementApi.post(`/api-hrm/company-announcements/${announcementId}/acknowledge/`);
+  },
+
+  // Company Policies
+  getCompanyPolicies: async (params?: {
+    page?: number;
+    page_size?: number;
+    policy_type?: string;
+    is_active?: boolean;
+    search?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: any[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: any[];
+    }> = await managementApi.get('/api-hrm/company-policies/', { params });
+    return response.data;
+  },
+
+  // Company Procedures
+  getCompanyProcedures: async (params?: {
+    page?: number;
+    page_size?: number;
+    department?: number;
+    is_active?: boolean;
+    search?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: any[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: any[];
+    }> = await managementApi.get('/api-hrm/company-procedures/', { params });
+    return response.data;
+  },
+
+  // Company Forms
+  getCompanyForms: async (params?: {
+    page?: number;
+    page_size?: number;
+    form_type?: string;
+    department?: number;
+    is_active?: boolean;
+    search?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: any[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: any[];
+    }> = await managementApi.get('/api-hrm/company-forms/', { params });
+    return response.data;
+  },
+
+  // Company Training Materials
+  getCompanyTrainingMaterials: async (params?: {
+    page?: number;
+    page_size?: number;
+    training_type?: string;
+    department?: number;
+    is_active?: boolean;
+    search?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: any[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: any[];
+    }> = await managementApi.get('/api-hrm/company-training-materials/', { params });
+    return response.data;
+  },
+
+  // Company Stats
+  getCompanyInfoStats: async (): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.get('/api-hrm/company-info/stats/');
+    return response.data;
+  },
+};
+
 // Update default export to include asset APIs
 export default {
   auth: authAPI,
@@ -2195,4 +2669,5 @@ export default {
   assets: assetsAPI,
   assetAssignments: assetAssignmentsAPI,
   assetMaintenance: assetMaintenanceAPI,
+  hrm: hrmAPI,
 };

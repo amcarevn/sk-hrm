@@ -6,7 +6,6 @@ import {
   Squares2X2Icon,
   XMarkIcon,
   Bars3Icon,
-  ArrowRightOnRectangleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   UserIcon,
@@ -26,9 +25,15 @@ import {
 // Define navigation items with role requirements
 const navigationItems = [
   {
-    name: 'Bảng điều khiển',
-    href: '/dashboard',
+    name: 'Trang chủ',
+    href: '/home',
     icon: Squares2X2Icon,
+    roles: ['ADMIN', 'USER'],
+  },
+  {
+    name: 'Dashboard',
+    href: '/dashboard',
+    icon: ChartBarIcon,
     roles: ['ADMIN', 'USER'],
   },
   {
@@ -76,8 +81,14 @@ const navigationItems = [
   {
     name: 'Sơ đồ tổ chức',
     href: '/dashboard/organization-chart',
-    icon: ChartBarIcon,
+    icon: EyeIcon,
     roles: ['ADMIN', 'USER'],
+  },
+  {
+    name: 'Cấu hình công ty',
+    href: '/dashboard/company-configs',
+    icon: Cog6ToothIcon,
+    roles: ['ADMIN'],
   },
   {
     name: 'Phê duyệt',
@@ -97,12 +108,6 @@ const navigationItems = [
     icon: UserMinusIcon,
     roles: ['ADMIN'],
   },
-  {
-    name: 'Cài đặt',
-    href: '/dashboard/settings',
-    icon: Cog6ToothIcon,
-    roles: ['ADMIN', 'USER'],
-  },
 ];
 
 interface SidebarProps {
@@ -112,9 +117,8 @@ interface SidebarProps {
 export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   // Filter navigation items based on user role
   // Convert user role to uppercase to match navigation item roles
@@ -135,17 +139,6 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     onCollapseChange?.(newCollapsedState);
   };
 
-  const handleLogout = async () => {
-    if (window.confirm('Bạn có chắc chắn muốn đăng xuất?')) {
-      setIsLoggingOut(true);
-      try {
-        logout();
-      } catch (error) {
-        console.error('Lỗi đăng xuất:', error);
-        setIsLoggingOut(false);
-      }
-    }
-  };
 
   return (
     <>
@@ -203,43 +196,34 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           {/* User Info Section */}
           {user && (
             <div className="border-t border-gray-200 px-2 py-4">
-              <div className="flex items-center space-x-3">
-                <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-white">
-                    {user.username?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user.username}
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        userRole === 'ADMIN'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}
-                    >
-                      {userRole}
+              <Link to="/dashboard/settings" className="block">
+                <div className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                  <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                    <span className="text-sm font-medium text-white">
+                      {user.username?.charAt(0).toUpperCase()}
                     </span>
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {user.username}
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          userRole === 'ADMIN'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        {userRole}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </Link>
             </div>
           )}
 
-          {/* Logout Button */}
-          <div className="border-t border-gray-200 px-2 py-4">
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="group flex w-full items-center px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ArrowRightOnRectangleIcon className="h-6 w-6 flex-shrink-0 text-gray-400 group-hover:text-gray-500 mr-3" />
-              {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
-            </button>
-          </div>
         </div>
       </div>
 
@@ -322,53 +306,34 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           {/* User Info Section */}
           {!isCollapsed && user && (
             <div className="border-t border-gray-200 px-2 py-4">
-              <div className="flex items-center space-x-3">
-                <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-white">
-                    {user.username?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user.username}
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        userRole === 'ADMIN'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}
-                    >
-                      {userRole}
+              <Link to="/dashboard/settings" className="block">
+                <div className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                  <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                    <span className="text-sm font-medium text-white">
+                      {user.username?.charAt(0).toUpperCase()}
                     </span>
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {user.username}
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          userRole === 'ADMIN'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        {userRole}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </Link>
             </div>
           )}
 
-          {/* Logout Button */}
-          <div className="border-t border-gray-200 px-2 py-4">
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className={`group flex w-full items-center px-2 py-2 text-sm font-medium rounded-md text-gray-600 hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed ${isCollapsed ? 'justify-center' : ''}`}
-              title={
-                isCollapsed
-                  ? isLoggingOut
-                    ? 'Đang đăng xuất...'
-                    : 'Đăng xuất'
-                  : undefined
-              }
-            >
-              <ArrowRightOnRectangleIcon
-                className={`h-6 w-6 flex-shrink-0 text-gray-400 group-hover:text-gray-500 ${isCollapsed ? '' : 'mr-3'}`}
-              />
-              {!isCollapsed &&
-                (isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất')}
-            </button>
-          </div>
         </div>
       </div>
 

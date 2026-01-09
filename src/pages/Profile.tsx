@@ -15,6 +15,7 @@ import {
   IdentificationIcon,
   BriefcaseIcon,
 } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
 
 interface TeamMember {
   id: number;
@@ -27,6 +28,7 @@ interface TeamMember {
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
   const [manager, setManager] = useState<Employee | null>(null);
@@ -638,6 +640,7 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+
     </div>
   );
 };
