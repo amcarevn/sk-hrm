@@ -66,6 +66,10 @@ import LaborRules from './pages/company/LaborRules';
 import InternalForms from './pages/company/InternalForms';
 import WorkProcedures from './pages/company/WorkProcedures';
 import Home from './pages/Home';
+import AttendanceRuleList from './pages/AttendanceRuleList';
+import AttendanceRuleCreate from './pages/AttendanceRuleCreate';
+import LeavePolicyList from './pages/LeavePolicyList';
+import LeavePolicyCreate from './pages/LeavePolicyCreate';
 
 function App() {
   return (
@@ -634,6 +638,68 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <CompanyConfigEdit />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Attendance Rule Management Routes */}
+          <Route
+            path="/dashboard/attendance-rules"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AttendanceRuleList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/attendance-rules/create"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AttendanceRuleCreate />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/attendance-rules/:id/edit"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AttendanceRuleList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Leave Policy Management Routes */}
+          <Route
+            path="/dashboard/leave-policies"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <LeavePolicyList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/leave-policies/create"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <LeavePolicyCreate />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/leave-policies/:id/edit"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <LeavePolicyList />
                 </Layout>
               </ProtectedRoute>
             }

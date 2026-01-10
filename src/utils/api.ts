@@ -2670,7 +2670,311 @@ export const hrmAPI = {
   },
 };
 
-// Update default export to include asset APIs
+// Attendance Rule Configuration API Types
+export interface AttendanceRuleConfig {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  rule_type: string;
+  rule_type_display: string;
+  configuration: any;
+  work_hours_calculation?: any;
+  late_early_config?: any;
+  overtime_config?: any;
+  break_time_config?: any;
+  apply_to_all: boolean;
+  apply_to_departments?: number[];
+  apply_to_positions?: number[];
+  apply_to_employees?: number[];
+  is_active: boolean;
+  is_default: boolean;
+  effective_from: string;
+  effective_to?: string;
+  created_by?: number;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+  is_current?: boolean;
+}
+
+export interface AttendanceRuleHistory {
+  id: number;
+  attendance: number;
+  attendance_code: string;
+  attendance_date: string;
+  rule: number;
+  rule_code: string;
+  rule_name: string;
+  applied_by?: number;
+  applied_by_name?: string;
+  applied_at: string;
+  calculation_result: any;
+  notes?: string;
+  created_at: string;
+}
+
+export interface LeavePolicyConfig {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  leave_type: string;
+  leave_type_display: string;
+  max_days_per_year: number;
+  max_consecutive_days: number;
+  advance_notice_days: number;
+  emergency_notice_hours: number;
+  requires_approval: boolean;
+  requires_medical_certificate: boolean;
+  medical_certificate_days_threshold: number;
+  allow_half_day: boolean;
+  allow_carry_over: boolean;
+  max_carry_over_days: number;
+  apply_to_all: boolean;
+  apply_to_departments?: number[];
+  apply_to_positions?: number[];
+  apply_to_employees?: number[];
+  is_active: boolean;
+  effective_from: string;
+  effective_to?: string;
+  created_by?: number;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+  is_current?: boolean;
+}
+
+export interface AttendanceRuleEngineRequest {
+  employee_id: number;
+  attendance_date: string;
+  check_in?: string;
+  check_out?: string;
+  shift_type?: string;
+  rule_id?: number;
+}
+
+export interface AttendanceRuleEngineResponse {
+  status: string;
+  applied_rule?: AttendanceRuleConfig;
+  calculation_result: any;
+  work_hours: number;
+  work_coefficient: number;
+  late_minutes?: number;
+  early_leave_minutes?: number;
+  overtime_hours?: number;
+  break_time_minutes?: number;
+  notes?: string;
+}
+
+// Attendance Rule Configuration API
+export const attendanceRuleAPI = {
+  // Attendance Rule Configs
+  listAttendanceRuleConfigs: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    rule_type?: string;
+    is_active?: boolean;
+    is_default?: boolean;
+    is_current?: string;
+    employee_id?: number;
+    department_id?: number;
+    position_id?: number;
+    start_date?: string;
+    end_date?: string;
+    ordering?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AttendanceRuleConfig[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AttendanceRuleConfig[];
+    }> = await managementApi.get('/api-hrm/attendance-rule-configs/', { params });
+    return response.data;
+  },
+
+  getAttendanceRuleConfigById: async (id: number): Promise<AttendanceRuleConfig> => {
+    const response: AxiosResponse<AttendanceRuleConfig> = await managementApi.get(`/api-hrm/attendance-rule-configs/${id}/`);
+    return response.data;
+  },
+
+  createAttendanceRuleConfig: async (data: Partial<AttendanceRuleConfig>): Promise<AttendanceRuleConfig> => {
+    const response: AxiosResponse<AttendanceRuleConfig> = await managementApi.post('/api-hrm/attendance-rule-configs/', data);
+    return response.data;
+  },
+
+  updateAttendanceRuleConfig: async (id: number, data: Partial<AttendanceRuleConfig>): Promise<AttendanceRuleConfig> => {
+    const response: AxiosResponse<AttendanceRuleConfig> = await managementApi.put(`/api-hrm/attendance-rule-configs/${id}/`, data);
+    return response.data;
+  },
+
+  partialUpdateAttendanceRuleConfig: async (id: number, data: Partial<AttendanceRuleConfig>): Promise<AttendanceRuleConfig> => {
+    const response: AxiosResponse<AttendanceRuleConfig> = await managementApi.patch(`/api-hrm/attendance-rule-configs/${id}/`, data);
+    return response.data;
+  },
+
+  deleteAttendanceRuleConfig: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/attendance-rule-configs/${id}/`);
+  },
+
+  getCurrentAttendanceRuleConfigs: async (): Promise<AttendanceRuleConfig[]> => {
+    const response: AxiosResponse<AttendanceRuleConfig[]> = await managementApi.get('/api-hrm/attendance-rule-configs/current/');
+    return response.data;
+  },
+
+  getEmployeeAttendanceRuleConfigs: async (employeeId: number): Promise<AttendanceRuleConfig[]> => {
+    const response: AxiosResponse<AttendanceRuleConfig[]> = await managementApi.get(`/api-hrm/attendance-rule-configs/employee_rules/?employee_id=${employeeId}`);
+    return response.data;
+  },
+
+  getAttendanceRuleConfigStats: async (): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.get('/api-hrm/attendance-rule-configs/stats/');
+    return response.data;
+  },
+
+  // Attendance Rule History
+  listAttendanceRuleHistory: async (params?: {
+    page?: number;
+    page_size?: number;
+    attendance?: number;
+    rule?: number;
+    applied_by?: number;
+    start_date?: string;
+    end_date?: string;
+    ordering?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AttendanceRuleHistory[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AttendanceRuleHistory[];
+    }> = await managementApi.get('/api-hrm/attendance-rule-history/', { params });
+    return response.data;
+  },
+
+  getAttendanceRuleHistoryById: async (id: number): Promise<AttendanceRuleHistory> => {
+    const response: AxiosResponse<AttendanceRuleHistory> = await managementApi.get(`/api-hrm/attendance-rule-history/${id}/`);
+    return response.data;
+  },
+
+  // Leave Policy Configs
+  listLeavePolicyConfigs: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    leave_type?: string;
+    is_active?: boolean;
+    is_current?: string;
+    employee_id?: number;
+    department_id?: number;
+    position_id?: number;
+    start_date?: string;
+    end_date?: string;
+    ordering?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: LeavePolicyConfig[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: LeavePolicyConfig[];
+    }> = await managementApi.get('/api-hrm/leave-policy-configs/', { params });
+    return response.data;
+  },
+
+  getLeavePolicyConfigById: async (id: number): Promise<LeavePolicyConfig> => {
+    const response: AxiosResponse<LeavePolicyConfig> = await managementApi.get(`/api-hrm/leave-policy-configs/${id}/`);
+    return response.data;
+  },
+
+  createLeavePolicyConfig: async (data: Partial<LeavePolicyConfig>): Promise<LeavePolicyConfig> => {
+    const response: AxiosResponse<LeavePolicyConfig> = await managementApi.post('/api-hrm/leave-policy-configs/', data);
+    return response.data;
+  },
+
+  updateLeavePolicyConfig: async (id: number, data: Partial<LeavePolicyConfig>): Promise<LeavePolicyConfig> => {
+    const response: AxiosResponse<LeavePolicyConfig> = await managementApi.put(`/api-hrm/leave-policy-configs/${id}/`, data);
+    return response.data;
+  },
+
+  partialUpdateLeavePolicyConfig: async (id: number, data: Partial<LeavePolicyConfig>): Promise<LeavePolicyConfig> => {
+    const response: AxiosResponse<LeavePolicyConfig> = await managementApi.patch(`/api-hrm/leave-policy-configs/${id}/`, data);
+    return response.data;
+  },
+
+  deleteLeavePolicyConfig: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/leave-policy-configs/${id}/`);
+  },
+
+  getCurrentLeavePolicyConfigs: async (): Promise<LeavePolicyConfig[]> => {
+    const response: AxiosResponse<LeavePolicyConfig[]> = await managementApi.get('/api-hrm/leave-policy-configs/current/');
+    return response.data;
+  },
+
+  getEmployeeLeavePolicyConfigs: async (employeeId: number): Promise<LeavePolicyConfig[]> => {
+    const response: AxiosResponse<LeavePolicyConfig[]> = await managementApi.get(`/api-hrm/leave-policy-configs/employee_policies/?employee_id=${employeeId}`);
+    return response.data;
+  },
+
+  calculateAdvanceNotice: async (data: {
+    employee_id: number;
+    leave_type: string;
+    total_days: number;
+    start_date?: string;
+  }): Promise<{
+    required_advance_notice_days: number;
+    required_advance_notice_hours: number;
+    is_emergency: boolean;
+    can_request: boolean;
+    message: string;
+  }> => {
+    const response: AxiosResponse<{
+      required_advance_notice_days: number;
+      required_advance_notice_hours: number;
+      is_emergency: boolean;
+      can_request: boolean;
+      message: string;
+    }> = await managementApi.post('/api-hrm/leave-policy-configs/calculate_advance_notice/', data);
+    return response.data;
+  },
+
+  getLeavePolicyConfigStats: async (): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.get('/api-hrm/leave-policy-configs/stats/');
+    return response.data;
+  },
+
+  // Attendance Rule Engine
+  calculateAttendance: async (data: AttendanceRuleEngineRequest): Promise<AttendanceRuleEngineResponse> => {
+    const response: AxiosResponse<AttendanceRuleEngineResponse> = await managementApi.post('/api-hrm/attendance-rule-engine/', data);
+    return response.data;
+  },
+
+  testRuleApplication: async (params?: {
+    employee_id?: number;
+    rule_id?: number;
+    date?: string;
+  }): Promise<AttendanceRuleEngineResponse> => {
+    const response: AxiosResponse<AttendanceRuleEngineResponse> = await managementApi.get('/api-hrm/attendance-rule-engine/test_rule_application/', { params });
+    return response.data;
+  },
+};
+
+// Update default export to include attendance rule APIs
 export default {
   auth: authAPI,
   chatbots: chatbotsAPI,
@@ -2691,4 +2995,5 @@ export default {
   assetAssignments: assetAssignmentsAPI,
   assetMaintenance: assetMaintenanceAPI,
   hrm: hrmAPI,
+  attendanceRule: attendanceRuleAPI,
 };
