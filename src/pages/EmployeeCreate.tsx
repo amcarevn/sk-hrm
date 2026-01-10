@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { employeesAPI, departmentsAPI, positionsAPI, EmployeeCreateData } from '../utils/api';
+import { ruleEngineAPI } from '../utils/ruleEngineApi';
 import { useNavigate } from 'react-router-dom';
 
 const EmployeeCreate: React.FC = () => {
@@ -9,6 +10,9 @@ const EmployeeCreate: React.FC = () => {
   const [positions, setPositions] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [applyDepartmentRules, setApplyDepartmentRules] = useState<boolean>(true);
+  const [loadingRules, setLoadingRules] = useState<boolean>(false);
+  const [departmentRulesInfo, setDepartmentRulesInfo] = useState<any>(null);
 
   const [formData, setFormData] = useState<EmployeeCreateData>({
     employee_id: '',
@@ -37,6 +41,14 @@ const EmployeeCreate: React.FC = () => {
     loadPositions();
   }, []);
 
+  useEffect(() => {
+    if (formData.department_id && applyDepartmentRules) {
+      loadDepartmentRulesInfo(formData.department_id);
+    } else {
+      setDepartmentRulesInfo(null);
+    }
+  }, [formData.department_id, applyDepartmentRules]);
+
   const loadDepartments = async () => {
     try {
       const response = await departmentsAPI.list();
@@ -52,6 +64,29 @@ const EmployeeCreate: React.FC = () => {
       setPositions(response.results);
     } catch (err) {
       console.error('Failed to load positions:', err);
+    }
+  };
+
+  const loadDepartmentRulesInfo = async (departmentId: number) => {
+    try {
+      setLoadingRules(true);
+      const response = await ruleEngineAPI.getDepartmentRuleConfiguration(departmentId);
+      setDepartmentRulesInfo(response);
+    } catch (err) {
+      console.error('Failed to load department rules:', err);
+      setDepartmentRulesInfo(null);
+    } finally {
+      setLoadingRules(false);
+    }
+  };
+
+  const applyRulesToNewEmployee = async (employeeId: number, departmentId: number) => {
+    try {
+      const response = await ruleEngineAPI.applyDepartmentRulesToEmployee(employeeId, departmentId);
+      return response;
+    } catch (err: any) {
+      console.error('Failed to apply department rules to employee:', err);
+      throw err;
     }
   };
 
@@ -97,13 +132,24 @@ const EmployeeCreate: React.FC = () => {
         ...(formData.manager_id && { manager_id: Number(formData.manager_id) }),
       };
 
-      await employeesAPI.create(employeeData);
+      const createdEmployee = await employeesAPI.create(employeeData);
       
-      setSuccess('Tạo nhân viên thành công!');
+      // Apply department rules to new employee if selected
+      if (applyDepartmentRules && formData.department_id) {
+        try {
+          const rulesResult = await applyRulesToNewEmployee(createdEmployee.id, formData.department_id);
+          setSuccess(`Tạo nhân viên thành công! Đã áp dụng ${rulesResult.applied_rules} quy tắc chấm công và ${rulesResult.applied_policies} chính sách nghỉ phép từ phòng ban.`);
+        } catch (rulesErr: any) {
+          console.error('Failed to apply department rules:', rulesErr);
+          setSuccess(`Tạo nhân viên thành công! Lưu ý: Không thể áp dụng quy tắc chấm công tự động. Lỗi: ${rulesErr.message || 'Không xác định'}`);
+        }
+      } else {
+        setSuccess('Tạo nhân viên thành công!');
+      }
       
       setTimeout(() => {
         navigate('/dashboard/employees');
-      }, 2000);
+      }, 3000);
     } catch (err: any) {
       console.error('Failed to create employee:', err);
       setError(err.response?.data?.message || err.message || 'Lỗi khi tạo nhân viên');
@@ -321,6 +367,37 @@ const EmployeeCreate: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                Áp dụng quy tắc chấm công của phòng ban
+              </label>
+              <div className="flex items-center space-x-4">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="apply_department_rules"
+                    checked={applyDepartmentRules}
+                    onChange={() => setApplyDepartmentRules(true)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Có</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="apply_department_rules"
+                    checked={!applyDepartmentRules}
+                    onChange={() => setApplyDepartmentRules(false)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Không</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Tự động áp dụng quy tắc chấm công và chính sách nghỉ phép của phòng ban cho nhân viên mới
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Chức vụ
               </label>
               <select
@@ -338,6 +415,79 @@ const EmployeeCreate: React.FC = () => {
               </select>
             </div>
           </div>
+
+          {/* Department Rules Information */}
+          {formData.department_id && applyDepartmentRules && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="text-sm font-medium text-blue-800 mb-2">
+                Thông tin quy tắc chấm công của phòng ban
+              </h3>
+              
+              {loadingRules ? (
+                <div className="text-sm text-blue-600">Đang tải thông tin quy tắc...</div>
+              ) : departmentRulesInfo ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="text-xs font-medium text-gray-700 mb-1">Quy tắc chấm công</h4>
+                      <div className="text-sm text-gray-600">
+                        {departmentRulesInfo.attendance_rules.length > 0 ? (
+                          <ul className="list-disc pl-4 space-y-1">
+                            {departmentRulesInfo.attendance_rules.slice(0, 3).map((rule: any) => (
+                              <li key={rule.id} className="text-xs">
+                                {rule.name} ({rule.type})
+                              </li>
+                            ))}
+                            {departmentRulesInfo.attendance_rules.length > 3 && (
+                              <li className="text-xs text-gray-500">
+                                + {departmentRulesInfo.attendance_rules.length - 3} quy tắc khác
+                              </li>
+                            )}
+                          </ul>
+                        ) : (
+                          <span className="text-xs text-gray-500">Không có quy tắc chấm công</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-xs font-medium text-gray-700 mb-1">Chính sách nghỉ phép</h4>
+                      <div className="text-sm text-gray-600">
+                        {departmentRulesInfo.leave_policies.length > 0 ? (
+                          <ul className="list-disc pl-4 space-y-1">
+                            {departmentRulesInfo.leave_policies.slice(0, 3).map((policy: any) => (
+                              <li key={policy.id} className="text-xs">
+                                {policy.name} ({policy.type})
+                              </li>
+                            ))}
+                            {departmentRulesInfo.leave_policies.length > 3 && (
+                              <li className="text-xs text-gray-500">
+                                + {departmentRulesInfo.leave_policies.length - 3} chính sách khác
+                              </li>
+                            )}
+                          </ul>
+                        ) : (
+                          <span className="text-xs text-gray-500">Không có chính sách nghỉ phép</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-xs text-blue-600">
+                    <p>
+                      Nhân viên mới sẽ được tự động áp dụng{' '}
+                      <span className="font-medium">{departmentRulesInfo.attendance_rules.length}</span> quy tắc chấm công và{' '}
+                      <span className="font-medium">{departmentRulesInfo.leave_policies.length}</span> chính sách nghỉ phép.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">
+                  Không thể tải thông tin quy tắc. Quy tắc sẽ vẫn được áp dụng khi tạo nhân viên.
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
             <button

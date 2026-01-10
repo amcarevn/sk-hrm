@@ -3,7 +3,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 // API Configuration
 const API_BASE_URL = "https://beautycare-uat.amcare.vn"
 // Create axios instance for Management API
-const managementApi: AxiosInstance = axios.create({
+export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {

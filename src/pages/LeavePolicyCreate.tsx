@@ -1,26 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { attendanceRuleAPI } from '../utils/api';
+import { attendanceRuleAPI, departmentsAPI } from '../utils/api';
 
 const LeavePolicyCreate: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [selectedDepartments, setSelectedDepartments] = useState<number[]>([]);
   const [formData, setFormData] = useState({
     code: '',
     name: '',
     description: '',
-    leave_type: 'ANNUAL_LEAVE',
+    leave_type: 'ANNUAL',
     max_days_per_year: 12,
     max_consecutive_days: 5,
-    advance_notice_days: 3,
+    advance_notice_rules: [
+      { max_days: 1, advance_hours: 4, advance_days: null, description: 'Nghỉ dưới 1 ngày: báo trước 4 giờ làm việc' },
+      { max_days: 3, advance_hours: null, advance_days: 1, description: 'Nghỉ từ 1-3 ngày: báo trước 1 ngày làm việc' },
+      { max_days: 7, advance_hours: null, advance_days: 5, description: 'Nghỉ từ 4-7 ngày: báo trước 5 ngày làm việc' },
+      { max_days: null, advance_hours: null, advance_days: 10, description: 'Nghỉ từ 8 ngày trở lên: báo trước 10 ngày làm việc' }
+    ],
     emergency_notice_hours: 2,
     requires_approval: true,
     requires_medical_certificate: false,
-    medical_certificate_days_threshold: 3,
-    allow_half_day: true,
-    allow_carry_over: true,
-    max_carry_over_days: 5,
     apply_to_all: true,
     is_active: true,
     effective_from: new Date().toISOString().split('T')[0],
@@ -29,6 +32,19 @@ const LeavePolicyCreate: React.FC = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await departmentsAPI.list();
+      setDepartments(response.results || []);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     setFormData(prev => ({
@@ -36,6 +52,27 @@ const LeavePolicyCreate: React.FC = () => {
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : 
               type === 'number' ? parseFloat(value) : value
     }));
+  };
+
+  const handleDepartmentChange = (departmentId: number) => {
+    setSelectedDepartments(prev => {
+      if (prev.includes(departmentId)) {
+        return prev.filter(id => id !== departmentId);
+      } else {
+        return [...prev, departmentId];
+      }
+    });
+  };
+
+  const handleApplyToAllChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setFormData(prev => ({
+      ...prev,
+      apply_to_all: checked
+    }));
+    if (checked) {
+      setSelectedDepartments([]);
+    }
   };
 
   const validateForm = (): boolean => {
@@ -67,9 +104,24 @@ const LeavePolicyCreate: React.FC = () => {
     try {
       setLoading(true);
       
-      const submitData = {
-        ...formData,
-        apply_to_departments: [],
+      // Prepare data for API
+      const submitData: any = {
+        code: formData.code,
+        name: formData.name,
+        description: formData.description,
+        leave_type: formData.leave_type,
+        max_days_per_year: formData.max_days_per_year,
+        max_consecutive_days: formData.max_consecutive_days,
+        advance_notice_rules: formData.advance_notice_rules,
+        emergency_notice_hours: formData.emergency_notice_hours,
+        requires_approval: formData.requires_approval,
+        requires_medical_certificate: formData.requires_medical_certificate,
+        apply_to_all: formData.apply_to_all,
+        is_active: formData.is_active,
+        effective_from: formData.effective_from,
+        // Only include effective_to if it has a value
+        ...(formData.effective_to && { effective_to: formData.effective_to }),
+        apply_to_departments: selectedDepartments,
         apply_to_positions: [],
         apply_to_employees: [],
       };
@@ -79,7 +131,23 @@ const LeavePolicyCreate: React.FC = () => {
       navigate('/dashboard/leave-policies');
     } catch (error: any) {
       console.error('Error creating leave policy:', error);
-      alert(`Không thể tạo chính sách nghỉ phép: ${error.response?.data?.detail || error.message}`);
+      const errorData = error.response?.data;
+      if (errorData) {
+        // Hiển thị lỗi chi tiết
+        let errorMessage = 'Không thể tạo chính sách nghỉ phép: ';
+        if (typeof errorData === 'object') {
+          // Xử lý lỗi validation từ Django
+          const errors = Object.entries(errorData)
+            .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+            .join('; ');
+          errorMessage += errors;
+        } else {
+          errorMessage += errorData.detail || error.message;
+        }
+        alert(errorMessage);
+      } else {
+        alert(`Không thể tạo chính sách nghỉ phép: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -151,13 +219,13 @@ const LeavePolicyCreate: React.FC = () => {
                 onChange={handleInputChange}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               >
-                <option value="ANNUAL_LEAVE">Nghỉ phép năm</option>
-                <option value="SICK_LEAVE">Nghỉ ốm</option>
-                <option value="MATERNITY_LEAVE">Nghỉ thai sản</option>
-                <option value="PATERNITY_LEAVE">Nghỉ thai sản chồng</option>
-                <option value="UNPAID_LEAVE">Nghỉ không lương</option>
-                <option value="COMPASSIONATE_LEAVE">Nghỉ việc riêng</option>
-                <option value="STUDY_LEAVE">Nghỉ học tập</option>
+                <option value="ANNUAL">Nghỉ phép năm</option>
+                <option value="SICK">Nghỉ ốm</option>
+                <option value="MATERNITY">Nghỉ thai sản</option>
+                <option value="PATERNITY">Nghỉ thai sản chồng</option>
+                <option value="UNPAID">Nghỉ không lương</option>
+                <option value="COMPASSIONATE">Nghỉ việc riêng</option>
+                <option value="STUDY">Nghỉ học tập</option>
               </select>
             </div>
 
@@ -208,20 +276,32 @@ const LeavePolicyCreate: React.FC = () => {
               />
             </div>
 
-            <div>
-              <label htmlFor="advance_notice_days" className="block text-sm font-medium text-gray-700">
-                Số ngày báo trước
+            <div className="md:col-span-2">
+              <label htmlFor="advance_notice_rules" className="block text-sm font-medium text-gray-700">
+                Quy định báo trước (JSON)
               </label>
-              <input
-                type="number"
-                id="advance_notice_days"
-                name="advance_notice_days"
-                value={formData.advance_notice_days}
-                onChange={handleInputChange}
-                min="0"
-                max="365"
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              <textarea
+                id="advance_notice_rules"
+                name="advance_notice_rules"
+                value={JSON.stringify(formData.advance_notice_rules, null, 2)}
+                onChange={(e) => {
+                  try {
+                    const value = JSON.parse(e.target.value);
+                    setFormData(prev => ({
+                      ...prev,
+                      advance_notice_rules: value
+                    }));
+                  } catch (error) {
+                    // Keep current value if invalid JSON
+                  }
+                }}
+                rows={6}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-mono text-sm"
+                placeholder='[{"max_days": 1, "advance_hours": 4, "advance_days": null, "description": "Nghỉ dưới 1 ngày: báo trước 4 giờ làm việc"}, ...]'
               />
+              <p className="mt-1 text-sm text-gray-500">
+                Định dạng JSON mảng các quy tắc báo trước. Mỗi quy tắc gồm: max_days (số ngày tối đa), advance_hours (số giờ báo trước), advance_days (số ngày báo trước), description (mô tả).
+              </p>
             </div>
 
             <div>
@@ -238,6 +318,9 @@ const LeavePolicyCreate: React.FC = () => {
                 max="168"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
+              <p className="mt-1 text-sm text-gray-500">
+                Số giờ báo trước tối thiểu cho trường hợp khẩn cấp (ốm đau, việc gia đình cấp bách)
+              </p>
             </div>
 
             <div>
@@ -299,45 +382,44 @@ const LeavePolicyCreate: React.FC = () => {
 
             <div className="flex items-center">
               <input
-                id="allow_half_day"
-                name="allow_half_day"
-                type="checkbox"
-                checked={formData.allow_half_day}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <label htmlFor="allow_half_day" className="ml-2 block text-sm text-gray-900">
-                Cho phép nghỉ nửa ngày
-              </label>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                id="allow_carry_over"
-                name="allow_carry_over"
-                type="checkbox"
-                checked={formData.allow_carry_over}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <label htmlFor="allow_carry_over" className="ml-2 block text-sm text-gray-900">
-                Cho phép chuyển sang năm sau
-              </label>
-            </div>
-
-            <div className="flex items-center">
-              <input
                 id="apply_to_all"
                 name="apply_to_all"
                 type="checkbox"
                 checked={formData.apply_to_all}
-                onChange={handleInputChange}
+                onChange={handleApplyToAllChange}
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
               />
               <label htmlFor="apply_to_all" className="ml-2 block text-sm text-gray-900">
                 Áp dụng cho tất cả nhân viên
               </label>
             </div>
+
+            {!formData.apply_to_all && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Chọn phòng ban áp dụng
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-2 border border-gray-300 rounded-md">
+                  {departments.map((dept) => (
+                    <div key={dept.id} className="flex items-center">
+                      <input
+                        id={`dept-${dept.id}`}
+                        type="checkbox"
+                        checked={selectedDepartments.includes(dept.id)}
+                        onChange={() => handleDepartmentChange(dept.id)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor={`dept-${dept.id}`} className="ml-2 block text-sm text-gray-900">
+                        {dept.name} ({dept.code})
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-1 text-sm text-gray-500">
+                  Chọn các phòng ban mà chính sách này sẽ áp dụng. Nếu không chọn phòng ban nào, chính sách sẽ không áp dụng cho ai.
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center">
               <input

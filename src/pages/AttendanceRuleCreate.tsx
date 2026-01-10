@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { attendanceRuleAPI } from '../utils/api';
+import { attendanceRuleAPI, departmentsAPI } from '../utils/api';
 
 const AttendanceRuleCreate: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [selectedDepartments, setSelectedDepartments] = useState<number[]>([]);
   const [formData, setFormData] = useState({
     code: '',
     name: '',
@@ -27,12 +29,46 @@ const AttendanceRuleCreate: React.FC = () => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await departmentsAPI.list();
+      setDepartments(response.results || []);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
+  };
+
+  const handleDepartmentChange = (departmentId: number) => {
+    setSelectedDepartments(prev => {
+      if (prev.includes(departmentId)) {
+        return prev.filter(id => id !== departmentId);
+      } else {
+        return [...prev, departmentId];
+      }
+    });
+  };
+
+  const handleApplyToAllChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setFormData(prev => ({
+      ...prev,
+      apply_to_all: checked
+    }));
+    if (checked) {
+      setSelectedDepartments([]);
+    }
   };
 
   const validateForm = (): boolean => {
@@ -64,10 +100,20 @@ const AttendanceRuleCreate: React.FC = () => {
     try {
       setLoading(true);
       
-      const submitData = {
-        ...formData,
+      // Prepare data for API
+      const submitData: any = {
+        code: formData.code,
+        name: formData.name,
+        description: formData.description,
+        rule_type: formData.rule_type,
         configuration: JSON.parse(formData.configuration),
-        apply_to_departments: [],
+        apply_to_all: formData.apply_to_all,
+        is_active: formData.is_active,
+        is_default: formData.is_default,
+        effective_from: formData.effective_from,
+        // Only include effective_to if it has a value
+        ...(formData.effective_to && { effective_to: formData.effective_to }),
+        apply_to_departments: selectedDepartments,
         apply_to_positions: [],
         apply_to_employees: [],
       };
@@ -77,7 +123,23 @@ const AttendanceRuleCreate: React.FC = () => {
       navigate('/dashboard/attendance-rules');
     } catch (error: any) {
       console.error('Error creating attendance rule:', error);
-      alert(`Không thể tạo quy tắc chấm công: ${error.response?.data?.detail || error.message}`);
+      const errorData = error.response?.data;
+      if (errorData) {
+        // Hiển thị lỗi chi tiết
+        let errorMessage = 'Không thể tạo quy tắc chấm công: ';
+        if (typeof errorData === 'object') {
+          // Xử lý lỗi validation từ Django
+          const errors = Object.entries(errorData)
+            .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+            .join('; ');
+          errorMessage += errors;
+        } else {
+          errorMessage += errorData.detail || error.message;
+        }
+        alert(errorMessage);
+      } else {
+        alert(`Không thể tạo quy tắc chấm công: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -225,13 +287,40 @@ const AttendanceRuleCreate: React.FC = () => {
                 name="apply_to_all"
                 type="checkbox"
                 checked={formData.apply_to_all}
-                onChange={handleInputChange}
+                onChange={handleApplyToAllChange}
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
               />
               <label htmlFor="apply_to_all" className="ml-2 block text-sm text-gray-900">
                 Áp dụng cho tất cả nhân viên
               </label>
             </div>
+
+            {!formData.apply_to_all && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Chọn phòng ban áp dụng
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto p-2 border border-gray-300 rounded-md">
+                  {departments.map((dept) => (
+                    <div key={dept.id} className="flex items-center">
+                      <input
+                        id={`dept-${dept.id}`}
+                        type="checkbox"
+                        checked={selectedDepartments.includes(dept.id)}
+                        onChange={() => handleDepartmentChange(dept.id)}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor={`dept-${dept.id}`} className="ml-2 block text-sm text-gray-900">
+                        {dept.name} ({dept.code})
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-1 text-sm text-gray-500">
+                  Chọn các phòng ban mà quy tắc này sẽ áp dụng. Nếu không chọn phòng ban nào, quy tắc sẽ không áp dụng cho ai.
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center">
               <input
