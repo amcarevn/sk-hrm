@@ -42,21 +42,32 @@ const AttendanceManagement: React.FC = () => {
   const canUploadAttendance = user?.role === 'ADMIN';
 
   useEffect(() => {
-    fetchCurrentEmployee();
-    fetchAttendanceStats();
-    fetchAttendanceRecords();
+    const fetchData = async () => {
+      // First, fetch current employee
+      const employee = await fetchCurrentEmployee();
+      
+      // Then fetch attendance stats and records using the employee data
+      if (employee) {
+        await fetchAttendanceStats(employee);
+        await fetchAttendanceRecords();
+      }
+    };
+    
+    fetchData();
   }, []);
 
-  const fetchCurrentEmployee = async () => {
+  const fetchCurrentEmployee = async (): Promise<Employee | null> => {
     try {
       const employee = await employeesAPI.me();
       setCurrentEmployee(employee);
+      return employee;
     } catch (error) {
       console.error('Error fetching current employee:', error);
+      return null;
     }
   };
 
-  const fetchAttendanceStats = async () => {
+  const fetchAttendanceStats = async (employee?: Employee | null) => {
     try {
       setLoading(true);
       const today = new Date();
@@ -71,10 +82,12 @@ const AttendanceManagement: React.FC = () => {
       
       // Fetch attendance explanation statistics for current month
       let explanationStats = null;
-      if (currentEmployee) {
+      // Use employee parameter or currentEmployee from state
+      const targetEmployee = employee || currentEmployee;
+      if (targetEmployee && targetEmployee.id) {
         try {
           explanationStats = await attendanceService.getAttendanceExplanationStats({
-            employee_id: currentEmployee.id,
+            employee_id: targetEmployee.id,
             month: today.getMonth() + 1,
             year: today.getFullYear()
           });
@@ -206,17 +219,59 @@ const AttendanceManagement: React.FC = () => {
   };
 
   const handleSubmitSupplementaryRequest = async () => {
-    // In a real implementation, you would submit to API
-    console.log('Submitting supplementary request:', {
-      date: selectedDate,
-      ...supplementaryRequest
-    });
-    
-    // Mock API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    alert('Đơn bổ sung công đã được gửi thành công!');
-    handleCloseSupplementaryRequest();
+    if (!selectedDate || !currentEmployee) {
+      alert('Vui lòng chọn ngày và đảm bảo thông tin nhân viên đã được tải.');
+      return;
+    }
+
+    try {
+      // Get original status from attendance details
+      let originalStatus = 'ABSENT'; // Default if no attendance record
+      if (attendanceDetails.length > 0) {
+        // Use the first record's status
+        originalStatus = attendanceDetails[0].status;
+      }
+
+      // Format date to YYYY-MM-DD
+      const dateStr = selectedDate.toISOString().split('T')[0];
+
+      // Prepare data for API
+      const explanationData = {
+        employee_id: currentEmployee.id,
+        attendance_date: dateStr,
+        original_status: originalStatus,
+        expected_status: supplementaryRequest.expectedStatus,
+        reason: supplementaryRequest.reason,
+        evidence: supplementaryRequest.evidence || undefined,
+        // Set status to PENDING so it counts toward monthly limit
+        status: 'PENDING',
+        // Optional time fields - we can add these later if needed
+        // actual_check_in: '',
+        // actual_check_out: '',
+        // expected_check_in: '',
+        // expected_check_out: '',
+      };
+
+      console.log('Submitting attendance explanation:', explanationData);
+      
+      // Call the API
+      const result = await attendanceService.createAttendanceExplanation(explanationData);
+      
+      console.log('Attendance explanation created:', result);
+      
+      alert('Đơn bổ sung công đã được gửi thành công!');
+      
+      // Refresh attendance stats to update remaining explanations count
+      await fetchAttendanceStats(currentEmployee);
+      
+      handleCloseSupplementaryRequest();
+    } catch (error: any) {
+      console.error('Error submitting attendance explanation:', error);
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.';
+      alert(`Lỗi: ${errorMessage}`);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -266,7 +321,7 @@ const AttendanceManagement: React.FC = () => {
       if (fileInput) fileInput.value = '';
       
       // Refresh attendance data
-      fetchAttendanceStats();
+      fetchAttendanceStats(currentEmployee);
       fetchAttendanceRecords();
       
     } catch (error: any) {

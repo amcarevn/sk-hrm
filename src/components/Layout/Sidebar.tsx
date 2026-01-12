@@ -79,12 +79,6 @@ const navigationItems = [
     roles: ['ADMIN', 'HR'],
   },
   {
-    name: 'Sơ đồ tổ chức',
-    href: '/dashboard/organization-chart',
-    icon: EyeIcon,
-    roles: ['ADMIN', 'USER'],
-  },
-  {
     name: 'Cấu hình công ty',
     href: '/dashboard/company-configs',
     icon: Cog6ToothIcon,
@@ -94,6 +88,12 @@ const navigationItems = [
     name: 'Phê duyệt',
     href: '/dashboard/approvals',
     icon: CheckCircleIcon,
+    roles: ['ADMIN', 'USER'],
+  },
+  {
+    name: 'Sơ đồ tổ chức',
+    href: '/dashboard/organization-chart',
+    icon: EyeIcon,
     roles: ['ADMIN', 'USER'],
   },
   {

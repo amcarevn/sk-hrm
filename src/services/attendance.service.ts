@@ -308,6 +308,78 @@ class AttendanceService {
       throw error;
     }
   }
+
+  /**
+   * Tạo giải trình chấm công (Đơn bổ sung công)
+   */
+  async createAttendanceExplanation(data: {
+    employee_id: number;
+    attendance_date: string;
+    original_status: string;
+    expected_status: string;
+    reason: string;
+    evidence?: File;
+    actual_check_in?: string;
+    actual_check_out?: string;
+    expected_check_in?: string;
+    expected_check_out?: string;
+    status?: string;
+  }): Promise<any> {
+    try {
+      const formData = new FormData();
+      
+      // Add all fields to formData
+      formData.append('employee_id', data.employee_id.toString());
+      formData.append('attendance_date', data.attendance_date);
+      formData.append('original_status', data.original_status);
+      formData.append('expected_status', data.expected_status);
+      formData.append('reason', data.reason);
+      
+      if (data.actual_check_in) {
+        formData.append('actual_check_in', data.actual_check_in);
+      }
+      if (data.actual_check_out) {
+        formData.append('actual_check_out', data.actual_check_out);
+      }
+      if (data.expected_check_in) {
+        formData.append('expected_check_in', data.expected_check_in);
+      }
+      if (data.expected_check_out) {
+        formData.append('expected_check_out', data.expected_check_out);
+      }
+      
+      if (data.status) {
+        formData.append('status', data.status);
+      }
+      
+      if (data.evidence) {
+        formData.append('evidence', data.evidence);
+      }
+      
+      const response = await managementApi.post('/api-hrm/attendance-explanations/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating attendance explanation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gửi giải trình để duyệt
+   */
+  async submitAttendanceExplanationForApproval(explanationId: number): Promise<any> {
+    try {
+      const response = await managementApi.post(`/api-hrm/attendance-explanations/${explanationId}/submit_for_approval/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error submitting attendance explanation for approval:', error);
+      throw error;
+    }
+  }
 }
 
 export const attendanceService = new AttendanceService();
