@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { attendanceService } from '../services/attendance.service';
 
 // Types for attendance data
 export interface AttendanceDay {
@@ -27,9 +28,97 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date(year, month, 1));
   const [attendanceData, setAttendanceData] = useState<AttendanceDay[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Generate calendar data for the current month
-  const generateCalendarData = () => {
+  // Fetch calendar data from API
+  const fetchCalendarData = async () => {
+    try {
+      setLoading(true);
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth() + 1; // API expects 1-indexed month
+      
+      const data = await attendanceService.getCalendarView({
+        year,
+        month,
+        employee_id: employeeId
+      });
+      
+      // Transform API data to our local format
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const transformedData: AttendanceDay[] = [];
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month - 1, day);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // Find attendance records for this date
+        const dayRecords = data.calendar_data?.filter((record: any) => 
+          record.date.startsWith(dateStr)
+        ) || [];
+        
+        // Determine status based on records
+        let morning: AttendanceStatus = 'off';
+        let afternoon: AttendanceStatus = 'off';
+        let evening: AttendanceStatus = 'off';
+        let notes = '';
+        
+        if (dayRecords.length > 0) {
+          // For simplicity, use the first record's status for all shifts
+          const record = dayRecords[0];
+          const status = record.status?.toLowerCase();
+          
+          if (status === 'present') {
+            morning = 'present';
+            afternoon = 'present';
+            evening = 'present';
+          } else if (status === 'late') {
+            morning = 'late';
+            afternoon = 'present';
+            evening = 'present';
+          } else if (status === 'absent') {
+            morning = 'absent';
+            afternoon = 'absent';
+            evening = 'absent';
+          } else if (status === 'early_leave') {
+            morning = 'present';
+            afternoon = 'present';
+            evening = 'insufficient';
+          } else if (status === 'half_day') {
+            morning = 'present';
+            afternoon = 'insufficient';
+            evening = 'off';
+          }
+          
+          notes = record.notes || '';
+        }
+        
+        // Check if it's weekend
+        const dayOfWeek = date.getDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          notes = dayOfWeek === 0 ? 'Chủ nhật' : 'Thứ 7';
+        }
+        
+        transformedData.push({
+          date,
+          morning,
+          afternoon,
+          evening,
+          notes: notes || undefined
+        });
+      }
+      
+      setAttendanceData(transformedData);
+    } catch (error) {
+      console.error('Error fetching calendar data:', error);
+      // Fallback to mock data if API fails
+      generateMockData();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate mock data as fallback
+  const generateMockData = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     
@@ -40,7 +129,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     // Get days in month
     const daysInMonth = lastDay.getDate();
     
-    // Generate mock data for now - in real app, fetch from API
+    // Generate mock data
     const data: AttendanceDay[] = [];
     
     for (let day = 1; day <= daysInMonth; day++) {
@@ -63,8 +152,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   };
 
   useEffect(() => {
-    generateCalendarData();
-  }, [currentDate]);
+    fetchCalendarData();
+  }, [currentDate, employeeId]);
 
   // Navigation
   const goToPreviousMonth = () => {
@@ -122,6 +211,16 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
   // Create empty cells for days before the first day of month
   const emptyCells = Array.from({ length: adjustedFirstDay }, (_, i) => i);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow p-6">

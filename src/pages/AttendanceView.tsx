@@ -8,10 +8,12 @@ import {
   BuildingOfficeIcon,
   FunnelIcon,
   ChevronDownIcon,
-  ChevronUpIcon
+  ChevronUpIcon,
+  ClockIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import { employeesAPI, departmentsAPI } from '../utils/api';
-import axios from 'axios';
+import { attendanceService, AttendanceRecord } from '../services/attendance.service';
 
 interface Employee {
   id: number;
@@ -29,22 +31,6 @@ interface Department {
   code: string;
 }
 
-interface AttendanceRecord {
-  id: number;
-  attendance_date: string;
-  check_in: string | null;
-  check_out: string | null;
-  status: string;
-  status_display: string;
-  shift_type: string;
-  shift_type_display: string;
-  working_hours: number;
-  notes: string;
-  employee_name: string;
-  employee_code: string;
-  department_name: string;
-}
-
 const AttendanceView: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -57,6 +43,10 @@ const AttendanceView: React.FC = () => {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [calendarData, setCalendarData] = useState<any[]>([]);
+  const [dateDetailModalOpen, setDateDetailModalOpen] = useState(false);
+  const [dateDetailLoading, setDateDetailLoading] = useState(false);
+  const [dateDetailRecords, setDateDetailRecords] = useState<AttendanceRecord[]>([]);
+  const [selectedDateDetail, setSelectedDateDetail] = useState<Date | null>(null);
 
   // Fetch employees and departments on component mount
   useEffect(() => {
@@ -93,38 +83,25 @@ const AttendanceView: React.FC = () => {
   const fetchAttendanceData = async () => {
     setLoading(true);
     try {
-      // Create axios instance with auth token
-      const token = localStorage.getItem('accessToken');
-      const API_BASE_URL = "https://beautycare-uat.amcare.vn";
-      
-      const axiosInstance = axios.create({
-        baseURL: API_BASE_URL,
-        timeout: 30000,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-      });
-
-      const params = new URLSearchParams();
-      if (selectedEmployee) params.append('employee_id', selectedEmployee.toString());
-      if (selectedDepartment) params.append('department_id', selectedDepartment.toString());
-      
       // Get current month
       const today = new Date();
       const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
       const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      
-      params.append('start_date', startDate.toISOString().split('T')[0]);
-      params.append('end_date', endDate.toISOString().split('T')[0]);
+
+      // Prepare params
+      const params: any = {};
+      if (selectedEmployee) params.employee_id = selectedEmployee;
+      if (selectedDepartment) params.department_id = selectedDepartment;
+      params.start_date = startDate.toISOString().split('T')[0];
+      params.end_date = endDate.toISOString().split('T')[0];
 
       // Fetch attendance records
-      const attendanceResponse = await axiosInstance.get(`/api-hrm/attendance/?${params}`);
-      setAttendanceRecords(attendanceResponse.data.results || attendanceResponse.data);
+      const attendanceResponse = await attendanceService.getAttendanceRecords(params);
+      setAttendanceRecords(attendanceResponse.results);
 
       // Fetch statistics
-      const statsResponse = await axiosInstance.get(`/api-hrm/attendance/stats/?${params}`);
-      setStats(statsResponse.data);
+      const statsResponse = await attendanceService.getAttendanceStats(params);
+      setStats(statsResponse);
     } catch (error) {
       console.error('Error fetching attendance data:', error);
       // Fallback to mock data if API is not available
@@ -199,29 +176,15 @@ const AttendanceView: React.FC = () => {
 
   const fetchCalendarData = async () => {
     try {
-      // Create axios instance with auth token
-      const token = localStorage.getItem('accessToken');
-      const API_BASE_URL = "https://beautycare-uat.amcare.vn";
-      
-      const axiosInstance = axios.create({
-        baseURL: API_BASE_URL,
-        timeout: 30000,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-      });
-
-      const params = new URLSearchParams();
-      if (selectedEmployee) params.append('employee_id', selectedEmployee.toString());
-      if (selectedDepartment) params.append('department_id', selectedDepartment.toString());
-      
       const today = new Date();
-      params.append('year', today.getFullYear().toString());
-      params.append('month', (today.getMonth() + 1).toString());
+      const params: any = {};
+      if (selectedEmployee) params.employee_id = selectedEmployee;
+      if (selectedDepartment) params.department_id = selectedDepartment;
+      params.year = today.getFullYear();
+      params.month = today.getMonth() + 1;
 
-      const response = await axiosInstance.get(`/api-hrm/attendance/calendar_view/?${params}`);
-      setCalendarData(response.data.calendar_data || []);
+      const response = await attendanceService.getCalendarView(params);
+      setCalendarData(response.calendar_data || []);
     } catch (error) {
       console.error('Error fetching calendar data:', error);
       // Fallback to mock data
@@ -262,10 +225,55 @@ const AttendanceView: React.FC = () => {
     }
   };
 
-  const handleDateClick = (date: Date) => {
+  const handleDateClick = async (date: Date) => {
     setSelectedDate(date);
-    // In a real implementation, you would fetch attendance details for this date
-    console.log('Selected date:', date);
+    setSelectedDateDetail(date);
+    setDateDetailModalOpen(true);
+    setDateDetailLoading(true);
+    
+    try {
+      // Format date to YYYY-MM-DD
+      const dateStr = date.toISOString().split('T')[0];
+      
+      // Prepare params for fetching attendance records for this specific date
+      const params: any = {
+        start_date: dateStr,
+        end_date: dateStr
+      };
+      
+      if (selectedEmployee) {
+        params.employee_id = selectedEmployee;
+      } else if (selectedDepartment) {
+        params.department_id = selectedDepartment;
+      }
+      
+      // Fetch attendance records for the selected date
+      const response = await attendanceService.getAttendanceRecords(params);
+      setDateDetailRecords(response.results || []);
+    } catch (error) {
+      console.error('Error fetching date details:', error);
+      // Fallback to mock data if API fails
+      const mockDateDetails: AttendanceRecord[] = [
+        {
+          id: 1,
+          attendance_date: date.toISOString().split('T')[0],
+          check_in: '08:00',
+          check_out: '17:30',
+          status: 'PRESENT',
+          status_display: 'Đủ công',
+          shift_type: 'FULL_DAY',
+          shift_type_display: 'Cả ngày',
+          working_hours: 8.5,
+          notes: '',
+          employee_name: selectedEmployee ? getSelectedEmployeeName() : 'Nguyễn Văn A',
+          employee_code: selectedEmployee ? 'NV001' : 'NV001',
+          department_name: selectedDepartment ? getSelectedDepartmentName() : 'IT - Công nghệ thông tin'
+        }
+      ];
+      setDateDetailRecords(mockDateDetails);
+    } finally {
+      setDateDetailLoading(false);
+    }
   };
 
   const handleClearFilters = () => {
@@ -297,6 +305,21 @@ const AttendanceView: React.FC = () => {
     if (!selectedDepartment) return '';
     const department = departments.find(dept => dept.id === selectedDepartment);
     return department ? department.name : '';
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('vi-VN', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const closeDateDetailModal = () => {
+    setDateDetailModalOpen(false);
+    setDateDetailRecords([]);
+    setSelectedDateDetail(null);
   };
 
   return (
@@ -597,6 +620,184 @@ const AttendanceView: React.FC = () => {
           <p className="text-gray-600">
             Không tìm thấy bản ghi chấm công nào cho bộ lọc đã chọn
           </p>
+        </div>
+      )}
+
+      {/* Date Detail Modal */}
+      {dateDetailModalOpen && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Chi tiết chấm công ngày</h2>
+                <p className="text-gray-600 mt-1">
+                  {selectedDateDetail && formatDate(selectedDateDetail)}
+                </p>
+              </div>
+              <button
+                onClick={closeDateDetailModal}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {dateDetailLoading ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                </div>
+              ) : dateDetailRecords.length > 0 ? (
+                <div>
+                  {/* Summary Stats */}
+                  <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h3 className="font-medium text-blue-900 text-sm">Tổng nhân viên</h3>
+                      <p className="text-2xl font-bold text-blue-700 mt-1">
+                        {dateDetailRecords.length}
+                      </p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <h3 className="font-medium text-green-900 text-sm">Có mặt</h3>
+                      <p className="text-2xl font-bold text-green-700 mt-1">
+                        {dateDetailRecords.filter(r => r.status === 'PRESENT').length}
+                      </p>
+                    </div>
+                    <div className="bg-yellow-50 p-4 rounded-lg">
+                      <h3 className="font-medium text-yellow-900 text-sm">Đi muộn</h3>
+                      <p className="text-2xl font-bold text-yellow-700 mt-1">
+                        {dateDetailRecords.filter(r => r.status === 'LATE').length}
+                      </p>
+                    </div>
+                    <div className="bg-red-50 p-4 rounded-lg">
+                      <h3 className="font-medium text-red-900 text-sm">Vắng mặt</h3>
+                      <p className="text-2xl font-bold text-red-700 mt-1">
+                        {dateDetailRecords.filter(r => r.status === 'ABSENT').length}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Attendance Records Table */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Nhân viên
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Phòng ban
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Giờ vào
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Giờ ra
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tổng giờ
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Trạng thái
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ghi chú
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {dateDetailRecords.map((record) => (
+                          <tr key={record.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
+                                  <UserIcon className="h-5 w-5 text-primary-600" />
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {record.employee_name}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {record.employee_code}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {record.department_name}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <ClockIcon className="h-4 w-4 text-gray-400 mr-1" />
+                                <span className="text-sm text-gray-900">
+                                  {record.check_in || '-'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <ClockIcon className="h-4 w-4 text-gray-400 mr-1" />
+                                <span className="text-sm text-gray-900">
+                                  {record.check_out || '-'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {record.working_hours.toFixed(1)} giờ
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(record.status)}`}>
+                                {record.status_display}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {record.notes || '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Rule Application Info */}
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center">
+                      <InformationCircleIcon className="h-5 w-5 text-gray-500 mr-2" />
+                      <h3 className="font-medium text-gray-900">Thông tin áp dụng quy tắc</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2">
+                      Dữ liệu chấm công được tính toán tự động dựa trên quy tắc:
+                    </p>
+                    <ul className="mt-2 text-sm text-gray-600 list-disc pl-5 space-y-1">
+                      <li>Giờ làm việc: 08:30 - 17:30 (8 giờ làm việc)</li>
+                      <li>Ngưỡng đi muộn: 15 phút sau giờ vào</li>
+                      <li>Ngưỡng về sớm: 15 phút trước giờ ra</li>
+                      <li>Trạng thái được tính tự động dựa trên giờ vào/ra thực tế</li>
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Không có dữ liệu chấm công</h3>
+                  <p className="text-gray-600">
+                    Không tìm thấy bản ghi chấm công nào cho ngày {selectedDateDetail && formatDate(selectedDateDetail)}
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex justify-end">
+                <button
+                  onClick={closeDateDetailModal}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

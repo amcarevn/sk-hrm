@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceCalendar from '../components/AttendanceCalendar';
+import { attendanceService, AttendanceRecord } from '../services/attendance.service';
+import { employeesAPI, Employee } from '../utils/api';
 import { 
   XMarkIcon, 
   DocumentPlusIcon, 
@@ -27,16 +29,126 @@ const AttendanceManagement: React.FC = () => {
     expectedStatus: 'PRESENT' as 'PRESENT' | 'LATE' | 'EARLY_LEAVE' | 'ABSENT' | 'HALF_DAY',
     evidence: null as File | null,
   });
+  const [attendanceStats, setAttendanceStats] = useState<any>(null);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
+  const [attendanceDetails, setAttendanceDetails] = useState<AttendanceRecord[]>([]);
+  const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
+  const [fetchingDetails, setFetchingDetails] = useState(false);
 
   // Check if user has permission to upload attendance files
   // For now, only ADMIN role can upload
   const canUploadAttendance = user?.role === 'ADMIN';
 
-  const handleDateClick = (date: Date) => {
+  useEffect(() => {
+    fetchCurrentEmployee();
+    fetchAttendanceStats();
+    fetchAttendanceRecords();
+  }, []);
+
+  const fetchCurrentEmployee = async () => {
+    try {
+      const employee = await employeesAPI.me();
+      setCurrentEmployee(employee);
+    } catch (error) {
+      console.error('Error fetching current employee:', error);
+    }
+  };
+
+  const fetchAttendanceStats = async () => {
+    try {
+      setLoading(true);
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      
+      const stats = await attendanceService.getAttendanceStats({
+        start_date: firstDayOfMonth.toISOString().split('T')[0],
+        end_date: lastDayOfMonth.toISOString().split('T')[0]
+      });
+      setAttendanceStats(stats);
+    } catch (error) {
+      console.error('Error fetching attendance stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAttendanceRecords = async () => {
+    try {
+      const today = new Date();
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      
+      const response = await attendanceService.getAttendanceRecords({
+        start_date: firstDayOfMonth.toISOString().split('T')[0],
+        end_date: lastDayOfMonth.toISOString().split('T')[0],
+        page_size: 50
+      });
+      setAttendanceRecords(response.results);
+    } catch (error) {
+      console.error('Error fetching attendance records:', error);
+    }
+  };
+
+  const handleDateClick = async (date: Date) => {
     setSelectedDate(date);
     setShowAttendanceModal(true);
-    // In a real implementation, you would fetch attendance details for this date
-    console.log('Selected date:', date);
+    setFetchingDetails(true);
+    
+    try {
+      // Format date to YYYY-MM-DD
+      const dateStr = date.toISOString().split('T')[0];
+      
+      // Fetch attendance records for the selected date
+      const response = await attendanceService.getAttendanceRecords({
+        start_date: dateStr,
+        end_date: dateStr,
+        page_size: 10
+      });
+      
+      // If we have current employee, filter for their records
+      let filteredRecords = response.results;
+      if (currentEmployee) {
+        filteredRecords = response.results.filter(
+          (record: AttendanceRecord) => record.employee_code === currentEmployee.employee_id
+        );
+      }
+      
+      setAttendanceDetails(filteredRecords);
+      
+      // Calculate summary
+      if (filteredRecords.length > 0) {
+        const summary = {
+          totalHours: filteredRecords.reduce((sum, record) => sum + (record.working_hours || 0), 0),
+          presentCount: filteredRecords.filter(record => record.status === 'PRESENT').length,
+          lateCount: filteredRecords.filter(record => record.status === 'LATE').length,
+          earlyLeaveCount: filteredRecords.filter(record => record.status === 'EARLY_LEAVE').length,
+          absentCount: filteredRecords.filter(record => record.status === 'ABSENT').length,
+          halfDayCount: filteredRecords.filter(record => record.status === 'HALF_DAY').length,
+          totalShifts: filteredRecords.length
+        };
+        setAttendanceSummary(summary);
+      } else {
+        // Default summary if no records
+        setAttendanceSummary({
+          totalHours: 0,
+          presentCount: 0,
+          lateCount: 0,
+          earlyLeaveCount: 0,
+          absentCount: 0,
+          halfDayCount: 0,
+          totalShifts: 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching attendance details:', error);
+      setAttendanceDetails([]);
+      setAttendanceSummary(null);
+    } finally {
+      setFetchingDetails(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -120,13 +232,12 @@ const AttendanceManagement: React.FC = () => {
     setUploadMessage(null);
 
     try {
-      // In a real implementation, you would upload to an API endpoint
-      // For now, simulate upload
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Upload file using attendance service
+      const result = await attendanceService.uploadAttendanceFile(selectedFile);
       
       setUploadMessage({ 
         type: 'success', 
-        text: `Upload file "${selectedFile.name}" thành công! Dữ liệu đang được xử lý.` 
+        text: `Upload file "${selectedFile.name}" thành công! ${result.message || 'Dữ liệu đang được xử lý.'}` 
       });
       setSelectedFile(null);
       
@@ -134,11 +245,16 @@ const AttendanceManagement: React.FC = () => {
       const fileInput = document.getElementById('attendance-file') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
       
-    } catch (error) {
+      // Refresh attendance data
+      fetchAttendanceStats();
+      fetchAttendanceRecords();
+      
+    } catch (error: any) {
       console.error('Upload error:', error);
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || 'Upload thất bại. Vui lòng thử lại.';
       setUploadMessage({ 
         type: 'error', 
-        text: 'Upload thất bại. Vui lòng thử lại.' 
+        text: errorMessage
       });
     } finally {
       setUploading(false);
@@ -301,124 +417,127 @@ const AttendanceManagement: React.FC = () => {
                       <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
                       <div>
                         <h4 className="font-medium text-gray-900">Thông tin nhân viên</h4>
-                        <p className="text-sm text-gray-600">Nguyễn Văn A - NV001</p>
+                        <p className="text-sm text-gray-600">
+                          {currentEmployee ? (
+                            `${currentEmployee.full_name} - ${currentEmployee.employee_id}`
+                          ) : (
+                            'Đang tải thông tin...'
+                          )}
+                        </p>
+                        {currentEmployee?.department && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Phòng ban: {currentEmployee.department.name}
+                          </p>
+                        )}
+                        {currentEmployee?.position && (
+                          <p className="text-xs text-gray-500">
+                            Vị trí: {currentEmployee.position.title}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* Attendance Details Table */}
                   <div className="border rounded-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Ca làm
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Giờ vào
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Giờ ra
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tổng giờ
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Trạng thái
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Ghi chú
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            Sáng
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            08:00
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            12:00
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            4 giờ
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Đủ công
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            -
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            Chiều
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            13:30
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            17:30
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            4 giờ
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Đủ công
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            -
-                          </td>
-                        </tr>
-                        <tr>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            Tối
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            18:00
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            22:00
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            4 giờ
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              Đi muộn
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            Vào muộn 15 phút
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    {fetchingDetails ? (
+                      <div className="p-8 text-center">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                        <p className="mt-2 text-gray-600">Đang tải chi tiết chấm công...</p>
+                      </div>
+                    ) : attendanceDetails.length > 0 ? (
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Ca làm
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Giờ vào
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Giờ ra
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Tổng giờ
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Trạng thái
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Ghi chú
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {attendanceDetails.map((record, index) => (
+                            <tr key={record.id || index}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {record.shift_type_display || 'Cả ngày'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {record.check_in ? new Date(`2000-01-01T${record.check_in}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {record.check_out ? new Date(`2000-01-01T${record.check_out}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {record.working_hours ? `${record.working_hours.toFixed(1)} giờ` : '0 giờ'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  record.status === 'PRESENT' ? 'bg-green-100 text-green-800' :
+                                  record.status === 'LATE' ? 'bg-yellow-100 text-yellow-800' :
+                                  record.status === 'EARLY_LEAVE' ? 'bg-orange-100 text-orange-800' :
+                                  record.status === 'ABSENT' ? 'bg-red-100 text-red-800' :
+                                  record.status === 'HALF_DAY' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {record.status_display || record.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {record.notes || '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="p-8 text-center">
+                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p className="mt-2 text-gray-600">Không có dữ liệu chấm công cho ngày này</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Summary */}
                   <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-blue-50 p-3 rounded-lg">
                       <h4 className="font-medium text-blue-900 text-sm">Tổng giờ làm</h4>
-                      <p className="text-xl font-bold text-blue-700 mt-1">12 giờ</p>
+                      <p className="text-xl font-bold text-blue-700 mt-1">
+                        {attendanceSummary ? `${attendanceSummary.totalHours.toFixed(1)} giờ` : '0 giờ'}
+                      </p>
                     </div>
                     <div className="bg-green-50 p-3 rounded-lg">
                       <h4 className="font-medium text-green-900 text-sm">Ca đủ công</h4>
-                      <p className="text-xl font-bold text-green-700 mt-1">2</p>
+                      <p className="text-xl font-bold text-green-700 mt-1">
+                        {attendanceSummary?.presentCount || 0}
+                      </p>
                     </div>
                     <div className="bg-yellow-50 p-3 rounded-lg">
                       <h4 className="font-medium text-yellow-900 text-sm">Ca đi muộn</h4>
-                      <p className="text-xl font-bold text-yellow-700 mt-1">1</p>
+                      <p className="text-xl font-bold text-yellow-700 mt-1">
+                        {attendanceSummary?.lateCount || 0}
+                      </p>
                     </div>
                     <div className="bg-gray-50 p-3 rounded-lg">
                       <h4 className="font-medium text-gray-900 text-sm">Tổng ca</h4>
-                      <p className="text-xl font-bold text-gray-700 mt-1">3</p>
+                      <p className="text-xl font-bold text-gray-700 mt-1">
+                        {attendanceSummary?.totalShifts || 0}
+                      </p>
                     </div>
                   </div>
 
@@ -611,19 +730,27 @@ const AttendanceManagement: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-blue-50 p-4 rounded-lg">
           <h3 className="font-medium text-blue-900">Tổng ngày công</h3>
-          <p className="text-3xl font-bold text-blue-700 mt-2">22</p>
+          <p className="text-3xl font-bold text-blue-700 mt-2">
+            {attendanceStats?.statistics?.total_days || 0}
+          </p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
           <h3 className="font-medium text-green-900">Đi đúng giờ</h3>
-          <p className="text-3xl font-bold text-green-700 mt-2">18</p>
+          <p className="text-3xl font-bold text-green-700 mt-2">
+            {attendanceStats?.statistics?.status_summary?.PRESENT || 0}
+          </p>
         </div>
         <div className="bg-yellow-50 p-4 rounded-lg">
           <h3 className="font-medium text-yellow-900">Đi muộn</h3>
-          <p className="text-3xl font-bold text-yellow-700 mt-2">3</p>
+          <p className="text-3xl font-bold text-yellow-700 mt-2">
+            {attendanceStats?.statistics?.status_summary?.LATE || 0}
+          </p>
         </div>
         <div className="bg-red-50 p-4 rounded-lg">
           <h3 className="font-medium text-red-900">Vắng mặt</h3>
-          <p className="text-3xl font-bold text-red-700 mt-2">1</p>
+          <p className="text-3xl font-bold text-red-700 mt-2">
+            {attendanceStats?.statistics?.status_summary?.ABSENT || 0}
+          </p>
         </div>
       </div>
     </div>

@@ -127,11 +127,20 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   
   // If user is super admin, show all navigation items
   // Otherwise, filter based on user role (case-insensitive comparison)
-  const navigation = isSuperAdmin 
+  let navigation = isSuperAdmin 
     ? navigationItems 
     : navigationItems.filter((item) => 
         item.roles.some(role => role.toUpperCase() === userRole)
       );
+  
+  // Special handling for staff role
+  if (userRole === 'STAFF') {
+    // Staff should see specific USER items: Home, Me, Attendance, Organization Chart, Approvals
+    const allowedStaffItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt'];
+    navigation = navigationItems.filter((item) => 
+      allowedStaffItems.includes(item.name)
+    );
+  }
 
   const handleCollapseToggle = () => {
     const newCollapsedState = !isCollapsed;
