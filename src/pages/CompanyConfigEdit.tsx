@@ -26,6 +26,8 @@ const CompanyConfigEdit: React.FC = () => {
     sick_leave_days_per_year: 12,
     maternity_leave_days: 180,
     paternity_leave_days: 14,
+    max_explanation_count_per_month: 3,
+    supplement_work_hours_per_month: 10.0,
     is_active: true,
     effective_from: new Date().toISOString().split('T')[0],
     effective_to: '',
@@ -58,6 +60,8 @@ const CompanyConfigEdit: React.FC = () => {
         sick_leave_days_per_year: config.sick_leave_days_per_year,
         maternity_leave_days: config.maternity_leave_days,
         paternity_leave_days: config.paternity_leave_days,
+        max_explanation_count_per_month: config.max_explanation_count_per_month,
+        supplement_work_hours_per_month: config.supplement_work_hours_per_month,
         is_active: config.is_active,
         effective_from: config.effective_from.split('T')[0],
         effective_to: config.effective_to ? config.effective_to.split('T')[0] : '',
@@ -120,6 +124,8 @@ const CompanyConfigEdit: React.FC = () => {
         sick_leave_days_per_year: Number(formData.sick_leave_days_per_year) || 12,
         maternity_leave_days: Number(formData.maternity_leave_days) || 180,
         paternity_leave_days: Number(formData.paternity_leave_days) || 14,
+        max_explanation_count_per_month: Number(formData.max_explanation_count_per_month) || 3,
+        supplement_work_hours_per_month: Number(formData.supplement_work_hours_per_month) || 10.0,
         is_active: formData.is_active !== false,
         effective_from: formData.effective_from,
         effective_to: formData.effective_to || undefined,
@@ -415,6 +421,39 @@ const CompanyConfigEdit: React.FC = () => {
                 onChange={handleInputChange}
                 min="0"
                 max="365"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Số lần giải trình tối đa/tháng *
+              </label>
+              <input
+                type="number"
+                name="max_explanation_count_per_month"
+                value={formData.max_explanation_count_per_month}
+                onChange={handleInputChange}
+                min="0"
+                max="100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Số giờ bổ sung công tối đa/tháng *
+              </label>
+              <input
+                type="number"
+                name="supplement_work_hours_per_month"
+                value={formData.supplement_work_hours_per_month}
+                onChange={handleInputChange}
+                min="0"
+                max="200"
+                step="0.5"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 required
               />

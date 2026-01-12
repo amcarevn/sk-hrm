@@ -63,11 +63,31 @@ const AttendanceManagement: React.FC = () => {
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       
+      // Fetch attendance statistics
       const stats = await attendanceService.getAttendanceStats({
         start_date: firstDayOfMonth.toISOString().split('T')[0],
         end_date: lastDayOfMonth.toISOString().split('T')[0]
       });
-      setAttendanceStats(stats);
+      
+      // Fetch attendance explanation statistics for current month
+      let explanationStats = null;
+      if (currentEmployee) {
+        try {
+          explanationStats = await attendanceService.getAttendanceExplanationStats({
+            employee_id: currentEmployee.id,
+            month: today.getMonth() + 1,
+            year: today.getFullYear()
+          });
+        } catch (error) {
+          console.error('Error fetching explanation stats:', error);
+        }
+      }
+      
+      // Combine stats
+      setAttendanceStats({
+        ...stats,
+        remaining_explanations: explanationStats?.statistics?.remaining_explanations || 0
+      });
     } catch (error) {
       console.error('Error fetching attendance stats:', error);
     } finally {
@@ -372,6 +392,43 @@ const AttendanceManagement: React.FC = () => {
         </div>
       )}
 
+
+      {/* Summary Statistics - Moved to top as requested */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="font-medium text-blue-900">Tổng ngày công</h3>
+          <p className="text-3xl font-bold text-blue-700 mt-2">
+            {attendanceStats?.statistics?.total_days || 0}
+          </p>
+        </div>
+        <div className="bg-green-50 p-4 rounded-lg">
+          <h3 className="font-medium text-green-900">Đi đúng giờ</h3>
+          <p className="text-3xl font-bold text-green-700 mt-2">
+            {attendanceStats?.statistics?.status_summary?.PRESENT || 0}
+          </p>
+        </div>
+        <div className="bg-yellow-50 p-4 rounded-lg">
+          <h3 className="font-medium text-yellow-900">Đi muộn</h3>
+          <p className="text-3xl font-bold text-yellow-700 mt-2">
+            {attendanceStats?.statistics?.status_summary?.LATE || 0}
+          </p>
+        </div>
+        <div className="bg-red-50 p-4 rounded-lg">
+          <h3 className="font-medium text-red-900">Vắng mặt</h3>
+          <p className="text-3xl font-bold text-red-700 mt-2">
+            {attendanceStats?.statistics?.status_summary?.ABSENT || 0}
+          </p>
+        </div>
+        <div className="bg-purple-50 p-4 rounded-lg">
+          <h3 className="font-medium text-purple-900">Giải trình còn lại</h3>
+          <p className="text-3xl font-bold text-purple-700 mt-2">
+            {attendanceStats?.remaining_explanations || 0}
+          </p>
+          <p className="text-xs text-purple-600 mt-1">
+            Tháng hiện tại
+          </p>
+        </div>
+      </div>
 
       {/* Calendar Section */}
       <div className="mb-6">
@@ -726,33 +783,6 @@ const AttendanceManagement: React.FC = () => {
       )}
 
 
-      {/* Summary Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="font-medium text-blue-900">Tổng ngày công</h3>
-          <p className="text-3xl font-bold text-blue-700 mt-2">
-            {attendanceStats?.statistics?.total_days || 0}
-          </p>
-        </div>
-        <div className="bg-green-50 p-4 rounded-lg">
-          <h3 className="font-medium text-green-900">Đi đúng giờ</h3>
-          <p className="text-3xl font-bold text-green-700 mt-2">
-            {attendanceStats?.statistics?.status_summary?.PRESENT || 0}
-          </p>
-        </div>
-        <div className="bg-yellow-50 p-4 rounded-lg">
-          <h3 className="font-medium text-yellow-900">Đi muộn</h3>
-          <p className="text-3xl font-bold text-yellow-700 mt-2">
-            {attendanceStats?.statistics?.status_summary?.LATE || 0}
-          </p>
-        </div>
-        <div className="bg-red-50 p-4 rounded-lg">
-          <h3 className="font-medium text-red-900">Vắng mặt</h3>
-          <p className="text-3xl font-bold text-red-700 mt-2">
-            {attendanceStats?.statistics?.status_summary?.ABSENT || 0}
-          </p>
-        </div>
-      </div>
     </div>
   );
 };

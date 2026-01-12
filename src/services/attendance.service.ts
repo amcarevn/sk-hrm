@@ -249,6 +249,65 @@ class AttendanceService {
       throw error;
     }
   }
+
+  /**
+   * Lấy thống kê giải trình chấm công
+   */
+  async getAttendanceExplanationStats(params?: {
+    employee_id?: number;
+    department_id?: number;
+    month?: number;
+    year?: number;
+  }): Promise<{
+    filters: {
+      employee_id?: number;
+      department_id?: number;
+      month: number;
+      year: number;
+    };
+    statistics: {
+      total_explanations: number;
+      pending_explanations: number;
+      approved_explanations: number;
+      rejected_explanations: number;
+      remaining_explanations: number;
+      max_explanations_per_month: number;
+    };
+  }> {
+    try {
+      const response = await managementApi.get('/api-hrm/attendance-explanations/stats/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attendance explanation stats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy số lần giải trình còn lại của tháng hiện tại cho nhân viên
+   */
+  async getEmployeeRemainingExplanationCount(employeeId: number): Promise<{
+    employee: {
+      id: number;
+      full_name: string;
+      employee_id: string;
+    };
+    month: number;
+    year: number;
+    explanation_count: number;
+    max_explanations_per_month: number;
+    remaining_count: number;
+  }> {
+    try {
+      const response = await managementApi.get('/api-hrm/attendance-explanations/employee_remaining_count/', {
+        params: { employee_id: employeeId }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching employee remaining explanation count:', error);
+      throw error;
+    }
+  }
 }
 
 export const attendanceService = new AttendanceService();

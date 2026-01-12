@@ -169,7 +169,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   };
 
   // Get day names in Vietnamese
-  const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  const dayNames = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
   // Get month name in Vietnamese
   const monthNames = [

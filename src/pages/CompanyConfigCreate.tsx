@@ -370,6 +370,39 @@ const CompanyConfigCreate: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                Số lần giải trình tối đa/tháng *
+              </label>
+              <input
+                type="number"
+                name="max_explanation_count_per_month"
+                value={formData.max_explanation_count_per_month}
+                onChange={handleInputChange}
+                min="0"
+                max="100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Số giờ bổ sung công tối đa/tháng *
+              </label>
+              <input
+                type="number"
+                name="supplement_work_hours_per_month"
+                value={formData.supplement_work_hours_per_month}
+                onChange={handleInputChange}
+                min="0"
+                max="200"
+                step="0.5"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ngày hiệu lực từ *
               </label>
               <input

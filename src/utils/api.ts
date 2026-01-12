@@ -2214,6 +2214,8 @@ export interface CompanyConfig {
   sick_leave_days_per_year: number;
   maternity_leave_days: number;
   paternity_leave_days: number;
+  max_explanation_count_per_month: number;
+  supplement_work_hours_per_month: number;
   is_active: boolean;
   effective_from: string;
   effective_to?: string;
