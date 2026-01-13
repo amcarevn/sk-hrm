@@ -7,7 +7,7 @@ import {
 } from '../services/employee-permission.service';
 import { employeesAPI } from '../utils/api';
 
-const RoleList: React.FC = () => {
+const EmployeePermissionList: React.FC = () => {
   const navigate = useNavigate();
   const [permissions, setPermissions] = useState<EmployeePermission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -293,7 +293,7 @@ const RoleList: React.FC = () => {
           <div className="flex space-x-2">
             <button
               className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
-              onClick={() => navigate('/dashboard/roles/create')}
+              onClick={() => navigate('/dashboard/employee-permissions/create')}
             >
               + Thêm phân quyền
             </button>
@@ -498,4 +498,4 @@ const RoleList: React.FC = () => {
   );
 };
 
-export default RoleList;
+export default EmployeePermissionList;

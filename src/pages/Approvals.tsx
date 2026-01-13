@@ -108,15 +108,27 @@ const Approvals: React.FC = () => {
 
   // Kiểm tra xem người dùng hiện tại có quyền duyệt giải trình không
   const canApproveExplanation = (explanation: any): boolean => {
-    if (!currentEmployee) return false;
+    if (!currentEmployee) {
+      console.log('canApproveExplanation: currentEmployee is null');
+      return false;
+    }
     
     // Người tạo đơn không thể duyệt đơn của chính mình
     if (explanation.employee_id === currentEmployee.id) {
+      console.log('canApproveExplanation: Cannot approve own request', {
+        explanationId: explanation.id,
+        employee_id: explanation.employee_id,
+        currentEmployeeId: currentEmployee.id
+      });
       return false;
     }
     
     // Kiểm tra nếu đã được duyệt hoặc từ chối
     if (explanation.status !== 'PENDING') {
+      console.log('canApproveExplanation: Status is not PENDING', {
+        explanationId: explanation.id,
+        status: explanation.status
+      });
       return false;
     }
     
@@ -129,24 +141,65 @@ const Approvals: React.FC = () => {
     
     // Admin và HR có quyền duyệt tất cả
     if (isAdmin || isHR) {
+      console.log('canApproveExplanation: User is Admin/HR', {
+        explanationId: explanation.id,
+        isAdmin,
+        isHR,
+        currentEmployeeId: currentEmployee.id
+      });
       return true;
     }
     
     // Kiểm tra nếu là quản lý trực tiếp
     if (explanation.employee_manager_id === currentEmployee.id) {
+      // Nếu quản lý trực tiếp đã duyệt rồi thì không thể duyệt nữa
+      if (explanation.direct_manager_approved) {
+        console.log('canApproveExplanation: Direct manager already approved', {
+          explanationId: explanation.id,
+          direct_manager_approved: explanation.direct_manager_approved,
+          currentEmployeeId: currentEmployee.id,
+          employee_manager_id: explanation.employee_manager_id,
+          explanationData: explanation
+        });
+        return false;
+      }
+      console.log('canApproveExplanation: User is direct manager and can approve', {
+        explanationId: explanation.id,
+        currentEmployeeId: currentEmployee.id,
+        employee_manager_id: explanation.employee_manager_id
+      });
       return true;
     }
     
     // Kiểm tra nếu là trưởng phòng của nhân viên
     if (explanation.employee_department_manager_id === currentEmployee.id) {
+      console.log('canApproveExplanation: User is department manager', {
+        explanationId: explanation.id,
+        currentEmployeeId: currentEmployee.id,
+        employee_department_manager_id: explanation.employee_department_manager_id
+      });
       return true;
     }
     
     // Kiểm tra nếu là quản lý cấp cao hơn
     if (currentEmployee.is_manager && currentEmployee.management_level >= 2) {
+      console.log('canApproveExplanation: User is higher level manager', {
+        explanationId: explanation.id,
+        currentEmployeeId: currentEmployee.id,
+        is_manager: currentEmployee.is_manager,
+        management_level: currentEmployee.management_level
+      });
       return true;
     }
     
+    console.log('canApproveExplanation: No permission', {
+      explanationId: explanation.id,
+      currentEmployeeId: currentEmployee.id,
+      employee_manager_id: explanation.employee_manager_id,
+      employee_department_manager_id: explanation.employee_department_manager_id,
+      is_manager: currentEmployee.is_manager,
+      management_level: currentEmployee.management_level
+    });
     return false;
   };
 
@@ -217,8 +270,8 @@ const Approvals: React.FC = () => {
     
     // Bước 1: Quản lý trực tiếp
     const hasManager = explanation.employee_manager_name && explanation.employee_manager_name !== 'None';
-    const managerStatus = explanation.status === 'PENDING' ? 'Chưa duyệt' : 
-                         explanation.status === 'APPROVED' ? 'Đã duyệt' : 
+    const managerApproved = explanation.direct_manager_approved || false;
+    const managerStatus = managerApproved ? 'Đã duyệt' : 
                          explanation.status === 'REJECTED' ? 'Đã từ chối' : 'Chưa duyệt';
     
     workflow.push({
@@ -226,8 +279,9 @@ const Approvals: React.FC = () => {
       role: 'Quản lý trực tiếp',
       approver: hasManager ? explanation.employee_manager_name : 'Chưa xác định',
       status: managerStatus,
-      date: explanation.approved_at || null,
-      note: explanation.approval_note || ''
+      date: explanation.direct_manager_approved_at || null,
+      note: explanation.approval_note || '',
+      approved_by: explanation.direct_manager_approved_by_name || null
     });
     
     // Bước 2: Trưởng phòng (nếu có)
@@ -248,31 +302,35 @@ const Approvals: React.FC = () => {
       });
     }
     
-    // Bước 3: Nhân sự HR (luôn hiển thị)
-    const hrStatus = explanation.status === 'PENDING' ? 'Chưa duyệt' : 
-                    explanation.status === 'APPROVED' ? 'Đã duyệt' : 
+    // Bước 3: Nhân sự HR
+    const hrApproved = explanation.hr_approved || false;
+    const hrStatus = hrApproved ? 'Đã duyệt' : 
                     explanation.status === 'REJECTED' ? 'Đã từ chối' : 'Chưa duyệt';
     
     workflow.push({
       step: currentStep++,
       role: 'Nhân sự HR',
-      approver: 'Phòng Nhân sự',
+      approver: explanation.hr_approved_by_name || 'Phòng Nhân sự',
       status: hrStatus,
-      date: explanation.approved_at || null,
-      note: explanation.approval_note || ''
+      date: explanation.hr_approved_at || null,
+      note: explanation.approval_note || '',
+      approved_by: explanation.hr_approved_by_name || null
     });
     
-    // Bước 4: Người duyệt thực tế (nếu đã duyệt/từ chối)
-    if (explanation.approved_by_name && explanation.approved_by_name !== 'None') {
-      const finalStatus = explanation.status === 'APPROVED' ? 'Đã duyệt' : 
-                         explanation.status === 'REJECTED' ? 'Đã từ chối' : 'Chưa duyệt';
+    // Bước 4: Tổng hợp trạng thái cuối cùng
+    if (explanation.status === 'APPROVED' || explanation.status === 'REJECTED') {
+      const finalStatus = explanation.status === 'APPROVED' ? 'Đã duyệt' : 'Đã từ chối';
+      const finalApprover = explanation.approved_by_name || 
+                           explanation.direct_manager_approved_by_name || 
+                           explanation.hr_approved_by_name || 
+                           'Hệ thống';
       
       workflow.push({
         step: currentStep++,
-        role: 'Người duyệt cuối cùng',
-        approver: explanation.approved_by_name,
+        role: 'Kết quả cuối cùng',
+        approver: finalApprover,
         status: finalStatus,
-        date: explanation.approved_at,
+        date: explanation.approved_at || explanation.updated_at,
         note: explanation.approval_note || ''
       });
     }
@@ -730,12 +788,36 @@ const Approvals: React.FC = () => {
                         <span>{getStatusBadge(selectedExplanation.status)}</span>
                       </div>
                       <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Quản lý trực tiếp đã duyệt:</span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {selectedExplanation.direct_manager_approved ? '✓ Đã duyệt' : '✗ Chưa duyệt'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Nhân sự HR đã duyệt:</span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {selectedExplanation.hr_approved ? '✓ Đã duyệt' : '✗ Chưa duyệt'}
+                        </span>
+                      </div>
+                      {selectedExplanation.direct_manager_approved_at && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">QL trực tiếp duyệt lúc:</span>
+                          <span className="text-sm font-medium text-gray-900">{formatDateTime(selectedExplanation.direct_manager_approved_at)}</span>
+                        </div>
+                      )}
+                      {selectedExplanation.hr_approved_at && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Nhân sự duyệt lúc:</span>
+                          <span className="text-sm font-medium text-gray-900">{formatDateTime(selectedExplanation.hr_approved_at)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
                         <span className="text-sm text-gray-600">Ngày tạo:</span>
                         <span className="text-sm font-medium text-gray-900">{formatDateTime(selectedExplanation.created_at)}</span>
                       </div>
                       {selectedExplanation.approved_at && (
                         <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Ngày duyệt:</span>
+                          <span className="text-sm text-gray-600">Ngày duyệt cuối cùng:</span>
                           <span className="text-sm font-medium text-gray-900">{formatDateTime(selectedExplanation.approved_at)}</span>
                         </div>
                       )}

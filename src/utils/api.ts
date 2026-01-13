@@ -1574,6 +1574,9 @@ export interface Employee {
   birth_place?: string;
   permanent_residence?: string;
   
+  // HR employee flag
+  is_hr?: boolean;
+  
   created_at: string;
   updated_at: string;
 }
@@ -1733,6 +1736,29 @@ export const employeesAPI = {
         other: number;
       };
     }> = await managementApi.get('/api-hrm/employees/stats/');
+    return response.data;
+  },
+
+  hr_employees: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    employment_status?: string;
+    department?: number;
+    gender?: string;
+    ordering?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Employee[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: Employee[];
+    }> = await managementApi.get('/api-hrm/employees/hr_employees/', { params });
     return response.data;
   },
 

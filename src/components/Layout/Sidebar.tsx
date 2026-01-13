@@ -20,6 +20,8 @@ import {
   BriefcaseIcon,
   ChartBarIcon,
   EyeIcon,
+  UserGroupIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 
 // Define navigation items with role requirements
@@ -47,6 +49,12 @@ const navigationItems = [
     href: '/dashboard/employees',
     icon: UserIcon,
     roles: ['ADMIN', 'USER'],
+  },
+  {
+    name: 'Phân quyền',
+    href: '/dashboard/roles',
+    icon: ShieldCheckIcon,
+    roles: ['ADMIN'],
   },
   {
     name: 'Quản lý phòng ban',
