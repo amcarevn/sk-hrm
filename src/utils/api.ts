@@ -262,6 +262,17 @@ export const authAPI = {
     console.log('authAPI.login - Processed employee_profile:', user.employee_profile);
     console.log('authAPI.login - Processed hrm_user:', user.hrm_user);
     
+    // Store login response in localStorage for getProfile to use
+    try {
+      localStorage.setItem('login_response', JSON.stringify({
+        employee_profile: employeeProfile,
+        hrm_user: hrmUser,
+        ...backendUser
+      }));
+    } catch (e) {
+      console.error('Error storing login response in localStorage:', e);
+    }
+    
     return {
       user,
       tokens: {
@@ -288,13 +299,45 @@ export const authAPI = {
     
     // The API returns user fields directly at the top level, not wrapped in a 'user' object
     const userData = response.data;
+    
+    // If employee_profile or hrm_user are not in the response, try to get them from nested structure
+    // or use the data from login response stored in localStorage
+    let employeeProfile = userData.employee_profile;
+    let hrmUser = userData.hrm_user;
+    
+    // If not found in direct response, check nested structures
+    if (!employeeProfile && userData.user && userData.user.employee_profile) {
+      employeeProfile = userData.user.employee_profile;
+    }
+    if (!hrmUser && userData.user && userData.user.hrm_user) {
+      hrmUser = userData.user.hrm_user;
+    }
+    
+    // If still not found, try to get from localStorage (from login response)
+    if (!employeeProfile || !hrmUser) {
+      try {
+        const loginData = localStorage.getItem('login_response');
+        if (loginData) {
+          const parsedLoginData = JSON.parse(loginData);
+          if (!employeeProfile && parsedLoginData.employee_profile) {
+            employeeProfile = parsedLoginData.employee_profile;
+          }
+          if (!hrmUser && parsedLoginData.hrm_user) {
+            hrmUser = parsedLoginData.hrm_user;
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing login data from localStorage:', e);
+      }
+    }
+    
     const user: User = {
-      id: userData.user_id.toString(),
-      username: userData.username,
+      id: userData.user_id?.toString() || userData.id?.toString() || '',
+      username: userData.username || '',
       email: userData.email || '',
       firstName: userData.first_name || '',
       lastName: userData.last_name || '',
-      phone: userData.phone_number || userData.username || '', // phone_number might not be in response
+      phone: userData.phone_number || userData.username || '',
       role: userData.role || 'user',
       isActive: userData.is_active !== undefined ? userData.is_active : true,
       lastLoginAt: new Date().toISOString(),
@@ -305,13 +348,15 @@ export const authAPI = {
       updatedAt: new Date().toISOString(),
       is_super_admin: userData.is_super_admin || false,
       // Preserve additional fields from backend
-      employee_profile: userData.employee_profile,
-      hrm_user: userData.hrm_user,
+      employee_profile: employeeProfile,
+      hrm_user: hrmUser,
       // Copy all other properties from backend user
       ...userData,
     };
     
     console.log('authAPI.getProfile - Processed user:', user);
+    console.log('authAPI.getProfile - Processed employee_profile:', user.employee_profile);
+    console.log('authAPI.getProfile - Processed hrm_user:', user.hrm_user);
     
     return {
       user,

@@ -136,7 +136,26 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  
+  // If still loading auth data, show minimal sidebar
+  if (loading) {
+    return (
+      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+        <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
+          <div className="flex h-16 items-center px-4">
+            <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse"></div>
+            <div className="ml-2 h-6 w-32 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+          <nav className="flex-1 space-y-1 px-2 py-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-10 bg-gray-100 rounded-md animate-pulse"></div>
+            ))}
+          </nav>
+        </div>
+      </div>
+    );
+  }
 
   // Filter navigation items based on user role and department
   // Convert user role to uppercase to match navigation item roles
@@ -183,21 +202,30 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     // PLUS any items they have department access to (e.g., "Quản lý chấm công" for HCNS)
     const allowedStaffItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt'];
     
+    // Debug: Log staff handling
+    console.log('Sidebar - STAFF role handling:');
+    console.log('Sidebar - userDepartmentCode:', userDepartmentCode);
+    console.log('Sidebar - allowedStaffItems:', allowedStaffItems);
+    
     // First, get items that staff are allowed to see based on role
     let staffNavigation = navigationItems.filter((item) => 
       allowedStaffItems.includes(item.name)
     );
+    
+    console.log('Sidebar - Initial staff navigation (based on role):', staffNavigation.map(item => item.name));
     
     // Then, add any items that staff have department access to
     navigationItems.forEach((item) => {
       if (!staffNavigation.some(navItem => navItem.name === item.name)) {
         // Check if staff has department access to this item
         if (item.departments && userDepartmentCode && item.departments.includes(userDepartmentCode)) {
+          console.log('Sidebar - Adding item with department access:', item.name, 'departments:', item.departments);
           staffNavigation.push(item);
         }
       }
     });
     
+    console.log('Sidebar - Final staff navigation:', staffNavigation.map(item => item.name));
     navigation = staffNavigation;
   }
   
