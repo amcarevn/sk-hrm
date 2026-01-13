@@ -293,7 +293,7 @@ const EmployeePermissionList: React.FC = () => {
           <div className="flex space-x-2">
             <button
               className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
-              onClick={() => navigate('/dashboard/employee-permissions/create')}
+              onClick={() => navigate('/dashboard/roles/create')}
             >
               + Thêm phân quyền
             </button>
@@ -428,67 +428,74 @@ const EmployeePermissionList: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {permissions.map((perm) => (
-                  <tr key={perm.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {perm.employee?.employee_id || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {perm.employee?.full_name || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {perm.employee?.department?.name || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getBadge(perm.can_approve_attendance)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getBadge(perm.can_create_employee)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getBadge(perm.can_manage_attendance)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getBadge(perm.can_manage_assets)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() =>
-                            navigate(
-                              `/dashboard/employee-permissions/${perm.id}`
-                            )
-                          }
-                          className="text-primary-600 hover:text-primary-900"
-                        >
-                          Xem
-                        </button>
-                        <button
-                          onClick={() =>
-                            navigate(
-                              `/dashboard/employee-permissions/${perm.id}/edit`
-                            )
-                          }
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          onClick={() => handleDelete(perm.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {permissions.map((perm) => {
+                  // Handle case where employee might be just an ID or might not have nested structure
+                  const employeeId = typeof perm.employee === 'object' ? perm.employee?.employee_id : 'N/A';
+                  const employeeName = typeof perm.employee === 'object' ? perm.employee?.full_name : 'N/A';
+                  const departmentName = typeof perm.employee === 'object' ? perm.employee?.department?.name : 'N/A';
+                  
+                  return (
+                    <tr key={perm.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {employeeId || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {employeeName || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {departmentName || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getBadge(perm.can_approve_attendance)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getBadge(perm.can_create_employee)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getBadge(perm.can_manage_attendance)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getBadge(perm.can_manage_assets)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() =>
+                              navigate(
+                                `/dashboard/roles/${perm.id}`
+                              )
+                            }
+                            className="text-primary-600 hover:text-primary-900"
+                          >
+                            Xem
+                          </button>
+                          <button
+                            onClick={() =>
+                              navigate(
+                                `/dashboard/roles/${perm.id}/edit`
+                              )
+                            }
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDelete(perm.id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

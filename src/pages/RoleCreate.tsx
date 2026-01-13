@@ -46,8 +46,26 @@ const RoleCreate: React.FC = () => {
 
   const loadEmployees = async () => {
     try {
+      // Only load employees from HR department (Hành chính nhân sự)
+      // We need to filter by department. First, let's get all employees and filter client-side
+      // or we could add department filter to API call if supported
       const response = await employeesAPI.list({ page_size: 100 });
-      setEmployees(response.results);
+      
+      // Filter employees to only include those from HR department
+      // Assuming HR department has name containing "Hành chính" or "Nhân sự"
+      const hrEmployees = response.results.filter(employee => {
+        const deptName = employee.department?.name?.toLowerCase() || '';
+        return deptName.includes('hành chính') || 
+               deptName.includes('nhân sự') || 
+               deptName.includes('hr') ||
+               deptName.includes('human resource');
+      });
+      
+      setEmployees(hrEmployees);
+      
+      if (hrEmployees.length === 0) {
+        setError('Không tìm thấy nhân viên nào thuộc phòng Hành chính Nhân sự');
+      }
     } catch (err) {
       console.error('Failed to load employees:', err);
       setError('Lỗi khi tải danh sách nhân viên');
@@ -103,6 +121,11 @@ const RoleCreate: React.FC = () => {
         ...prev,
         [name]: value,
       }));
+
+      // If employee is selected, load their existing permissions
+      if (name === 'employee_id' && value) {
+        loadEmployeePermissions(parseInt(value));
+      }
     }
 
     // Clear error when user starts typing
@@ -154,6 +177,60 @@ const RoleCreate: React.FC = () => {
     }));
   };
 
+  const loadEmployeePermissions = async (employeeId: number) => {
+    try {
+      const permission = await employeePermissionService.getEmployeePermissionByEmployeeId(employeeId);
+      
+      // Update form with existing permissions
+      setFormData(prev => ({
+        ...prev,
+        can_approve_attendance: permission.can_approve_attendance,
+        can_create_employee: permission.can_create_employee,
+        can_manage_attendance: permission.can_manage_attendance,
+        can_manage_assets: permission.can_manage_assets,
+        can_approve_leave: permission.can_approve_leave,
+        can_approve_overtime: permission.can_approve_overtime,
+        can_view_all_employees: permission.can_view_all_employees,
+        can_manage_departments: permission.can_manage_departments,
+        can_manage_positions: permission.can_manage_positions,
+        can_manage_company_config: permission.can_manage_company_config,
+        can_manage_attendance_rules: permission.can_manage_attendance_rules,
+        can_manage_leave_policies: permission.can_manage_leave_policies,
+        can_view_reports: permission.can_view_reports,
+        can_export_reports: permission.can_export_reports,
+        notes: permission.notes || '',
+      }));
+
+      setSuccess(`Đã tải quyền hiện có của nhân viên`);
+    } catch (error: any) {
+      // If employee doesn't have permissions yet, clear the form (except employee_id)
+      if (error.response?.status === 404) {
+        setFormData(prev => ({
+          ...prev,
+          can_approve_attendance: false,
+          can_create_employee: false,
+          can_manage_attendance: false,
+          can_manage_assets: false,
+          can_approve_leave: false,
+          can_approve_overtime: false,
+          can_view_all_employees: false,
+          can_manage_departments: false,
+          can_manage_positions: false,
+          can_manage_company_config: false,
+          can_manage_attendance_rules: false,
+          can_manage_leave_policies: false,
+          can_view_reports: false,
+          can_export_reports: false,
+          notes: '',
+        }));
+        setSuccess('Nhân viên chưa có quyền nào. Bạn có thể tạo quyền mới.');
+      } else {
+        console.error('Failed to load employee permissions:', error);
+        setError('Lỗi khi tải quyền của nhân viên');
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -174,6 +251,7 @@ const RoleCreate: React.FC = () => {
 
       const permissionData = {
         employee: selectedEmployee.id,
+        employee_id: selectedEmployee.id,
         can_approve_attendance: formData.can_approve_attendance,
         can_create_employee: formData.can_create_employee,
         can_manage_attendance: formData.can_manage_attendance,

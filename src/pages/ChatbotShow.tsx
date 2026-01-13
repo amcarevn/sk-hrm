@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Chatbot, Conversation, Document, Domain } from '../utils/api';
 import { chatbotsAPI, documentsAPI } from '../utils/api';
-import ChatInterface from '../components/ChatInterface';
 import DomainList from '../components/DomainList';
 import DomainForm from '../components/DomainForm';
 import DomainKeywordManager from '../components/DomainKeywordManager';
@@ -260,12 +259,30 @@ export default function ChatbotShow() {
       {/* Tab Content */}
       <div className="min-h-[600px]">
         {activeTab === 'chat' && (
-          <div className="h-[600px]">
-            <ChatInterface
-              chatbot={chatbot}
-              conversation={conversation}
-              onConversationUpdate={handleConversationUpdate}
-            />
+          <div className="h-[600px] flex items-center justify-center bg-gray-50 rounded-lg">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-8 h-8 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                Chat Interface
+              </h3>
+              <p className="text-gray-600 max-w-md">
+                The chat interface has been removed. This feature is no longer available.
+              </p>
+            </div>
           </div>
         )}
 

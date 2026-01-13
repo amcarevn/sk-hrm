@@ -6,7 +6,6 @@ import React, {
   ReactNode,
 } from 'react';
 import { User, authAPI } from '../utils/api';
-import { websocketClient } from '../utils/websocket';
 import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
@@ -47,15 +46,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (token) {
         const userData = await authAPI.getProfile();
         setUser(userData?.user);
-
-        // Only connect to WebSocket if not on publish page
-        if (!window.location.pathname.includes('/publish')) {
-          try {
-            await websocketClient.connect(token);
-          } catch (error) {
-            console.error('Failed to connect to WebSocket:', error);
-          }
-        }
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -74,15 +64,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Store tokens
       localStorage.setItem('accessToken', response.tokens.accessToken);
       localStorage.setItem('refreshToken', response.tokens.refreshToken);
-
-      // Only connect to WebSocket if not on publish page
-      if (!window.location.pathname.includes('/publish')) {
-        try {
-          await websocketClient.connect(response.tokens.accessToken);
-        } catch (error) {
-          console.error('Failed to connect to WebSocket:', error);
-        }
-      }
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -97,15 +78,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Store tokens
       localStorage.setItem('accessToken', response.tokens.accessToken);
       localStorage.setItem('refreshToken', response.tokens.refreshToken);
-
-      // Only connect to WebSocket if not on publish page
-      if (!window.location.pathname.includes('/publish')) {
-        try {
-          await websocketClient.connect(response.tokens.accessToken);
-        } catch (error) {
-          console.error('Failed to connect to WebSocket:', error);
-        }
-      }
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;
@@ -116,9 +88,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-
-    // Disconnect from WebSocket
-    websocketClient.disconnect();
 
     // Redirect to login page
     navigate('/login');
