@@ -24,8 +24,17 @@ import {
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 
+// Define interface for navigation items
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: any;
+  roles: string[];
+  departments?: string[]; // Optional department codes
+}
+
 // Define navigation items with role requirements
-const navigationItems = [
+const navigationItems: NavigationItem[] = [
   {
     name: 'Trang chủ',
     href: '/home',
@@ -79,6 +88,7 @@ const navigationItems = [
     href: '/dashboard/attendance/upload',
     icon: CloudArrowUpIcon,
     roles: ['ADMIN', 'HR'],
+    departments: ['HCNS'], // Thêm điều kiện department_code
   },
   {
     name: 'Quản lý tài sản',
@@ -128,27 +138,77 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const location = useLocation();
   const { user } = useAuth();
 
-  // Filter navigation items based on user role
+  // Filter navigation items based on user role and department
   // Convert user role to uppercase to match navigation item roles
   const userRole = user?.role ? user.role.toUpperCase() : 'USER';
   const isSuperAdmin = user?.is_super_admin || false;
   
+  // Debug: Log user object to check department_code
+  console.log('Sidebar - User object:', user);
+  console.log('Sidebar - Employee profile:', user?.employee_profile);
+  console.log('Sidebar - HRM user:', user?.hrm_user);
+  
+  // Get user's department code from various possible locations in user object
+  const userDepartmentCode = (
+    user?.employee_profile?.department_code ||
+    user?.hrm_user?.department_code ||
+    (user as any)?.department_code ||
+    null
+  );
+  
+  console.log('Sidebar - Department code found:', userDepartmentCode);
+  console.log('Sidebar - User role:', userRole);
+  console.log('Sidebar - Is super admin:', isSuperAdmin);
+  
   // If user is super admin, show all navigation items
-  // Otherwise, filter based on user role (case-insensitive comparison)
+  // Otherwise, filter based on user role and department (case-insensitive comparison)
   let navigation = isSuperAdmin 
     ? navigationItems 
-    : navigationItems.filter((item) => 
-        item.roles.some(role => role.toUpperCase() === userRole)
-      );
+    : navigationItems.filter((item) => {
+        // Check if user has access based on department
+        if (item.departments && userDepartmentCode) {
+          const hasDepartmentAccess = item.departments.includes(userDepartmentCode);
+          if (hasDepartmentAccess) {
+            return true;
+          }
+        }
+        
+        // Check if user has access based on role
+        return item.roles.some(role => role.toUpperCase() === userRole);
+      });
   
   // Special handling for staff role
   if (userRole === 'STAFF') {
     // Staff should see specific USER items: Home, Me, Attendance, Organization Chart, Approvals
+    // PLUS any items they have department access to (e.g., "Quản lý chấm công" for HCNS)
     const allowedStaffItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt'];
-    navigation = navigationItems.filter((item) => 
+    
+    // First, get items that staff are allowed to see based on role
+    let staffNavigation = navigationItems.filter((item) => 
       allowedStaffItems.includes(item.name)
     );
+    
+    // Then, add any items that staff have department access to
+    navigationItems.forEach((item) => {
+      if (!staffNavigation.some(navItem => navItem.name === item.name)) {
+        // Check if staff has department access to this item
+        if (item.departments && userDepartmentCode && item.departments.includes(userDepartmentCode)) {
+          staffNavigation.push(item);
+        }
+      }
+    });
+    
+    navigation = staffNavigation;
   }
+  
+  // Debug: Log filtered navigation items
+  console.log('Sidebar - Filtered navigation items:', navigation.map(item => ({
+    name: item.name,
+    hasDepartmentAccess: item.departments && userDepartmentCode ? item.departments.includes(userDepartmentCode) : false,
+    hasRoleAccess: item.roles.some(role => role.toUpperCase() === userRole),
+    departments: item.departments,
+    roles: item.roles
+  })));
 
   const handleCollapseToggle = () => {
     const newCollapsedState = !isCollapsed;

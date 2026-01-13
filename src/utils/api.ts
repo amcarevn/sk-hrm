@@ -61,6 +61,24 @@ export interface User {
   userRoles?: UserRole[];
   permissions?: Permission[];
   is_super_admin?: boolean;
+  
+  // Additional fields from HRM backend
+  employee_profile?: {
+    id?: number;
+    employee_id?: string;
+    full_name?: string;
+    department?: string;
+    department_code?: string;
+    [key: string]: any;
+  };
+  hrm_user?: {
+    employee_id?: string;
+    full_name?: string;
+    department?: string;
+    department_code?: string;
+    [key: string]: any;
+  };
+  [key: string]: any; // Allow additional properties
 }
 
 export interface Permission {
@@ -198,27 +216,54 @@ export interface AuthResponse {
 // Authentication API
 export const authAPI = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response: AxiosResponse<{ access: string; refresh: string; user: any }> =
+    const response: AxiosResponse<{ access: string; refresh: string; user: any; hrm_user?: any; employee_profile?: any }> =
       await managementApi.post('/api-hrm/users/token/', credentials);
     
+    // Debug: Log the full response from backend
+    console.log('authAPI.login - Full response:', response.data);
+    console.log('authAPI.login - Backend user:', response.data.user);
+    console.log('authAPI.login - Employee profile (from user):', response.data.user?.employee_profile);
+    console.log('authAPI.login - HRM user (from user):', response.data.user?.hrm_user);
+    console.log('authAPI.login - HRM user (top level):', response.data.hrm_user);
+    console.log('authAPI.login - Employee profile (top level):', response.data.employee_profile);
+    
     // Convert the response to match the expected AuthResponse format
+    // Preserve all user data from backend including employee_profile and hrm_user
+    const backendUser = response.data.user;
+    
+    // Get hrm_user and employee_profile from top level if available, otherwise from user object
+    const hrmUser = response.data.hrm_user || backendUser.hrm_user;
+    const employeeProfile = response.data.employee_profile || backendUser.employee_profile;
+    
+    const user: User = {
+      id: backendUser.id.toString(),
+      username: backendUser.username,
+      email: backendUser.email || '',
+      firstName: backendUser.first_name || '',
+      lastName: backendUser.last_name || '',
+      phone: backendUser.phone_number || '',
+      role: backendUser.role || 'user',
+      isActive: backendUser.is_active !== undefined ? backendUser.is_active : true,
+      lastLoginAt: new Date().toISOString(),
+      loginCount: 0,
+      emailVerified: false,
+      phoneVerified: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      is_super_admin: backendUser.is_super_admin || false,
+      // Preserve additional fields from backend
+      employee_profile: employeeProfile,
+      hrm_user: hrmUser,
+      // Copy all other properties from backend user
+      ...backendUser,
+    };
+    
+    console.log('authAPI.login - Processed user:', user);
+    console.log('authAPI.login - Processed employee_profile:', user.employee_profile);
+    console.log('authAPI.login - Processed hrm_user:', user.hrm_user);
+    
     return {
-      user: {
-        id: response.data.user.id.toString(),
-        username: response.data.user.username,
-        email: response.data.user.email || '',
-        firstName: response.data.user.first_name || '',
-        lastName: response.data.user.last_name || '',
-        phone: response.data.user.phone_number || '',
-        role: response.data.user.role || 'user',
-        isActive: response.data.user.is_active !== undefined ? response.data.user.is_active : true,
-        lastLoginAt: new Date().toISOString(),
-        loginCount: 0,
-        emailVerified: false,
-        phoneVerified: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
+      user,
       tokens: {
         accessToken: response.data.access,
         refreshToken: response.data.refresh,
@@ -236,25 +281,40 @@ export const authAPI = {
     const response: AxiosResponse<any> =
       await managementApi.get('/api/users/profile/');
     
+    // Debug: Log the full response from backend
+    console.log('authAPI.getProfile - Full response:', response.data);
+    console.log('authAPI.getProfile - Employee profile:', response.data.employee_profile);
+    console.log('authAPI.getProfile - HRM user:', response.data.hrm_user);
+    
     // The API returns user fields directly at the top level, not wrapped in a 'user' object
     const userData = response.data;
+    const user: User = {
+      id: userData.user_id.toString(),
+      username: userData.username,
+      email: userData.email || '',
+      firstName: userData.first_name || '',
+      lastName: userData.last_name || '',
+      phone: userData.phone_number || userData.username || '', // phone_number might not be in response
+      role: userData.role || 'user',
+      isActive: userData.is_active !== undefined ? userData.is_active : true,
+      lastLoginAt: new Date().toISOString(),
+      loginCount: 0,
+      emailVerified: false,
+      phoneVerified: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      is_super_admin: userData.is_super_admin || false,
+      // Preserve additional fields from backend
+      employee_profile: userData.employee_profile,
+      hrm_user: userData.hrm_user,
+      // Copy all other properties from backend user
+      ...userData,
+    };
+    
+    console.log('authAPI.getProfile - Processed user:', user);
+    
     return {
-      user: {
-        id: userData.user_id.toString(),
-        username: userData.username,
-        email: userData.email || '',
-        firstName: userData.first_name || '',
-        lastName: userData.last_name || '',
-        phone: userData.phone_number || userData.username || '', // phone_number might not be in response
-        role: userData.role || 'user',
-        isActive: userData.is_active !== undefined ? userData.is_active : true,
-        lastLoginAt: new Date().toISOString(),
-        loginCount: 0,
-        emailVerified: false,
-        phoneVerified: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
+      user,
     };
   },
 

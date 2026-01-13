@@ -27,10 +27,19 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     const userRole = user.role ? user.role.toUpperCase() : '';
     const isSuperAdmin = user.is_super_admin || false;
     
+    // Get user's department code from various possible locations in user object
+    const userDepartmentCode = (
+      user.employee_profile?.department_code ||
+      user.hrm_user?.department_code ||
+      (user as any)?.department_code ||
+      null
+    );
+    
     // Super admin can access everything
     if (!isSuperAdmin && userRole === 'STAFF') {
       // Staff can only access specific routes
       // These routes correspond to: Home, Me, Attendance, Organization Chart, Approvals
+      // PLUS attendance upload for HCNS department staff
       const currentPath = window.location.pathname;
       
       // Define allowed paths for staff
@@ -39,12 +48,14 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         currentPath === '/home' ||
         // Me/profile page
         currentPath === '/dashboard/me' ||
-        // Attendance pages (but not upload)
+        // Attendance pages (but not upload for regular staff)
         (currentPath === '/dashboard/attendance' || currentPath === '/dashboard/attendance/view') ||
         // Organization chart
         currentPath === '/dashboard/organization-chart' ||
         // Approvals
-        currentPath === '/dashboard/approvals';
+        currentPath === '/dashboard/approvals' ||
+        // Attendance upload for HCNS department staff
+        (currentPath === '/dashboard/attendance/upload' && userDepartmentCode === 'HCNS');
       
       if (!isAllowedForStaff) {
         return <Navigate to="/home" replace />;
