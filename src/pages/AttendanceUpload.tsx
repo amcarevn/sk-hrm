@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { attendanceService } from '../services/attendance.service';
 import AttendanceCalendar from '../components/AttendanceCalendar';
 import { 
   EyeIcon,
   UserIcon,
   BuildingOfficeIcon,
   XMarkIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  DocumentArrowDownIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
 const AttendanceUpload: React.FC = () => {
@@ -188,17 +192,16 @@ const AttendanceUpload: React.FC = () => {
     setUploadMessage(null);
 
     try {
-      // In a real implementation, you would upload to an API endpoint
-      // For now, simulate upload
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call real API
+      const result = await attendanceService.uploadAttendanceFile(selectedFile);
       
-      // Simulate successful upload
+      // Create upload history entry
       const newUpload = {
         id: uploadHistory.length + 1,
         filename: selectedFile.name,
         uploadedAt: new Date().toLocaleString('vi-VN'),
         status: 'success' as const,
-        records: Math.floor(Math.random() * 100) + 1,
+        records: result.imported_records || result.total_records || 0,
         user: user?.username || 'Unknown'
       };
       
@@ -213,11 +216,26 @@ const AttendanceUpload: React.FC = () => {
       const fileInput = document.getElementById('attendance-file') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload error:', error);
+      let errorMessage = 'Upload thất bại. Vui lòng thử lại.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        if (typeof errors === 'object') {
+          errorMessage = Object.values(errors).flat().join(', ');
+        } else if (Array.isArray(errors)) {
+          errorMessage = errors.join(', ');
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       setUploadMessage({ 
         type: 'error', 
-        text: 'Upload thất bại. Vui lòng thử lại.' 
+        text: errorMessage
       });
     } finally {
       setUploading(false);
@@ -238,6 +256,97 @@ const AttendanceUpload: React.FC = () => {
       const file = files[0];
       setSelectedFile(file);
       setUploadMessage(null);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await attendanceService.downloadAttendanceTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'attendance_upload_template.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      setUploadMessage({ 
+        type: 'success', 
+        text: 'Đã tải mẫu file thành công!' 
+      });
+    } catch (error) {
+      console.error('Error downloading template:', error);
+      setUploadMessage({ 
+        type: 'error', 
+        text: 'Tải mẫu file thất bại. Vui lòng thử lại.' 
+      });
+    }
+  };
+
+  const handleValidateFile = async () => {
+    if (!selectedFile) {
+      setUploadMessage({ type: 'error', text: 'Vui lòng chọn file để validate' });
+      return;
+    }
+
+    // Check file type (allow Excel, CSV, etc.)
+    const allowedTypes = [
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/csv',
+      'application/csv',
+      'text/x-csv',
+      'application/x-csv',
+      'text/comma-separated-values',
+      'text/x-comma-separated-values'
+    ];
+
+    if (!allowedTypes.includes(selectedFile.type) && !selectedFile.name.match(/\.(xlsx|xls|csv)$/i)) {
+      setUploadMessage({ type: 'error', text: 'Chỉ chấp nhận file Excel (.xlsx, .xls) hoặc CSV (.csv)' });
+      return;
+    }
+
+    // Check file size (max 10MB)
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      setUploadMessage({ type: 'error', text: 'File quá lớn. Dung lượng tối đa là 10MB.' });
+      return;
+    }
+
+    setUploading(true);
+    setUploadMessage(null);
+
+    try {
+      const result = await attendanceService.validateAttendanceFile(selectedFile);
+      
+      setUploadMessage({ 
+        type: 'success', 
+        text: `Validate thành công! File có ${result.validation_results?.total_rows || 0} dòng, trong đó ${result.validation_results?.valid_rows || 0} dòng hợp lệ.` 
+      });
+      
+    } catch (error: any) {
+      console.error('Validate error:', error);
+      let errorMessage = 'Validate thất bại. Vui lòng thử lại.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        const errors = error.response.data.errors;
+        if (typeof errors === 'object') {
+          errorMessage = Object.values(errors).flat().join(', ');
+        } else if (Array.isArray(errors)) {
+          errorMessage = errors.join(', ');
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setUploadMessage({ 
+        type: 'error', 
+        text: errorMessage
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -584,7 +693,7 @@ const AttendanceUpload: React.FC = () => {
                   Excel (.xlsx, .xls) hoặc CSV
                 </p>
                 
-                <div className="flex flex-col items-center justify-center space-y-2">
+                  <div className="flex flex-col items-center justify-center space-y-2">
                   <label className="cursor-pointer bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors text-xs font-medium">
                     <span>Chọn file</span>
                     <input
@@ -598,25 +707,38 @@ const AttendanceUpload: React.FC = () => {
                   </label>
                   
                   {selectedFile && (
-                    <button
-                      onClick={handleUpload}
-                      disabled={uploading}
-                      className={`px-4 py-2 rounded-md transition-colors text-xs font-medium ${
-                        uploading 
-                          ? 'bg-gray-400 cursor-not-allowed' 
-                          : 'bg-green-600 hover:bg-green-700 text-white'
-                      }`}
-                    >
-                      {uploading ? (
-                        <span className="flex items-center">
-                          <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Đang upload...
-                        </span>
-                      ) : 'Upload'}
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={handleValidateFile}
+                        disabled={uploading}
+                        className={`px-4 py-2 rounded-md transition-colors text-xs font-medium ${
+                          uploading 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                        }`}
+                      >
+                        {uploading ? (
+                          <span className="flex items-center">
+                            <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            Đang xử lý...
+                          </span>
+                        ) : 'Validate'}
+                      </button>
+                      <button
+                        onClick={handleUpload}
+                        disabled={uploading}
+                        className={`px-4 py-2 rounded-md transition-colors text-xs font-medium ${
+                          uploading 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-green-600 hover:bg-green-700 text-white'
+                        }`}
+                      >
+                        Upload
+                      </button>
+                    </div>
                   )}
                 </div>
                 
@@ -685,10 +807,11 @@ const AttendanceUpload: React.FC = () => {
             <p className="text-gray-600 text-sm mb-4">
               Tải về mẫu file Excel để nhập dữ liệu chấm công.
             </p>
-            <button className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-3 rounded-md transition-colors flex items-center justify-center">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+            <button 
+              onClick={handleDownloadTemplate}
+              className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-3 rounded-md transition-colors flex items-center justify-center"
+            >
+              <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
               Tải mẫu file Excel
             </button>
             
@@ -696,28 +819,64 @@ const AttendanceUpload: React.FC = () => {
               <h4 className="font-medium text-gray-900 mb-2">Cấu trúc file:</h4>
               <div className="text-sm text-gray-600 space-y-1">
                 <div className="flex justify-between">
+                  <span>STT:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Số thứ tự</code>
+                </div>
+                <div className="flex justify-between">
                   <span>Mã nhân viên:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">employee_id</code>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Mã nhân viên (bắt buộc)</code>
                 </div>
                 <div className="flex justify-between">
                   <span>Tên nhân viên:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">full_name</code>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Tên nhân viên</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>Phòng Ban:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Phòng ban</code>
                 </div>
                 <div className="flex justify-between">
                   <span>Ngày:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">date</code>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Ngày chấm công (bắt buộc)</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>Thứ:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Thứ trong tuần</code>
                 </div>
                 <div className="flex justify-between">
                   <span>Giờ vào:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">check_in</code>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Giờ vào làm</code>
                 </div>
                 <div className="flex justify-between">
                   <span>Giờ ra:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">check_out</code>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Giờ ra về</code>
                 </div>
                 <div className="flex justify-between">
-                  <span>Ghi chú:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">note</code>
+                  <span>Trễ:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Số phút đi trễ</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>Sớm:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Số phút về sớm</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>Công:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Số công</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tổng giờ:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Tổng giờ làm</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tăng ca:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Số giờ tăng ca</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tổng toàn bộ:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Tổng giờ toàn bộ</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>Ca:</span>
+                  <code className="bg-gray-100 px-2 py-1 rounded">Ca làm việc</code>
                 </div>
               </div>
             </div>

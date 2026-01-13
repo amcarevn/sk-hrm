@@ -146,7 +146,7 @@ class AttendanceService {
    */
   async getCalendarView(params?: CalendarViewParams): Promise<CalendarViewData> {
     try {
-      const response = await managementApi.get('/api-hrm/attendance/calendar_view/', { params });
+      const response = await managementApi.get('/api-hrm/attendance/calendar-view/', { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching calendar view:', error);
@@ -229,6 +229,41 @@ class AttendanceService {
   }
 
   /**
+   * Tải mẫu file chấm công
+   */
+  async downloadAttendanceTemplate(): Promise<Blob> {
+    try {
+      const response = await managementApi.get('/api-hrm/attendance/upload/template/', {
+        responseType: 'blob'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error downloading attendance template:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Validate file chấm công trước khi import
+   */
+  async validateAttendanceFile(file: File): Promise<any> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await managementApi.post('/api-hrm/attendance/upload/validate/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error validating attendance file:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Lấy lịch sử upload file
    */
   async getUploadHistory(params?: {
@@ -246,6 +281,70 @@ class AttendanceService {
       return response.data;
     } catch (error) {
       console.error('Error fetching upload history:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy lịch sử import attendance (mới)
+   */
+  async getAttendanceImportLogs(params?: {
+    page?: number;
+    page_size?: number;
+    start_date?: string;
+    end_date?: string;
+    status?: string;
+    imported_by?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: any[];
+  }> {
+    try {
+      const response = await managementApi.get('/api-hrm/attendance-import-logs/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attendance import logs:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy chi tiết import log
+   */
+  async getAttendanceImportLogDetails(id: number): Promise<any> {
+    try {
+      const response = await managementApi.get(`/api-hrm/attendance-import-logs/${id}/details/`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching attendance import log details ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy thống kê import
+   */
+  async getAttendanceImportStats(): Promise<any> {
+    try {
+      const response = await managementApi.get('/api-hrm/attendance-import-logs/stats/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attendance import stats:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy lịch sử import gần đây
+   */
+  async getRecentAttendanceImports(): Promise<any[]> {
+    try {
+      const response = await managementApi.get('/api-hrm/attendance-import-logs/recent/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching recent attendance imports:', error);
       throw error;
     }
   }

@@ -49,11 +49,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(year, month - 1, day);
-        const dateStr = date.toISOString().split('T')[0];
+        // Format date as YYYY-MM-DD in local timezone (not UTC)
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         
         // Find attendance records for this date
         const dayRecords = data.calendar_data?.filter((record: any) => 
-          record.date.startsWith(dateStr)
+          record.date === dateStr
         ) || [];
         
         // Determine status based on records

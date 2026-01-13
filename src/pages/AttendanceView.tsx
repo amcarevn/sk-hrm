@@ -88,12 +88,22 @@ const AttendanceView: React.FC = () => {
       const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
       const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-      // Prepare params
+      // Prepare params with local timezone dates
       const params: any = {};
       if (selectedEmployee) params.employee_id = selectedEmployee;
       if (selectedDepartment) params.department_id = selectedDepartment;
-      params.start_date = startDate.toISOString().split('T')[0];
-      params.end_date = endDate.toISOString().split('T')[0];
+      
+      // Format start date in local timezone
+      const startYear = startDate.getFullYear();
+      const startMonth = String(startDate.getMonth() + 1).padStart(2, '0');
+      const startDay = String(startDate.getDate()).padStart(2, '0');
+      params.start_date = `${startYear}-${startMonth}-${startDay}`;
+      
+      // Format end date in local timezone
+      const endYear = endDate.getFullYear();
+      const endMonth = String(endDate.getMonth() + 1).padStart(2, '0');
+      const endDay = String(endDate.getDate()).padStart(2, '0');
+      params.end_date = `${endYear}-${endMonth}-${endDay}`;
 
       // Fetch attendance records
       const attendanceResponse = await attendanceService.getAttendanceRecords(params);
@@ -231,10 +241,13 @@ const AttendanceView: React.FC = () => {
     setDateDetailModalOpen(true);
     setDateDetailLoading(true);
     
+    // Format date to YYYY-MM-DD in local timezone
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
     try {
-      // Format date to YYYY-MM-DD
-      const dateStr = date.toISOString().split('T')[0];
-      
       // Prepare params for fetching attendance records for this specific date
       const params: any = {
         start_date: dateStr,
@@ -256,7 +269,7 @@ const AttendanceView: React.FC = () => {
       const mockDateDetails: AttendanceRecord[] = [
         {
           id: 1,
-          attendance_date: date.toISOString().split('T')[0],
+          attendance_date: dateStr,
           check_in: '08:00',
           check_out: '17:30',
           status: 'PRESENT',
@@ -567,7 +580,7 @@ const AttendanceView: React.FC = () => {
                       {record.check_out || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {record.working_hours.toFixed(1)} giờ
+                      {Number(record.working_hours).toFixed(1)} giờ
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(record.status)}`}>
@@ -743,7 +756,7 @@ const AttendanceView: React.FC = () => {
                               </div>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {record.working_hours.toFixed(1)} giờ
+                              {Number(record.working_hours).toFixed(1)} giờ
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(record.status)}`}>

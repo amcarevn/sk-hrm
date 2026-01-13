@@ -131,8 +131,11 @@ const AttendanceManagement: React.FC = () => {
     setFetchingDetails(true);
     
     try {
-      // Format date to YYYY-MM-DD
-      const dateStr = date.toISOString().split('T')[0];
+      // Format date to YYYY-MM-DD in local timezone
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
       
       // Fetch attendance records for the selected date
       const response = await attendanceService.getAttendanceRecords({
@@ -232,8 +235,11 @@ const AttendanceManagement: React.FC = () => {
         originalStatus = attendanceDetails[0].status;
       }
 
-      // Format date to YYYY-MM-DD
-      const dateStr = selectedDate.toISOString().split('T')[0];
+      // Format date to YYYY-MM-DD in local timezone
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
 
       // Prepare data for API
       const explanationData = {
@@ -594,7 +600,7 @@ const AttendanceManagement: React.FC = () => {
                                 {record.check_out ? new Date(`2000-01-01T${record.check_out}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {record.working_hours ? `${record.working_hours.toFixed(1)} giờ` : '0 giờ'}
+                                {record.working_hours ? `${Number(record.working_hours).toFixed(1)} giờ` : '0 giờ'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
