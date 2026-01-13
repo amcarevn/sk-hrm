@@ -74,10 +74,18 @@ const AttendanceManagement: React.FC = () => {
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       
+      // Format dates in local timezone
+      const formatDateLocal = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
       // Fetch attendance statistics
       const stats = await attendanceService.getAttendanceStats({
-        start_date: firstDayOfMonth.toISOString().split('T')[0],
-        end_date: lastDayOfMonth.toISOString().split('T')[0]
+        start_date: formatDateLocal(firstDayOfMonth),
+        end_date: formatDateLocal(lastDayOfMonth)
       });
       
       // Fetch attendance explanation statistics for current month
@@ -636,7 +644,7 @@ const AttendanceManagement: React.FC = () => {
                     <div className="bg-blue-50 p-3 rounded-lg">
                       <h4 className="font-medium text-blue-900 text-sm">Tổng giờ làm</h4>
                       <p className="text-xl font-bold text-blue-700 mt-1">
-                        {attendanceSummary ? `${attendanceSummary.totalHours.toFixed(1)} giờ` : '0 giờ'}
+                        {attendanceSummary ? `${Number(attendanceSummary.totalHours).toFixed(1)} giờ` : '0 giờ'}
                       </p>
                     </div>
                     <div className="bg-green-50 p-3 rounded-lg">
