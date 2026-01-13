@@ -54,8 +54,16 @@ const RoleList: React.FC = () => {
     try {
       const statsData = await employeePermissionService.getPermissionStats();
       setStats(statsData);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching permission stats:', err);
+      // Set default stats to prevent UI breakage
+      setStats({
+        total: 0,
+        employees_with_permissions: 0,
+        employees_without_permissions: 0,
+        permission_stats: {},
+        department_stats: [],
+      });
     }
   };
 
@@ -285,7 +293,7 @@ const RoleList: React.FC = () => {
           <div className="flex space-x-2">
             <button
               className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
-              onClick={() => navigate('/dashboard/roles/create')}
+              onClick={() => navigate('/permissions/dashboard/roles/create')}
             >
               + Thêm phân quyền
             </button>
@@ -487,7 +495,7 @@ const RoleList: React.FC = () => {
                           <button
                             onClick={() =>
                               navigate(
-                                `/dashboard/roles/${perm.id}`
+                                `/permissions/dashboard/roles/${perm.id}`
                               )
                             }
                             className="text-primary-600 hover:text-primary-900"
@@ -497,7 +505,7 @@ const RoleList: React.FC = () => {
                           <button
                             onClick={() =>
                               navigate(
-                                `/dashboard/roles/${perm.id}/edit`
+                                `/permissions/dashboard/roles/${perm.id}/edit`
                               )
                             }
                             className="text-blue-600 hover:text-blue-900"

@@ -139,13 +139,18 @@ const Approvals: React.FC = () => {
                  currentEmployee.department?.name?.includes('HR') ||
                  currentEmployee.department?.name?.includes('Nhân sự');
     
-    // Admin và HR có quyền duyệt tất cả
-    if (isAdmin || isHR) {
-      console.log('canApproveExplanation: User is Admin/HR', {
+    // Kiểm tra quyền can_approve_attendance từ permissions
+    const hasApprovalPermission = currentEmployee.permissions?.can_approve_attendance || false;
+    
+    // Admin, HR, và người có quyền can_approve_attendance có quyền duyệt tất cả
+    if (isAdmin || isHR || hasApprovalPermission) {
+      console.log('canApproveExplanation: User has approval permission', {
         explanationId: explanation.id,
         isAdmin,
         isHR,
-        currentEmployeeId: currentEmployee.id
+        hasApprovalPermission,
+        currentEmployeeId: currentEmployee.id,
+        permissions: currentEmployee.permissions
       });
       return true;
     }
@@ -198,7 +203,9 @@ const Approvals: React.FC = () => {
       employee_manager_id: explanation.employee_manager_id,
       employee_department_manager_id: explanation.employee_department_manager_id,
       is_manager: currentEmployee.is_manager,
-      management_level: currentEmployee.management_level
+      management_level: currentEmployee.management_level,
+      hasApprovalPermission,
+      permissions: currentEmployee.permissions
     });
     return false;
   };
