@@ -10,6 +10,9 @@ export interface AttendanceRecord {
   shift_type: string;
   shift_type_display: string;
   working_hours: number;
+  overtime_hours: number;
+  late_minutes: number;
+  early_leave_minutes: number;
   notes: string;
   employee_name: string;
   employee_code: string;

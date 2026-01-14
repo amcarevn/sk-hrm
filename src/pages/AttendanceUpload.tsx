@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { attendanceService } from '../services/attendance.service';
+import { departmentsAPI, employeesAPI } from '../utils/api';
 import AttendanceCalendar from '../components/AttendanceCalendar';
 import { 
   EyeIcon,
@@ -35,26 +36,106 @@ const AttendanceUpload: React.FC = () => {
   const [mainViewDepartment, setMainViewDepartment] = useState<string>('');
   const [mainViewEmployee, setMainViewEmployee] = useState<string>('');
 
-  // Mock data for departments
-  const departments = [
-    { id: '1', name: 'IT - Công nghệ thông tin', employeeCount: 15 },
-    { id: '2', name: 'HR - Nhân sự', employeeCount: 8 },
-    { id: '3', name: 'SALE - Kinh doanh', employeeCount: 25 },
-    { id: '4', name: 'MARKETING - Tiếp thị', employeeCount: 12 },
-    { id: '5', name: 'ACCOUNTING - Kế toán', employeeCount: 10 },
-  ];
+  // State for departments and employees from API
+  const [departments, setDepartments] = useState<Array<{
+    id: string;
+    name: string;
+    code: string;
+    employeeCount: number;
+  }>>([]);
+  const [employees, setEmployees] = useState<Array<{
+    id: string;
+    code: string;
+    name: string;
+    department: string;
+    department_id?: string;
+  }>>([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data for employees
-  const employees = [
-    { id: '1', code: 'NV001', name: 'Nguyễn Văn A', department: 'IT - Công nghệ thông tin' },
-    { id: '2', code: 'NV002', name: 'Trần Thị B', department: 'IT - Công nghệ thông tin' },
-    { id: '3', code: 'NV003', name: 'Lê Văn C', department: 'HR - Nhân sự' },
-    { id: '4', code: 'NV004', name: 'Phạm Thị D', department: 'HR - Nhân sự' },
-    { id: '5', code: 'NV005', name: 'Hoàng Văn E', department: 'SALE - Kinh doanh' },
-    { id: '6', code: 'NV006', name: 'Vũ Thị F', department: 'SALE - Kinh doanh' },
-    { id: '7', code: 'NV007', name: 'Đặng Văn G', department: 'MARKETING - Tiếp thị' },
-    { id: '8', code: 'NV008', name: 'Bùi Thị H', department: 'ACCOUNTING - Kế toán' },
-  ];
+  // Fetch departments on component mount
+  useEffect(() => {
+    fetchDepartments();
+    fetchEmployees();
+  }, []);
+
+  // Fetch departments from API
+  const fetchDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      setError(null);
+      const response = await departmentsAPI.list({ page_size: 100 });
+      const departmentsData = response.results.map((dept: any) => ({
+        id: dept.id.toString(),
+        name: dept.name,
+        code: dept.code,
+        employeeCount: 0 // We'll update this after fetching employees
+      }));
+      setDepartments(departmentsData);
+    } catch (err: any) {
+      console.error('Error fetching departments:', err);
+      setError('Không thể tải danh sách phòng ban. Vui lòng thử lại sau.');
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
+
+  // Fetch employees from API
+  const fetchEmployees = async () => {
+    try {
+      setLoadingEmployees(true);
+      setError(null);
+      const response = await employeesAPI.list({ page_size: 100 });
+      const employeesData = response.results.map((emp: any) => ({
+        id: emp.id.toString(),
+        code: emp.employee_id,
+        name: emp.full_name,
+        department: emp.department?.name || 'Không xác định',
+        department_id: emp.department?.id?.toString()
+      }));
+      setEmployees(employeesData);
+
+      // Update employee count for each department
+      const departmentCounts: { [key: string]: number } = {};
+      employeesData.forEach((emp: any) => {
+        if (emp.department_id) {
+          departmentCounts[emp.department_id] = (departmentCounts[emp.department_id] || 0) + 1;
+        }
+      });
+
+      setDepartments(prev => prev.map(dept => ({
+        ...dept,
+        employeeCount: departmentCounts[dept.id] || 0
+      })));
+    } catch (err: any) {
+      console.error('Error fetching employees:', err);
+      setError('Không thể tải danh sách nhân viên. Vui lòng thử lại sau.');
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
+
+  // Fetch employees by department
+  const fetchEmployeesByDepartment = async (departmentId: string) => {
+    try {
+      setLoadingEmployees(true);
+      const response = await departmentsAPI.employees(parseInt(departmentId), { page_size: 100 });
+      const employeesData = response.results.map((emp: any) => ({
+        id: emp.id.toString(),
+        code: emp.employee_id,
+        name: emp.full_name,
+        department: emp.department?.name || 'Không xác định',
+        department_id: emp.department?.id?.toString()
+      }));
+      setEmployees(employeesData);
+    } catch (err: any) {
+      console.error('Error fetching employees by department:', err);
+      setError('Không thể tải danh sách nhân viên theo phòng ban.');
+    } finally {
+      setLoadingEmployees(false);
+    }
+  };
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
@@ -102,6 +183,8 @@ const AttendanceUpload: React.FC = () => {
     setSelectedDepartment(deptId);
     setViewMode('employee'); // Switch to employee list view
     setSelectedEmployee('');
+    // Fetch employees for the selected department
+    fetchEmployeesByDepartment(deptId);
   };
 
   const handleSelectEmployee = (empId: string) => {
@@ -131,7 +214,7 @@ const AttendanceUpload: React.FC = () => {
   // Filter employees by selected department
   const departmentEmployees = selectedDepartment 
     ? filteredEmployees.filter(emp => 
-        departments.find(dept => dept.id === selectedDepartment)?.name === emp.department
+        emp.department_id === selectedDepartment
       )
     : filteredEmployees;
 
@@ -444,13 +527,18 @@ const AttendanceUpload: React.FC = () => {
                     setMainViewEmployee(e.target.value);
                     setMainViewDepartment(''); // Clear department if employee is selected
                   }}
+                  disabled={loadingEmployees}
                 >
                   <option value="">-- Chọn nhân viên --</option>
-                  {filteredEmployees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.code} - {emp.name} ({emp.department})
-                    </option>
-                  ))}
+                  {loadingEmployees ? (
+                    <option value="" disabled>Đang tải nhân viên...</option>
+                  ) : (
+                    filteredEmployees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.code} - {emp.name} ({emp.department})
+                      </option>
+                    ))
+                  )}
                 </select>
                 
                 {searchQuery && filteredEmployees.length === 0 && (
@@ -460,32 +548,56 @@ const AttendanceUpload: React.FC = () => {
                 )}
               </div>
 
-              {/* Department Filter */}
-              <div>
-                <label htmlFor="view-department" className="block text-sm font-medium text-gray-700 mb-2">
-                  <div className="flex items-center">
-                    <BuildingOfficeIcon className="h-4 w-4 text-gray-500 mr-1" />
-                    Xem theo phòng ban
-                  </div>
-                </label>
-                <select
-                  id="view-department"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  value={mainViewDepartment}
-                  onChange={(e) => {
-                    setMainViewDepartment(e.target.value);
-                    setMainViewEmployee(''); // Clear employee if department is selected
-                  }}
-                >
-                  <option value="">-- Chọn phòng ban --</option>
-                  {departments.map((dept) => (
+            {/* Department Filter */}
+            <div>
+              <label htmlFor="view-department" className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center">
+                  <BuildingOfficeIcon className="h-4 w-4 text-gray-500 mr-1" />
+                  Xem theo phòng ban
+                </div>
+              </label>
+              <select
+                id="view-department"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                value={mainViewDepartment}
+                onChange={(e) => {
+                  setMainViewDepartment(e.target.value);
+                  setMainViewEmployee(''); // Clear employee if department is selected
+                  // Fetch employees for the selected department in main view
+                  if (e.target.value) {
+                    fetchEmployeesByDepartment(e.target.value);
+                  } else {
+                    fetchEmployees(); // Reset to all employees
+                  }
+                }}
+                disabled={loadingDepartments}
+              >
+                <option value="">-- Chọn phòng ban --</option>
+                {loadingDepartments ? (
+                  <option value="" disabled>Đang tải phòng ban...</option>
+                ) : (
+                  departments.map((dept) => (
                     <option key={dept.id} value={dept.id}>
                       {dept.name} ({dept.employeeCount} nhân viên)
                     </option>
-                  ))}
-                </select>
-              </div>
+                  ))
+                )}
+              </select>
+              {loadingDepartments && (
+                <div className="mt-1 text-xs text-gray-500">Đang tải danh sách phòng ban...</div>
+              )}
             </div>
+            </div>
+
+            {/* Error message display */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 rounded-lg">
+                <div className="flex items-center">
+                  <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2" />
+                  <p className="text-red-700">{error}</p>
+                </div>
+              </div>
+            )}
 
             {/* Instructions */}
             <div className="mb-6 p-4 bg-blue-50 rounded-lg">
@@ -529,36 +641,34 @@ const AttendanceUpload: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {employees
-                      .filter(emp => departments.find(d => d.id === mainViewDepartment)?.name === emp.department)
-                      .map((emp) => (
-                        <div key={emp.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-400 hover:shadow-md transition-all">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                              <UserIcon className="h-10 w-10 text-gray-400" />
-                            </div>
-                            <div className="ml-4 flex-1">
-                              <h4 className="text-sm font-medium text-gray-900">{emp.name}</h4>
-                              <p className="text-xs text-gray-500 mt-1">Mã: {emp.code}</p>
-                              <p className="text-xs text-gray-500">Phòng ban: {emp.department}</p>
-                            </div>
+                    {departmentEmployees.map((emp) => (
+                      <div key={emp.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-400 hover:shadow-md transition-all">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0">
+                            <UserIcon className="h-10 w-10 text-gray-400" />
                           </div>
-                          <div className="mt-4 flex justify-end">
-                            <button
-                              onClick={() => {
-                                setSelectedEmployee(emp.id);
-                                setShowDetailView(true);
-                                setViewMode('employee');
-                                setSelectedDepartment(mainViewDepartment);
-                              }}
-                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                            >
-                              <EyeIcon className="h-3 w-3 mr-1" />
-                              Xem chi tiết
-                            </button>
+                          <div className="ml-4 flex-1">
+                            <h4 className="text-sm font-medium text-gray-900">{emp.name}</h4>
+                            <p className="text-xs text-gray-500 mt-1">Mã: {emp.code}</p>
+                            <p className="text-xs text-gray-500">Phòng ban: {emp.department}</p>
                           </div>
                         </div>
-                      ))}
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            onClick={() => {
+                              setSelectedEmployee(emp.id);
+                              setShowDetailView(true);
+                              setViewMode('employee');
+                              setSelectedDepartment(mainViewDepartment);
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                          >
+                            <EyeIcon className="h-3 w-3 mr-1" />
+                            Xem chi tiết
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ) : mainViewEmployee ? (
@@ -1045,7 +1155,14 @@ const AttendanceUpload: React.FC = () => {
                         </div>
                       </div>
 
-                      {departmentEmployees.length === 0 ? (
+                      {loadingEmployees ? (
+                        <div className="text-center py-8">
+                          <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 3.75V21m-10.5-7.75V21m-4.5 0h.01" />
+                          </svg>
+                          <p className="text-gray-500">Đang tải danh sách nhân viên...</p>
+                        </div>
+                      ) : departmentEmployees.length === 0 ? (
                         <div className="text-center py-8">
                           <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 3.75V21m-10.5-7.75V21m-4.5 0h.01" />
@@ -1092,9 +1209,9 @@ const AttendanceUpload: React.FC = () => {
                             <h4 className="font-medium text-blue-900">
                               {employees.find(e => e.id === selectedEmployee)?.name} ({employees.find(e => e.id === selectedEmployee)?.code})
                             </h4>
-                            <p className="text-sm text-blue-700">
-                              Phòng ban: {employees.find(e => e.id === selectedEmployee)?.department}
-                            </p>
+                          <p className="text-sm text-blue-700">
+                            Phòng ban: {employees.find(e => e.id === selectedEmployee)?.department}
+                          </p>
                           </div>
                         </div>
                       </div>

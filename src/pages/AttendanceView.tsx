@@ -126,6 +126,9 @@ const AttendanceView: React.FC = () => {
           shift_type: 'FULL_DAY',
           shift_type_display: 'Cả ngày',
           working_hours: 8.5,
+          overtime_hours: 0,
+          late_minutes: 0,
+          early_leave_minutes: 0,
           notes: '',
           employee_name: 'Nguyễn Văn A',
           employee_code: 'NV001',
@@ -141,6 +144,9 @@ const AttendanceView: React.FC = () => {
           shift_type: 'FULL_DAY',
           shift_type_display: 'Cả ngày',
           working_hours: 8.5,
+          overtime_hours: 0,
+          late_minutes: 15,
+          early_leave_minutes: 0,
           notes: 'Vào muộn 15 phút',
           employee_name: 'Nguyễn Văn A',
           employee_code: 'NV001',
@@ -156,6 +162,9 @@ const AttendanceView: React.FC = () => {
           shift_type: 'FULL_DAY',
           shift_type_display: 'Cả ngày',
           working_hours: 8.0,
+          overtime_hours: 0,
+          late_minutes: 0,
+          early_leave_minutes: 0,
           notes: '',
           employee_name: 'Nguyễn Văn A',
           employee_code: 'NV001',
@@ -277,6 +286,9 @@ const AttendanceView: React.FC = () => {
           shift_type: 'FULL_DAY',
           shift_type_display: 'Cả ngày',
           working_hours: 8.5,
+          overtime_hours: 0,
+          late_minutes: 0,
+          early_leave_minutes: 0,
           notes: '',
           employee_name: selectedEmployee ? getSelectedEmployeeName() : 'Nguyễn Văn A',
           employee_code: selectedEmployee ? 'NV001' : 'NV001',
@@ -764,7 +776,24 @@ const AttendanceView: React.FC = () => {
                               </span>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {record.notes || '-'}
+                              <div className="space-y-1">
+                                {record.notes && (
+                                  <div>{record.notes}</div>
+                                )}
+                                {(record.late_minutes > 0 || record.early_leave_minutes > 0) && (
+                                  <div className="text-xs text-gray-600">
+                                    {record.late_minutes > 0 && (
+                                      <div>Đi muộn: {record.late_minutes} phút</div>
+                                    )}
+                                    {record.early_leave_minutes > 0 && (
+                                      <div>Về sớm: {record.early_leave_minutes} phút</div>
+                                    )}
+                                  </div>
+                                )}
+                                {!record.notes && record.late_minutes === 0 && record.early_leave_minutes === 0 && (
+                                  <div>-</div>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}

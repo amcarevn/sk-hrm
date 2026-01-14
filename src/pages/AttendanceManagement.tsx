@@ -631,7 +631,24 @@ const AttendanceManagement: React.FC = () => {
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {record.notes || '-'}
+                                <div className="space-y-1">
+                                  {record.notes && (
+                                    <div>{record.notes}</div>
+                                  )}
+                                  {(record.late_minutes > 0 || record.early_leave_minutes > 0) && (
+                                    <div className="text-xs text-gray-600">
+                                      {record.late_minutes > 0 && (
+                                        <div>Đi muộn: {record.late_minutes} phút</div>
+                                      )}
+                                      {record.early_leave_minutes > 0 && (
+                                        <div>Về sớm: {record.early_leave_minutes} phút</div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {!record.notes && record.late_minutes === 0 && record.early_leave_minutes === 0 && (
+                                    <div>-</div>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}
