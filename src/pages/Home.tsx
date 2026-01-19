@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { employeesAPI, departmentsAPI } from '../utils/api';
 import {
   BuildingOfficeIcon,
   UserGroupIcon,
@@ -19,6 +20,34 @@ import {
 const Home: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [employee, setEmployee] = useState<any>(null);
+  const [department, setDepartment] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchEmployeeData();
+  }, []);
+
+  const fetchEmployeeData = async () => {
+    try {
+      setLoading(true);
+      const emp = await employeesAPI.me();
+      setEmployee(emp);
+      
+      if (emp.department?.id) {
+        try {
+          const dept = await departmentsAPI.getById(emp.department.id);
+          setDepartment(dept);
+        } catch (err) {
+          console.error('Error fetching department:', err);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching employee data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const userStats = [
     { label: 'Ngày làm việc', value: '22', change: '+2', icon: CalendarIcon, color: 'bg-blue-100 text-blue-600' },
@@ -51,7 +80,7 @@ const Home: React.FC = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <BuildingOfficeIcon className="h-5 w-5" />
-                <span>Phòng: {'Chưa phân phòng'}</span>
+                <span>Phòng: {loading ? 'Đang tải...' : (department?.name || employee?.department?.name || 'Chưa phân phòng')}</span>
               </div>
             </div>
           </div>
