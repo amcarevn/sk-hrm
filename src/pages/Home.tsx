@@ -49,11 +49,24 @@ const Home: React.FC = () => {
     }
   };
 
+  // Calculate working days based on start date
+  const calculateWorkingDays = () => {
+    if (!employee?.start_date) return 0;
+    
+    const startDate = new Date(employee.start_date);
+    const today = new Date();
+    
+    // Calculate difference in days
+    const diffTime = Math.abs(today.getTime() - startDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays;
+  };
+
   const userStats = [
-    { label: 'Ngày làm việc', value: '22', change: '+2', icon: CalendarIcon, color: 'bg-blue-100 text-blue-600' },
-    { label: 'Điểm danh', value: '98%', change: '+3%', icon: ClockIcon, color: 'bg-green-100 text-green-600' },
-    { label: 'Thông báo', value: '5', change: 'Mới', icon: BellAlertIcon, color: 'bg-yellow-100 text-yellow-600' },
-    { label: 'Đánh giá', value: '4.8', change: 'Xuất sắc', icon: ChartBarIcon, color: 'bg-purple-100 text-purple-600' },
+    { label: 'Ngày làm việc', value: employee ? calculateWorkingDays().toString() : '0', change: '', icon: CalendarIcon, color: 'bg-blue-100 text-blue-600' },
+    { label: 'Điểm danh', value: '0%', change: '', icon: ClockIcon, color: 'bg-green-100 text-green-600' },
+    { label: 'Thông báo', value: '0', change: '', icon: BellAlertIcon, color: 'bg-yellow-100 text-yellow-600' },
   ];
 
   const quickActions = [
