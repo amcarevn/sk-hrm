@@ -47,11 +47,11 @@ const AttendanceManagement: React.FC = () => {
       // First, fetch current employee
       const employee = await fetchCurrentEmployee();
       
-      // Then fetch attendance stats and records using the employee data
-      if (employee) {
-        await fetchAttendanceStats(employee);
-        await fetchAttendanceRecords();
-      }
+    // Then fetch attendance stats and records using the employee data
+    if (employee) {
+      await fetchAttendanceStats(employee);
+      await fetchAttendanceRecords(employee);
+    }
     };
     
     fetchData();
@@ -61,7 +61,7 @@ const AttendanceManagement: React.FC = () => {
   useEffect(() => {
     if (currentEmployee) {
       fetchAttendanceStats(currentEmployee);
-      fetchAttendanceRecords();
+      fetchAttendanceRecords(currentEmployee);
     }
   }, [currentDate.getMonth(), currentDate.getFullYear()]);
 
@@ -128,7 +128,7 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
-  const fetchAttendanceRecords = async () => {
+  const fetchAttendanceRecords = async (employee?: Employee | null) => {
     try {
       const today = currentDate || new Date();
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -142,11 +142,14 @@ const AttendanceManagement: React.FC = () => {
         return `${year}-${month}-${day}`;
       };
       
+      // Use employee parameter or currentEmployee from state
+      const targetEmployee = employee || currentEmployee;
+      
       const response = await attendanceService.getAttendanceRecords({
         start_date: formatDateLocal(firstDayOfMonth),
         end_date: formatDateLocal(lastDayOfMonth),
-        employee_id: currentEmployee?.id,
-        department_id: currentEmployee?.department?.id,
+        employee_id: targetEmployee?.id,
+        department_id: targetEmployee?.department?.id,
         page_size: 50
       });
       setAttendanceRecords(response.results);
@@ -352,7 +355,7 @@ const AttendanceManagement: React.FC = () => {
       
       // Refresh attendance data
       fetchAttendanceStats(currentEmployee);
-      fetchAttendanceRecords();
+      fetchAttendanceRecords(currentEmployee);
       
     } catch (error: any) {
       console.error('Upload error:', error);
