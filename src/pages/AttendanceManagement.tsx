@@ -176,26 +176,18 @@ const AttendanceManagement: React.FC = () => {
         page_size: 10
       });
       
-      // If we have current employee, filter for their records
-      let filteredRecords = response.results;
-      if (currentEmployee) {
-        filteredRecords = response.results.filter(
-          (record: AttendanceRecord) => record.employee_code === currentEmployee.employee_id
-        );
-      }
-      
-      setAttendanceDetails(filteredRecords);
+      setAttendanceDetails(response.results);
       
       // Calculate summary
-      if (filteredRecords.length > 0) {
+      if (response.results.length > 0) {
         const summary = {
-          totalHours: filteredRecords.reduce((sum, record) => sum + (record.working_hours || 0), 0),
-          presentCount: filteredRecords.filter(record => record.status === 'PRESENT').length,
-          lateCount: filteredRecords.filter(record => record.status === 'LATE').length,
-          earlyLeaveCount: filteredRecords.filter(record => record.status === 'EARLY_LEAVE').length,
-          absentCount: filteredRecords.filter(record => record.status === 'ABSENT').length,
-          halfDayCount: filteredRecords.filter(record => record.status === 'HALF_DAY').length,
-          totalShifts: filteredRecords.length
+          totalHours: response.results.reduce((sum: number, record: AttendanceRecord) => sum + (record.working_hours || 0), 0),
+          presentCount: response.results.filter((record: AttendanceRecord) => record.status === 'PRESENT').length,
+          lateCount: response.results.filter((record: AttendanceRecord) => record.status === 'LATE').length,
+          earlyLeaveCount: response.results.filter((record: AttendanceRecord) => record.status === 'EARLY_LEAVE').length,
+          absentCount: response.results.filter((record: AttendanceRecord) => record.status === 'ABSENT').length,
+          halfDayCount: response.results.filter((record: AttendanceRecord) => record.status === 'HALF_DAY').length,
+          totalShifts: response.results.length
         };
         setAttendanceSummary(summary);
       } else {
