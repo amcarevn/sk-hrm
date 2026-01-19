@@ -17,6 +17,7 @@ export interface AttendanceCalendarProps {
   year?: number;
   month?: number; // 0-indexed (0 = January, 11 = December)
   onDateClick?: (date: Date) => void;
+  onMonthChange?: (date: Date) => void;
   employeeId?: number;
 }
 
@@ -24,6 +25,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   year = new Date().getFullYear(),
   month = new Date().getMonth(),
   onDateClick,
+  onMonthChange,
   employeeId
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date(year, month, 1));
@@ -158,15 +160,27 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
   // Navigation
   const goToPreviousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    setCurrentDate(newDate);
+    if (onMonthChange) {
+      onMonthChange(newDate);
+    }
   };
 
   const goToNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    setCurrentDate(newDate);
+    if (onMonthChange) {
+      onMonthChange(newDate);
+    }
   };
 
   const goToToday = () => {
-    setCurrentDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+    const newDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    setCurrentDate(newDate);
+    if (onMonthChange) {
+      onMonthChange(newDate);
+    }
   };
 
   // Get day names in Vietnamese

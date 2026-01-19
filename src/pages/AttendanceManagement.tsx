@@ -36,6 +36,7 @@ const AttendanceManagement: React.FC = () => {
   const [attendanceDetails, setAttendanceDetails] = useState<AttendanceRecord[]>([]);
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [fetchingDetails, setFetchingDetails] = useState(false);
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
 
   // Check if user has permission to upload attendance files
   // For now, only ADMIN role can upload
@@ -56,6 +57,14 @@ const AttendanceManagement: React.FC = () => {
     fetchData();
   }, []);
 
+  // Add effect to refetch stats when calendar month changes
+  useEffect(() => {
+    if (currentEmployee) {
+      fetchAttendanceStats(currentEmployee);
+      fetchAttendanceRecords();
+    }
+  }, [currentDate.getMonth(), currentDate.getFullYear()]);
+
   const fetchCurrentEmployee = async (): Promise<Employee | null> => {
     try {
       const employee = await employeesAPI.me();
@@ -70,7 +79,7 @@ const AttendanceManagement: React.FC = () => {
   const fetchAttendanceStats = async (employee?: Employee | null) => {
     try {
       setLoading(true);
-      const today = new Date();
+      const today = currentDate || new Date();
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       
@@ -82,16 +91,19 @@ const AttendanceManagement: React.FC = () => {
         return `${year}-${month}-${day}`;
       };
       
-      // Fetch attendance statistics
+      // Use employee parameter or currentEmployee from state
+      const targetEmployee = employee || currentEmployee;
+      
+      // Fetch attendance statistics with employee_id and department_id
       const stats = await attendanceService.getAttendanceStats({
         start_date: formatDateLocal(firstDayOfMonth),
-        end_date: formatDateLocal(lastDayOfMonth)
+        end_date: formatDateLocal(lastDayOfMonth),
+        employee_id: targetEmployee?.id,
+        department_id: targetEmployee?.department?.id
       });
       
       // Fetch attendance explanation statistics for current month
       let explanationStats = null;
-      // Use employee parameter or currentEmployee from state
-      const targetEmployee = employee || currentEmployee;
       if (targetEmployee && targetEmployee.id) {
         try {
           explanationStats = await attendanceService.getAttendanceExplanationStats({
@@ -118,7 +130,7 @@ const AttendanceManagement: React.FC = () => {
 
   const fetchAttendanceRecords = async () => {
     try {
-      const today = new Date();
+      const today = currentDate || new Date();
       const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       
@@ -133,6 +145,8 @@ const AttendanceManagement: React.FC = () => {
       const response = await attendanceService.getAttendanceRecords({
         start_date: formatDateLocal(firstDayOfMonth),
         end_date: formatDateLocal(lastDayOfMonth),
+        employee_id: currentEmployee?.id,
+        department_id: currentEmployee?.department?.id,
         page_size: 50
       });
       setAttendanceRecords(response.results);
@@ -157,6 +171,8 @@ const AttendanceManagement: React.FC = () => {
       const response = await attendanceService.getAttendanceRecords({
         start_date: dateStr,
         end_date: dateStr,
+        employee_id: currentEmployee?.id,
+        department_id: currentEmployee?.department?.id,
         page_size: 10
       });
       
@@ -509,7 +525,10 @@ const AttendanceManagement: React.FC = () => {
 
       {/* Calendar Section */}
       <div className="mb-6">
-        <AttendanceCalendar onDateClick={handleDateClick} />
+        <AttendanceCalendar 
+          onDateClick={handleDateClick} 
+          onMonthChange={(date: Date) => setCurrentDate(date)}
+        />
       </div>
 
       {/* Attendance Details Modal */}
