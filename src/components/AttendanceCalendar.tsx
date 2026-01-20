@@ -94,6 +94,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               const hasCheckIn = record.check_in && record.check_in !== null && record.check_in !== '';
               const hasCheckOut = record.check_out && record.check_out !== null && record.check_out !== '';
               const workingHours = record.working_hours || 0;
+              
+              // If there's a record but no check_in and no check_out, it's absent (red color)
+              if (!hasCheckIn && !hasCheckOut) {
+                return 'absent';
+              }
+              
               const hasValidAttendanceData = hasCheckIn && hasCheckOut && workingHours > 0;
               
               if (!hasValidAttendanceData) {
@@ -121,10 +127,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 }
               }
               
-              if (status === 'late') {
+              if (status === 'late' || status === 'LATE') {
                 return 'late';
-              } else if (status === 'early_leave') {
+              } else if (status === 'early_leave' || status === 'EARLY_LEAVE') {
                 return 'insufficient';
+              } else if (status === 'absent' || status === 'ABSENT') {
+                return 'absent';
               } else if (workingHours > 0) {
                 return 'present';
               } else {
@@ -140,47 +148,63 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             // Build notes
             notes = firstRecord.notes || '';
             
-            // Check for incomplete data notes
-            if (morning === 'no_data' && afternoon === 'no_data' && evening === 'no_data') {
+            // Add late minutes to notes if applicable
+            if (firstRecord.late_minutes && firstRecord.late_minutes > 0) {
+              if (notes) {
+                notes += ` | Đi muộn: ${firstRecord.late_minutes} phút`;
+              } else {
+                notes = `Đi muộn: ${firstRecord.late_minutes} phút`;
+              }
+            }
+            
+            // Add early leave minutes to notes if applicable
+            if (firstRecord.early_leave_minutes && firstRecord.early_leave_minutes > 0) {
+              if (notes) {
+                notes += ` | Về sớm: ${firstRecord.early_leave_minutes} phút`;
+              } else {
+                notes = `Về sớm: ${firstRecord.early_leave_minutes} phút`;
+              }
+            }
+            
+            // Check for incomplete data notes - only set if we don't already have notes
+            if (morning === 'no_data' && afternoon === 'no_data' && evening === 'no_data' && !notes) {
               notes = 'Chưa có dữ liệu';
             }
             
             // Add rule information to notes if available
-            if (appliedRules.length > 0) {
-              const ruleNames = appliedRules.map((rule: any) => rule.rule_name || rule.rule_code).join(', ');
-              if (notes) {
-                notes += ` | Quy tắc: ${ruleNames}`;
-              } else {
-                notes = `Quy tắc: ${ruleNames}`;
-              }
+            // if (appliedRules.length > 0) {
+            //   const ruleNames = appliedRules.map((rule: any) => rule.rule_name || rule.rule_code).join(', ');
+            //   if (notes) {
+            //     notes += ` | Quy tắc: ${ruleNames}`;
+            //   } else {
+            //     notes = `Quy tắc: ${ruleNames}`;
+            //   }
               
-              // Add work coefficient to notes
-              if (workCoefficient !== 1.0) {
-                notes += ` | Hệ số: ${workCoefficient.toFixed(2)}`;
-              }
-            }
+            //   // Add work coefficient to notes
+            //   if (workCoefficient !== 1.0) {
+            //     notes += ` | Hệ số: ${workCoefficient.toFixed(2)}`;
+            //   }
+            // }
           } else {
-            // No attendance record for this day - mark as no_data
+            // No attendance record for this day - always mark as no_data (gray color)
             morning = 'no_data';
             afternoon = 'no_data';
             evening = 'no_data';
             notes = '';
-            
-            // Check if it's a weekend for informational purposes only
-            // (Saturday might be a working day, so we don't automatically mark it as 'off')
-            const dayOfWeek = date.getDay();
-            if (dayOfWeek === 0 || dayOfWeek === 6) {
-              notes = dayOfWeek === 0 ? 'Chủ nhật' : 'Thứ 7';
-            }
           }
           
           // Check if it's weekend (for existing records)
-          const dayOfWeek = date.getDay();
-          if (dayOfWeek === 0 || dayOfWeek === 6) {
-            if (notes && !notes.includes('Chủ nhật') && !notes.includes('Thứ 7')) {
-              notes = (dayOfWeek === 0 ? 'Chủ nhật' : 'Thứ 7');
-            }
-          }
+          // Removed weekend text from notes as requested
+          // const dayOfWeek = date.getDay();
+          // if (dayOfWeek === 0 || dayOfWeek === 6) {
+          //   const weekendText = dayOfWeek === 0 ? 'Chủ nhật' : 'Thứ 7';
+          //   if (!notes) {
+          //     notes = weekendText;
+          //   } else if (!notes.includes('Chủ nhật') && !notes.includes('Thứ 7')) {
+          //     // Only add weekend text if not already present
+          //     notes += ` | ${weekendText}`;
+          //   }
+          // }
           
           transformedData.push({
             date,
