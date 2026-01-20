@@ -31,6 +31,7 @@ export interface AttendanceCalendarProps {
   onDateClick?: (date: Date, dayData?: AttendanceDay) => void;
   onMonthChange?: (date: Date) => void;
   employeeId?: number;
+  departmentId?: number;
 }
 
 const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
@@ -38,7 +39,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   month = new Date().getMonth(),
   onDateClick,
   onMonthChange,
-  employeeId
+  employeeId,
+  departmentId
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date(year, month, 1));
   const [attendanceData, setAttendanceData] = useState<AttendanceDay[]>([]);
@@ -51,11 +53,22 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth() + 1; // API expects 1-indexed month
       
-      const data = await attendanceService.getCalendarView({
+      const params: any = {
         year,
-        month,
-        employee_id: employeeId
-      });
+        month
+      };
+      
+      if (employeeId) {
+        params.employee_id = employeeId;
+      }
+      
+      if (departmentId) {
+        params.department_id = departmentId;
+      }
+      
+      console.log('AttendanceCalendar fetching calendar data with params:', params);
+      
+      const data = await attendanceService.getCalendarView(params);
       
         // Transform API data to our local format
         const daysInMonth = new Date(year, month, 0).getDate();
@@ -313,7 +326,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
   useEffect(() => {
     fetchCalendarData();
-  }, [currentDate, employeeId]);
+  }, [currentDate, employeeId, departmentId]);
 
   // Navigation
   const goToPreviousMonth = () => {

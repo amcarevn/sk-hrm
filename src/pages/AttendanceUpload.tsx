@@ -1218,7 +1218,10 @@ const AttendanceUpload: React.FC = () => {
 
                       {/* Calendar Section */}
                       <div className="mb-6">
-                        <AttendanceCalendar onDateClick={handleDateClick} />
+                        <AttendanceCalendar 
+                          onDateClick={handleDateClick}
+                          employeeId={selectedEmployee ? parseInt(selectedEmployee) : undefined}
+                        />
                       </div>
 
                       {/* Selected Date Info */}

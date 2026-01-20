@@ -541,6 +541,7 @@ const AttendanceManagement: React.FC = () => {
         <AttendanceCalendar 
           onDateClick={handleDateClick} 
           onMonthChange={(date: Date) => setCurrentDate(date)}
+          employeeId={currentEmployee?.id}
         />
       </div>
 

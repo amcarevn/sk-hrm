@@ -56,6 +56,22 @@ const AttendanceView: React.FC = () => {
     fetchDepartments();
   }, []);
 
+  // Auto-select first employee when department is selected
+  useEffect(() => {
+    if (selectedDepartment && !selectedEmployee && employees.length > 0) {
+      // Find employees in the selected department
+      const employeesInDepartment = employees.filter(emp => 
+        emp.department?.id === selectedDepartment
+      );
+      
+      if (employeesInDepartment.length > 0) {
+        // Auto-select the first employee in the department
+        setSelectedEmployee(employeesInDepartment[0].id);
+        console.log('Auto-selected employee:', employeesInDepartment[0].id, employeesInDepartment[0].full_name);
+      }
+    }
+  }, [selectedDepartment, employees, selectedEmployee]);
+
   // Fetch attendance data when filters change
   useEffect(() => {
     if (selectedEmployee || selectedDepartment) {
@@ -204,7 +220,12 @@ const AttendanceView: React.FC = () => {
       params.year = today.getFullYear();
       params.month = today.getMonth() + 1;
 
+      console.log('Fetching calendar data with params:', params);
+      console.log('Selected employee:', selectedEmployee);
+      console.log('Selected department:', selectedDepartment);
+
       const response = await attendanceService.getCalendarView(params);
+      console.log('Calendar API response:', response);
       setCalendarData(response.calendar_data || []);
     } catch (error) {
       console.error('Error fetching calendar data:', error);
@@ -241,9 +262,7 @@ const AttendanceView: React.FC = () => {
   const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
     setSelectedDepartment(value ? parseInt(value) : null);
-    if (value) {
-      setSelectedEmployee(null); // Clear employee if department is selected
-    }
+    // Don't clear employee here - let the useEffect handle auto-selection
   };
 
   const handleDateClick = async (date: Date, dayData?: any) => {
@@ -614,6 +633,7 @@ const AttendanceView: React.FC = () => {
           <AttendanceCalendar 
             onDateClick={handleDateClick}
             employeeId={selectedEmployee || undefined}
+            departmentId={selectedDepartment || undefined}
           />
         </div>
       )}
