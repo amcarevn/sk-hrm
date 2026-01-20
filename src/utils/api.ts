@@ -15,7 +15,7 @@ export const managementApi: AxiosInstance = axios.create({
 // Request interceptor for Management API
 managementApi.interceptors.request.use(
   (config) => {
-    const token = localStoerage.getItem('accessToken');
+    const token = localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
