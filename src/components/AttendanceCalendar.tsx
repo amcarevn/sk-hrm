@@ -47,107 +47,116 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         employee_id: employeeId
       });
       
-      // Transform API data to our local format
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const transformedData: AttendanceDay[] = [];
-      
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month - 1, day);
-        // Format date as YYYY-MM-DD in local timezone (not UTC)
-        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        // Transform API data to our local format
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const transformedData: AttendanceDay[] = [];
         
-        // Find attendance records for this date
-        const dayRecords = data.calendar_data?.filter((record: any) => 
-          record.date === dateStr
-        ) || [];
-        
-        // Determine status based on records
-        let morning: AttendanceStatus = 'off';
-        let afternoon: AttendanceStatus = 'off';
-        let evening: AttendanceStatus = 'off';
-        let notes = '';
-        let workCoefficient = 1.0;
-        let appliedRules: any[] = [];
-        
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(year, month - 1, day);
+          // Format date as YYYY-MM-DD in local timezone (not UTC)
+          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          
+          // Find attendance records for this date
+          const dayRecords = data.calendar_data?.filter((record: any) => 
+            record.date === dateStr
+          ) || [];
+          
+          // Find records for each shift type
+          const morningRecord = dayRecords.find((record: any) => 
+            record.shift_type === 'MORNING' || record.shift_type === 'FULL_DAY'
+          );
+          const afternoonRecord = dayRecords.find((record: any) => 
+            record.shift_type === 'AFTERNOON' || record.shift_type === 'FULL_DAY'
+          );
+          const eveningRecord = dayRecords.find((record: any) => 
+            record.shift_type === 'EVENING'
+          );
+          
+          // Determine status for each shift
+          let morning: AttendanceStatus = 'off';
+          let afternoon: AttendanceStatus = 'off';
+          let evening: AttendanceStatus = 'off';
+          let notes = '';
+          let workCoefficient = 1.0;
+          let appliedRules: any[] = [];
+          
           if (dayRecords.length > 0) {
-            // For simplicity, use the first record's status for all shifts
-            const record = dayRecords[0];
-            const status = record.status?.toLowerCase();
+            // Use the first record for work coefficient and applied rules (if available)
+            const firstRecord = dayRecords[0];
+            workCoefficient = firstRecord.work_coefficient || 0.0;
+            appliedRules = firstRecord.applied_rules || [];
             
-            // Get work coefficient and applied rules from API
-            workCoefficient = record.work_coefficient || 0.0;
-            appliedRules = record.applied_rules || [];
-            
-            // Check if this is incomplete attendance data (null check_in/check_out or 0 working hours)
-            const hasCheckIn = record.check_in && record.check_in !== null && record.check_in !== '';
-            const hasCheckOut = record.check_out && record.check_out !== null && record.check_out !== '';
-            const workingHours = record.working_hours || 0;
-            const hasValidAttendanceData = hasCheckIn && hasCheckOut && workingHours > 0;
-            
-            if (!hasValidAttendanceData) {
-              // Incomplete attendance data - mark as no_data (gray) instead of absent (red)
-              morning = 'no_data';
-              afternoon = 'no_data';
-              evening = 'no_data';
-              notes = 'Chưa có dữ liệu';
+            // Helper function to determine status for a record
+            const getStatusForRecord = (record: any, shift: 'morning' | 'afternoon' | 'evening'): AttendanceStatus => {
+              if (!record) return 'no_data';
               
-              // Add check-in/check-out status to notes
-              if (!hasCheckIn && !hasCheckOut) {
-                notes = 'Chưa chấm công';
-              } else if (!hasCheckIn) {
-                notes = 'Thiếu giờ vào';
-              } else if (!hasCheckOut) {
-                notes = 'Thiếu giờ ra';
-              } else if (workingHours <= 0) {
-                notes = 'Không có giờ làm';
-              }
-            } else {
-              // Valid attendance data - determine status based on work coefficient
-              if (workCoefficient >= 1.0) {
-                // Full day
-                morning = 'present';
-                afternoon = 'present';
-                evening = 'present';
-              } else if (workCoefficient >= 0.5) {
-                // Half day
-                morning = 'present';
-                afternoon = 'insufficient';
-                evening = 'off';
-              } else if (workCoefficient > 0) {
-                // Less than half day
-                morning = 'insufficient';
-                afternoon = 'off';
-                evening = 'off';
-              } else {
-                // No work - mark as no_data (gray) instead of absent (red)
-                morning = 'no_data';
-                afternoon = 'no_data';
-                evening = 'no_data';
-                notes = 'Không có giờ làm';
+              const status = record.status?.toLowerCase();
+              const hasCheckIn = record.check_in && record.check_in !== null && record.check_in !== '';
+              const hasCheckOut = record.check_out && record.check_out !== null && record.check_out !== '';
+              const workingHours = record.working_hours || 0;
+              const hasValidAttendanceData = hasCheckIn && hasCheckOut && workingHours > 0;
+              
+              if (!hasValidAttendanceData) {
+                return 'no_data';
               }
               
-              // Override with specific status if provided
-              if (status === 'late') {
-                morning = 'late';
-              } else if (status === 'early_leave') {
-                evening = 'insufficient';
-              }
-              
-              notes = record.notes || '';
-              
-              // Add rule information to notes if available
-              if (appliedRules.length > 0) {
-                const ruleNames = appliedRules.map((rule: any) => rule.rule_name || rule.rule_code).join(', ');
-                if (notes) {
-                  notes += ` | Quy tắc: ${ruleNames}`;
-                } else {
-                  notes = `Quy tắc: ${ruleNames}`;
-                }
+              // Handle HALF_DAY status for FULL_DAY shift type
+              if (record.shift_type === 'FULL_DAY' && status === 'half_day') {
+                // For HALF_DAY status, determine which half was worked based on check_out time
+                // If check_out is around noon or earlier, assume morning shift was worked
+                // If check_in is around noon or later, assume afternoon shift was worked
+                const checkOutTime = record.check_out ? record.check_out.substring(0, 5) : ''; // HH:MM
+                const checkInTime = record.check_in ? record.check_in.substring(0, 5) : ''; // HH:MM
                 
-                // Add work coefficient to notes
-                if (workCoefficient !== 1.0) {
-                  notes += ` | Hệ số: ${workCoefficient.toFixed(2)}`;
+                // Default: assume morning was worked if we can't determine
+                const workedMorning = !checkOutTime || checkOutTime <= '12:00' || (checkInTime && checkInTime < '12:00');
+                
+                if (shift === 'morning') {
+                  return workedMorning ? 'present' : 'no_data';
+                } else if (shift === 'afternoon') {
+                  return workedMorning ? 'no_data' : 'present';
+                } else if (shift === 'evening') {
+                  // Evening is always no_data for HALF_DAY
+                  return 'no_data';
                 }
+              }
+              
+              if (status === 'late') {
+                return 'late';
+              } else if (status === 'early_leave') {
+                return 'insufficient';
+              } else if (workingHours > 0) {
+                return 'present';
+              } else {
+                return 'no_data';
+              }
+            };
+            
+            // Get status for each shift
+            morning = getStatusForRecord(morningRecord, 'morning');
+            afternoon = getStatusForRecord(afternoonRecord, 'afternoon');
+            evening = getStatusForRecord(eveningRecord, 'evening');
+            
+            // Build notes
+            notes = firstRecord.notes || '';
+            
+            // Check for incomplete data notes
+            if (morning === 'no_data' && afternoon === 'no_data' && evening === 'no_data') {
+              notes = 'Chưa có dữ liệu';
+            }
+            
+            // Add rule information to notes if available
+            if (appliedRules.length > 0) {
+              const ruleNames = appliedRules.map((rule: any) => rule.rule_name || rule.rule_code).join(', ');
+              if (notes) {
+                notes += ` | Quy tắc: ${ruleNames}`;
+              } else {
+                notes = `Quy tắc: ${ruleNames}`;
+              }
+              
+              // Add work coefficient to notes
+              if (workCoefficient !== 1.0) {
+                notes += ` | Hệ số: ${workCoefficient.toFixed(2)}`;
               }
             }
           } else {
@@ -164,25 +173,25 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               notes = dayOfWeek === 0 ? 'Chủ nhật' : 'Thứ 7';
             }
           }
-        
-        // Check if it's weekend (for existing records)
-        const dayOfWeek = date.getDay();
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-          if (notes && !notes.includes('Chủ nhật') && !notes.includes('Thứ 7')) {
-            notes = (dayOfWeek === 0 ? 'Chủ nhật' : 'Thứ 7');
+          
+          // Check if it's weekend (for existing records)
+          const dayOfWeek = date.getDay();
+          if (dayOfWeek === 0 || dayOfWeek === 6) {
+            if (notes && !notes.includes('Chủ nhật') && !notes.includes('Thứ 7')) {
+              notes = (dayOfWeek === 0 ? 'Chủ nhật' : 'Thứ 7');
+            }
           }
+          
+          transformedData.push({
+            date,
+            morning,
+            afternoon,
+            evening,
+            notes: notes || undefined,
+            workCoefficient,
+            appliedRules
+          });
         }
-        
-        transformedData.push({
-          date,
-          morning,
-          afternoon,
-          evening,
-          notes: notes || undefined,
-          workCoefficient,
-          appliedRules
-        });
-      }
       
       setAttendanceData(transformedData);
     } catch (error) {
@@ -453,7 +462,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                   {/* Status summary */}
                   <div className="mt-2">
                     <div className={`text-xs px-2 py-1 rounded-full text-center ${
-                      day.morning === 'no_data' || day.afternoon === 'no_data' || day.evening === 'no_data'
+                      day.morning === 'no_data' && day.afternoon === 'no_data' && day.evening === 'no_data'
                         ? 'bg-gray-200 text-gray-700'
                         : day.workCoefficient && day.workCoefficient >= 1.0
                         ? 'bg-green-100 text-green-800'
@@ -461,7 +470,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                         ? 'bg-red-100 text-red-800'
                         : 'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {day.morning === 'no_data' || day.afternoon === 'no_data' || day.evening === 'no_data'
+                      {day.morning === 'no_data' && day.afternoon === 'no_data' && day.evening === 'no_data'
                         ? getStatusText('no_data')
                         : day.workCoefficient && day.workCoefficient >= 1.0 
                         ? getStatusText('present')
