@@ -11,6 +11,16 @@ export interface AttendanceDay {
   notes?: string;
   workCoefficient?: number;
   appliedRules?: any[];
+  // Thông tin đơn đã duyệt
+  approvedExplanations?: any[];
+  approvedLeaveRequests?: any[];
+  dayStatusSummary?: {
+    has_approved_explanation: boolean;
+    has_approved_leave: boolean;
+    has_pending_request: boolean;
+    summary_text: string;
+    display_color: string;
+  };
 }
 
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'insufficient' | 'off' | 'holiday' | 'no_data';
@@ -79,12 +89,32 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           let notes = '';
           let workCoefficient = 1.0;
           let appliedRules: any[] = [];
+          let approvedExplanations: any[] = [];
+          let approvedLeaveRequests: any[] = [];
+          let dayStatusSummary = {
+            has_approved_explanation: false,
+            has_approved_leave: false,
+            has_pending_request: false,
+            summary_text: '',
+            display_color: 'default'
+          };
           
           if (dayRecords.length > 0) {
             // Use the first record for work coefficient and applied rules (if available)
             const firstRecord = dayRecords[0];
             workCoefficient = firstRecord.work_coefficient || 0.0;
             appliedRules = firstRecord.applied_rules || [];
+            
+            // Get approved requests information
+            approvedExplanations = (firstRecord as any).approved_explanations || [];
+            approvedLeaveRequests = (firstRecord as any).approved_leave_requests || [];
+            dayStatusSummary = (firstRecord as any).day_status_summary || {
+              has_approved_explanation: false,
+              has_approved_leave: false,
+              has_pending_request: false,
+              summary_text: '',
+              display_color: 'default'
+            };
             
             // Helper function to determine status for a record
             const getStatusForRecord = (record: any, shift: 'morning' | 'afternoon' | 'evening'): AttendanceStatus => {
@@ -145,31 +175,48 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             afternoon = getStatusForRecord(afternoonRecord, 'afternoon');
             evening = getStatusForRecord(eveningRecord, 'evening');
             
-            // Build notes
-            notes = firstRecord.notes || '';
-            
-            // Add late minutes to notes if applicable
-            if (firstRecord.late_minutes && firstRecord.late_minutes > 0) {
-              if (notes) {
-                notes += ` | Đi muộn: ${firstRecord.late_minutes} phút`;
-              } else {
-                notes = `Đi muộn: ${firstRecord.late_minutes} phút`;
-              }
+          // Build notes
+          notes = firstRecord.notes || '';
+          
+          // Add late minutes to notes if applicable
+          if (firstRecord.late_minutes && firstRecord.late_minutes > 0) {
+            if (notes) {
+              notes += ` | Đi muộn: ${firstRecord.late_minutes} phút`;
+            } else {
+              notes = `Đi muộn: ${firstRecord.late_minutes} phút`;
             }
-            
-            // Add early leave minutes to notes if applicable
-            if (firstRecord.early_leave_minutes && firstRecord.early_leave_minutes > 0) {
-              if (notes) {
-                notes += ` | Về sớm: ${firstRecord.early_leave_minutes} phút`;
-              } else {
-                notes = `Về sớm: ${firstRecord.early_leave_minutes} phút`;
-              }
+          }
+          
+          // Add early leave minutes to notes if applicable
+          if (firstRecord.early_leave_minutes && firstRecord.early_leave_minutes > 0) {
+            if (notes) {
+              notes += ` | Về sớm: ${firstRecord.early_leave_minutes} phút`;
+            } else {
+              notes = `Về sớm: ${firstRecord.early_leave_minutes} phút`;
             }
-            
-            // Check for incomplete data notes - only set if we don't already have notes
-            if (morning === 'no_data' && afternoon === 'no_data' && evening === 'no_data' && !notes) {
-              notes = 'Chưa có dữ liệu';
+          }
+          
+          // Add approved requests information to notes
+          if (approvedExplanations.length > 0) {
+            if (notes) {
+              notes += ` | Giải trình đã duyệt: ${approvedExplanations.length}`;
+            } else {
+              notes = `Giải trình đã duyệt: ${approvedExplanations.length}`;
             }
+          }
+          
+          if (approvedLeaveRequests.length > 0) {
+            if (notes) {
+              notes += ` | Nghỉ phép đã duyệt: ${approvedLeaveRequests.length}`;
+            } else {
+              notes = `Nghỉ phép đã duyệt: ${approvedLeaveRequests.length}`;
+            }
+          }
+          
+          // Check for incomplete data notes - only set if we don't already have notes
+          if (morning === 'no_data' && afternoon === 'no_data' && evening === 'no_data' && !notes) {
+            notes = 'Chưa có dữ liệu';
+          }
             
             // Add rule information to notes if available
             // if (appliedRules.length > 0) {
@@ -213,7 +260,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             evening,
             notes: notes || undefined,
             workCoefficient,
-            appliedRules
+            appliedRules,
+            approvedExplanations,
+            approvedLeaveRequests,
+            dayStatusSummary
           });
         }
       
@@ -381,7 +431,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       </div>
 
       {/* Legend */}
-      <div className="mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+      <div className="mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-3">
         <div className="flex items-center">
           <div className="w-4 h-4 rounded-full bg-green-500 mr-2"></div>
           <span className="text-sm text-gray-700">Đủ công</span>
@@ -409,6 +459,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         <div className="flex items-center">
           <div className="w-4 h-4 rounded-full bg-gray-400 mr-2"></div>
           <span className="text-sm text-gray-700">Chưa có dữ liệu</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-4 h-4 rounded-full bg-green-100 border border-green-300 mr-2"></div>
+          <span className="text-sm text-gray-700">Có đơn đã duyệt</span>
         </div>
       </div>
 
@@ -455,11 +509,18 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     }`}>
                       {day.date.getDate()}
                     </span>
-                    {day.notes && (
-                      <span className="text-xs text-gray-500 bg-gray-100 px-1 rounded">
-                        {day.notes}
-                      </span>
-                    )}
+                    <div className="flex flex-col items-end">
+                      {day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_leave ? (
+                        <span className="text-xs text-green-600 bg-green-100 px-1 rounded mb-1">
+                          ✓ Đã duyệt
+                        </span>
+                      ) : null}
+                      {day.notes && (
+                        <span className="text-xs text-gray-500 bg-gray-100 px-1 rounded">
+                          {day.notes}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Shift indicators */}
@@ -486,7 +547,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                   {/* Status summary */}
                   <div className="mt-2">
                     <div className={`text-xs px-2 py-1 rounded-full text-center ${
-                      day.morning === 'no_data' && day.afternoon === 'no_data' && day.evening === 'no_data'
+                      day.dayStatusSummary?.display_color === 'green'
+                        ? 'bg-green-100 text-green-800 border border-green-300'
+                        : day.morning === 'no_data' && day.afternoon === 'no_data' && day.evening === 'no_data'
                         ? 'bg-gray-200 text-gray-700'
                         : day.workCoefficient && day.workCoefficient >= 1.0
                         ? 'bg-green-100 text-green-800'
@@ -494,7 +557,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                         ? 'bg-red-100 text-red-800'
                         : 'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {day.morning === 'no_data' && day.afternoon === 'no_data' && day.evening === 'no_data'
+                      {day.dayStatusSummary?.summary_text
+                        ? day.dayStatusSummary.summary_text
+                        : day.morning === 'no_data' && day.afternoon === 'no_data' && day.evening === 'no_data'
                         ? getStatusText('no_data')
                         : day.workCoefficient && day.workCoefficient >= 1.0 
                         ? getStatusText('present')
@@ -560,6 +625,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           <li>Màu xám nhạt: Ngày nghỉ</li>
           <li>Màu xanh dương: Ngày lễ</li>
           <li>Màu xám đậm: Chưa có dữ liệu chấm công</li>
+          <li>Viền xanh lá: Có đơn giải trình hoặc nghỉ phép đã duyệt</li>
+          <li>Biểu tượng ✓: Có đơn đã được duyệt trong ngày</li>
         </ul>
       </div>
     </div>

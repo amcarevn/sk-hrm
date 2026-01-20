@@ -93,6 +93,31 @@ export interface CalendarViewData {
       applied_at: string;
       applied_by: number | null;
     }>;
+    // Thông tin đơn đã duyệt
+    approved_explanations?: Array<{
+      id: number;
+      request_code: string;
+      original_status: string;
+      expected_status: string;
+      status: string;
+      approved_at: string;
+      approved_by_name: string;
+    }>;
+    approved_leave_requests?: Array<{
+      id: number;
+      request_code: string;
+      leave_type: string;
+      status: string;
+      approved_at: string;
+      approved_by_name: string;
+    }>;
+    day_status_summary?: {
+      has_approved_explanation: boolean;
+      has_approved_leave: boolean;
+      has_pending_request: boolean;
+      summary_text: string;
+      display_color: string;
+    };
   }>;
   employees: Array<{
     id: number;

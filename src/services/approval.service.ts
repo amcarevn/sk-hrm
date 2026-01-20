@@ -270,12 +270,27 @@ class ApprovalService {
   async isHR(): Promise<boolean> {
     try {
       const employee = await this.getCurrentEmployee();
+      
+      // Kiểm tra qua position
       if (employee.position && (employee.position.title.includes('HR') || employee.position.title.includes('Nhân sự'))) {
         return true;
       }
+      
+      // Kiểm tra qua department
       if (employee.department && (employee.department.name.includes('HR') || employee.department.name.includes('Nhân sự'))) {
         return true;
       }
+      
+      // Kiểm tra qua permissions từ API
+      if (employee.permissions && employee.permissions.can_approve_attendance) {
+        return true;
+      }
+      
+      // Kiểm tra trường is_hr nếu có
+      if (employee.is_hr) {
+        return true;
+      }
+      
       return false;
     } catch (error) {
       console.error('Error checking HR status:', error);
