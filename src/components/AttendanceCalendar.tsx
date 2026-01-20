@@ -28,7 +28,7 @@ export type AttendanceStatus = 'present' | 'absent' | 'late' | 'insufficient' | 
 export interface AttendanceCalendarProps {
   year?: number;
   month?: number; // 0-indexed (0 = January, 11 = December)
-  onDateClick?: (date: Date) => void;
+  onDateClick?: (date: Date, dayData?: AttendanceDay) => void;
   onMonthChange?: (date: Date) => void;
   employeeId?: number;
 }
@@ -496,7 +496,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               return (
                 <div
                   key={index}
-                  onClick={() => onDateClick && onDateClick(day.date)}
+                  onClick={() => onDateClick && onDateClick(day.date, day)}
                   className={`h-32 border rounded-lg p-2 cursor-pointer transition-all hover:shadow-md ${
                     isToday ? 'border-2 border-primary-500' : 'border-gray-200'
                   } ${isWeekend ? 'bg-gray-50' : 'bg-white'}`}

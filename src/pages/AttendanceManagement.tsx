@@ -37,6 +37,8 @@ const AttendanceManagement: React.FC = () => {
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [approvedExplanations, setApprovedExplanations] = useState<any[]>([]);
+  const [approvedLeaveRequests, setApprovedLeaveRequests] = useState<any[]>([]);
 
   // Check if user has permission to upload attendance files
   // For now, only ADMIN role can upload
@@ -158,10 +160,17 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
-  const handleDateClick = async (date: Date) => {
+  const handleDateClick = async (date: Date, dayData?: any) => {
+    console.log('Date clicked in AttendanceManagement:', date);
+    console.log('Day data:', dayData);
+    
     setSelectedDate(date);
     setShowAttendanceModal(true);
     setFetchingDetails(true);
+    
+    // Reset approved requests
+    setApprovedExplanations([]);
+    setApprovedLeaveRequests([]);
     
     try {
       // Format date to YYYY-MM-DD in local timezone
@@ -180,6 +189,13 @@ const AttendanceManagement: React.FC = () => {
       });
       
       setAttendanceDetails(response.results);
+      
+      // Get approved requests from dayData if available
+      if (dayData) {
+        console.log('Using dayData for approved requests:', dayData);
+        setApprovedExplanations(dayData.approvedExplanations || []);
+        setApprovedLeaveRequests(dayData.approvedLeaveRequests || []);
+      }
       
       // Calculate summary
       if (response.results.length > 0) {
@@ -217,6 +233,8 @@ const AttendanceManagement: React.FC = () => {
   const handleCloseModal = () => {
     setShowAttendanceModal(false);
     setSelectedDate(null);
+    setApprovedExplanations([]);
+    setApprovedLeaveRequests([]);
   };
 
   const handleOpenSupplementaryRequest = () => {
@@ -583,6 +601,100 @@ const AttendanceManagement: React.FC = () => {
                           </p>
                         )}
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Approved Requests Section */}
+                  <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Đơn đã duyệt</h4>
+                    
+                    {/* Approved Explanations */}
+                    {approvedExplanations.length > 0 ? (
+                      <div className="mb-3">
+                        <h5 className="text-sm font-medium text-gray-700 mb-1">Đơn giải trình chấm công đã duyệt:</h5>
+                        <div className="bg-green-50 rounded-lg p-3">
+                          <div className="space-y-2">
+                            {approvedExplanations.map((explanation, index) => (
+                              <div key={index} className="border-l-4 border-green-500 pl-3 py-1">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-medium text-gray-900 text-sm">
+                                      Mã đơn: {explanation.request_code}
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                      Từ: {explanation.original_status} → {explanation.expected_status}
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                      Duyệt bởi: {explanation.approved_by_name}
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                      Thời gian duyệt: {new Date(explanation.approved_at).toLocaleDateString('vi-VN')} {new Date(explanation.approved_at).toLocaleTimeString('vi-VN')}
+                                    </p>
+                                  </div>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Đã duyệt
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-3">
+                        <h5 className="text-sm font-medium text-gray-700 mb-1">Đơn giải trình chấm công đã duyệt:</h5>
+                        <div className="bg-gray-50 rounded-lg p-3 text-center">
+                          <p className="text-gray-600 text-sm">Không có đơn giải trình chấm công nào đã được duyệt cho ngày này.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Approved Leave Requests */}
+                    {approvedLeaveRequests.length > 0 ? (
+                      <div className="mb-3">
+                        <h5 className="text-sm font-medium text-gray-700 mb-1">Đơn nghỉ phép đã duyệt:</h5>
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <div className="space-y-2">
+                            {approvedLeaveRequests.map((leave, index) => (
+                              <div key={index} className="border-l-4 border-blue-500 pl-3 py-1">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-medium text-gray-900 text-sm">
+                                      Mã đơn: {leave.request_code}
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                      Loại nghỉ phép: {leave.leave_type}
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                      Duyệt bởi: {leave.approved_by_name}
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                      Thời gian duyệt: {new Date(leave.approved_at).toLocaleDateString('vi-VN')} {new Date(leave.approved_at).toLocaleTimeString('vi-VN')}
+                                    </p>
+                                  </div>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    Đã duyệt
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-3">
+                        <h5 className="text-sm font-medium text-gray-700 mb-1">Đơn nghỉ phép đã duyệt:</h5>
+                        <div className="bg-gray-50 rounded-lg p-3 text-center">
+                          <p className="text-gray-600 text-sm">Không có đơn nghỉ phép nào đã được duyệt cho ngày này.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Summary */}
+                    <div className="mt-2 p-2 bg-gray-50 rounded-lg">
+                      <p className="text-xs text-gray-700">
+                        <span className="font-medium">Tóm tắt:</span> Ngày này có {approvedExplanations.length} đơn giải trình và {approvedLeaveRequests.length} đơn nghỉ phép đã được duyệt.
+                      </p>
                     </div>
                   </div>
 

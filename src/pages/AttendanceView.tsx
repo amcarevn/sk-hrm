@@ -47,6 +47,8 @@ const AttendanceView: React.FC = () => {
   const [dateDetailLoading, setDateDetailLoading] = useState(false);
   const [dateDetailRecords, setDateDetailRecords] = useState<AttendanceRecord[]>([]);
   const [selectedDateDetail, setSelectedDateDetail] = useState<Date | null>(null);
+  const [approvedExplanations, setApprovedExplanations] = useState<any[]>([]);
+  const [approvedLeaveRequests, setApprovedLeaveRequests] = useState<any[]>([]);
 
   // Fetch employees and departments on component mount
   useEffect(() => {
@@ -244,7 +246,9 @@ const AttendanceView: React.FC = () => {
     }
   };
 
-  const handleDateClick = async (date: Date) => {
+  const handleDateClick = async (date: Date, dayData?: any) => {
+    console.log('Date clicked:', date);
+    console.log('Day data:', dayData);
     setSelectedDate(date);
     setSelectedDateDetail(date);
     setDateDetailModalOpen(true);
@@ -272,6 +276,34 @@ const AttendanceView: React.FC = () => {
       // Fetch attendance records for the selected date
       const response = await attendanceService.getAttendanceRecords(params);
       setDateDetailRecords(response.results || []);
+      
+      // Try to get approved explanations from dayData first (from calendar)
+      if (dayData) {
+        console.log('Using dayData for approved requests:', dayData);
+        setApprovedExplanations(dayData.approvedExplanations || []);
+        setApprovedLeaveRequests(dayData.approvedLeaveRequests || []);
+      } else {
+        // Fallback to calendar data if dayData not available
+        const calendarItem = calendarData.find(item => item.date === dateStr);
+        if (calendarItem) {
+          console.log('Found calendar item:', calendarItem);
+          console.log('Approved explanations:', calendarItem.approved_explanations);
+          console.log('Approved leave requests:', calendarItem.approved_leave_requests);
+          setApprovedExplanations(calendarItem.approved_explanations || []);
+          setApprovedLeaveRequests(calendarItem.approved_leave_requests || []);
+        } else {
+          console.log('No calendar item found for date:', dateStr);
+          // If not in calendar data, try to fetch from API
+          // For now, we'll set empty arrays
+          setApprovedExplanations([]);
+          setApprovedLeaveRequests([]);
+        }
+      }
+      
+      // Log for debugging
+      console.log('Date detail records:', response.results || []);
+      console.log('Approved explanations state:', approvedExplanations);
+      console.log('Approved leave requests state:', approvedLeaveRequests);
     } catch (error) {
       console.error('Error fetching date details:', error);
       // Fallback to mock data if API fails
@@ -296,6 +328,15 @@ const AttendanceView: React.FC = () => {
         }
       ];
       setDateDetailRecords(mockDateDetails);
+      
+      // Use dayData for approved requests even in error case
+      if (dayData) {
+        setApprovedExplanations(dayData.approvedExplanations || []);
+        setApprovedLeaveRequests(dayData.approvedLeaveRequests || []);
+      } else {
+        setApprovedExplanations([]);
+        setApprovedLeaveRequests([]);
+      }
     } finally {
       setDateDetailLoading(false);
     }
@@ -387,6 +428,8 @@ const AttendanceView: React.FC = () => {
     setDateDetailModalOpen(false);
     setDateDetailRecords([]);
     setSelectedDateDetail(null);
+    setApprovedExplanations([]);
+    setApprovedLeaveRequests([]);
   };
 
   return (
@@ -558,8 +601,8 @@ const AttendanceView: React.FC = () => {
         </div>
       )}
 
-      {/* Calendar View */}
-      {calendarData.length > 0 && !loading && (
+      {/* Calendar View - Show when employee or department is selected */}
+      {(selectedEmployee || selectedDepartment) && !loading && (
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Lịch chấm công</h2>
@@ -740,6 +783,100 @@ const AttendanceView: React.FC = () => {
                       <h3 className="font-medium text-red-900 text-sm">Vắng mặt</h3>
                       <p className="text-2xl font-bold text-red-700 mt-1">
                         {dateDetailRecords.filter(r => r.status === 'ABSENT').length}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Approved Requests Section - Always show */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Đơn đã duyệt</h3>
+                    
+                    {/* Approved Explanations */}
+                    {approvedExplanations.length > 0 ? (
+                      <div className="mb-4">
+                        <h4 className="font-medium text-gray-900 mb-2">Đơn giải trình chấm công đã duyệt:</h4>
+                        <div className="bg-green-50 rounded-lg p-4">
+                          <div className="space-y-3">
+                            {approvedExplanations.map((explanation, index) => (
+                              <div key={index} className="border-l-4 border-green-500 pl-4 py-2">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-medium text-gray-900">
+                                      Mã đơn: {explanation.request_code}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Từ: {explanation.original_status} → {explanation.expected_status}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Duyệt bởi: {explanation.approved_by_name}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Thời gian duyệt: {new Date(explanation.approved_at).toLocaleDateString('vi-VN')} {new Date(explanation.approved_at).toLocaleTimeString('vi-VN')}
+                                    </p>
+                                  </div>
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Đã duyệt
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-4">
+                        <h4 className="font-medium text-gray-900 mb-2">Đơn giải trình chấm công đã duyệt:</h4>
+                        <div className="bg-gray-50 rounded-lg p-4 text-center">
+                          <p className="text-gray-600">Không có đơn giải trình chấm công nào đã được duyệt cho ngày này.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Approved Leave Requests */}
+                    {approvedLeaveRequests.length > 0 ? (
+                      <div className="mb-4">
+                        <h4 className="font-medium text-gray-900 mb-2">Đơn nghỉ phép đã duyệt:</h4>
+                        <div className="bg-blue-50 rounded-lg p-4">
+                          <div className="space-y-3">
+                            {approvedLeaveRequests.map((leave, index) => (
+                              <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-medium text-gray-900">
+                                      Mã đơn: {leave.request_code}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Loại nghỉ phép: {leave.leave_type}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Duyệt bởi: {leave.approved_by_name}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      Thời gian duyệt: {new Date(leave.approved_at).toLocaleDateString('vi-VN')} {new Date(leave.approved_at).toLocaleTimeString('vi-VN')}
+                                    </p>
+                                  </div>
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    Đã duyệt
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-4">
+                        <h4 className="font-medium text-gray-900 mb-2">Đơn nghỉ phép đã duyệt:</h4>
+                        <div className="bg-gray-50 rounded-lg p-4 text-center">
+                          <p className="text-gray-600">Không có đơn nghỉ phép nào đã được duyệt cho ngày này.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Summary */}
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-700">
+                        <span className="font-medium">Tóm tắt:</span> Ngày này có {approvedExplanations.length} đơn giải trình và {approvedLeaveRequests.length} đơn nghỉ phép đã được duyệt.
                       </p>
                     </div>
                   </div>
