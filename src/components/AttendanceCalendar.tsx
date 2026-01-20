@@ -9,9 +9,11 @@ export interface AttendanceDay {
   afternoon: AttendanceStatus;
   evening: AttendanceStatus;
   notes?: string;
+  workCoefficient?: number;
+  appliedRules?: any[];
 }
 
-export type AttendanceStatus = 'present' | 'absent' | 'late' | 'insufficient' | 'off' | 'holiday';
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'insufficient' | 'off' | 'holiday' | 'no_data';
 
 export interface AttendanceCalendarProps {
   year?: number;
@@ -64,41 +66,111 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         let afternoon: AttendanceStatus = 'off';
         let evening: AttendanceStatus = 'off';
         let notes = '';
+        let workCoefficient = 1.0;
+        let appliedRules: any[] = [];
         
-        if (dayRecords.length > 0) {
-          // For simplicity, use the first record's status for all shifts
-          const record = dayRecords[0];
-          const status = record.status?.toLowerCase();
-          
-          if (status === 'present') {
-            morning = 'present';
-            afternoon = 'present';
-            evening = 'present';
-          } else if (status === 'late') {
-            morning = 'late';
-            afternoon = 'present';
-            evening = 'present';
-          } else if (status === 'absent') {
-            morning = 'absent';
-            afternoon = 'absent';
-            evening = 'absent';
-          } else if (status === 'early_leave') {
-            morning = 'present';
-            afternoon = 'present';
-            evening = 'insufficient';
-          } else if (status === 'half_day') {
-            morning = 'present';
-            afternoon = 'insufficient';
-            evening = 'off';
+          if (dayRecords.length > 0) {
+            // For simplicity, use the first record's status for all shifts
+            const record = dayRecords[0];
+            const status = record.status?.toLowerCase();
+            
+            // Get work coefficient and applied rules from API
+            workCoefficient = record.work_coefficient || 0.0;
+            appliedRules = record.applied_rules || [];
+            
+            // Check if this is incomplete attendance data (null check_in/check_out or 0 working hours)
+            const hasCheckIn = record.check_in && record.check_in !== null && record.check_in !== '';
+            const hasCheckOut = record.check_out && record.check_out !== null && record.check_out !== '';
+            const workingHours = record.working_hours || 0;
+            const hasValidAttendanceData = hasCheckIn && hasCheckOut && workingHours > 0;
+            
+            if (!hasValidAttendanceData) {
+              // Incomplete attendance data - mark as no_data (gray) instead of absent (red)
+              morning = 'no_data';
+              afternoon = 'no_data';
+              evening = 'no_data';
+              notes = 'Chưa có dữ liệu';
+              
+              // Add check-in/check-out status to notes
+              if (!hasCheckIn && !hasCheckOut) {
+                notes = 'Chưa chấm công';
+              } else if (!hasCheckIn) {
+                notes = 'Thiếu giờ vào';
+              } else if (!hasCheckOut) {
+                notes = 'Thiếu giờ ra';
+              } else if (workingHours <= 0) {
+                notes = 'Không có giờ làm';
+              }
+            } else {
+              // Valid attendance data - determine status based on work coefficient
+              if (workCoefficient >= 1.0) {
+                // Full day
+                morning = 'present';
+                afternoon = 'present';
+                evening = 'present';
+              } else if (workCoefficient >= 0.5) {
+                // Half day
+                morning = 'present';
+                afternoon = 'insufficient';
+                evening = 'off';
+              } else if (workCoefficient > 0) {
+                // Less than half day
+                morning = 'insufficient';
+                afternoon = 'off';
+                evening = 'off';
+              } else {
+                // No work - mark as no_data (gray) instead of absent (red)
+                morning = 'no_data';
+                afternoon = 'no_data';
+                evening = 'no_data';
+                notes = 'Không có giờ làm';
+              }
+              
+              // Override with specific status if provided
+              if (status === 'late') {
+                morning = 'late';
+              } else if (status === 'early_leave') {
+                evening = 'insufficient';
+              }
+              
+              notes = record.notes || '';
+              
+              // Add rule information to notes if available
+              if (appliedRules.length > 0) {
+                const ruleNames = appliedRules.map((rule: any) => rule.rule_name || rule.rule_code).join(', ');
+                if (notes) {
+                  notes += ` | Quy tắc: ${ruleNames}`;
+                } else {
+                  notes = `Quy tắc: ${ruleNames}`;
+                }
+                
+                // Add work coefficient to notes
+                if (workCoefficient !== 1.0) {
+                  notes += ` | Hệ số: ${workCoefficient.toFixed(2)}`;
+                }
+              }
+            }
+          } else {
+            // No attendance record for this day - mark as no_data
+            morning = 'no_data';
+            afternoon = 'no_data';
+            evening = 'no_data';
+            notes = '';
+            
+            // Check if it's a weekend for informational purposes only
+            // (Saturday might be a working day, so we don't automatically mark it as 'off')
+            const dayOfWeek = date.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+              notes = dayOfWeek === 0 ? 'Chủ nhật' : 'Thứ 7';
+            }
           }
-          
-          notes = record.notes || '';
-        }
         
-        // Check if it's weekend
+        // Check if it's weekend (for existing records)
         const dayOfWeek = date.getDay();
         if (dayOfWeek === 0 || dayOfWeek === 6) {
-          notes = dayOfWeek === 0 ? 'Chủ nhật' : 'Thứ 7';
+          if (notes && !notes.includes('Chủ nhật') && !notes.includes('Thứ 7')) {
+            notes = (dayOfWeek === 0 ? 'Chủ nhật' : 'Thứ 7');
+          }
         }
         
         transformedData.push({
@@ -106,7 +178,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           morning,
           afternoon,
           evening,
-          notes: notes || undefined
+          notes: notes || undefined,
+          workCoefficient,
+          appliedRules
         });
       }
       
@@ -201,6 +275,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       case 'insufficient': return 'bg-purple-500';
       case 'off': return 'bg-gray-300';
       case 'holiday': return 'bg-blue-300';
+      case 'no_data': return 'bg-gray-400';
       default: return 'bg-gray-200';
     }
   };
@@ -214,6 +289,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       case 'insufficient': return 'Thiếu công';
       case 'off': return 'Nghỉ';
       case 'holiday': return 'Lễ';
+      case 'no_data': return 'Chưa có dữ liệu';
       default: return '';
     }
   };
@@ -272,7 +348,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       </div>
 
       {/* Legend */}
-      <div className="mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
         <div className="flex items-center">
           <div className="w-4 h-4 rounded-full bg-green-500 mr-2"></div>
           <span className="text-sm text-gray-700">Đủ công</span>
@@ -296,6 +372,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         <div className="flex items-center">
           <div className="w-4 h-4 rounded-full bg-blue-300 mr-2"></div>
           <span className="text-sm text-gray-700">Ngày lễ</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-4 h-4 rounded-full bg-gray-400 mr-2"></div>
+          <span className="text-sm text-gray-700">Chưa có dữ liệu</span>
         </div>
       </div>
 
@@ -373,13 +453,23 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                   {/* Status summary */}
                   <div className="mt-2">
                     <div className={`text-xs px-2 py-1 rounded-full text-center ${
-                      day.morning === 'present' && day.afternoon === 'present' && day.evening === 'present'
+                      day.morning === 'no_data' || day.afternoon === 'no_data' || day.evening === 'no_data'
+                        ? 'bg-gray-200 text-gray-700'
+                        : day.workCoefficient && day.workCoefficient >= 1.0
                         ? 'bg-green-100 text-green-800'
-                        : day.morning === 'absent' && day.afternoon === 'absent' && day.evening === 'absent'
+                        : day.workCoefficient && day.workCoefficient === 0
                         ? 'bg-red-100 text-red-800'
                         : 'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {getStatusText(day.morning)}
+                      {day.morning === 'no_data' || day.afternoon === 'no_data' || day.evening === 'no_data'
+                        ? getStatusText('no_data')
+                        : day.workCoefficient && day.workCoefficient >= 1.0 
+                        ? getStatusText('present')
+                        : day.workCoefficient && day.workCoefficient >= 0.5
+                        ? 'Nửa công'
+                        : day.workCoefficient && day.workCoefficient > 0
+                        ? getStatusText('insufficient')
+                        : getStatusText('absent')}
                     </div>
                   </div>
                 </div>
@@ -434,8 +524,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           <li>Màu đỏ: Không có công ở tất cả các ca</li>
           <li>Màu vàng: Có ít nhất 1 ca đi muộn</li>
           <li>Màu tím: Có ít nhất 1 ca thiếu công</li>
-          <li>Màu xám: Ngày nghỉ</li>
+          <li>Màu xám nhạt: Ngày nghỉ</li>
           <li>Màu xanh dương: Ngày lễ</li>
+          <li>Màu xám đậm: Chưa có dữ liệu chấm công</li>
         </ul>
       </div>
     </div>

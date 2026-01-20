@@ -316,8 +316,50 @@ const AttendanceView: React.FC = () => {
       case 'ABSENT': return 'bg-red-100 text-red-800';
       case 'EARLY_LEAVE': return 'bg-orange-100 text-orange-800';
       case 'HALF_DAY': return 'bg-blue-100 text-blue-800';
+      case 'INCOMPLETE': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  // Determine correct status display based on actual data
+  const getCorrectStatusDisplay = (record: AttendanceRecord): string => {
+    // Check if this is incomplete attendance data
+    const hasCheckIn = record.check_in && record.check_in !== null && record.check_in !== '';
+    const hasCheckOut = record.check_out && record.check_out !== null && record.check_out !== '';
+    const workingHours = record.working_hours || 0;
+    const hasValidAttendanceData = hasCheckIn && hasCheckOut && workingHours > 0;
+    
+    if (!hasValidAttendanceData) {
+      // Incomplete attendance data
+      if (!hasCheckIn && !hasCheckOut) {
+        return 'Chưa chấm công';
+      } else if (!hasCheckIn) {
+        return 'Thiếu giờ vào';
+      } else if (!hasCheckOut) {
+        return 'Thiếu giờ ra';
+      } else if (workingHours <= 0) {
+        return 'Không có giờ làm';
+      }
+      return 'Thiếu dữ liệu';
+    }
+    
+    // Valid attendance data, use the API status
+    return record.status_display;
+  };
+
+  // Get status for color coding
+  const getStatusForColor = (record: AttendanceRecord): string => {
+    // Check if this is incomplete attendance data
+    const hasCheckIn = record.check_in && record.check_in !== null && record.check_in !== '';
+    const hasCheckOut = record.check_out && record.check_out !== null && record.check_out !== '';
+    const workingHours = record.working_hours || 0;
+    const hasValidAttendanceData = hasCheckIn && hasCheckOut && workingHours > 0;
+    
+    if (!hasValidAttendanceData) {
+      return 'INCOMPLETE';
+    }
+    
+    return record.status;
   };
 
   const getSelectedEmployeeName = () => {
@@ -595,8 +637,8 @@ const AttendanceView: React.FC = () => {
                       {Number(record.working_hours).toFixed(1)} giờ
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(record.status)}`}>
-                        {record.status_display}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(getStatusForColor(record))}`}>
+                        {getCorrectStatusDisplay(record)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -771,8 +813,8 @@ const AttendanceView: React.FC = () => {
                               {Number(record.working_hours).toFixed(1)} giờ
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(record.status)}`}>
-                                {record.status_display}
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(getStatusForColor(record))}`}>
+                                {getCorrectStatusDisplay(record)}
                               </span>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">

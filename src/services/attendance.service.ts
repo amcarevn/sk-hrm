@@ -72,6 +72,25 @@ export interface CalendarViewData {
     working_hours: number;
     notes: string;
     department_name: string;
+    // Thêm các field mới từ AttendanceSerializer
+    work_coefficient?: number;
+    applied_rules?: Array<{
+      rule_id: number;
+      rule_code: string;
+      rule_name: string;
+      rule_type: string;
+      applied_at: string;
+      calculation_result: any;
+    }>;
+    rule_history?: Array<{
+      id: number;
+      attendance_id: number;
+      rule_id: number;
+      applied_configuration: any;
+      calculation_result: any;
+      applied_at: string;
+      applied_by: number | null;
+    }>;
   }>;
   employees: Array<{
     id: number;
