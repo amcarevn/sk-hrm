@@ -8,6 +8,8 @@ export interface AttendanceDay {
   morning: AttendanceStatus;
   afternoon: AttendanceStatus;
   evening: AttendanceStatus;
+  firstCheckIn?: string;  // Check-in đầu tiên của ngày
+  lastCheckOut?: string;  // Check-out cuối cùng của ngày
   notes?: string;
   workCoefficient?: number;
   appliedRules?: any[];
@@ -99,6 +101,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           let morning: AttendanceStatus = 'off';
           let afternoon: AttendanceStatus = 'off';
           let evening: AttendanceStatus = 'off';
+          let firstCheckIn: string | undefined = undefined;
+          let lastCheckOut: string | undefined = undefined;
           let notes = '';
           let workCoefficient = 1.0;
           let appliedRules: any[] = [];
@@ -188,6 +192,29 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             afternoon = getStatusForRecord(afternoonRecord, 'afternoon');
             evening = getStatusForRecord(eveningRecord, 'evening');
             
+            // Extract all check-in/check-out times for the day
+            const allCheckIns: string[] = [];
+            const allCheckOuts: string[] = [];
+            
+            [morningRecord, afternoonRecord, eveningRecord].forEach(record => {
+              if (record?.check_in) {
+                allCheckIns.push(record.check_in.substring(0, 5)); // HH:MM format
+              }
+              if (record?.check_out) {
+                allCheckOuts.push(record.check_out.substring(0, 5));
+              }
+            });
+            
+            // Find first check-in (earliest time)
+            if (allCheckIns.length > 0) {
+              firstCheckIn = allCheckIns.sort()[0];
+            }
+            
+            // Find last check-out (latest time)
+            if (allCheckOuts.length > 0) {
+              lastCheckOut = allCheckOuts.sort().reverse()[0];
+            }
+            
           // Build notes
           notes = firstRecord.notes || '';
           
@@ -210,13 +237,13 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           }
           
           // Add approved requests information to notes
-          if (approvedExplanations.length > 0) {
-            if (notes) {
-              notes += ` | Giải trình đã duyệt: ${approvedExplanations.length}`;
-            } else {
-              notes = `Giải trình đã duyệt: ${approvedExplanations.length}`;
-            }
-          }
+          // if (approvedExplanations.length > 0) {
+          //   if (notes) {
+          //     notes += ` | Giải trình đã duyệt: ${approvedExplanations.length}`;
+          //   } else {
+          //     notes = `Giải trình đã duyệt: ${approvedExplanations.length}`;
+          //   }
+          // }
           
           if (approvedLeaveRequests.length > 0) {
             if (notes) {
@@ -271,6 +298,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             morning,
             afternoon,
             evening,
+            firstCheckIn,
+            lastCheckOut,
             notes: notes || undefined,
             workCoefficient,
             appliedRules,
@@ -312,11 +341,29 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       const statuses: AttendanceStatus[] = ['present', 'absent', 'late', 'insufficient', 'off', 'holiday'];
       const randomStatus = () => statuses[Math.floor(Math.random() * statuses.length)];
       
+      // Generate random check-in/check-out times for demo (only for present/late/insufficient statuses)
+      let firstCheckIn: string | undefined = undefined;
+      let lastCheckOut: string | undefined = undefined;
+      
+      const status = randomStatus();
+      if (status === 'present' || status === 'late' || status === 'insufficient') {
+        // Generate random times between 7:00-9:00 for check-in and 16:00-18:00 for check-out
+        const randomHourIn = Math.floor(Math.random() * 3) + 7; // 7-9
+        const randomMinuteIn = Math.floor(Math.random() * 60);
+        const randomHourOut = Math.floor(Math.random() * 3) + 16; // 16-18
+        const randomMinuteOut = Math.floor(Math.random() * 60);
+        
+        firstCheckIn = `${String(randomHourIn).padStart(2, '0')}:${String(randomMinuteIn).padStart(2, '0')}`;
+        lastCheckOut = `${String(randomHourOut).padStart(2, '0')}:${String(randomMinuteOut).padStart(2, '0')}`;
+      }
+      
       data.push({
         date,
         morning: randomStatus(),
         afternoon: randomStatus(),
         evening: randomStatus(),
+        firstCheckIn,
+        lastCheckOut,
         notes: day % 7 === 0 ? 'Chủ nhật' : day % 5 === 0 ? 'Nghỉ lễ' : undefined
       });
     }
@@ -536,29 +583,43 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     </div>
                   </div>
 
-                  {/* Shift indicators */}
+                  {/* Shift indicators with check-in/check-out times */}
                   <div className="space-y-1">
-                    {/* Morning shift */}
-                    <div className="flex items-center">
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(day.morning)} mr-1`}></div>
-                      <span className="text-xs text-gray-600">Sáng</span>
+                    {/* Morning shift with check-in time */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(day.morning)} mr-1`}></div>
+                        <span className="text-xs text-gray-600">Sáng</span>
+                      </div>
+                      {day.firstCheckIn && (
+                        <span className="text-xs font-medium text-gray-700">{day.firstCheckIn}</span>
+                      )}
                     </div>
                     
                     {/* Afternoon shift */}
-                    <div className="flex items-center">
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(day.afternoon)} mr-1`}></div>
-                      <span className="text-xs text-gray-600">Chiều</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(day.afternoon)} mr-1`}></div>
+                        <span className="text-xs text-gray-600">Chiều</span>
+                      </div>
+                      {day.lastCheckOut && (
+                        <span className="text-xs font-medium text-gray-700">{day.lastCheckOut}</span>
+                      )}
+                      {/* Empty space to align with other rows */}
                     </div>
                     
-                    {/* Evening shift */}
-                    <div className="flex items-center">
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(day.evening)} mr-1`}></div>
-                      <span className="text-xs text-gray-600">Tối</span>
+                    {/* Evening shift with check-out time */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(day.evening)} mr-1`}></div>
+                        <span className="text-xs text-gray-600">Tối</span>
+                      </div>
+       
                     </div>
                   </div>
 
                   {/* Status summary */}
-                  <div className="mt-2">
+                  <div className="mt-1">
                     <div className={`text-xs px-2 py-1 rounded-full text-center ${
                       day.dayStatusSummary?.display_color === 'green'
                         ? 'bg-green-100 text-green-800 border border-green-300'
