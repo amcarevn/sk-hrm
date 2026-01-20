@@ -74,6 +74,8 @@ export interface CalendarViewData {
     department_name: string;
     // Thêm các field mới từ AttendanceSerializer
     work_coefficient?: number;
+    late_minutes?: number;
+    early_leave_minutes?: number;
     applied_rules?: Array<{
       rule_id: number;
       rule_code: string;
