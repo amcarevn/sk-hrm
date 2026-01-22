@@ -229,6 +229,49 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     navigation = staffNavigation;
   }
   
+  // Special handling for HR role - HR should see all STAFF items plus HR-specific items
+  if (userRole === 'HR') {
+    // First, get all items that STAFF would see
+    const allowedStaffItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt'];
+    
+    // Debug: Log HR handling
+    console.log('Sidebar - HR role handling:');
+    console.log('Sidebar - userDepartmentCode:', userDepartmentCode);
+    console.log('Sidebar - allowedStaffItems for HR:', allowedStaffItems);
+    
+    // Start with items that STAFF can see
+    let hrNavigation = navigationItems.filter((item) => 
+      allowedStaffItems.includes(item.name)
+    );
+    
+    console.log('Sidebar - Initial HR navigation (STAFF items):', hrNavigation.map(item => item.name));
+    
+    // Then add all HR-specific items (items where HR is in roles)
+    navigationItems.forEach((item) => {
+      if (!hrNavigation.some(navItem => navItem.name === item.name)) {
+        // Check if item has HR role access
+        if (item.roles.some(role => role.toUpperCase() === 'HR')) {
+          console.log('Sidebar - Adding HR-specific item:', item.name, 'roles:', item.roles);
+          hrNavigation.push(item);
+        }
+      }
+    });
+    
+    // Also add any items that HR has department access to
+    navigationItems.forEach((item) => {
+      if (!hrNavigation.some(navItem => navItem.name === item.name)) {
+        // Check if HR has department access to this item
+        if (item.departments && userDepartmentCode && item.departments.includes(userDepartmentCode)) {
+          console.log('Sidebar - Adding item with department access for HR:', item.name, 'departments:', item.departments);
+          hrNavigation.push(item);
+        }
+      }
+    });
+    
+    console.log('Sidebar - Final HR navigation:', hrNavigation.map(item => item.name));
+    navigation = hrNavigation;
+  }
+  
   // Debug: Log filtered navigation items
   console.log('Sidebar - Filtered navigation items:', navigation.map(item => ({
     name: item.name,
