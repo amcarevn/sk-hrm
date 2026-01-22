@@ -153,6 +153,88 @@ export interface CalendarViewParams {
   month?: number;
 }
 
+export interface MonthlyWorkCreditsParams {
+  month?: number;
+  year?: number;
+  employee_id?: number;
+  department_id?: number;
+}
+
+export interface MonthlyWorkCreditsResult {
+  employee: {
+    id: number;
+    employee_id: string;
+    full_name: string;
+    department: string | null;
+    position: string | null;
+  };
+  month: number;
+  year: number;
+  date_range: {
+    start_date: string;
+    end_date: string;
+  };
+  attendance_summary: {
+    total_days: number;
+    total_work_hours: number;
+    total_overtime_hours: number;
+    total_late_minutes: number;
+    total_early_leave_minutes: number;
+    status_summary: Record<string, number>;
+    attendance_rate: number;
+    working_days_in_month: number;
+  };
+  approved_requests: {
+    explanations: number;
+    leaves: number;
+  };
+  credit_calculation: {
+    work_credits: number;
+    overtime_credits: number;
+    penalty_credits: number;
+    total_credits: number;
+    overtime_multiplier: number;
+  };
+  notes: string[];
+}
+
+export interface MonthlyWorkCreditsResponse {
+  filters: {
+    month: number;
+    year: number;
+    employee_id?: number;
+    department_id?: number;
+  };
+  company_config: {
+    default_working_hours_per_day: number;
+    overtime_multiplier_weekday: number;
+    overtime_multiplier_weekend: number;
+    overtime_multiplier_holiday: number;
+  };
+  results: MonthlyWorkCreditsResult[];
+  summary: {
+    total_employees: number;
+    total_work_days: number;
+    total_work_hours: number;
+    total_work_credits: number;
+    total_overtime_hours: number;
+    total_overtime_credits: number;
+    total_late_minutes: number;
+    total_early_leave_minutes: number;
+    total_penalty_credits: number;
+    avg_work_credits: number;
+    avg_overtime_credits: number;
+    avg_penalty_credits: number;
+    avg_total_credits: number;
+  };
+  calculation_rules: {
+    work_credits: string;
+    overtime_credits: string;
+    penalty_credits: string;
+    total_credits: string;
+  };
+}
+
 class AttendanceService {
   /**
    * Lấy danh sách bản ghi chấm công
@@ -525,6 +607,19 @@ class AttendanceService {
       return response.data;
     } catch (error) {
       console.error('Error submitting attendance explanation for approval:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy điểm công hàng tháng cho nhân viên
+   */
+  async getMonthlyWorkCredits(params?: MonthlyWorkCreditsParams): Promise<MonthlyWorkCreditsResponse> {
+    try {
+      const response = await managementApi.get('/api-hrm/monthly-work-credits/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching monthly work credits:', error);
       throw error;
     }
   }

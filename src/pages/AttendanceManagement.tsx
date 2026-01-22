@@ -39,6 +39,8 @@ const AttendanceManagement: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [approvedExplanations, setApprovedExplanations] = useState<any[]>([]);
   const [approvedLeaveRequests, setApprovedLeaveRequests] = useState<any[]>([]);
+  const [monthlyWorkCredits, setMonthlyWorkCredits] = useState<any>(null);
+  const [workCreditsLoading, setWorkCreditsLoading] = useState(false);
 
   // Check if user has permission to upload attendance files
   // For now, only ADMIN role can upload
@@ -53,6 +55,8 @@ const AttendanceManagement: React.FC = () => {
     if (employee) {
       await fetchAttendanceStats(employee);
       await fetchAttendanceRecords(employee);
+      // Also fetch monthly work credits
+      await fetchMonthlyWorkCredits(undefined, undefined, employee.id);
     }
     };
     
@@ -64,6 +68,8 @@ const AttendanceManagement: React.FC = () => {
     if (currentEmployee) {
       fetchAttendanceStats(currentEmployee);
       fetchAttendanceRecords(currentEmployee);
+      // Also refetch monthly work credits when month changes
+      fetchMonthlyWorkCredits(currentDate.getMonth() + 1, currentDate.getFullYear(), currentEmployee.id);
     }
   }, [currentDate.getMonth(), currentDate.getFullYear()]);
 
@@ -157,6 +163,25 @@ const AttendanceManagement: React.FC = () => {
       setAttendanceRecords(response.results);
     } catch (error) {
       console.error('Error fetching attendance records:', error);
+    }
+  };
+
+  const fetchMonthlyWorkCredits = async (month?: number, year?: number, employeeId?: number) => {
+    try {
+      setWorkCreditsLoading(true);
+      const today = new Date();
+      const params = {
+        month: month || today.getMonth() + 1,
+        year: year || today.getFullYear(),
+        employee_id: employeeId || currentEmployee?.id
+      };
+      
+      const response = await attendanceService.getMonthlyWorkCredits(params);
+      setMonthlyWorkCredits(response);
+    } catch (error) {
+      console.error('Error fetching monthly work credits:', error);
+    } finally {
+      setWorkCreditsLoading(false);
     }
   };
 
@@ -504,7 +529,7 @@ const AttendanceManagement: React.FC = () => {
         <div className="bg-blue-50 p-4 rounded-lg">
           <h3 className="font-medium text-blue-900">Tổng ngày công</h3>
           <p className="text-3xl font-bold text-blue-700 mt-2">
-            {attendanceStats?.statistics?.total_days || 0}
+            {monthlyWorkCredits?.results?.[0]?.attendance_summary?.total_days || 0}
           </p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
@@ -535,6 +560,7 @@ const AttendanceManagement: React.FC = () => {
           </p>
         </div>
       </div>
+
 
       {/* Calendar Section */}
       <div className="mb-6">
