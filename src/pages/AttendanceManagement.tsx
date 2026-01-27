@@ -1,39 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceCalendar from '../components/AttendanceCalendar';
-import { attendanceService, AttendanceRecord } from '../services/attendance.service';
+import {
+  attendanceService,
+  AttendanceRecord,
+} from '../services/attendance.service';
 import { employeesAPI, Employee } from '../utils/api';
-import { 
-  XMarkIcon, 
-  DocumentPlusIcon, 
-  ClockIcon, 
-  CalendarIcon, 
+import {
+  XMarkIcon,
+  DocumentPlusIcon,
+  ClockIcon,
+  CalendarIcon,
   UserIcon,
-  BuildingOfficeIcon,
-  FunnelIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  EyeIcon
 } from '@heroicons/react/24/outline';
 
 const AttendanceManagement: React.FC = () => {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [uploadMessage, setUploadMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
-  const [showSupplementaryRequestModal, setShowSupplementaryRequestModal] = useState(false);
+  const [showSupplementaryRequestModal, setShowSupplementaryRequestModal] =
+    useState(false);
   const [supplementaryRequest, setSupplementaryRequest] = useState({
     reason: '',
-    expectedStatus: 'PRESENT' as 'PRESENT' | 'LATE' | 'EARLY_LEAVE' | 'ABSENT' | 'HALF_DAY',
+    expectedStatus: 'PRESENT' as
+      | 'PRESENT'
+      | 'LATE'
+      | 'EARLY_LEAVE'
+      | 'ABSENT'
+      | 'HALF_DAY',
     evidence: null as File | null,
   });
   const [attendanceStats, setAttendanceStats] = useState<any>(null);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<
+    AttendanceRecord[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
-  const [attendanceDetails, setAttendanceDetails] = useState<AttendanceRecord[]>([]);
+  const [attendanceDetails, setAttendanceDetails] = useState<
+    AttendanceRecord[]
+  >([]);
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -41,6 +52,7 @@ const AttendanceManagement: React.FC = () => {
   const [approvedLeaveRequests, setApprovedLeaveRequests] = useState<any[]>([]);
   const [monthlyWorkCredits, setMonthlyWorkCredits] = useState<any>(null);
   const [workCreditsLoading, setWorkCreditsLoading] = useState(false);
+  const [calendarData, setCalendarData] = useState<any[]>([]);
 
   // Check if user has permission to upload attendance files
   // For now, only ADMIN role can upload
@@ -50,16 +62,17 @@ const AttendanceManagement: React.FC = () => {
     const fetchData = async () => {
       // First, fetch current employee
       const employee = await fetchCurrentEmployee();
-      
-    // Then fetch attendance stats and records using the employee data
-    if (employee) {
-      await fetchAttendanceStats(employee);
-      await fetchAttendanceRecords(employee);
-      // Also fetch monthly work credits
-      await fetchMonthlyWorkCredits(undefined, undefined, employee.id);
-    }
+
+      // Then fetch attendance stats and records using the employee data
+      if (employee) {
+        await fetchAttendanceStats(employee);
+        await fetchAttendanceRecords(employee);
+        // Also fetch monthly work credits and calendar data
+        await fetchMonthlyWorkCredits(undefined, undefined, employee.id);
+        await fetchCalendarData(undefined, undefined, employee.id);
+      }
     };
-    
+
     fetchData();
   }, []);
 
@@ -68,8 +81,17 @@ const AttendanceManagement: React.FC = () => {
     if (currentEmployee) {
       fetchAttendanceStats(currentEmployee);
       fetchAttendanceRecords(currentEmployee);
-      // Also refetch monthly work credits when month changes
-      fetchMonthlyWorkCredits(currentDate.getMonth() + 1, currentDate.getFullYear(), currentEmployee.id);
+      // Also refetch monthly work credits and calendar data when month changes
+      fetchMonthlyWorkCredits(
+        currentDate.getMonth() + 1,
+        currentDate.getFullYear(),
+        currentEmployee.id
+      );
+      fetchCalendarData(
+        currentDate.getMonth() + 1,
+        currentDate.getFullYear(),
+        currentEmployee.id
+      );
     }
   }, [currentDate.getMonth(), currentDate.getFullYear()]);
 
@@ -88,9 +110,17 @@ const AttendanceManagement: React.FC = () => {
     try {
       setLoading(true);
       const today = currentDate || new Date();
-      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      
+      const firstDayOfMonth = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        1
+      );
+      const lastDayOfMonth = new Date(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        0
+      );
+
       // Format dates in local timezone
       const formatDateLocal = (date: Date) => {
         const year = date.getFullYear();
@@ -98,36 +128,38 @@ const AttendanceManagement: React.FC = () => {
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
       };
-      
+
       // Use employee parameter or currentEmployee from state
       const targetEmployee = employee || currentEmployee;
-      
+
       // Fetch attendance statistics with employee_id and department_id
       const stats = await attendanceService.getAttendanceStats({
         start_date: formatDateLocal(firstDayOfMonth),
         end_date: formatDateLocal(lastDayOfMonth),
         employee_id: targetEmployee?.id,
-        department_id: targetEmployee?.department?.id
+        department_id: targetEmployee?.department?.id,
       });
-      
+
       // Fetch attendance explanation statistics for current month
       let explanationStats = null;
       if (targetEmployee && targetEmployee.id) {
         try {
-          explanationStats = await attendanceService.getAttendanceExplanationStats({
-            employee_id: targetEmployee.id,
-            month: today.getMonth() + 1,
-            year: today.getFullYear()
-          });
+          explanationStats =
+            await attendanceService.getAttendanceExplanationStats({
+              employee_id: targetEmployee.id,
+              month: today.getMonth() + 1,
+              year: today.getFullYear(),
+            });
         } catch (error) {
           console.error('Error fetching explanation stats:', error);
         }
       }
-      
+
       // Combine stats
       setAttendanceStats({
         ...stats,
-        remaining_explanations: explanationStats?.statistics?.remaining_explanations || 0
+        remaining_explanations:
+          explanationStats?.statistics?.remaining_explanations || 0,
       });
     } catch (error) {
       console.error('Error fetching attendance stats:', error);
@@ -139,9 +171,17 @@ const AttendanceManagement: React.FC = () => {
   const fetchAttendanceRecords = async (employee?: Employee | null) => {
     try {
       const today = currentDate || new Date();
-      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      
+      const firstDayOfMonth = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        1
+      );
+      const lastDayOfMonth = new Date(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        0
+      );
+
       // Reuse the formatDateLocal function from fetchAttendanceStats
       const formatDateLocal = (date: Date) => {
         const year = date.getFullYear();
@@ -149,16 +189,16 @@ const AttendanceManagement: React.FC = () => {
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
       };
-      
+
       // Use employee parameter or currentEmployee from state
       const targetEmployee = employee || currentEmployee;
-      
+
       const response = await attendanceService.getAttendanceRecords({
         start_date: formatDateLocal(firstDayOfMonth),
         end_date: formatDateLocal(lastDayOfMonth),
         employee_id: targetEmployee?.id,
         department_id: targetEmployee?.department?.id,
-        page_size: 50
+        page_size: 50,
       });
       setAttendanceRecords(response.results);
     } catch (error) {
@@ -166,16 +206,20 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
-  const fetchMonthlyWorkCredits = async (month?: number, year?: number, employeeId?: number) => {
+  const fetchMonthlyWorkCredits = async (
+    month?: number,
+    year?: number,
+    employeeId?: number
+  ) => {
     try {
       setWorkCreditsLoading(true);
       const today = new Date();
       const params = {
         month: month || today.getMonth() + 1,
         year: year || today.getFullYear(),
-        employee_id: employeeId || currentEmployee?.id
+        employee_id: employeeId || currentEmployee?.id,
       };
-      
+
       const response = await attendanceService.getMonthlyWorkCredits(params);
       setMonthlyWorkCredits(response);
     } catch (error) {
@@ -185,53 +229,88 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
+  const fetchCalendarData = async (
+    month?: number,
+    year?: number,
+    employeeId?: number
+  ) => {
+    try {
+      const today = currentDate || new Date();
+      const params = {
+        year: year || today.getFullYear(),
+        month: month || today.getMonth() + 1,
+        employee_id: employeeId || currentEmployee?.id,
+      };
+
+      const response = await attendanceService.getCalendarView(params);
+      setCalendarData(response.calendar_data || []);
+    } catch (error) {
+      console.error('Error fetching calendar data:', error);
+      setCalendarData([]);
+    }
+  };
+
   const handleDateClick = async (date: Date, dayData?: any) => {
     console.log('Date clicked in AttendanceManagement:', date);
     console.log('Day data:', dayData);
-    
+
     setSelectedDate(date);
     setShowAttendanceModal(true);
     setFetchingDetails(true);
-    
+
     // Reset approved requests
     setApprovedExplanations([]);
     setApprovedLeaveRequests([]);
-    
+
     try {
       // Format date to YYYY-MM-DD in local timezone
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
-      
+
       // Fetch attendance records for the selected date
       const response = await attendanceService.getAttendanceRecords({
         start_date: dateStr,
         end_date: dateStr,
         employee_id: currentEmployee?.id,
         department_id: currentEmployee?.department?.id,
-        page_size: 10
+        page_size: 10,
       });
-      
+
       setAttendanceDetails(response.results);
-      
+
       // Get approved requests from dayData if available
       if (dayData) {
         console.log('Using dayData for approved requests:', dayData);
         setApprovedExplanations(dayData.approvedExplanations || []);
         setApprovedLeaveRequests(dayData.approvedLeaveRequests || []);
       }
-      
+
       // Calculate summary
       if (response.results.length > 0) {
         const summary = {
-          totalHours: response.results.reduce((sum: number, record: AttendanceRecord) => sum + (record.working_hours || 0), 0),
-          presentCount: response.results.filter((record: AttendanceRecord) => record.status === 'PRESENT').length,
-          lateCount: response.results.filter((record: AttendanceRecord) => record.status === 'LATE').length,
-          earlyLeaveCount: response.results.filter((record: AttendanceRecord) => record.status === 'EARLY_LEAVE').length,
-          absentCount: response.results.filter((record: AttendanceRecord) => record.status === 'ABSENT').length,
-          halfDayCount: response.results.filter((record: AttendanceRecord) => record.status === 'HALF_DAY').length,
-          totalShifts: response.results.length
+          totalHours: response.results.reduce(
+            (sum: number, record: AttendanceRecord) =>
+              sum + (record.working_hours || 0),
+            0
+          ),
+          presentCount: response.results.filter(
+            (record: AttendanceRecord) => record.status === 'PRESENT'
+          ).length,
+          lateCount: response.results.filter(
+            (record: AttendanceRecord) => record.status === 'LATE'
+          ).length,
+          earlyLeaveCount: response.results.filter(
+            (record: AttendanceRecord) => record.status === 'EARLY_LEAVE'
+          ).length,
+          absentCount: response.results.filter(
+            (record: AttendanceRecord) => record.status === 'ABSENT'
+          ).length,
+          halfDayCount: response.results.filter(
+            (record: AttendanceRecord) => record.status === 'HALF_DAY'
+          ).length,
+          totalShifts: response.results.length,
         };
         setAttendanceSummary(summary);
       } else {
@@ -243,7 +322,7 @@ const AttendanceManagement: React.FC = () => {
           earlyLeaveCount: 0,
           absentCount: 0,
           halfDayCount: 0,
-          totalShifts: 0
+          totalShifts: 0,
         });
       }
     } catch (error) {
@@ -275,19 +354,23 @@ const AttendanceManagement: React.FC = () => {
     });
   };
 
-  const handleSupplementaryRequestChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleSupplementaryRequestChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
     const { name, value } = e.target;
-    setSupplementaryRequest(prev => ({
+    setSupplementaryRequest((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleEvidenceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
-    setSupplementaryRequest(prev => ({
+    setSupplementaryRequest((prev) => ({
       ...prev,
-      evidence: file
+      evidence: file,
     }));
   };
 
@@ -329,23 +412,25 @@ const AttendanceManagement: React.FC = () => {
       };
 
       console.log('Submitting attendance explanation:', explanationData);
-      
+
       // Call the API
-      const result = await attendanceService.createAttendanceExplanation(explanationData);
-      
+      const result =
+        await attendanceService.createAttendanceExplanation(explanationData);
+
       console.log('Attendance explanation created:', result);
-      
+
       alert('Đơn bổ sung công đã được gửi thành công!');
-      
+
       // Refresh attendance stats to update remaining explanations count
       await fetchAttendanceStats(currentEmployee);
-      
+
       handleCloseSupplementaryRequest();
     } catch (error: any) {
       console.error('Error submitting attendance explanation:', error);
-      const errorMessage = error.response?.data?.detail || 
-                          error.response?.data?.message || 
-                          'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.';
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.';
       alert(`Lỗi: ${errorMessage}`);
     }
   };
@@ -371,11 +456,17 @@ const AttendanceManagement: React.FC = () => {
       'text/x-csv',
       'application/x-csv',
       'text/comma-separated-values',
-      'text/x-comma-separated-values'
+      'text/x-comma-separated-values',
     ];
 
-    if (!allowedTypes.includes(selectedFile.type) && !selectedFile.name.match(/\.(xlsx|xls|csv)$/i)) {
-      setUploadMessage({ type: 'error', text: 'Chỉ chấp nhận file Excel (.xlsx, .xls) hoặc CSV (.csv)' });
+    if (
+      !allowedTypes.includes(selectedFile.type) &&
+      !selectedFile.name.match(/\.(xlsx|xls|csv)$/i)
+    ) {
+      setUploadMessage({
+        type: 'error',
+        text: 'Chỉ chấp nhận file Excel (.xlsx, .xls) hoặc CSV (.csv)',
+      });
       return;
     }
 
@@ -385,27 +476,31 @@ const AttendanceManagement: React.FC = () => {
     try {
       // Upload file using attendance service
       const result = await attendanceService.uploadAttendanceFile(selectedFile);
-      
-      setUploadMessage({ 
-        type: 'success', 
-        text: `Upload file "${selectedFile.name}" thành công! ${result.message || 'Dữ liệu đang được xử lý.'}` 
+
+      setUploadMessage({
+        type: 'success',
+        text: `Upload file "${selectedFile.name}" thành công! ${result.message || 'Dữ liệu đang được xử lý.'}`,
       });
       setSelectedFile(null);
-      
+
       // Clear file input
-      const fileInput = document.getElementById('attendance-file') as HTMLInputElement;
+      const fileInput = document.getElementById(
+        'attendance-file'
+      ) as HTMLInputElement;
       if (fileInput) fileInput.value = '';
-      
+
       // Refresh attendance data
       fetchAttendanceStats(currentEmployee);
       fetchAttendanceRecords(currentEmployee);
-      
     } catch (error: any) {
       console.error('Upload error:', error);
-      const errorMessage = error.response?.data?.detail || error.response?.data?.message || 'Upload thất bại. Vui lòng thử lại.';
-      setUploadMessage({ 
-        type: 'error', 
-        text: errorMessage
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        'Upload thất bại. Vui lòng thử lại.';
+      setUploadMessage({
+        type: 'error',
+        text: errorMessage,
       });
     } finally {
       setUploading(false);
@@ -417,7 +512,8 @@ const AttendanceManagement: React.FC = () => {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Quản lý chấm công</h1>
         <p className="text-gray-600 mt-2">
-          Theo dõi và quản lý chấm công, đi muộn, về sớm, nghỉ phép của nhân viên.
+          Theo dõi và quản lý chấm công, đi muộn, về sớm, nghỉ phép của nhân
+          viên.
         </p>
       </div>
 
@@ -426,7 +522,9 @@ const AttendanceManagement: React.FC = () => {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Upload file chấm công</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Upload file chấm công
+              </h2>
               <p className="text-gray-500 text-sm">
                 Upload file Excel hoặc CSV để import dữ liệu chấm công
               </p>
@@ -435,17 +533,28 @@ const AttendanceManagement: React.FC = () => {
 
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
             <div className="flex flex-col items-center">
-              <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              <svg
+                className="w-12 h-12 text-gray-400 mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                />
               </svg>
-              
+
               <p className="text-gray-600 mb-2">
                 Kéo thả file vào đây hoặc click để chọn file
               </p>
               <p className="text-gray-500 text-sm mb-4">
                 Hỗ trợ file Excel (.xlsx, .xls) hoặc CSV (.csv)
               </p>
-              
+
               <div className="flex items-center space-x-4">
                 <label className="cursor-pointer bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors">
                   <span>Chọn file</span>
@@ -458,14 +567,14 @@ const AttendanceManagement: React.FC = () => {
                     disabled={uploading}
                   />
                 </label>
-                
+
                 {selectedFile && (
                   <button
                     onClick={handleUpload}
                     disabled={uploading}
                     className={`px-4 py-2 rounded-md transition-colors ${
-                      uploading 
-                        ? 'bg-gray-400 cursor-not-allowed' 
+                      uploading
+                        ? 'bg-gray-400 cursor-not-allowed'
                         : 'bg-green-600 hover:bg-green-700 text-white'
                     }`}
                   >
@@ -473,15 +582,28 @@ const AttendanceManagement: React.FC = () => {
                   </button>
                 )}
               </div>
-              
+
               {selectedFile && (
                 <div className="mt-4 p-3 bg-blue-50 rounded-md w-full max-w-md">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <svg className="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      <svg
+                        className="w-5 h-5 text-blue-500 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
                       </svg>
-                      <span className="text-gray-700 font-medium truncate">{selectedFile.name}</span>
+                      <span className="text-gray-700 font-medium truncate">
+                        {selectedFile.name}
+                      </span>
                     </div>
                     <span className="text-gray-500 text-sm">
                       {(selectedFile.size / 1024).toFixed(2)} KB
@@ -489,19 +611,45 @@ const AttendanceManagement: React.FC = () => {
                   </div>
                 </div>
               )}
-              
+
               {uploadMessage && (
-                <div className={`mt-4 p-3 rounded-md w-full max-w-md ${
-                  uploadMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-                }`}>
+                <div
+                  className={`mt-4 p-3 rounded-md w-full max-w-md ${
+                    uploadMessage.type === 'success'
+                      ? 'bg-green-50 text-green-800'
+                      : 'bg-red-50 text-red-800'
+                  }`}
+                >
                   <div className="flex items-center">
                     {uploadMessage.type === 'success' ? (
-                      <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg
+                        className="w-5 h-5 text-green-500 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
                       </svg>
                     ) : (
-                      <svg className="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg
+                        className="w-5 h-5 text-red-500 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
                       </svg>
                     )}
                     <span>{uploadMessage.text}</span>
@@ -510,11 +658,14 @@ const AttendanceManagement: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           <div className="mt-4 text-sm text-gray-500">
             <p className="font-medium mb-1">Hướng dẫn:</p>
             <ul className="list-disc pl-5 space-y-1">
-              <li>File cần có cấu trúc cột: Mã NV, Tên NV, Ngày, Giờ vào, Giờ ra, Ghi chú</li>
+              <li>
+                File cần có cấu trúc cột: Mã NV, Tên NV, Ngày, Giờ vào, Giờ ra,
+                Ghi chú
+              </li>
               <li>Định dạng ngày: DD/MM/YYYY hoặc YYYY-MM-DD</li>
               <li>Định dạng giờ: HH:MM (24h)</li>
               <li>Dung lượng file tối đa: 10MB</li>
@@ -523,49 +674,126 @@ const AttendanceManagement: React.FC = () => {
         </div>
       )}
 
-
       {/* Summary Statistics - Moved to top as requested */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg">
-          <h3 className="font-medium text-blue-900">Tổng ngày công</h3>
+          <h3 className="font-medium text-blue-900 text-sm">Tổng ngày công</h3>
           <p className="text-3xl font-bold text-blue-700 mt-2">
-            {monthlyWorkCredits?.results?.[0]?.attendance_summary?.total_days || 0}
+            {monthlyWorkCredits?.results?.[0]?.attendance_summary?.total_days ||
+              0}
           </p>
+          <p className="text-xs text-blue-600 mt-1">Tháng hiện tại</p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
-          <h3 className="font-medium text-green-900">Đi đúng giờ</h3>
+          <h3 className="font-medium text-green-900 text-sm">Ngày đủ công</h3>
           <p className="text-3xl font-bold text-green-700 mt-2">
-            {attendanceStats?.statistics?.status_summary?.PRESENT || 0}
+            {(() => {
+              const dateSet = new Set<string>();
+              calendarData.forEach((record: any) => {
+                if (
+                  record.work_coefficient !== undefined &&
+                  record.work_coefficient >= 1.0 &&
+                  (!record.late_minutes || record.late_minutes === 0) &&
+                  (!record.early_leave_minutes ||
+                    record.early_leave_minutes === 0)
+                ) {
+                  dateSet.add(record.date);
+                }
+              });
+              return dateSet.size;
+            })()}
+          </p>
+        </div>
+        <div className="bg-orange-50 p-4 rounded-lg">
+          <h3 className="font-medium text-orange-900 text-sm">Nửa ngày công</h3>
+          <p className="text-3xl font-bold text-orange-700 mt-2">
+            {(() => {
+              const dateSet = new Set<string>();
+              calendarData.forEach((record: any) => {
+                if (
+                  record.work_coefficient !== undefined &&
+                  record.work_coefficient >= 0.5 &&
+                  record.work_coefficient < 1.0 &&
+                  record.status === 'HALF_DAY'
+                ) {
+                  dateSet.add(record.date);
+                }
+              });
+              return dateSet.size;
+            })()}
           </p>
         </div>
         <div className="bg-yellow-50 p-4 rounded-lg">
-          <h3 className="font-medium text-yellow-900">Đi muộn</h3>
+          <h3 className="font-medium text-yellow-900 text-sm">
+            Đi muộn - Về sớm
+          </h3>
           <p className="text-3xl font-bold text-yellow-700 mt-2">
-            {attendanceStats?.statistics?.status_summary?.LATE || 0}
-          </p>
-        </div>
-        <div className="bg-red-50 p-4 rounded-lg">
-          <h3 className="font-medium text-red-900">Vắng mặt</h3>
-          <p className="text-3xl font-bold text-red-700 mt-2">
-            {attendanceStats?.statistics?.status_summary?.ABSENT || 0}
+            {
+              calendarData
+                .filter((record: any) => {
+                  return (
+                    (record.late_minutes && record.late_minutes > 0) ||
+                    (record.early_leave_minutes &&
+                      record.early_leave_minutes > 0)
+                  );
+                })
+                .reduce((acc: Set<string>, record: any) => {
+                  acc.add(record.date);
+                  return acc;
+                }, new Set<string>()).size
+            }
           </p>
         </div>
         <div className="bg-purple-50 p-4 rounded-lg">
-          <h3 className="font-medium text-purple-900">Giải trình còn lại</h3>
+          <h3 className="font-medium text-purple-900 text-sm">
+            Quên chấm công
+          </h3>
           <p className="text-3xl font-bold text-purple-700 mt-2">
+            {
+              calendarData
+                .filter((record: any) => {
+                  return record.status === 'INCOMPLETE_ATTENDANCE';
+                })
+                .reduce((acc: Set<string>, record: any) => {
+                  acc.add(record.date);
+                  return acc;
+                }, new Set<string>()).size
+            }
+          </p>
+        </div>
+        <div className="bg-red-50 p-4 rounded-lg">
+          <h3 className="font-medium text-red-900 text-sm">Vắng mặt</h3>
+          <p className="text-3xl font-bold text-red-700 mt-2">
+            {
+              calendarData
+                .filter((record: any) => {
+                  return (
+                    record.work_coefficient === 0 && record.status === 'ABSENT'
+                  );
+                })
+                .reduce((acc: Set<string>, record: any) => {
+                  acc.add(record.date);
+                  return acc;
+                }, new Set<string>()).size
+            }
+          </p>
+        </div>
+
+        <div className="bg-cyan-50 p-4 rounded-lg">
+          <h3 className="font-medium text-cyan-900 text-sm">
+            Giải trình còn lại
+          </h3>
+          <p className="text-3xl font-bold text-cyan-700 mt-2">
             {attendanceStats?.remaining_explanations || 0}
           </p>
-          <p className="text-xs text-purple-600 mt-1">
-            Tháng hiện tại
-          </p>
+          <p className="text-xs text-cyan-600 mt-1">Tháng hiện tại</p>
         </div>
       </div>
 
-
       {/* Calendar Section */}
       <div className="mb-6">
-        <AttendanceCalendar 
-          onDateClick={handleDateClick} 
+        <AttendanceCalendar
+          onDateClick={handleDateClick}
           onMonthChange={(date: Date) => setCurrentDate(date)}
           employeeId={currentEmployee?.id}
         />
@@ -586,7 +814,8 @@ const AttendanceManagement: React.FC = () => {
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
                     <div className="flex justify-between items-center">
                       <h3 className="text-lg leading-6 font-medium text-gray-900">
-                        Chi tiết chấm công ngày {selectedDate.toLocaleDateString('vi-VN')}
+                        Chi tiết chấm công ngày{' '}
+                        {selectedDate.toLocaleDateString('vi-VN')}
                       </h3>
                       <button
                         onClick={handleCloseModal}
@@ -609,13 +838,13 @@ const AttendanceManagement: React.FC = () => {
                     <div className="flex items-center">
                       <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
                       <div>
-                        <h4 className="font-medium text-gray-900">Thông tin nhân viên</h4>
+                        <h4 className="font-medium text-gray-900">
+                          Thông tin nhân viên
+                        </h4>
                         <p className="text-sm text-gray-600">
-                          {currentEmployee ? (
-                            `${currentEmployee.full_name} - ${currentEmployee.employee_id}`
-                          ) : (
-                            'Đang tải thông tin...'
-                          )}
+                          {currentEmployee
+                            ? `${currentEmployee.full_name} - ${currentEmployee.employee_id}`
+                            : 'Đang tải thông tin...'}
                         </p>
                         {currentEmployee?.department && (
                           <p className="text-xs text-gray-500 mt-1">
@@ -633,29 +862,43 @@ const AttendanceManagement: React.FC = () => {
 
                   {/* Approved Requests Section */}
                   <div className="mb-4">
-                    <h4 className="font-medium text-gray-900 mb-2">Đơn đã duyệt</h4>
-                    
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      Đơn đã duyệt
+                    </h4>
+
                     {/* Approved Explanations */}
                     {approvedExplanations.length > 0 ? (
                       <div className="mb-3">
-                        <h5 className="text-sm font-medium text-gray-700 mb-1">Đơn giải trình chấm công đã duyệt:</h5>
+                        <h5 className="text-sm font-medium text-gray-700 mb-1">
+                          Đơn giải trình chấm công đã duyệt:
+                        </h5>
                         <div className="bg-green-50 rounded-lg p-3">
                           <div className="space-y-2">
                             {approvedExplanations.map((explanation, index) => (
-                              <div key={index} className="border-l-4 border-green-500 pl-3 py-1">
+                              <div
+                                key={index}
+                                className="border-l-4 border-green-500 pl-3 py-1"
+                              >
                                 <div className="flex justify-between items-start">
                                   <div>
                                     <p className="font-medium text-gray-900 text-sm">
                                       Mã đơn: {explanation.request_code}
                                     </p>
                                     <p className="text-xs text-gray-600">
-                                      Từ: {explanation.original_status} → {explanation.expected_status}
+                                      Từ: {explanation.original_status} →{' '}
+                                      {explanation.expected_status}
                                     </p>
                                     <p className="text-xs text-gray-600">
                                       Duyệt bởi: {explanation.approved_by_name}
                                     </p>
                                     <p className="text-xs text-gray-600">
-                                      Thời gian duyệt: {new Date(explanation.approved_at).toLocaleDateString('vi-VN')} {new Date(explanation.approved_at).toLocaleTimeString('vi-VN')}
+                                      Thời gian duyệt:{' '}
+                                      {new Date(
+                                        explanation.approved_at
+                                      ).toLocaleDateString('vi-VN')}{' '}
+                                      {new Date(
+                                        explanation.approved_at
+                                      ).toLocaleTimeString('vi-VN')}
                                     </p>
                                   </div>
                                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -669,9 +912,14 @@ const AttendanceManagement: React.FC = () => {
                       </div>
                     ) : (
                       <div className="mb-3">
-                        <h5 className="text-sm font-medium text-gray-700 mb-1">Đơn giải trình chấm công đã duyệt:</h5>
+                        <h5 className="text-sm font-medium text-gray-700 mb-1">
+                          Đơn giải trình chấm công đã duyệt:
+                        </h5>
                         <div className="bg-gray-50 rounded-lg p-3 text-center">
-                          <p className="text-gray-600 text-sm">Không có đơn giải trình chấm công nào đã được duyệt cho ngày này.</p>
+                          <p className="text-gray-600 text-sm">
+                            Không có đơn giải trình chấm công nào đã được duyệt
+                            cho ngày này.
+                          </p>
                         </div>
                       </div>
                     )}
@@ -679,11 +927,16 @@ const AttendanceManagement: React.FC = () => {
                     {/* Approved Leave Requests */}
                     {approvedLeaveRequests.length > 0 ? (
                       <div className="mb-3">
-                        <h5 className="text-sm font-medium text-gray-700 mb-1">Đơn nghỉ phép đã duyệt:</h5>
+                        <h5 className="text-sm font-medium text-gray-700 mb-1">
+                          Đơn nghỉ phép đã duyệt:
+                        </h5>
                         <div className="bg-blue-50 rounded-lg p-3">
                           <div className="space-y-2">
                             {approvedLeaveRequests.map((leave, index) => (
-                              <div key={index} className="border-l-4 border-blue-500 pl-3 py-1">
+                              <div
+                                key={index}
+                                className="border-l-4 border-blue-500 pl-3 py-1"
+                              >
                                 <div className="flex justify-between items-start">
                                   <div>
                                     <p className="font-medium text-gray-900 text-sm">
@@ -696,7 +949,13 @@ const AttendanceManagement: React.FC = () => {
                                       Duyệt bởi: {leave.approved_by_name}
                                     </p>
                                     <p className="text-xs text-gray-600">
-                                      Thời gian duyệt: {new Date(leave.approved_at).toLocaleDateString('vi-VN')} {new Date(leave.approved_at).toLocaleTimeString('vi-VN')}
+                                      Thời gian duyệt:{' '}
+                                      {new Date(
+                                        leave.approved_at
+                                      ).toLocaleDateString('vi-VN')}{' '}
+                                      {new Date(
+                                        leave.approved_at
+                                      ).toLocaleTimeString('vi-VN')}
                                     </p>
                                   </div>
                                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -710,9 +969,14 @@ const AttendanceManagement: React.FC = () => {
                       </div>
                     ) : (
                       <div className="mb-3">
-                        <h5 className="text-sm font-medium text-gray-700 mb-1">Đơn nghỉ phép đã duyệt:</h5>
+                        <h5 className="text-sm font-medium text-gray-700 mb-1">
+                          Đơn nghỉ phép đã duyệt:
+                        </h5>
                         <div className="bg-gray-50 rounded-lg p-3 text-center">
-                          <p className="text-gray-600 text-sm">Không có đơn nghỉ phép nào đã được duyệt cho ngày này.</p>
+                          <p className="text-gray-600 text-sm">
+                            Không có đơn nghỉ phép nào đã được duyệt cho ngày
+                            này.
+                          </p>
                         </div>
                       </div>
                     )}
@@ -720,7 +984,10 @@ const AttendanceManagement: React.FC = () => {
                     {/* Summary */}
                     <div className="mt-2 p-2 bg-gray-50 rounded-lg">
                       <p className="text-xs text-gray-700">
-                        <span className="font-medium">Tóm tắt:</span> Ngày này có {approvedExplanations.length} đơn giải trình và {approvedLeaveRequests.length} đơn nghỉ phép đã được duyệt.
+                        <span className="font-medium">Tóm tắt:</span> Ngày này
+                        có {approvedExplanations.length} đơn giải trình và{' '}
+                        {approvedLeaveRequests.length} đơn nghỉ phép đã được
+                        duyệt.
                       </p>
                     </div>
                   </div>
@@ -730,7 +997,9 @@ const AttendanceManagement: React.FC = () => {
                     {fetchingDetails ? (
                       <div className="p-8 text-center">
                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                        <p className="mt-2 text-gray-600">Đang tải chi tiết chấm công...</p>
+                        <p className="mt-2 text-gray-600">
+                          Đang tải chi tiết chấm công...
+                        </p>
                       </div>
                     ) : attendanceDetails.length > 0 ? (
                       <table className="min-w-full divide-y divide-gray-200">
@@ -763,44 +1032,110 @@ const AttendanceManagement: React.FC = () => {
                                 {record.shift_type_display || 'Cả ngày'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {record.check_in ? new Date(`2000-01-01T${record.check_in}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                {(() => {
+                                  // Handle INCOMPLETE_ATTENDANCE: swap check_in/check_out based on time
+                                  if (
+                                    record.status === 'INCOMPLETE_ATTENDANCE' &&
+                                    record.check_in &&
+                                    !record.check_out
+                                  ) {
+                                    const checkInTime =
+                                      record.check_in.substring(0, 5); // HH:MM
+                                    if (checkInTime >= '12:00') {
+                                      // check_in >= 12:00 → value thực ra là check_out, hiển thị '--:--' cho check_in
+                                      return '--:--';
+                                    }
+                                  }
+                                  // Normal case
+                                  return record.check_in
+                                    ? new Date(
+                                        `2000-01-01T${record.check_in}`
+                                      ).toLocaleTimeString('vi-VN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
+                                    : '--:--';
+                                })()}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {record.check_out ? new Date(`2000-01-01T${record.check_out}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                {(() => {
+                                  // Handle INCOMPLETE_ATTENDANCE: swap check_in/check_out based on time
+                                  if (
+                                    record.status === 'INCOMPLETE_ATTENDANCE' &&
+                                    record.check_in &&
+                                    !record.check_out
+                                  ) {
+                                    const checkInTime =
+                                      record.check_in.substring(0, 5); // HH:MM
+                                    if (checkInTime >= '12:00') {
+                                      // check_in >= 12:00 → value thực ra là check_out, hiển thị value của check_in cho check_out
+                                      return new Date(
+                                        `2000-01-01T${record.check_in}`
+                                      ).toLocaleTimeString('vi-VN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      });
+                                    }
+                                  }
+                                  // Normal case
+                                  return record.check_out
+                                    ? new Date(
+                                        `2000-01-01T${record.check_out}`
+                                      ).toLocaleTimeString('vi-VN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
+                                    : '--:--';
+                                })()}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {record.working_hours ? `${Number(record.working_hours).toFixed(1)} giờ` : '0 giờ'}
+                                {record.working_hours
+                                  ? `${Number(record.working_hours).toFixed(1)} giờ`
+                                  : '0 giờ'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  record.status === 'PRESENT' ? 'bg-green-100 text-green-800' :
-                                  record.status === 'LATE' ? 'bg-yellow-100 text-yellow-800' :
-                                  record.status === 'EARLY_LEAVE' ? 'bg-orange-100 text-orange-800' :
-                                  record.status === 'ABSENT' ? 'bg-red-100 text-red-800' :
-                                  record.status === 'HALF_DAY' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
+                                <span
+                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    record.status === 'PRESENT'
+                                      ? 'bg-green-100 text-green-800'
+                                      : record.status === 'LATE'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : record.status === 'EARLY_LEAVE'
+                                          ? 'bg-orange-100 text-orange-800'
+                                          : record.status === 'ABSENT'
+                                            ? 'bg-red-100 text-red-800'
+                                            : record.status === 'HALF_DAY'
+                                              ? 'bg-blue-100 text-blue-800'
+                                              : 'bg-gray-100 text-gray-800'
+                                  }`}
+                                >
                                   {record.status_display || record.status}
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 <div className="space-y-1">
-                                  {record.notes && (
-                                    <div>{record.notes}</div>
-                                  )}
-                                  {(record.late_minutes > 0 || record.early_leave_minutes > 0) && (
+                                  {record.notes && <div>{record.notes}</div>}
+                                  {(record.late_minutes > 0 ||
+                                    record.early_leave_minutes > 0) && (
                                     <div className="text-xs text-gray-600">
                                       {record.late_minutes > 0 && (
-                                        <div>Đi muộn: {record.late_minutes} phút</div>
+                                        <div>
+                                          Đi muộn: {record.late_minutes} phút
+                                        </div>
                                       )}
                                       {record.early_leave_minutes > 0 && (
-                                        <div>Về sớm: {record.early_leave_minutes} phút</div>
+                                        <div>
+                                          Về sớm: {record.early_leave_minutes}{' '}
+                                          phút
+                                        </div>
                                       )}
                                     </div>
                                   )}
-                                  {!record.notes && record.late_minutes === 0 && record.early_leave_minutes === 0 && (
-                                    <div>-</div>
-                                  )}
+                                  {!record.notes &&
+                                    record.late_minutes === 0 &&
+                                    record.early_leave_minutes === 0 && (
+                                      <div>-</div>
+                                    )}
                                 </div>
                               </td>
                             </tr>
@@ -809,10 +1144,23 @@ const AttendanceManagement: React.FC = () => {
                       </table>
                     ) : (
                       <div className="p-8 text-center">
-                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <svg
+                          className="mx-auto h-12 w-12 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
                         </svg>
-                        <p className="mt-2 text-gray-600">Không có dữ liệu chấm công cho ngày này</p>
+                        <p className="mt-2 text-gray-600">
+                          Không có dữ liệu chấm công cho ngày này
+                        </p>
                       </div>
                     )}
                   </div>
@@ -820,25 +1168,35 @@ const AttendanceManagement: React.FC = () => {
                   {/* Summary */}
                   <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-blue-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-blue-900 text-sm">Tổng giờ làm</h4>
+                      <h4 className="font-medium text-blue-900 text-sm">
+                        Tổng giờ làm
+                      </h4>
                       <p className="text-xl font-bold text-blue-700 mt-1">
-                        {attendanceSummary ? `${Number(attendanceSummary.totalHours).toFixed(1)} giờ` : '0 giờ'}
+                        {attendanceSummary
+                          ? `${Number(attendanceSummary.totalHours).toFixed(1)} giờ`
+                          : '0 giờ'}
                       </p>
                     </div>
                     <div className="bg-green-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-green-900 text-sm">Ca đủ công</h4>
+                      <h4 className="font-medium text-green-900 text-sm">
+                        Ca đủ công
+                      </h4>
                       <p className="text-xl font-bold text-green-700 mt-1">
                         {attendanceSummary?.presentCount || 0}
                       </p>
                     </div>
                     <div className="bg-yellow-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-yellow-900 text-sm">Ca đi muộn</h4>
+                      <h4 className="font-medium text-yellow-900 text-sm">
+                        Ca đi muộn
+                      </h4>
                       <p className="text-xl font-bold text-yellow-700 mt-1">
                         {attendanceSummary?.lateCount || 0}
                       </p>
                     </div>
                     <div className="bg-gray-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-gray-900 text-sm">Tổng ca</h4>
+                      <h4 className="font-medium text-gray-900 text-sm">
+                        Tổng ca
+                      </h4>
                       <p className="text-xl font-bold text-gray-700 mt-1">
                         {attendanceSummary?.totalShifts || 0}
                       </p>
@@ -894,7 +1252,8 @@ const AttendanceManagement: React.FC = () => {
                     </div>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Gửi đơn bổ sung công cho ngày {selectedDate.toLocaleDateString('vi-VN')}
+                        Gửi đơn bổ sung công cho ngày{' '}
+                        {selectedDate.toLocaleDateString('vi-VN')}
                       </p>
                     </div>
                   </div>
@@ -906,8 +1265,12 @@ const AttendanceManagement: React.FC = () => {
                     <div className="flex items-center">
                       <CalendarIcon className="h-5 w-5 text-gray-400 mr-2" />
                       <div>
-                        <p className="text-sm font-medium text-gray-900">Ngày cần bổ sung công</p>
-                        <p className="text-sm text-gray-600">{selectedDate.toLocaleDateString('vi-VN')}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          Ngày cần bổ sung công
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {selectedDate.toLocaleDateString('vi-VN')}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -917,8 +1280,12 @@ const AttendanceManagement: React.FC = () => {
                     <div className="flex items-center">
                       <ClockIcon className="h-5 w-5 text-yellow-400 mr-2" />
                       <div>
-                        <p className="text-sm font-medium text-yellow-900">Trạng thái hiện tại</p>
-                        <p className="text-sm text-yellow-700">Thiếu công (1 ca đi muộn)</p>
+                        <p className="text-sm font-medium text-yellow-900">
+                          Trạng thái hiện tại
+                        </p>
+                        <p className="text-sm text-yellow-700">
+                          Quên chấm công (1 ca đi muộn)
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -926,7 +1293,10 @@ const AttendanceManagement: React.FC = () => {
                   {/* Form */}
                   <div className="space-y-4">
                     <div>
-                      <label htmlFor="expectedStatus" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="expectedStatus"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Trạng thái mong muốn
                       </label>
                       <select
@@ -945,7 +1315,10 @@ const AttendanceManagement: React.FC = () => {
                     </div>
 
                     <div>
-                      <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="reason"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Lý do bổ sung công
                       </label>
                       <textarea
@@ -960,13 +1333,27 @@ const AttendanceManagement: React.FC = () => {
                     </div>
 
                     <div>
-                      <label htmlFor="evidence" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="evidence"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Bằng chứng (tùy chọn)
                       </label>
                       <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                         <div className="space-y-1 text-center">
-                          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          <svg
+                            className="mx-auto h-12 w-12 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
                           </svg>
                           <div className="flex text-sm text-gray-600">
                             <label
@@ -993,12 +1380,28 @@ const AttendanceManagement: React.FC = () => {
                       {supplementaryRequest.evidence && (
                         <div className="mt-2 p-2 bg-gray-50 rounded-md">
                           <div className="flex items-center">
-                            <svg className="w-5 h-5 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            <svg
+                              className="w-5 h-5 text-gray-500 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
                             </svg>
-                            <span className="text-sm text-gray-700">{supplementaryRequest.evidence.name}</span>
+                            <span className="text-sm text-gray-700">
+                              {supplementaryRequest.evidence.name}
+                            </span>
                             <span className="ml-auto text-xs text-gray-500">
-                              {(supplementaryRequest.evidence.size / 1024).toFixed(2)} KB
+                              {(
+                                supplementaryRequest.evidence.size / 1024
+                              ).toFixed(2)}{' '}
+                              KB
                             </span>
                           </div>
                         </div>
@@ -1028,8 +1431,6 @@ const AttendanceManagement: React.FC = () => {
           </div>
         </div>
       )}
-
-
     </div>
   );
 };

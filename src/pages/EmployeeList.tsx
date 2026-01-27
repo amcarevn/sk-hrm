@@ -412,36 +412,36 @@ const EmployeeList: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
-                          <button 
+                          <button
                             onClick={() => navigate(`/dashboard/employees/${employee.id}`)}
-                            className="text-primary-600 hover:text-primary-900"
+                            className="px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
                           >
                             Xem
                           </button>
-                          <button 
+                          <button
                             onClick={() => navigate(`/dashboard/employees/${employee.id}/edit`)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 transition-colors"
                           >
                             Sửa
                           </button>
                           {employee.employment_status === 'ACTIVE' ? (
-                            <button 
+                            <button
                               onClick={() => handleDeactivate(employee.id)}
-                              className="text-yellow-600 hover:text-yellow-900"
+                              className="px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-md hover:bg-amber-100 hover:border-amber-300 transition-colors"
                             >
                               Vô hiệu hóa
                             </button>
                           ) : (
-                            <button 
+                            <button
                               onClick={() => handleActivate(employee.id)}
-                              className="text-green-600 hover:text-green-900"
+                              className="px-3 py-1.5 bg-green-50 text-green-600 border border-green-200 rounded-md hover:bg-green-100 hover:border-green-300 transition-colors"
                             >
                               Kích hoạt
                             </button>
                           )}
-                          <button 
+                          <button
                             onClick={() => handleDelete(employee.id)}
-                            className="text-red-600 hover:text-red-900"
+                            className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 transition-colors"
                           >
                             Xóa
                           </button>

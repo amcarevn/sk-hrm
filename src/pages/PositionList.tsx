@@ -308,27 +308,27 @@ const PositionList: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
-                          <button 
+                          <button
                             onClick={() => navigate(`/dashboard/positions/${position.id}`)}
-                            className="text-primary-600 hover:text-primary-900"
+                            className="px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
                           >
                             Xem
                           </button>
-                          <button 
+                          <button
                             onClick={() => navigate(`/dashboard/positions/${position.id}/edit`)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 transition-colors"
                           >
                             Sửa
                           </button>
-                          <button 
+                          <button
                             onClick={() => navigate(`/dashboard/positions/${position.id}/employees`)}
-                            className="text-green-600 hover:text-green-900"
+                            className="px-3 py-1.5 bg-green-50 text-green-600 border border-green-200 rounded-md hover:bg-green-100 hover:border-green-300 transition-colors"
                           >
                             Nhân viên
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleDelete(position.id)}
-                            className="text-red-600 hover:text-red-900"
+                            className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 transition-colors"
                           >
                             Xóa
                           </button>
