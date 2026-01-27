@@ -642,7 +642,7 @@ const AttendanceView: React.FC = () => {
       {attendanceRecords.length > 0 && !loading && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Chi tiết chấm công</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Chi tiết chấm công </h2>
             <p className="text-sm text-gray-600 mt-1">
               {selectedEmployee ? `Nhân viên: ${getSelectedEmployeeName()}` : ''}
               {selectedDepartment ? `Phòng ban: ${getSelectedDepartmentName()}` : ''}
