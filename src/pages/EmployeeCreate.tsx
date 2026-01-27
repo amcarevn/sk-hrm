@@ -196,7 +196,7 @@ const EmployeeCreate: React.FC = () => {
                 value={formData.employee_id}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="NV001"
+                placeholder="TA123"
                 required
               />
             </div>
@@ -283,7 +283,7 @@ const EmployeeCreate: React.FC = () => {
                 value={formData.username}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="nguyenvana"
+                placeholder="TA123"
                 required
               />
             </div>
