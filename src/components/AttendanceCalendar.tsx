@@ -247,17 +247,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               return 'no_data';
             }
 
-            // Handle HALF_DAY status for FULL_DAY shift type
-            // Cả ca sáng và ca chiều đều hiển thị màu xanh (present)
-            if (record.shift_type === 'FULL_DAY' && status === 'half_day') {
-              if (shift === 'morning' || shift === 'afternoon') {
-                return 'present'; // Cả 2 ca đều hiển thị màu xanh
-              } else if (shift === 'evening') {
-                return 'no_data';
-              }
-            }
-
             // Check late_minutes và early_leave_minutes để hiển thị màu vàng (đi muộn/về sớm)
+            // QUAN TRỌNG: Phải check TRƯỚC logic HALF_DAY + FULL_DAY để đảm bảo hiển thị đúng màu vàng
             const lateMinutes = record.late_minutes || 0;
             const earlyLeaveMinutes = record.early_leave_minutes || 0;
 
@@ -269,6 +260,17 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             // Ca chiều: nếu có về sớm (early_leave_minutes > 0) → hiển thị màu vàng
             if (shift === 'afternoon' && earlyLeaveMinutes > 0) {
               return 'late';
+            }
+
+            // Handle HALF_DAY status for FULL_DAY shift type
+            // Cả ca sáng và ca chiều đều hiển thị màu xanh (present)
+            // Chỉ áp dụng nếu KHÔNG có đi muộn/về sớm (đã check ở trên)
+            if (record.shift_type === 'FULL_DAY' && status === 'half_day') {
+              if (shift === 'morning' || shift === 'afternoon') {
+                return 'present'; // Cả 2 ca đều hiển thị màu xanh
+              } else if (shift === 'evening') {
+                return 'no_data';
+              }
             }
 
             if (status === 'late' || status === 'LATE') {
@@ -769,11 +771,22 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               const isWeekend =
                 day.date.getDay() === 0 || day.date.getDay() === 6;
 
+              // Kiểm tra ngày có dữ liệu hay không
+              const hasData = !(
+                day.morning === 'no_data' &&
+                day.afternoon === 'no_data' &&
+                day.evening === 'no_data'
+              );
+
               return (
                 <div
                   key={index}
-                  onClick={() => onDateClick && onDateClick(day.date, day)}
-                  className={`h-32 border rounded-lg p-2 cursor-pointer transition-all hover:shadow-md ${isToday ? 'border-2 border-primary-500' : 'border-gray-200'
+                  onClick={() => hasData && onDateClick && onDateClick(day.date, day)}
+                  className={`h-32 border rounded-lg p-2 transition-all ${
+                    hasData
+                      ? 'cursor-pointer hover:shadow-md'
+                      : 'cursor-default opacity-70'
+                  } ${isToday ? 'border-2 border-primary-500' : 'border-gray-200'
                     } ${isWeekend ? 'bg-gray-50' : 'bg-white'}`}
                 >
                   {/* Date header */}
@@ -889,7 +902,13 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                             ? getStatusText('no_data')
                             : (day.lateMinutes && day.lateMinutes > 0) ||
                               (day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0)
-                              ? getStatusText('late')
+                              ? // Hiển thị text cụ thể: "Đi muộn", "Về sớm", hoặc "Đi muộn - Về sớm"
+                                // Ca sáng bắt đầu 8h30, ca chiều kết thúc 17h30
+                                (day.lateMinutes && day.lateMinutes > 0) && (day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0)
+                                  ? 'Đi muộn - Về sớm'
+                                  : (day.lateMinutes && day.lateMinutes > 0)
+                                    ? 'Đi muộn'
+                                    : 'Về sớm'
                               : day.workCoefficient && day.workCoefficient >= 1.0
                                 ? getStatusText('present')
                                 : day.workCoefficient &&
@@ -912,7 +931,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       <div className="mt-6 text-sm text-gray-600">
         <p className="font-medium mb-1">Hướng dẫn:</p>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Click vào ngày để xem chi tiết chấm công</li>
+          <li>Click vào ngày có dữ liệu để xem chi tiết chấm công (ngày không có dữ liệu sẽ mờ và không thể click)</li>
           <li>Màu xanh lá: Đủ công cả 3 ca (sáng, chiều, tối)</li>
           <li>Màu cam: Nửa công (hệ số công từ 0.5 đến dưới 1.0)</li>
           <li>Màu đỏ: Không có công ở tất cả các ca</li>

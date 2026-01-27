@@ -258,9 +258,9 @@ const AttendanceManagement: React.FC = () => {
     setShowAttendanceModal(true);
     setFetchingDetails(true);
 
-    // Reset approved requests
-    setApprovedExplanations([]);
-    setApprovedLeaveRequests([]);
+    // Set approved requests từ dayData ngay lập tức (không reset về mảng rỗng)
+    setApprovedExplanations(dayData?.approvedExplanations || []);
+    setApprovedLeaveRequests(dayData?.approvedLeaveRequests || []);
 
     try {
       // Format date to YYYY-MM-DD in local timezone
@@ -280,11 +280,9 @@ const AttendanceManagement: React.FC = () => {
 
       setAttendanceDetails(response.results);
 
-      // Get approved requests from dayData if available
+      // Log dayData for debugging (approved requests đã được set ở trên)
       if (dayData) {
         console.log('Using dayData for approved requests:', dayData);
-        setApprovedExplanations(dayData.approvedExplanations || []);
-        setApprovedLeaveRequests(dayData.approvedLeaveRequests || []);
       }
 
       // Calculate summary
@@ -1205,13 +1203,16 @@ const AttendanceManagement: React.FC = () => {
 
                   {/* Action Buttons */}
                   <div className="mt-6 flex justify-end space-x-3">
-                    <button
-                      onClick={handleOpenSupplementaryRequest}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                    >
-                      <DocumentPlusIcon className="h-5 w-5 mr-2" />
-                      Làm đơn bổ sung công
-                    </button>
+                    {/* Ẩn nút làm đơn bổ sung công nếu đã có đơn được duyệt */}
+                    {approvedExplanations.length === 0 && approvedLeaveRequests.length === 0 && (
+                      <button
+                        onClick={handleOpenSupplementaryRequest}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                      >
+                        <DocumentPlusIcon className="h-5 w-5 mr-2" />
+                        Làm đơn bổ sung công
+                      </button>
+                    )}
                     <button
                       onClick={handleCloseModal}
                       className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
