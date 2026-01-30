@@ -26,6 +26,12 @@ type OnboardingItem = {
     title: string;
     code: string;
   };
+  department?: {
+    id: number;
+    name: string;
+    code: string;
+  };
+  department_name?: string;
   start_date: string;
   stage: OnboardingStage;
   stage_display?: string;
@@ -130,6 +136,7 @@ const Onboarding: React.FC = () => {
         ...item,
         full_name: item.candidate_name || item.full_name || 'N/A',
         position_title: item.position?.title || item.position_title || 'N/A',
+        department_name: item.department?.name || item.department_name || 'N/A',
         stage_display: item.stage_display || STAGE_MAP[item.stage] || 'N/A',
         progress_display: item.progress_display || REVERSE_PROGRESS_MAP[item.progress] || 'N/A',
       }));
@@ -386,6 +393,9 @@ const Onboarding: React.FC = () => {
                   Vị trí
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Phòng ban
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ngày bắt đầu
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -402,14 +412,14 @@ const Onboarding: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     <LoadingOutlined className="text-2xl text-blue-600 mr-2" />
                     <span>Đang tải dữ liệu...</span>
                   </td>
                 </tr>
               ) : onboardings.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center">
                       <p className="text-lg font-medium text-gray-900">
                         Chưa có ứng viên nào
@@ -428,6 +438,9 @@ const Onboarding: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {item.position_title || item.position?.title || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {item.department_name || item.department?.name || 'N/A'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{item.start_date}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">
@@ -667,6 +680,13 @@ const Onboarding: React.FC = () => {
                 <p className="text-sm text-gray-600">Vị trí</p>
                 <p className="text-lg font-medium text-gray-900">
                   {editingItem.position_title || editingItem.position?.title || 'N/A'}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-md">
+                <p className="text-sm text-gray-600">Phòng ban</p>
+                <p className="text-lg font-medium text-gray-900">
+                  {editingItem.department_name || editingItem.department?.name || 'N/A'}
                 </p>
               </div>
 
