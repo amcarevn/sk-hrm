@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { approvalService } from '../services/approval.service';
+// ...existing code...
+import { generateAttendanceExplanationMarkdown } from '../services/attendanceExplanationMarkdown.service';
 
 const Approvals: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -16,6 +18,7 @@ const Approvals: React.FC = () => {
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const [selectedExplanation, setSelectedExplanation] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  // ...existing code...
   const [stats, setStats] = useState({
     pending_leave: 0,
     pending_overtime: 0,
@@ -433,8 +436,9 @@ const Approvals: React.FC = () => {
     return explanations.length + leaveRequests.length + overtimeRequests.length;
   };
 
-  const totalPending =
-    stats.pending_leave + stats.pending_overtime + stats.pending_explanation;
+  // ...existing code...
+
+  const totalPending = stats.pending_leave + stats.pending_overtime + stats.pending_explanation;
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -457,6 +461,33 @@ const Approvals: React.FC = () => {
           </div>
           <div className="flex space-x-3">
             <button
+              onClick={async () => {
+                try {
+                  if (!attendanceExplanations.length) {
+                    alert('Không có giải trình chấm công để tạo markdown!');
+                    return;
+                  }
+                  // Lấy id đầu tiên (hoặc có thể chọn id khác tuỳ UI)
+                  const id = attendanceExplanations[0].id;
+                  const markdown = await generateAttendanceExplanationMarkdown(id);
+                  const blob = new Blob([markdown], { type: 'text/markdown' });
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `phieu-giai-trinh-cong-${id}.md`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(url);
+                } catch (err) {
+                  alert('Lỗi khi tạo markdown phiếu giải trình công!');
+                }
+              }}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Tạo phiếu giải trình công
+            </button>
+            <button 
               onClick={fetchRequests}
               className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors"
             >
@@ -1218,6 +1249,8 @@ const Approvals: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Đã xoá modal tạo phiếu giải trình công */}
     </div>
   );
 };
