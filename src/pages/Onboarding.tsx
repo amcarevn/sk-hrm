@@ -14,6 +14,12 @@ import { message } from 'antd';
 type OnboardingStage = 1 | 2 | 3;
 type OnboardingProgress = 'RECEIVE_DOC' | 'SIGN_CONTRACT' | 'TRAINING' | 'HANDOVER';
 
+type Department = {
+  id: number;
+  name: string;
+  code: string;
+};
+
 type OnboardingItem = {
   id: number;
   onboarding_code?: string;
@@ -48,10 +54,13 @@ type OnboardingForm = {
   candidate_email: string;
   candidate_phone: string;
   position_title: string;
+  department_id: number | '';
   start_date: string;
   stage: OnboardingStage | '';
   progress: string;
+  // Đã xoá trường employee_code
 };
+
 
 type ApiResponse<T> = {
   results?: T[];
@@ -93,6 +102,7 @@ const Onboarding: React.FC = () => {
   const [viewDetailModal, setViewDetailModal] = useState(false);
   const [editingItem, setEditingItem] = useState<OnboardingItem | null>(null);
   const [onboardings, setOnboardings] = useState<OnboardingItem[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -101,9 +111,11 @@ const Onboarding: React.FC = () => {
     candidate_email: '',
     candidate_phone: '',
     position_title: '',
+    department_id: '',
     start_date: '',
     stage: '',
     progress: 'Tiếp nhận hồ sơ',
+    // Đã xoá trường employee_code
   });
 
   // ============================================
@@ -114,6 +126,21 @@ const Onboarding: React.FC = () => {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${localStorage.getItem('access_token')}`,
   });
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch('http://localhost:8000/api-hrm/departments/', {
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) throw new Error('Fetch departments failed');
+
+      const data = await res.json();
+      setDepartments(Array.isArray(data) ? data : data.results || []);
+    } catch (error) {
+      console.error('FETCH DEPARTMENTS ERROR:', error);
+      message.error('Không thể tải danh sách phòng ban');
+    }
+  };
 
   const fetchOnboardings = async () => {
     setLoading(true);
@@ -152,6 +179,7 @@ const Onboarding: React.FC = () => {
 
   useEffect(() => {
     fetchOnboardings();
+    fetchDepartments();
   }, []);
 
   // ============================================
@@ -182,6 +210,10 @@ const Onboarding: React.FC = () => {
       message.error('Vui lòng nhập vị trí');
       return;
     }
+    if (!formData.department_id) {
+      message.error('Vui lòng chọn phòng ban');
+      return;
+    }
     if (!formData.start_date) {
       message.error('Vui lòng chọn ngày bắt đầu');
       return;
@@ -198,6 +230,7 @@ const Onboarding: React.FC = () => {
       candidate_email: formData.candidate_email.trim(),
       candidate_phone: formData.candidate_phone.trim(),
       position_title: formData.position_title.trim(),
+      department: formData.department_id,
       start_date: formData.start_date,
       stage: Number(formData.stage),
       progress: PROGRESS_MAP[formData.progress],
@@ -292,6 +325,7 @@ const Onboarding: React.FC = () => {
       candidate_email: item.candidate_email || '',
       candidate_phone: '', // Backend không trả về phone trong list, để trống
       position_title: item.position?.title || item.position_title || '',
+      department_id: item.department?.id || '',
       start_date: item.start_date,
       stage: item.stage,
       progress: item.progress_display || REVERSE_PROGRESS_MAP[item.progress] || 'Tiếp nhận hồ sơ',
@@ -307,6 +341,7 @@ const Onboarding: React.FC = () => {
       candidate_email: '',
       candidate_phone: '',
       position_title: '',
+      department_id: '',
       start_date: '',
       stage: '',
       progress: 'Tiếp nhận hồ sơ',
@@ -534,6 +569,8 @@ const Onboarding: React.FC = () => {
             </h3>
 
             <div className="space-y-4">
+              {/* Đã xoá trường nhập mã nhân viên */}
+
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Tên ứng viên <span className="text-red-500">*</span>
@@ -591,7 +628,28 @@ const Onboarding: React.FC = () => {
                   placeholder="Nhập vị trí"
                 />
               </div>
-
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Phòng ban <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={formData.department_id}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      department_id: Number(e.target.value),
+                    })
+                  }
+                >
+                  <option value="">-- Chọn phòng ban --</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Ngày bắt đầu <span className="text-red-500">*</span>

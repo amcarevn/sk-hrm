@@ -1,8 +1,8 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 // API Configuration
-const API_BASE_URL = "https://beautycare.amcare.vn"
-// const API_BASE_URL = 'http://localhost:8000';
+//const API_BASE_URL = "https://beautycare.amcare.vn"
+const API_BASE_URL = 'http://localhost:8000';
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
