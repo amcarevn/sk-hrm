@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import {
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  LoadingOutlined,
-} from '@ant-design/icons';
-import { message } from 'antd';
+import { CheckCircleIcon, ExclamationTriangleIcon, EyeIcon, PencilSquareIcon, TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+
+// Simple toast/alert helpers
+const showError = (msg: string) => { window.alert(msg); };
+const showSuccess = (msg: string) => { window.alert(msg); };
 
 // ============================================
 // TYPE DEFINITIONS
@@ -138,7 +136,7 @@ const Onboarding: React.FC = () => {
       setDepartments(Array.isArray(data) ? data : data.results || []);
     } catch (error) {
       console.error('FETCH DEPARTMENTS ERROR:', error);
-      message.error('Không thể tải danh sách phòng ban');
+      showError('Không thể tải danh sách phòng ban');
     }
   };
 
@@ -171,7 +169,7 @@ const Onboarding: React.FC = () => {
       setOnboardings(normalizedItems);
     } catch (error) {
       console.error('FETCH ERROR:', error);
-      message.error('Không thể tải danh sách ứng viên. Vui lòng thử lại.');
+      showError('Không thể tải danh sách ứng viên. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -189,37 +187,37 @@ const Onboarding: React.FC = () => {
   const handleSave = async () => {
     // Validation
     if (!formData.candidate_name.trim()) {
-      message.error('Vui lòng nhập tên ứng viên');
+      showError('Vui lòng nhập tên ứng viên');
       return;
     }
     if (!formData.candidate_email.trim()) {
-      message.error('Vui lòng nhập email');
+      showError('Vui lòng nhập email');
       return;
     }
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.candidate_email)) {
-      message.error('Email không hợp lệ');
+      showError('Email không hợp lệ');
       return;
     }
     if (!formData.candidate_phone.trim()) {
-      message.error('Vui lòng nhập số điện thoại');
+      showError('Vui lòng nhập số điện thoại');
       return;
     }
     if (!formData.position_title.trim()) {
-      message.error('Vui lòng nhập vị trí');
+      showError('Vui lòng nhập vị trí');
       return;
     }
     if (!formData.department_id) {
-      message.error('Vui lòng chọn phòng ban');
+      showError('Vui lòng chọn phòng ban');
       return;
     }
     if (!formData.start_date) {
-      message.error('Vui lòng chọn ngày bắt đầu');
+      showError('Vui lòng chọn ngày bắt đầu');
       return;
     }
     if (!formData.stage) {
-      message.error('Vui lòng chọn giai đoạn');
+      showError('Vui lòng chọn giai đoạn');
       return;
     }
 
@@ -256,15 +254,15 @@ const Onboarding: React.FC = () => {
         
         // Xử lý lỗi cụ thể từ backend
         if (errorData.candidate_name) {
-          message.error(`Tên ứng viên: ${errorData.candidate_name[0]}`);
+          showError(`Tên ứng viên: ${errorData.candidate_name[0]}`);
         } else if (errorData.candidate_email) {
-          message.error(`Email: ${errorData.candidate_email[0]}`);
+          showError(`Email: ${errorData.candidate_email[0]}`);
         } else if (errorData.candidate_phone) {
-          message.error(`Số điện thoại: ${errorData.candidate_phone[0]}`);
+          showError(`Số điện thoại: ${errorData.candidate_phone[0]}`);
         } else if (errorData.detail) {
-          message.error(errorData.detail);
+          showError(errorData.detail);
         } else {
-          message.error('Lưu thất bại. Vui lòng kiểm tra lại thông tin.');
+          showError('Lưu thất bại. Vui lòng kiểm tra lại thông tin.');
         }
         return;
       }
@@ -275,13 +273,13 @@ const Onboarding: React.FC = () => {
       const successMessage = isEditing 
         ? 'Chỉnh sửa thông tin ứng viên thành công' 
         : 'Thêm ứng viên thành công';
-      message.success(successMessage);
+      showSuccess(successMessage);
 
       await fetchOnboardings();
       handleCloseModal();
     } catch (error) {
       console.error('API ERROR:', error);
-      message.error('Có lỗi xảy ra. Vui lòng thử lại.');
+      showError('Có lỗi xảy ra. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
@@ -301,11 +299,11 @@ const Onboarding: React.FC = () => {
         throw new Error('Delete failed');
       }
 
-      message.success('Xoá thành công');
+      showSuccess('Xoá thành công');
       await fetchOnboardings();
     } catch (error) {
       console.error('DELETE ERROR:', error);
-      message.error('Xoá thất bại. Vui lòng thử lại.');
+      showError('Xoá thất bại. Vui lòng thử lại.');
     }
   };
 
@@ -448,7 +446,7 @@ const Onboarding: React.FC = () => {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    <LoadingOutlined className="text-2xl text-blue-600 mr-2" />
+                    <ArrowPathIcon className="w-6 h-6 text-blue-600 mr-2 animate-spin" />
                     <span>Đang tải dữ liệu...</span>
                   </td>
                 </tr>
@@ -485,29 +483,33 @@ const Onboarding: React.FC = () => {
                       {item.progress_display || REVERSE_PROGRESS_MAP[item.progress]}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => handleViewDetail(item)}
-                          className="text-blue-600 hover:text-blue-800 transition-colors"
-                          title="Xem chi tiết"
-                        >
-                          <EyeOutlined className="text-lg" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="text-yellow-600 hover:text-yellow-800 transition-colors"
-                          title="Chỉnh sửa"
-                        >
-                          <EditOutlined className="text-lg" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="text-red-600 hover:text-red-800 transition-colors"
-                          title="Xoá"
-                        >
-                          <DeleteOutlined className="text-lg" />
-                        </button>
-                      </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleViewDetail(item)}
+                            className="px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
+                          >
+                            Xem
+                          </button>
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 transition-colors"
+                          >
+                            Sửa
+                          </button>
+                          {/* Vô hiệu hóa/Kích hoạt: giả sử có trường status, nếu chưa có thì để luôn Vô hiệu hóa */}
+                          <button
+                            onClick={() => {/* TODO: implement deactivate logic */}}
+                            className="px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-md hover:bg-amber-100 hover:border-amber-300 transition-colors"
+                          >
+                            Vô hiệu hóa
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 transition-colors"
+                          >
+                            Xóa
+                          </button>
+                        </div>
                     </td>
                   </tr>
                 ))
@@ -712,7 +714,7 @@ const Onboarding: React.FC = () => {
                 disabled={submitting}
                 className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                {submitting && <LoadingOutlined />}
+                {submitting && <ArrowPathIcon className="w-5 h-5 animate-spin" />}
                 {submitting ? 'Đang lưu...' : 'Lưu'}
               </button>
             </div>
