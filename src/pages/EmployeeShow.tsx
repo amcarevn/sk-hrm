@@ -9,6 +9,7 @@ const EmployeeShow: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+   console.log('EmployeeShow:', employee);
   useEffect(() => {
     if (id) {
       loadEmployee(parseInt(id));
@@ -195,7 +196,7 @@ const EmployeeShow: React.FC = () => {
               
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Người quản lý</h3>
-                <p className="mt-1 text-sm text-gray-900">{employee.manager?.full_name || 'Chưa có'}</p>
+                <p className="mt-1 text-sm text-gray-900">{employee.manager_name || 'Chưa có'}</p>
               </div>
             </div>
           </div>
