@@ -9,7 +9,6 @@ const EmployeeShow: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-   console.log('EmployeeShow:', employee);
   useEffect(() => {
     if (id) {
       loadEmployee(parseInt(id));
