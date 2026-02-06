@@ -1641,6 +1641,7 @@ export interface Employee {
     id: number;
     title: string;
     code: string;
+    is_management: boolean;
   };
   department?: {
     id: number;

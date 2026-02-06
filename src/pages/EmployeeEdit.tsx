@@ -111,13 +111,11 @@ const EmployeeEdit: React.FC = () => {
     }
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value === '' ? undefined : value,
+      [name]: value,
     }));
   };
 
@@ -142,7 +140,7 @@ const EmployeeEdit: React.FC = () => {
           date_of_birth: formData.date_of_birth,
         }),
         ...(formData.phone_number && {
-          phone_number: formData.phone_number.trim(),
+          phone_number: formData.phone_number.trim() ,
         }),
         ...(formData.personal_email && {
           personal_email: formData.personal_email.trim(),
@@ -280,7 +278,7 @@ const EmployeeEdit: React.FC = () => {
               />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Ngày sinh
                 </label>
                 <input
@@ -352,7 +350,7 @@ const EmployeeEdit: React.FC = () => {
               />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Ngày bắt đầu
                 </label>
                 <input
@@ -366,7 +364,7 @@ const EmployeeEdit: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Ngày kết thúc
                 </label>
                 <input
@@ -406,7 +404,7 @@ const EmployeeEdit: React.FC = () => {
               />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Quản lý trực tiếp
                 </label>
 
