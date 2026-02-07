@@ -802,18 +802,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                       {day.date.getDate()}
                     </span>
                     <div className="flex flex-col items-end gap-0.5">
-                      {day.dayStatusSummary?.has_approved_explanation ||
-                        day.dayStatusSummary?.has_approved_leave ? (
-                        <span className="text-xs text-green-600 bg-green-100 px-1 rounded">
-                          Đã duyệt
-                        </span>
-                      ) : null}
                       {/* Late/Early leave minutes - cùng 1 hàng với bg màu vàng */}
                       {(Number(day.lateMinutes) > 0 || Number(day.earlyLeaveMinutes) > 0) && (
-                        <span className="text-xs text-yellow-800 bg-yellow-100 px-1 rounded font-medium whitespace-nowrap">
-                          {Number(day.lateMinutes) > 0 && `M: ${day.lateMinutes}p`}
+                        <span className="text-xs text-yellow-600 bg-yellow-100 px-1 rounded whitespace-nowrap">
+                          {Number(day.lateMinutes) > 0 && `Muộn: ${day.lateMinutes}phút`}
                           {Number(day.lateMinutes) > 0 && Number(day.earlyLeaveMinutes) > 0 && ' - '}
-                          {Number(day.earlyLeaveMinutes) > 0 && `S: ${day.earlyLeaveMinutes}p`}
+                          {Number(day.earlyLeaveMinutes) > 0 && `Sớm: ${day.earlyLeaveMinutes}phút`}
                         </span>
                       )}
                     </div>
