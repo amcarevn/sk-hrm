@@ -439,6 +439,7 @@ const AttendanceManagement: React.FC = () => {
   const fetchCurrentEmployee = async (): Promise<Employee | null> => {
     try {
       const employee = await employeesAPI.me();
+      console.log('Current employee:', employee);
       setCurrentEmployee(employee);
       return employee;
     } catch (error) {
@@ -686,114 +687,144 @@ const AttendanceManagement: React.FC = () => {
     if (name === 'note') setFormNote(value);
   };
 
-  // const handleSubmitSupplementaryRequest = async () => {
-  //   if (!selectedDate || !currentEmployee || !selectedContext) {
-  //     alert('Vui lòng hoàn thành thông tin trước khi gửi.');
-  //     return;
-  //   }
+  const handleSubmitSupplementaryRequest = async () => {
+    if (!selectedDate || !currentEmployee || !selectedContext) {
+      alert('Vui lòng hoàn thành thông tin trước khi gửi.');
+      return;
+    }
 
-  //   try {
-  //     // Get original status from attendance details
-  //     let originalStatus = 'ABSENT';
-  //     if (attendanceDetails.length > 0) {
-  //       originalStatus = attendanceDetails[0].status;
-  //     }
+    try {
+      // Get original status from attendance details
+      let originalStatus = 'ABSENT';
+      if (attendanceDetails.length > 0) {
+        originalStatus = attendanceDetails[0].status;
+      }
 
-  //     // Format date to YYYY-MM-DD
-  //     const year = selectedDate.getFullYear();
-  //     const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-  //     const day = String(selectedDate.getDate()).padStart(2, '0');
-  //     const dateStr = `${year}-${month}-${day}`;
+      // Format date to YYYY-MM-DD
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
 
-  //     // Construct reason string
-  //     let reasonLabel = '';
-  //     if (selectedContext === 'explanation') {
-  //       reasonLabel =
-  //         explanationReasons.find((r) => r.id === selectedReason)?.label || '';
-  //     } else if (selectedContext === 'registration') {
-  //       reasonLabel =
-  //         registrationReasons.find((r) => r.id === selectedReason)?.label || '';
-  //     } else if (selectedContext === 'monthly_leave') {
-  //       reasonLabel = 'Nghỉ phép tháng';
-  //     } else if (selectedContext === 'online_work') {
-  //       reasonLabel = 'Làm việc online';
-  //     }
+      // Construct reason string
+      let reasonLabel = '';
+      if (selectedContext === 'explanation') {
+        reasonLabel =
+          explanationReasons.find((r) => r.id === selectedReason)?.label || '';
+      } else if (selectedContext === 'registration') {
+        reasonLabel =
+          registrationReasons.find((r) => r.id === selectedReason)?.label || '';
+      } else if (selectedContext === 'monthly_leave') {
+        reasonLabel = 'Nghỉ phép tháng';
+      } else if (selectedContext === 'online_work') {
+        reasonLabel = 'Làm việc online';
+      }
 
-  //     const finalReason = formNote
-  //       ? `${reasonLabel}: ${formNote}`
-  //       : reasonLabel;
+      const finalReason = formNote
+        ? `${reasonLabel}: ${formNote}`
+        : reasonLabel;
 
-  //     // Map expected status
-  //     let expectedStatus = 'PRESENT';
-  //     if (selectedContext === 'monthly_leave') {
-  //       expectedStatus = 'ABSENT'; // Or specific leave status if available
-  //     }
+      // Map expected status
+      let expectedStatus = 'PRESENT';
+      if (selectedContext === 'monthly_leave') {
+        expectedStatus = 'ABSENT'; // Or specific leave status if available
+      }
 
-  //     let result;
-  //     if (selectedContext === 'online_work') {
-  //       const onlineWorkData = {
-  //         employee_id: currentEmployee.id,
-  //         attendance_date: dateStr,
-  //         reason: finalReason,
-  //         status: 'PENDING',
-  //       };
-  //       result =
-  //         await attendanceService.createOnlineWorkRequest(onlineWorkData);
-  //       console.log('Online work request created:', result);
-  //       alert('Đơn làm việc online đã được gửi thành công!');
-  //     } else {
-  //       // Prepare data for API for other request types
-  //       const isRegistration =
-  //         selectedContext === 'registration' ||
-  //         selectedReason === 'business_trip' ||
-  //         selectedReason === 'first_day';
+      let result;
+      if (selectedContext === 'online_work') {
+        const onlineWorkData = {
+          employee_id: currentEmployee.id,
+          attendance_date: dateStr,
+          reason: finalReason,
+          status: 'PENDING',
+        };
+        result =
+          // await attendanceService.createOnlineWorkRequest(onlineWorkData);
+          console.log('Online work request created:', result);
+        alert('Đơn làm việc online đã được gửi thành công!');
+      } else {
+        // Prepare data for API for other request types
+        const isRegistration =
+          selectedContext === 'registration' ||
+          selectedReason === 'business_trip' ||
+          selectedReason === 'first_day';
 
-  //       const explanationData: any = {
-  //         employee_id: currentEmployee.id,
-  //         attendance_date: dateStr,
-  //         original_status: originalStatus,
-  //         expected_status: expectedStatus,
-  //         reason: finalReason,
-  //         status: 'PENDING',
-  //         is_registration: isRegistration,
-  //       };
+        // MAP REASON TO EXPLANATION_TYPE
+        let explanationType = 'LATE'; // default
 
-  //       // Add time fields if applicable
-  //       if (selectedContext === 'registration') {
-  //         if (selectedReason === 'overtime') {
-  //           explanationData.expected_check_in = overtimeStartTime;
-  //           explanationData.expected_check_out = overtimeEndTime;
-  //         } else if (selectedReason === 'extra_hours') {
-  //           explanationData.expected_check_in = extraHoursStartTime;
-  //           explanationData.expected_check_out = extraHoursEndTime;
-  //         } else if (selectedReason === 'night_shift') {
-  //           explanationData.expected_check_in = nightShiftStartTime;
-  //           explanationData.expected_check_out = nightShiftEndTime;
-  //         } else if (selectedReason === 'live') {
-  //           explanationData.expected_check_in = liveStartTime;
-  //           explanationData.expected_check_out = liveEndTime;
-  //         }
-  //       }
+        if (selectedContext === 'explanation') {
+          const typeMap: Record<string, string> = {
+            'late_minutes': 'LATE',
+            'early_leave_minutes': 'EARLY_LEAVE',
+            'incomplete_attendance': 'INCOMPLETE_ATTENDANCE',
+            'business_trip': 'BUSINESS_TRIP',
+            'first_day': 'FIRST_DAY',
+          };
+          explanationType = typeMap[selectedReason as string] || 'LATE';
+        } else if (selectedContext === 'registration') {
+          const typeMap: Record<string, string> = {
+            'overtime': 'OVERTIME',
+            'extra_hours': 'EXTRA_HOURS',
+            'night_shift': 'NIGHT_SHIFT',
+            'live': 'LIVE',
+          };
+          explanationType = typeMap[selectedReason as string] || 'OVERTIME';
+        }
 
-  //       result =
-  //         await attendanceService.createAttendanceExplanation(explanationData);
-  //       console.log('Attendance explanation created:', result);
-  //       alert('Đơn bổ sung công đã được gửi thành công!');
-  //     }
+        console.log('🔍 DEBUG explanation_type mapping:', {
+          selectedContext,
+          selectedReason,
+          explanationType,
+          finalReason
+        });
 
-  //     await fetchAttendanceStats(currentEmployee);
-  //     handleCloseSupplementaryRequest();
-  //   } catch (error: any) {
-  //     console.error('Error submitting supplementary request:', error);
-  //     const errorMessage =
-  //       error.response?.data?.detail ||
-  //       error.response?.data?.message ||
-  //       (selectedContext === 'online_work'
-  //         ? 'Gửi đơn làm việc online thất bại. Vui lòng thử lại.'
-  //         : 'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.');
-  //     alert(`Lỗi: ${errorMessage}`);
-  //   }
-  // };
+        const explanationData: any = {
+          employee_id: currentEmployee.id,
+          attendance_date: dateStr,
+          original_status: originalStatus,
+          expected_status: expectedStatus,
+          reason: finalReason,
+          explanation_type: explanationType,  // THÊM FIELD MỚI
+          status: 'PENDING',
+          is_registration: isRegistration,
+        };
+
+        // Add time fields if applicable
+        if (selectedContext === 'registration') {
+          if (selectedReason === 'overtime') {
+            explanationData.expected_check_in = overtimeStartTime;
+            explanationData.expected_check_out = overtimeEndTime;
+          } else if (selectedReason === 'extra_hours') {
+            explanationData.expected_check_in = extraHoursStartTime;
+            explanationData.expected_check_out = extraHoursEndTime;
+          } else if (selectedReason === 'night_shift') {
+            explanationData.expected_check_in = nightShiftStartTime;
+            explanationData.expected_check_out = nightShiftEndTime;
+          } else if (selectedReason === 'live') {
+            explanationData.expected_check_in = liveStartTime;
+            explanationData.expected_check_out = liveEndTime;
+          }
+        }
+
+        result =
+          await attendanceService.createAttendanceExplanation(explanationData);
+        console.log('Attendance explanation created:', result);
+        alert('Đơn bổ sung công đã được gửi thành công!');
+      }
+
+      await fetchAttendanceStats(currentEmployee);
+      handleCloseSupplementaryRequest();
+    } catch (error: any) {
+      console.error('Error submitting supplementary request:', error);
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        (selectedContext === 'online_work'
+          ? 'Gửi đơn làm việc online thất bại. Vui lòng thử lại.'
+          : 'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.');
+      alert(`Lỗi: ${errorMessage}`);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
@@ -1152,21 +1183,23 @@ const AttendanceManagement: React.FC = () => {
           </div>
         </div>
 
-        {currentEmployee?.position?.is_management && attendanceStats?.max_online_work_per_month > 0 && (
-          <div className="bg-teal-50 p-3 rounded-lg border border-teal-100 flex flex-col justify-between">
-            <h3 className="font-medium text-teal-900 text-xs md:text-sm">
-              Làm việc online
-            </h3>
-            <div>
-              <p className="text-xl md:text-2xl font-bold text-teal-700 mt-1 md:mt-2">
-                {attendanceStats?.remaining_online_work || 0}
-              </p>
-              <p className="text-[10px] md:text-xs text-teal-600 mt-1">
-                Số buổi còn lại
-              </p>
+        {/* Hiển thị cho Trưởng bộ phận (is_management = true) */}
+        {currentEmployee?.position?.is_management &&
+          attendanceStats?.max_online_work_per_month > 0 && (
+            <div className="bg-teal-50 p-3 rounded-lg border border-teal-100 flex flex-col justify-between">
+              <h3 className="font-medium text-teal-900 text-xs md:text-sm">
+                Làm việc online
+              </h3>
+              <div>
+                <p className="text-xl md:text-2xl font-bold text-teal-700 mt-1 md:mt-2">
+                  {attendanceStats?.remaining_online_work || 0}
+                </p>
+                <p className="text-[10px] md:text-xs text-teal-600 mt-1">
+                  Số buổi còn lại
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {attendanceStats?.max_explanations_per_month > 0 && (
           <div className="bg-cyan-50 p-3 rounded-lg border border-cyan-100 flex flex-col justify-between">
@@ -1282,10 +1315,10 @@ const AttendanceManagement: React.FC = () => {
                           <div
                             key={reqIdx}
                             className={`rounded-lg p-3 border-l-4 ${request.status === 'APPROVED'
-                                ? 'bg-green-50 border-green-500'
-                                : request.status === 'REJECTED'
-                                  ? 'bg-red-50 border-red-500'
-                                  : 'bg-yellow-50 border-yellow-500'
+                              ? 'bg-green-50 border-green-500'
+                              : request.status === 'REJECTED'
+                                ? 'bg-red-50 border-red-500'
+                                : 'bg-yellow-50 border-yellow-500'
                               }`}
                           >
                             <div className="flex justify-between items-start">
@@ -1296,10 +1329,10 @@ const AttendanceManagement: React.FC = () => {
                                   </p>
                                   <span
                                     className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${request.type === 'explanation'
-                                        ? 'bg-purple-100 text-purple-800'
-                                        : request.type === 'online_work'
-                                          ? 'bg-blue-100 text-blue-800'
-                                          : 'bg-orange-100 text-orange-800'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : request.type === 'online_work'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : 'bg-orange-100 text-orange-800'
                                       }`}
                                   >
                                     {request.type === 'explanation'
@@ -1393,10 +1426,10 @@ const AttendanceManagement: React.FC = () => {
                               <div className="flex flex-col items-end">
                                 <span
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${request.status === 'APPROVED'
-                                      ? 'bg-green-100 text-green-800'
-                                      : request.status === 'REJECTED'
-                                        ? 'bg-red-100 text-red-800'
-                                        : 'bg-yellow-100 text-yellow-800'
+                                    ? 'bg-green-100 text-green-800'
+                                    : request.status === 'REJECTED'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
                                     }`}
                                 >
                                   {request.status === 'APPROVED'
@@ -3384,7 +3417,7 @@ const AttendanceManagement: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setShowConfirmModal(false);
-                    //handleSubmitSupplementaryRequest();
+                    handleSubmitSupplementaryRequest();
                   }}
                   className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold hover:from-purple-700 hover:to-purple-800 transition-all duration-200 shadow-lg"
                 >

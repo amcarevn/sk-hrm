@@ -502,6 +502,12 @@ class AttendanceService {
       rejected_explanations: number;
       remaining_explanations: number;
       max_explanations_per_month: number;
+      // THÊM MỚI (optional để tương thích ngược)
+      non_quota_explanations?: number;
+      quota_consuming_explanations?: number;
+      // ONLINE WORK STATS
+      max_online_work_per_month?: number;
+      remaining_online_work?: number;
     };
   }> {
     try {
@@ -557,14 +563,19 @@ class AttendanceService {
   }): Promise<any> {
     try {
       const formData = new FormData();
-      
+
       // Add all fields to formData
       formData.append('employee_id', data.employee_id.toString());
       formData.append('attendance_date', data.attendance_date);
       formData.append('original_status', data.original_status);
       formData.append('expected_status', data.expected_status);
       formData.append('reason', data.reason);
-      
+
+      // CRITICAL: Add explanation_type to FormData
+      if ((data as any).explanation_type) {
+        formData.append('explanation_type', (data as any).explanation_type);
+      }
+
       if (data.actual_check_in) {
         formData.append('actual_check_in', data.actual_check_in);
       }
@@ -577,15 +588,15 @@ class AttendanceService {
       if (data.expected_check_out) {
         formData.append('expected_check_out', data.expected_check_out);
       }
-      
+
       if (data.status) {
         formData.append('status', data.status);
       }
-      
+
       if (data.evidence) {
         formData.append('evidence', data.evidence);
       }
-      
+
       const response = await managementApi.post('/api-hrm/attendance-explanations/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -612,6 +623,20 @@ class AttendanceService {
   }
 
   /**
+   * Xóa giải trình chấm công
+   */
+  async deleteAttendanceExplanation(explanationId: number): Promise<any> {
+    try {
+      const response = await managementApi.delete(`/api-hrm/attendance-explanations/${explanationId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting attendance explanation:', error);
+      throw error;
+    }
+  }
+
+
+  /**
    * Lấy điểm công hàng tháng cho nhân viên
    */
   async getMonthlyWorkCredits(params?: MonthlyWorkCreditsParams): Promise<MonthlyWorkCreditsResponse> {
@@ -620,6 +645,45 @@ class AttendanceService {
       return response.data;
     } catch (error) {
       console.error('Error fetching monthly work credits:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * ==================== ONLINE WORK REQUESTS ====================
+   */
+
+  /**
+   * Tạo đơn làm việc online mới
+   */
+  async createOnlineWorkRequest(data: {
+    employee_id: number;
+    work_date: string;
+    reason: string;
+    work_plan?: string;
+  }): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/online-work-requests/', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating online work request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách đơn làm việc online
+   */
+  async getOnlineWorkRequests(params?: {
+    status?: string;
+    work_date?: string;
+    employee?: number;
+  }): Promise<any> {
+    try {
+      const response = await managementApi.get('/api-hrm/online-work-requests/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching online work requests:', error);
       throw error;
     }
   }

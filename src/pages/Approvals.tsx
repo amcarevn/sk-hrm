@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { approvalService } from '../services/approval.service';
+import { attendanceService } from '../services/attendance.service';
 
 const Approvals: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -110,36 +111,40 @@ const Approvals: React.FC = () => {
     }
   };
 
+  // Hàm xác định loại đơn dựa vào explanation_type
+  const getRequestTypeLabel = (explanation: any): string => {
+    // CHỈ các loại ĐĂNG KÝ: Tăng ca, Làm thêm giờ, Trực tối, Live
+    const registrationTypes = [
+      'OVERTIME',      // Tăng ca
+      'EXTRA_HOURS',   // Làm thêm giờ
+      'NIGHT_SHIFT',   // Trực tối
+      'LIVE_WORK'      // Live
+    ];
+
+    if (explanation.explanation_type && registrationTypes.includes(explanation.explanation_type)) {
+      return 'Đơn đăng ký';
+    }
+
+    return 'Đơn giải trình';
+  };
+
   // Kiểm tra xem người dùng hiện tại có quyền duyệt giải trình không
   const canApproveExplanation = (explanation: any): boolean => {
-    if (!currentEmployee) {
-      console.log('canApproveExplanation: currentEmployee is null');
-      return false;
-    }
+    if (!currentEmployee) return false;
 
     // Người tạo đơn không thể duyệt đơn của chính mình
     if (explanation.employee_id === currentEmployee.id) {
-      console.log('canApproveExplanation: Cannot approve own request', {
-        explanationId: explanation.id,
-        employee_id: explanation.employee_id,
-        currentEmployeeId: currentEmployee.id,
-      });
       return false;
     }
 
-    // Kiểm tra nếu đã được duyệt hoặc từ chối
-    if (explanation.status !== 'PENDING') {
-      console.log('canApproveExplanation: Status is not PENDING', {
-        explanationId: explanation.id,
-        status: explanation.status,
-      });
-      return false;
-    }
+    // QUAN TRỌNG: Nếu người làm đơn là HR, chỉ quản lý trực tiếp mới được duyệt
+    const employeeIsHR = explanation.employee_is_hr || false;
 
     // Kiểm tra quyền dựa trên vai trò và cấp bậc
     const isAdmin =
       currentEmployee.user?.is_staff || currentEmployee.user?.is_superuser;
     const isHR =
+      currentEmployee.is_hr ||
       currentEmployee.position?.title?.includes('HR') ||
       currentEmployee.position?.title?.includes('Nhân sự') ||
       currentEmployee.department?.name?.includes('HR') ||
@@ -149,7 +154,33 @@ const Approvals: React.FC = () => {
     const hasApprovalPermission =
       currentEmployee.permissions?.can_approve_attendance || false;
 
-    // Admin, HR, và người có quyền can_approve_attendance có quyền duyệt tất cả
+    // Nếu người làm đơn là HR
+    if (employeeIsHR) {
+      // Admin vẫn có thể duyệt
+      if (isAdmin) {
+        return true;
+      }
+
+      // Chỉ quản lý trực tiếp mới được duyệt (và chưa duyệt)
+      if (explanation.employee_manager_id === currentEmployee.id) {
+        return !explanation.direct_manager_approved;
+      }
+
+      // HR không được duyệt đơn của HR khác
+      return false;
+    }
+
+    // Nếu người làm đơn KHÔNG phải HR
+    // Kiểm tra nếu là quản lý trực tiếp (ƯU TIÊN TRƯỚC)
+    if (explanation.employee_manager_id === currentEmployee.id) {
+      // Nếu quản lý trực tiếp đã duyệt rồi thì không thể duyệt nữa
+      if (explanation.direct_manager_approved) {
+        return false;
+      }
+      return true;
+    }
+
+    // Admin, HR, và người có quyền can_approve_attendance có quyền duyệt (SAU KHI MANAGER DUYỆT)
     if (isAdmin || isHR || hasApprovalPermission) {
       console.log('canApproveExplanation: User has approval permission', {
         explanationId: explanation.id,
@@ -159,30 +190,6 @@ const Approvals: React.FC = () => {
         currentEmployeeId: currentEmployee.id,
         permissions: currentEmployee.permissions,
       });
-      return true;
-    }
-
-    // Kiểm tra nếu là quản lý trực tiếp
-    if (explanation.employee_manager_id === currentEmployee.id) {
-      // Nếu quản lý trực tiếp đã duyệt rồi thì không thể duyệt nữa
-      if (explanation.direct_manager_approved) {
-        console.log('canApproveExplanation: Direct manager already approved', {
-          explanationId: explanation.id,
-          direct_manager_approved: explanation.direct_manager_approved,
-          currentEmployeeId: currentEmployee.id,
-          employee_manager_id: explanation.employee_manager_id,
-          explanationData: explanation,
-        });
-        return false;
-      }
-      console.log(
-        'canApproveExplanation: User is direct manager and can approve',
-        {
-          explanationId: explanation.id,
-          currentEmployeeId: currentEmployee.id,
-          employee_manager_id: explanation.employee_manager_id,
-        }
-      );
       return true;
     }
 
@@ -222,6 +229,17 @@ const Approvals: React.FC = () => {
     return false;
   };
 
+  /**
+   * Kiểm tra xem có thể xóa đơn giải trình không
+   * CHỈ NGƯỜI TẠO ĐƠN mới được xóa
+   */
+  const canDeleteExplanation = (explanation: any): boolean => {
+    if (!currentEmployee) return false;
+
+    // Chỉ người tạo đơn mới được xóa
+    return explanation.employee_id === currentEmployee.id;
+  };
+
   const handleApprove = async (explanationId: number) => {
     try {
       await approvalService.approveAttendanceExplanation(
@@ -246,8 +264,33 @@ const Approvals: React.FC = () => {
     }
   };
 
+  const handleDelete = async (explanationId: number) => {
+    try {
+      // Confirm before deleting
+      const confirmed = window.confirm(
+        'Bạn có chắc chắn muốn xóa đơn giải trình này không? Hành động này không thể hoàn tác.'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      await attendanceService.deleteAttendanceExplanation(explanationId);
+      alert('Đã xóa đơn giải trình thành công!');
+      fetchRequests(); // Refresh data
+    } catch (error: any) {
+      console.error('Error deleting:', error);
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        'Xóa đơn giải trình thất bại. Vui lòng thử lại.';
+      alert(`Lỗi: ${errorMessage}`);
+    }
+  };
+
   const handleViewDetails = (explanation: any) => {
     setSelectedExplanation(explanation);
+
     setShowDetailModal(true);
   };
 
@@ -323,6 +366,9 @@ const Approvals: React.FC = () => {
 
   const getApprovalWorkflow = (explanation: any) => {
     const workflow = [];
+
+    // Kiểm tra xem người làm đơn có phải HR không
+    const employeeIsHR = explanation.employee_is_hr || false;
     let currentStep = 1;
 
     // Bước 1: Quản lý trực tiếp
@@ -373,22 +419,23 @@ const Approvals: React.FC = () => {
     }
 
     // Bước 3: Nhân sự HR
-    const hrApproved = explanation.hr_approved || false;
-    const hrStatus = hrApproved
-      ? 'Đã duyệt'
-      : explanation.status === 'REJECTED'
-        ? 'Đã từ chối'
-        : 'Chưa duyệt';
-
-    workflow.push({
-      step: currentStep++,
-      role: 'Nhân sự HR',
-      approver: explanation.hr_approved_by_name || 'Phòng Nhân sự',
-      status: hrStatus,
-      date: explanation.hr_approved_at || null,
-      note: explanation.approval_note || '',
-      approved_by: explanation.hr_approved_by_name || null,
-    });
+    // CHỈ HIỂN THỊ bước HR nếu người làm đơn KHÔNG PHẢI HR
+    // Nếu người làm đơn là HR, chỉ cần quản lý trực tiếp duyệt là đủ
+    if (!employeeIsHR) {
+      workflow.push({
+        step: currentStep++,
+        role: 'Nhân sự HR',
+        approver: explanation.hr_approved_by_name || 'Phòng Nhân sự',
+        status: explanation.hr_approved
+          ? 'Đã duyệt'
+          : explanation.status === 'REJECTED'
+            ? 'Đã từ chối'
+            : 'Chưa duyệt',
+        date: explanation.hr_approved_at || null,
+        note: explanation.approval_note || '',
+        approved_by: explanation.hr_approved_by_name || null,
+      });
+    }
 
     // Bước 4: Tổng hợp trạng thái cuối cùng
     if (
@@ -473,11 +520,10 @@ const Approvals: React.FC = () => {
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('pending')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'pending'
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'pending'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Chờ duyệt
               <span className="ml-2 bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">
@@ -486,11 +532,10 @@ const Approvals: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('approved')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'approved'
-                  ? 'border-green-600 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'approved'
+                ? 'border-green-600 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Đã duyệt
               <span className="ml-2 bg-green-100 text-green-600 text-xs font-medium px-2 py-0.5 rounded-full">
@@ -499,11 +544,10 @@ const Approvals: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('rejected')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'rejected'
-                  ? 'border-red-600 text-red-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'rejected'
+                ? 'border-red-600 text-red-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Đã từ chối
               <span className="ml-2 bg-red-100 text-red-600 text-xs font-medium px-2 py-0.5 rounded-full">
@@ -659,7 +703,7 @@ const Approvals: React.FC = () => {
                             </div>
                             <div className="ml-4">
                               <div className="text-sm font-medium text-gray-900">
-                                Giải trình chấm công
+                                {getRequestTypeLabel(explanation)}
                               </div>
                               <div className="text-sm text-gray-500">
                                 {explanation.reason}
@@ -707,7 +751,7 @@ const Approvals: React.FC = () => {
                               ) : (
                                 <span className="text-gray-500 text-sm italic">
                                   {explanation.employee_id ===
-                                  currentEmployee?.id
+                                    currentEmployee?.id
                                     ? 'Không thể duyệt đơn của chính mình'
                                     : 'Không có quyền duyệt'}
                                 </span>
@@ -725,6 +769,16 @@ const Approvals: React.FC = () => {
                             >
                               Chi tiết
                             </button>
+                            {/* CHỈ NGƯỜI TẠO ĐƠN mới thấy nút Xóa */}
+                            {canDeleteExplanation(explanation) && (
+                              <button
+                                onClick={() => handleDelete(explanation.id)}
+                                className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
+                                title="Xóa đơn giải trình"
+                              >
+                                Xóa
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1032,22 +1086,31 @@ const Approvals: React.FC = () => {
                         <span className="text-sm text-gray-600">
                           Quản lý trực tiếp đã duyệt:
                         </span>
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className={`text-sm font-medium ${selectedExplanation.direct_manager_approved
+                          ? 'text-green-600'
+                          : 'text-gray-400'
+                          }`}>
                           {selectedExplanation.direct_manager_approved
                             ? '✓ Đã duyệt'
                             : '✗ Chưa duyệt'}
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">
-                          Nhân sự HR đã duyệt:
-                        </span>
-                        <span className="text-sm font-medium text-gray-900">
-                          {selectedExplanation.hr_approved
-                            ? '✓ Đã duyệt'
-                            : '✗ Chưa duyệt'}
-                        </span>
-                      </div>
+                      {/* CHỈ HIỂN THỊ HR approval nếu người làm đơn KHÔNG phải HR */}
+                      {!selectedExplanation.employee_is_hr && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">
+                            Nhân sự HR đã duyệt:
+                          </span>
+                          <span className={`text-sm font-medium ${selectedExplanation.hr_approved
+                            ? 'text-green-600'
+                            : 'text-gray-400'
+                            }`}>
+                            {selectedExplanation.hr_approved
+                              ? '✓ Đã duyệt'
+                              : '✗ Chưa duyệt'}
+                          </span>
+                        </div>
+                      )}
                       {selectedExplanation.direct_manager_approved_at && (
                         <div className="flex justify-between">
                           <span className="text-sm text-gray-600">
@@ -1060,10 +1123,11 @@ const Approvals: React.FC = () => {
                           </span>
                         </div>
                       )}
-                      {selectedExplanation.hr_approved_at && (
+                      {/* CHỈ HIỂN THỊ HR approval time nếu người làm đơn KHÔNG phải HR */}
+                      {!selectedExplanation.employee_is_hr && selectedExplanation.hr_approved_at && (
                         <div className="flex justify-between">
                           <span className="text-sm text-gray-600">
-                            Nhân sự duyệt lúc:
+                            HR duyệt lúc:
                           </span>
                           <span className="text-sm font-medium text-gray-900">
                             {formatDateTime(selectedExplanation.hr_approved_at)}
@@ -1096,7 +1160,7 @@ const Approvals: React.FC = () => {
                   Lý do giải trình
                 </h4>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p className="text-gray-700">{selectedExplanation.reason}</p>
+                  <p className="text-blue-700 font-medium">{selectedExplanation.reason}</p>
                 </div>
               </div>
 
@@ -1122,22 +1186,20 @@ const Approvals: React.FC = () => {
                     {getApprovalWorkflow(selectedExplanation).map((step) => (
                       <div key={step.step} className="flex items-start">
                         <div
-                          className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center mr-3 ${
-                            step.status === 'Đã duyệt'
-                              ? 'bg-green-100'
-                              : step.status === 'Đã từ chối'
-                                ? 'bg-red-100'
-                                : 'bg-gray-100'
-                          }`}
+                          className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center mr-3 ${step.status === 'Đã duyệt'
+                            ? 'bg-green-100'
+                            : step.status === 'Đã từ chối'
+                              ? 'bg-red-100'
+                              : 'bg-gray-100'
+                            }`}
                         >
                           <span
-                            className={`text-sm font-medium ${
-                              step.status === 'Đã duyệt'
-                                ? 'text-green-600'
-                                : step.status === 'Đã từ chối'
-                                  ? 'text-red-600'
-                                  : 'text-gray-600'
-                            }`}
+                            className={`text-sm font-medium ${step.status === 'Đã duyệt'
+                              ? 'text-green-600'
+                              : step.status === 'Đã từ chối'
+                                ? 'text-red-600'
+                                : 'text-gray-600'
+                              }`}
                           >
                             {step.step}
                           </span>
@@ -1153,13 +1215,12 @@ const Approvals: React.FC = () => {
                               </p>
                             </div>
                             <span
-                              className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                step.status === 'Đã duyệt'
-                                  ? 'bg-green-100 text-green-800'
-                                  : step.status === 'Đã từ chối'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                              }`}
+                              className={`text-xs font-medium px-2 py-1 rounded-full ${step.status === 'Đã duyệt'
+                                ? 'bg-green-100 text-green-800'
+                                : step.status === 'Đã từ chối'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                                }`}
                             >
                               {step.status}
                             </span>
