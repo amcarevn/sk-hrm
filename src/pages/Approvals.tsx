@@ -14,6 +14,7 @@ const Approvals: React.FC = () => {
   const [rejectedExplanations, setRejectedExplanations] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [overtimeRequests, setOvertimeRequests] = useState<any[]>([]);
+  const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const [selectedExplanation, setSelectedExplanation] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -21,6 +22,7 @@ const Approvals: React.FC = () => {
     pending_leave: 0,
     pending_overtime: 0,
     pending_explanation: 0,
+    pending_online_work: 0,
     total_approved: 0,
     total_rejected: 0,
   });
@@ -52,10 +54,16 @@ const Approvals: React.FC = () => {
   const fetchPendingRequests = async () => {
     try {
       setLoading(true);
+      console.log('🔵 [APPROVALS] Fetching pending requests...');
       const result = await approvalService.getAllPendingRequests();
+      console.log('🔵 [APPROVALS] API Response:', result);
+      console.log('🔵 [APPROVALS] Online Work Requests:', result.online_work_requests);
+      console.log('🔵 [APPROVALS] Online Work Count:', result.online_work_requests?.length || 0);
+
       setAttendanceExplanations(result.attendance_explanations);
       setLeaveRequests(result.leave_requests);
       setOvertimeRequests(result.overtime_requests);
+      setOnlineWorkRequests(result.online_work_requests);
 
       // Cập nhật stats
       setStats((prev) => ({
@@ -63,9 +71,12 @@ const Approvals: React.FC = () => {
         pending_leave: result.leave_requests.length,
         pending_overtime: result.overtime_requests.length,
         pending_explanation: result.attendance_explanations.length,
+        pending_online_work: result.online_work_requests.length,
       }));
+
+      console.log('✅ [APPROVALS] State updated - onlineWorkRequests count:', result.online_work_requests.length);
     } catch (error) {
-      console.error('Error fetching pending requests:', error);
+      console.error('❌ [APPROVALS] Error fetching pending requests:', error);
     } finally {
       setLoading(false);
     }
@@ -78,6 +89,7 @@ const Approvals: React.FC = () => {
       setApprovedExplanations(result.attendance_explanations);
       setLeaveRequests(result.leave_requests);
       setOvertimeRequests(result.overtime_requests);
+      setOnlineWorkRequests(result.online_work_requests);
 
       // Cập nhật stats với số đếm thực tế
       setStats((prev) => ({
@@ -98,6 +110,7 @@ const Approvals: React.FC = () => {
       setRejectedExplanations(result.attendance_explanations);
       setLeaveRequests(result.leave_requests);
       setOvertimeRequests(result.overtime_requests);
+      setOnlineWorkRequests(result.online_work_requests);
 
       // Cập nhật stats với số đếm thực tế
       setStats((prev) => ({
@@ -215,15 +228,9 @@ const Approvals: React.FC = () => {
       return true;
     }
 
-    console.log('canApproveExplanation: No permission', {
+    console.log('canApproveExplanation: No approval permission found', {
       explanationId: explanation.id,
       currentEmployeeId: currentEmployee.id,
-      employee_manager_id: explanation.employee_manager_id,
-      employee_department_manager_id:
-        explanation.employee_department_manager_id,
-      is_manager: currentEmployee.is_manager,
-      management_level: currentEmployee.management_level,
-      hasApprovalPermission,
       permissions: currentEmployee.permissions,
     });
     return false;
@@ -238,6 +245,69 @@ const Approvals: React.FC = () => {
 
     // Chỉ người tạo đơn mới được xóa
     return explanation.employee_id === currentEmployee.id;
+  };
+
+  // Generic function to check if current user can approve any request type
+  const canApproveRequest = (request: any): boolean => {
+    if (!currentEmployee) return false;
+
+    // Creator cannot approve their own request
+    if (request.employee_id === currentEmployee.id) {
+      return false;
+    }
+
+    // Check user roles
+    const isAdmin = currentEmployee.user?.is_staff || currentEmployee.user?.is_superuser;
+    const isHR =
+      currentEmployee.is_hr ||
+      currentEmployee.position?.title?.includes('HR') ||
+      currentEmployee.position?.title?.includes('Nhân sự') ||
+      currentEmployee.department?.name?.includes('HR') ||
+      currentEmployee.department?.name?.includes('Nhân sự');
+    const isDirectManager = request.employee_manager_id === currentEmployee.id;
+
+    // Admin can approve anything
+    if (isAdmin) return true;
+
+    // ==================== ONLINE WORK REQUEST TWO-STEP WORKFLOW ====================
+    // Check if this is an online work request (has direct_manager_approved field)
+    if (request.hasOwnProperty('direct_manager_approved')) {
+      // Manager can approve if not yet manager-approved
+      if (isDirectManager && !request.direct_manager_approved) {
+        return true;
+      }
+
+      // HR can approve if manager-approved but not HR-approved yet
+      if (isHR && request.direct_manager_approved && !request.hr_approved) {
+        return true;
+      }
+
+      return false;
+    }
+
+    // ==================== ATTENDANCE EXPLANATION WORKFLOW ====================
+    const employeeIsHR = request.employee_is_hr || false;
+
+    if (employeeIsHR) {
+      // If employee is HR, only direct manager can approve
+      if (isDirectManager) {
+        return !request.direct_manager_approved;
+      }
+      return false;
+    }
+
+    // For non-HR employees:
+    // Direct manager approves first
+    if (isDirectManager) {
+      return !request.direct_manager_approved;
+    }
+
+    // HR approves second (only if manager already approved)
+    if (isHR && request.direct_manager_approved) {
+      return !request.hr_approved;
+    }
+
+    return false;
   };
 
   const handleApprove = async (explanationId: number) => {
@@ -285,6 +355,63 @@ const Approvals: React.FC = () => {
         error.response?.data?.message ||
         'Xóa đơn giải trình thất bại. Vui lòng thử lại.';
       alert(`Lỗi: ${errorMessage}`);
+    }
+  };
+
+  const handleApproveOnlineWork = async (requestId: number) => {
+    try {
+      await approvalService.approveOnlineWorkRequest(requestId, 'Đã duyệt');
+      fetchRequests(); // Refresh data
+    } catch (error) {
+      console.error('Error approving online work request:', error);
+    }
+  };
+
+  const handleDeleteOnlineWork = async (requestId: number) => {
+    try {
+      const confirmed = window.confirm(
+        'Bạn có chắc chắn muốn xóa đơn làm việc online này không? Hành động này không thể hoàn tác.'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      await approvalService.deleteOnlineWorkRequest(requestId);
+      alert('Đã xóa đơn làm việc online thành công!');
+      fetchRequests();
+    } catch (error: any) {
+      console.error('Error deleting online work request:', error);
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        'Xóa đơn làm việc online thất bại. Vui lòng thử lại.';
+      alert(`Lỗi: ${errorMessage}`);
+    }
+  };
+
+  const handleViewOnlineWorkDetails = (request: any) => {
+    const details = `
+Thông tin đơn làm việc online:
+
+Mã đơn: ${request.request_code}
+Nhân viên: ${request.employee_name} (${request.employee_code})
+Phòng ban: ${request.department_name || 'N/A'}
+Ngày làm việc: ${new Date(request.work_date).toLocaleDateString('vi-VN')}
+Kế hoạch công việc: ${request.work_plan || 'N/A'}
+Lý do: ${request.reason || 'N/A'}
+Trạng thái: ${request.status_display}
+Ngày tạo: ${new Date(request.created_at).toLocaleString('vi-VN')}
+    `;
+    alert(details);
+  };
+
+  const handleRejectOnlineWork = async (requestId: number) => {
+    try {
+      await approvalService.rejectOnlineWorkRequest(requestId, 'Đã từ chối');
+      fetchRequests(); // Refresh data
+    } catch (error) {
+      console.error('Error rejecting online work request:', error);
     }
   };
 
@@ -477,7 +604,7 @@ const Approvals: React.FC = () => {
 
   const getCurrentCount = () => {
     const explanations = getCurrentExplanations();
-    return explanations.length + leaveRequests.length + overtimeRequests.length;
+    return explanations.length + leaveRequests.length + overtimeRequests.length + onlineWorkRequests.length;
   };
 
   const totalPending =
@@ -557,7 +684,7 @@ const Approvals: React.FC = () => {
           </nav>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
             <div className="flex justify-between items-start">
               <div>
@@ -593,6 +720,19 @@ const Approvals: React.FC = () => {
                 </p>
               </div>
               <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                Chờ duyệt
+              </span>
+            </div>
+          </div>
+          <div className="bg-teal-50 p-4 rounded-lg border-l-4 border-teal-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-medium text-teal-900">Online</h3>
+                <p className="text-3xl font-bold text-teal-700 mt-2">
+                  {stats.pending_online_work}
+                </p>
+              </div>
+              <span className="bg-teal-100 text-teal-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
                 Chờ duyệt
               </span>
             </div>
@@ -914,6 +1054,93 @@ const Approvals: React.FC = () => {
                             >
                               Chi tiết
                             </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* Hiển thị online work requests */}
+                    {onlineWorkRequests.map((request) => (
+                      <tr key={`online-work-${request.id}`}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 bg-teal-100 rounded-full flex items-center justify-center">
+                              <svg
+                                className="h-5 w-5 text-teal-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                />
+                              </svg>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                Làm việc online
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {request.reason || request.work_plan}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {request.employee_name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {request.employee_code}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(request.created_at)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(request.work_date)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getStatusBadge(request.status)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            {activeTab === 'pending' && canApproveRequest(request) && (
+                              <>
+                                <button
+                                  onClick={() => handleApproveOnlineWork(request.id)}
+                                  className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md text-sm"
+                                >
+                                  Duyệt
+                                </button>
+                                <button
+                                  onClick={() => handleRejectOnlineWork(request.id)}
+                                  className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
+                                >
+                                  Từ chối
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => handleViewOnlineWorkDetails(request)}
+                              className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md text-sm"
+                            >
+                              Chi tiết
+                            </button>
+                            {(() => {
+                              console.log('🔍 [DELETE BTN] request.employee_id:', request.employee_id, 'currentEmployee?.id:', currentEmployee?.id, 'Match:', request.employee_id === currentEmployee?.id);
+                              return request.employee_id === currentEmployee?.id;
+                            })() && (
+                                <button
+                                  onClick={() => handleDeleteOnlineWork(request.id)}
+                                  className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
+                                >
+                                  Xóa
+                                </button>
+                              )}
                           </div>
                         </td>
                       </tr>

@@ -474,24 +474,47 @@ const AttendanceManagement: React.FC = () => {
       // Use employee parameter or currentEmployee from state
       const targetEmployee = employee || currentEmployee;
 
+      // Fetch attendance statistics with employee_id and department_id
+      const stats = await attendanceService.getAttendanceStats({
+        start_date: formatDateLocal(firstDayOfMonth),
+        end_date: formatDateLocal(lastDayOfMonth),
+        employee_id: targetEmployee?.id,
+        department_id: targetEmployee?.department?.id,
+      });
+
+      // Fetch attendance explanation statistics for current month
+      let explanationStats = null;
       if (targetEmployee && targetEmployee.id) {
-        // Fetch attendance explanation & online work statistics for current month
-        const explanationStats =
-          await attendanceService.getAttendanceExplanationStats({
-            employee_id: targetEmployee.id,
-            month: today.getMonth() + 1,
-            year: today.getFullYear(),
-          });
-
-        console.log('Explanation & Online work stats:', explanationStats);
-
-        // Update state with statistics
-        if (explanationStats && explanationStats.statistics) {
-          setAttendanceStats(explanationStats.statistics);
+        try {
+          console.log('🔵 [STATS] Fetching explanation stats for employee:', targetEmployee.id);
+          explanationStats =
+            await attendanceService.getAttendanceExplanationStats({
+              employee_id: targetEmployee.id,
+              month: today.getMonth() + 1,
+              year: today.getFullYear(),
+            });
+          console.log('🔵 [STATS] Explanation stats response:', explanationStats);
+          console.log('🔵 [STATS] remaining_online_work:', explanationStats?.statistics?.remaining_online_work);
+        } catch (error) {
+          console.error('❌ [STATS] Error fetching explanation stats:', error);
         }
       }
+
+      console.log('🔵 [STATS] Base stats:', stats.statistics);
+      console.log('🔵 [STATS] Explanation stats:', explanationStats?.statistics);
+
+      // Combine stats - merge all fields from both APIs
+      const mergedStats = {
+        ...stats.statistics,
+        ...(explanationStats?.statistics || {}),
+      };
+
+      console.log('✅ [STATS] Merged stats:', mergedStats);
+      console.log('✅ [STATS] Final remaining_online_work:', mergedStats.remaining_online_work);
+
+      setAttendanceStats(mergedStats);
     } catch (error) {
-      console.error('Error fetching attendance stats:', error);
+      console.error('❌ [STATS] Error fetching attendance stats:', error);
     } finally {
       setLoading(false);
     }
@@ -732,16 +755,51 @@ const AttendanceManagement: React.FC = () => {
 
       let result;
       if (selectedContext === 'online_work') {
+        console.log('🔵 [ONLINE WORK] Bắt đầu tạo đơn làm việc online');
+        console.log('🔵 [ONLINE WORK] Selected Date:', selectedDate);
+        console.log('🔵 [ONLINE WORK] Date String:', dateStr);
+        console.log('🔵 [ONLINE WORK] Current Employee:', currentEmployee);
+        console.log('🔵 [ONLINE WORK] Form Note:', formNote);
+        console.log('🔵 [ONLINE WORK] Final Reason:', finalReason);
+
         const onlineWorkData = {
           employee_id: currentEmployee.id,
-          attendance_date: dateStr,
+          work_date: dateStr,  // Sử dụng work_date thay vì attendance_date
+          work_plan: formNote || 'Làm việc online',  // Thêm work_plan
           reason: finalReason,
           status: 'PENDING',
         };
-        result =
-          // await attendanceService.createOnlineWorkRequest(onlineWorkData);
-          console.log('Online work request created:', result);
-        alert('Đơn làm việc online đã được gửi thành công!');
+
+        console.log('🔵 [ONLINE WORK] Data gửi lên API:', JSON.stringify(onlineWorkData, null, 2));
+
+        try {
+          result = await attendanceService.createOnlineWorkRequest(onlineWorkData);
+          console.log('✅ [ONLINE WORK] API Response:', result);
+
+          // Refresh stats to update remaining quota
+          console.log('🔄 [ONLINE WORK] Refreshing stats...');
+          await fetchAttendanceStats();
+
+          alert('Đơn làm việc online đã được gửi thành công!');
+        } catch (error: any) {
+          console.error('❌ [ONLINE WORK] Lỗi khi tạo đơn:', error);
+          console.error('❌ [ONLINE WORK] Error response:', error.response?.data);
+
+          // Hiển thị error message từ Backend
+          let errorMessage = 'Lỗi khi tạo đơn làm việc online';
+
+          if (error.response?.data?.detail) {
+            // Backend trả về error message cụ thể (ví dụ: duplicate date)
+            errorMessage = error.response.data.detail;
+          } else if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          } else if (error.message) {
+            errorMessage = `Lỗi: ${error.message}`;
+          }
+
+          alert(errorMessage);
+          return;
+        }
       } else {
         // Prepare data for API for other request types
         const isRegistration =

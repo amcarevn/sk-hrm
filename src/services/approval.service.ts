@@ -159,26 +159,100 @@ class ApprovalService {
     }
   }
 
+  // Lấy danh sách online work requests theo trạng thái
+  async getOnlineWorkRequestsByStatus(status: string): Promise<any[]> {
+    try {
+      const response = await managementApi.get('/api-hrm/online-work-requests/', {
+        params: {
+          status: status,
+          ordering: '-created_at'
+        }
+      });
+      console.log(`🔵 [APPROVAL SERVICE] Online work ${status} response:`, response.data);
+      // API có thể trả về array trực tiếp hoặc trong results field
+      return Array.isArray(response.data) ? response.data : (response.data.results || []);
+    } catch (error) {
+      console.error(`Error fetching ${status} online work requests:`, error);
+      throw error;
+    }
+  }
+
+  // Lấy danh sách online work requests chờ duyệt
+  async getPendingOnlineWorkRequests(): Promise<any[]> {
+    return this.getOnlineWorkRequestsByStatus('PENDING');
+  }
+
+  // Lấy danh sách online work requests đã duyệt
+  async getApprovedOnlineWorkRequests(): Promise<any[]> {
+    return this.getOnlineWorkRequestsByStatus('APPROVED');
+  }
+
+  // Lấy danh sách online work requests đã từ chối
+  async getRejectedOnlineWorkRequests(): Promise<any[]> {
+    return this.getOnlineWorkRequestsByStatus('REJECTED');
+  }
+
+  // Duyệt online work request
+  async approveOnlineWorkRequest(requestId: number, note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post(
+        `/api-hrm/online-work-requests/${requestId}/approve/`,
+        { approval_note: note || '' }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error approving online work request:', error);
+      throw error;
+    }
+  }
+
+  // Từ chối online work request
+  async rejectOnlineWorkRequest(requestId: number, note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post(
+        `/api-hrm/online-work-requests/${requestId}/reject/`,
+        { approval_note: note || '' }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting online work request:', error);
+      throw error;
+    }
+  }
+
+  // Xóa online work request
+  async deleteOnlineWorkRequest(requestId: number): Promise<void> {
+    try {
+      await managementApi.delete(`/api-hrm/online-work-requests/${requestId}/`);
+    } catch (error) {
+      console.error('Error deleting online work request:', error);
+      throw error;
+    }
+  }
+
   // Tổng hợp tất cả các loại đơn chờ duyệt
   async getAllPendingRequests(): Promise<{
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
+    online_work_requests: any[];
     total_pending: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, overtimeRequests] = await Promise.all([
+      const [attendanceExplanations, leaveRequests, overtimeRequests, onlineWorkRequests] = await Promise.all([
         this.getPendingAttendanceExplanations(),
         this.getPendingLeaveRequests(),
-        this.getPendingOvertimeRequests()
+        this.getPendingOvertimeRequests(),
+        this.getPendingOnlineWorkRequests()
       ]);
 
-      const total_pending = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length;
+      const total_pending = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length + onlineWorkRequests.length;
 
       return {
         attendance_explanations: attendanceExplanations,
         leave_requests: leaveRequests,
         overtime_requests: overtimeRequests,
+        online_work_requests: onlineWorkRequests,
         total_pending
       };
     } catch (error) {
@@ -192,21 +266,24 @@ class ApprovalService {
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
+    online_work_requests: any[];
     total_approved: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, overtimeRequests] = await Promise.all([
+      const [attendanceExplanations, leaveRequests, overtimeRequests, onlineWorkRequests] = await Promise.all([
         this.getApprovedAttendanceExplanations(),
         this.getPendingLeaveRequests(), // TODO: Cần API cho leave requests đã duyệt
-        this.getPendingOvertimeRequests() // TODO: Cần API cho overtime requests đã duyệt
+        this.getPendingOvertimeRequests(), // TODO: Cần API cho overtime requests đã duyệt
+        this.getApprovedOnlineWorkRequests()
       ]);
 
-      const total_approved = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length;
+      const total_approved = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length + onlineWorkRequests.length;
 
       return {
         attendance_explanations: attendanceExplanations,
         leave_requests: leaveRequests,
         overtime_requests: overtimeRequests,
+        online_work_requests: onlineWorkRequests,
         total_approved
       };
     } catch (error) {
@@ -220,21 +297,24 @@ class ApprovalService {
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
+    online_work_requests: any[];
     total_rejected: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, overtimeRequests] = await Promise.all([
+      const [attendanceExplanations, leaveRequests, overtimeRequests, onlineWorkRequests] = await Promise.all([
         this.getRejectedAttendanceExplanations(),
         this.getPendingLeaveRequests(), // TODO: Cần API cho leave requests đã từ chối
-        this.getPendingOvertimeRequests() // TODO: Cần API cho overtime requests đã từ chối
+        this.getPendingOvertimeRequests(), // TODO: Cần API cho overtime requests đã từ chối
+        this.getRejectedOnlineWorkRequests()
       ]);
 
-      const total_rejected = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length;
+      const total_rejected = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length + onlineWorkRequests.length;
 
       return {
         attendance_explanations: attendanceExplanations,
         leave_requests: leaveRequests,
         overtime_requests: overtimeRequests,
+        online_work_requests: onlineWorkRequests,
         total_rejected
       };
     } catch (error) {
