@@ -47,6 +47,9 @@ const AttendanceManagement: React.FC = () => {
   const [monthlyWorkCredits, setMonthlyWorkCredits] = useState<any>(null);
   const [workCreditsLoading, setWorkCreditsLoading] = useState(false);
 
+  // Kiểm tra ngày được chọn có dữ liệu chấm công không (dùng để disable Đơn giải trình)
+  const hasAttendanceData = attendanceDetails && attendanceDetails.length > 0;
+
   // ===================== STEP-BASED FORM STATE =====================
   type ContextType =
     | 'explanation'
@@ -611,9 +614,9 @@ const AttendanceManagement: React.FC = () => {
     setFetchingDetails(true);
 
     // Set approved requests từ dayData ngay lập tức (không reset về mảng rỗng)
-    setApprovedExplanations(dayData?.explanations || []);
-    setApprovedLeaveRequests(dayData?.leave_requests || []);
-    setOnlineWorkRequests(dayData?.online_work_requests || []);
+    setApprovedExplanations(dayData?.approvedExplanations || []);
+    setApprovedLeaveRequests(dayData?.approvedLeaveRequests || []);
+    setOnlineWorkRequests(dayData?.approvedOnlineWorks || []);
 
     try {
       // Format date to YYYY-MM-DD in local timezone
@@ -1907,10 +1910,13 @@ const AttendanceManagement: React.FC = () => {
                       {/* Card 1: Giải trình đơn */}
                       <button
                         type="button"
-                        onClick={() => handleContextSelect('explanation')}
-                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left ${selectedContext === 'explanation'
-                          ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
-                          : 'border-gray-200 hover:border-purple-400'
+                        disabled={!hasAttendanceData}
+                        onClick={() => hasAttendanceData && handleContextSelect('explanation')}
+                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${!hasAttendanceData
+                            ? 'opacity-50 cursor-not-allowed border-gray-200'
+                            : selectedContext === 'explanation'
+                              ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
+                              : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
                           }`}
                       >
                         <div className="flex items-start space-x-4">
@@ -1941,10 +1947,15 @@ const AttendanceManagement: React.FC = () => {
                             <p className="mt-1 text-sm text-gray-500 leading-relaxed">
                               Đi muộn, về sớm, ngày đầu đi làm, quên chấm công
                             </p>
+                            {!hasAttendanceData && (
+                              <p className="mt-1 text-xs text-red-500">
+                                Cần có dữ liệu chấm công để giải trình
+                              </p>
+                            )}
                           </div>
                         </div>
                         {/* Selected indicator */}
-                        {selectedContext === 'explanation' && (
+                        {selectedContext === 'explanation' && hasAttendanceData && (
                           <div className="absolute top-3 right-3">
                             <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
                               <svg

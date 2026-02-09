@@ -18,12 +18,14 @@ export interface AttendanceDay {
   // Thông tin đơn đã duyệt
   approvedExplanations?: any[];
   approvedLeaveRequests?: any[];
+  approvedOnlineWorks?: any[];
   dayStatusSummary?: {
     has_approved_explanation: boolean;
     has_approved_leave: boolean;
     has_pending_request: boolean;
     summary_text: string;
     display_color: string;
+    has_approved_online_work?: boolean;
   };
 }
 
@@ -126,9 +128,11 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         let earlyLeaveMinutes = 0;
         let approvedExplanations: any[] = [];
         let approvedLeaveRequests: any[] = [];
+        let approvedOnlineWorks: any[] = [];
         let dayStatusSummary = {
           has_approved_explanation: false,
           has_approved_leave: false,
+          has_approved_online_work: false,
           has_pending_request: false,
           summary_text: '',
           display_color: 'default',
@@ -147,9 +151,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             (firstRecord as any).approved_explanations || [];
           approvedLeaveRequests =
             (firstRecord as any).approved_leave_requests || [];
+          approvedOnlineWorks =
+            (firstRecord as any).approved_online_works || [];
           dayStatusSummary = (firstRecord as any).day_status_summary || {
             has_approved_explanation: false,
             has_approved_leave: false,
+            has_approved_online_work: false,
             has_pending_request: false,
             summary_text: '',
             display_color: 'default',
@@ -462,6 +469,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           earlyLeaveMinutes,
           approvedExplanations,
           approvedLeaveRequests,
+          approvedOnlineWorks,
           dayStatusSummary,
         });
       }
@@ -781,22 +789,19 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               return (
                 <div
                   key={index}
-                  onClick={() => hasData && onDateClick && onDateClick(day.date, day)}
-                  className={`h-32 border rounded-lg p-2 transition-all ${
-                    hasData
-                      ? 'cursor-pointer hover:shadow-md'
-                      : 'cursor-default opacity-70'
-                  } ${isToday ? 'border-2 border-primary-500' : 'border-gray-200'
+                  onClick={() => onDateClick && onDateClick(day.date, day)}
+                  className={`h-32 border rounded-lg p-2 transition-all cursor-pointer hover:shadow-md ${!hasData ? 'opacity-80' : ''
+                    } ${isToday ? 'border-2 border-primary-500' : 'border-gray-200'
                     } ${isWeekend ? 'bg-gray-50' : 'bg-white'}`}
                 >
                   {/* Date header */}
                   <div className="flex justify-between items-start mb-1">
                     <span
                       className={`font-medium ${isToday
-                          ? 'text-primary-600'
-                          : isWeekend
-                            ? 'text-red-600'
-                            : 'text-gray-700'
+                        ? 'text-primary-600'
+                        : isWeekend
+                          ? 'text-red-600'
+                          : 'text-gray-700'
                         }`}
                     >
                       {day.date.getDate()}
@@ -805,9 +810,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                       {/* Late/Early leave minutes - cùng 1 hàng với bg màu vàng */}
                       {(Number(day.lateMinutes) > 0 || Number(day.earlyLeaveMinutes) > 0) && (
                         <span className="text-xs text-yellow-600 bg-yellow-100 px-1 rounded whitespace-nowrap">
-                          {Number(day.lateMinutes) > 0 && `Muộn: ${day.lateMinutes}phút`}
+                          {Number(day.lateMinutes) > 0 && `Muộn: ${day.lateMinutes} phút`}
                           {Number(day.lateMinutes) > 0 && Number(day.earlyLeaveMinutes) > 0 && ' - '}
-                          {Number(day.earlyLeaveMinutes) > 0 && `Sớm: ${day.earlyLeaveMinutes}phút`}
+                          {Number(day.earlyLeaveMinutes) > 0 && `Sớm: ${day.earlyLeaveMinutes} phút`}
                         </span>
                       )}
                     </div>
@@ -861,35 +866,35 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                   <div className="mt-1">
                     <div
                       className={`text-xs px-2 py-1 rounded-full text-center ${day.dayStatusSummary?.display_color === 'green'
-                          ? 'bg-green-100 text-green-800 border border-green-300'
-                          : day.morning === 'incomplete_attendance' ||
-                            day.afternoon === 'incomplete_attendance' ||
-                            day.evening === 'incomplete_attendance'
-                            ? 'bg-purple-100 text-purple-800'
-                            : day.morning === 'no_data' &&
-                              day.afternoon === 'no_data' &&
-                              day.evening === 'no_data'
-                              ? 'bg-gray-200 text-gray-700'
-                              : day.morning === 'absent' &&
-                                day.afternoon === 'absent' &&
-                                day.evening === 'absent'
-                                ? 'bg-red-100 text-red-800'
-                                : (day.lateMinutes && day.lateMinutes > 0) ||
-                                  (day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0)
-                                  ? 'bg-yellow-100 text-yellow-800'
+                        ? 'bg-green-100 text-green-800 border border-green-300'
+                        : day.morning === 'incomplete_attendance' ||
+                          day.afternoon === 'incomplete_attendance' ||
+                          day.evening === 'incomplete_attendance'
+                          ? 'bg-purple-100 text-purple-800'
+                          : day.morning === 'no_data' &&
+                            day.afternoon === 'no_data' &&
+                            day.evening === 'no_data'
+                            ? 'bg-gray-200 text-gray-700'
+                            : day.morning === 'absent' &&
+                              day.afternoon === 'absent' &&
+                              day.evening === 'absent'
+                              ? 'bg-red-100 text-red-800'
+                              : (day.lateMinutes && day.lateMinutes > 0) ||
+                                (day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0)
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : day.workCoefficient &&
+                                  day.workCoefficient >= 1.0
+                                  ? 'bg-green-100 text-green-800'
                                   : day.workCoefficient &&
-                                    day.workCoefficient >= 1.0
-                                    ? 'bg-green-100 text-green-800'
-                                    : day.workCoefficient &&
-                                      day.workCoefficient >= 0.5 &&
-                                      day.workCoefficient < 1.0
-                                      ? 'bg-orange-100 text-orange-800'
-                                      : day.workCoefficient === 0 ||
-                                        day.morning === 'absent' ||
-                                        day.afternoon === 'absent' ||
-                                        day.evening === 'absent'
-                                        ? 'bg-red-100 text-red-800'
-                                        : 'bg-yellow-100 text-yellow-800'
+                                    day.workCoefficient >= 0.5 &&
+                                    day.workCoefficient < 1.0
+                                    ? 'bg-orange-100 text-orange-800'
+                                    : day.workCoefficient === 0 ||
+                                      day.morning === 'absent' ||
+                                      day.afternoon === 'absent' ||
+                                      day.evening === 'absent'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
                         }`}
                     >
                       {day.dayStatusSummary?.summary_text
@@ -905,12 +910,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                             : (day.lateMinutes && day.lateMinutes > 0) ||
                               (day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0)
                               ? // Hiển thị text cụ thể: "Đi muộn", "Về sớm", hoặc "Đi muộn - Về sớm"
-                                // Ca sáng bắt đầu 8h30, ca chiều kết thúc 17h30
-                                (day.lateMinutes && day.lateMinutes > 0) && (day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0)
-                                  ? 'Đi muộn - Về sớm'
-                                  : (day.lateMinutes && day.lateMinutes > 0)
-                                    ? 'Đi muộn'
-                                    : 'Về sớm'
+                              // Ca sáng bắt đầu 8h30, ca chiều kết thúc 17h30
+                              (day.lateMinutes && day.lateMinutes > 0) && (day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0)
+                                ? 'Đi muộn - Về sớm'
+                                : (day.lateMinutes && day.lateMinutes > 0)
+                                  ? 'Đi muộn'
+                                  : 'Về sớm'
                               : day.workCoefficient && day.workCoefficient >= 1.0
                                 ? getStatusText('present')
                                 : day.workCoefficient &&
@@ -933,7 +938,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       <div className="mt-6 text-sm text-gray-600">
         <p className="font-medium mb-1">Hướng dẫn:</p>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Click vào ngày có dữ liệu để xem chi tiết chấm công (ngày không có dữ liệu sẽ mờ và không thể click)</li>
+          <li>Click vào ngày để xem chi tiết hoặc làm đơn bổ sung</li>
           <li>Màu xanh lá: Đủ công cả 3 ca (sáng, chiều, tối)</li>
           <li>Màu cam: Nửa công (hệ số công từ 0.5 đến dưới 1.0)</li>
           <li>Màu đỏ: Không có công ở tất cả các ca</li>
@@ -942,7 +947,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           <li>Màu xám nhạt: Ngày nghỉ</li>
           <li>Màu xanh dương: Ngày lễ</li>
           <li>Màu xám đậm: Chưa có dữ liệu chấm công</li>
-          <li>Viền xanh lá: Có đơn giải trình hoặc nghỉ phép đã duyệt</li>
+          <li>Viền xanh lá: Có đơn giải trình, nghỉ phép hoặc làm việc online đã duyệt</li>
           <li>Biểu tượng ✓: Có đơn đã được duyệt trong ngày</li>
         </ul>
       </div>
