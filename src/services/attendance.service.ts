@@ -103,6 +103,14 @@ export interface CalendarViewData {
       approved_at: string;
       approved_by_name: string;
     }>;
+    approved_registrations?: Array<{
+      id: number;
+      request_code: string;
+      explanation_type: string;
+      status: string;
+      approved_at: string;
+      approved_by_name: string;
+    }>;
     approved_leave_requests?: Array<{
       id: number;
       request_code: string;
@@ -111,9 +119,20 @@ export interface CalendarViewData {
       approved_at: string;
       approved_by_name: string;
     }>;
+    approved_online_works?: Array<{
+      id: number;
+      request_code: string;
+      status: string;
+      work_date: string;
+      direct_manager_approved: boolean;
+      hr_approved: boolean;
+      approved_at: string;
+    }>;
     day_status_summary?: {
       has_approved_explanation: boolean;
+      has_approved_registration: boolean;
       has_approved_leave: boolean;
+      has_approved_online_work: boolean;
       has_pending_request: boolean;
       summary_text: string;
       display_color: string;

@@ -17,15 +17,17 @@ export interface AttendanceDay {
   earlyLeaveMinutes?: number; // Số phút về sớm
   // Thông tin đơn đã duyệt
   approvedExplanations?: any[];
+  approvedRegistrations?: any[];
   approvedLeaveRequests?: any[];
   approvedOnlineWorks?: any[];
   dayStatusSummary?: {
     has_approved_explanation: boolean;
+    has_approved_registration: boolean;
     has_approved_leave: boolean;
+    has_approved_online_work: boolean;
     has_pending_request: boolean;
     summary_text: string;
     display_color: string;
-    has_approved_online_work?: boolean;
   };
 }
 
@@ -127,10 +129,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         let lateMinutes = 0;
         let earlyLeaveMinutes = 0;
         let approvedExplanations: any[] = [];
+        let approvedRegistrations: any[] = [];
         let approvedLeaveRequests: any[] = [];
         let approvedOnlineWorks: any[] = [];
         let dayStatusSummary = {
           has_approved_explanation: false,
+          has_approved_registration: false,
           has_approved_leave: false,
           has_approved_online_work: false,
           has_pending_request: false,
@@ -149,12 +153,15 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           // Get approved requests information
           approvedExplanations =
             (firstRecord as any).approved_explanations || [];
+          approvedRegistrations =
+            (firstRecord as any).approved_registrations || [];
           approvedLeaveRequests =
             (firstRecord as any).approved_leave_requests || [];
           approvedOnlineWorks =
             (firstRecord as any).approved_online_works || [];
           dayStatusSummary = (firstRecord as any).day_status_summary || {
             has_approved_explanation: false,
+            has_approved_registration: false,
             has_approved_leave: false,
             has_approved_online_work: false,
             has_pending_request: false,
@@ -468,6 +475,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           lateMinutes,
           earlyLeaveMinutes,
           approvedExplanations,
+          approvedRegistrations,
           approvedLeaveRequests,
           approvedOnlineWorks,
           dayStatusSummary,
@@ -791,7 +799,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                   key={index}
                   onClick={() => onDateClick && onDateClick(day.date, day)}
                   className={`h-32 border rounded-lg p-2 transition-all cursor-pointer hover:shadow-md ${!hasData ? 'opacity-80' : ''
-                    } ${isToday ? 'border-2 border-primary-500' : 'border-gray-200'
+                    } ${isToday ? 'border-2 border-primary-500' : day.dayStatusSummary?.display_color === 'green' ? 'border-2 border-green-500' : 'border-gray-200'
                     } ${isWeekend ? 'bg-gray-50' : 'bg-white'}`}
                 >
                   {/* Date header */}
@@ -867,34 +875,36 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     <div
                       className={`text-xs px-2 py-1 rounded-full text-center ${day.dayStatusSummary?.display_color === 'green'
                         ? 'bg-green-100 text-green-800 border border-green-300'
-                        : day.morning === 'incomplete_attendance' ||
-                          day.afternoon === 'incomplete_attendance' ||
-                          day.evening === 'incomplete_attendance'
-                          ? 'bg-purple-100 text-purple-800'
-                          : day.morning === 'no_data' &&
-                            day.afternoon === 'no_data' &&
-                            day.evening === 'no_data'
-                            ? 'bg-gray-200 text-gray-700'
-                            : day.morning === 'absent' &&
-                              day.afternoon === 'absent' &&
-                              day.evening === 'absent'
-                              ? 'bg-red-100 text-red-800'
-                              : (day.lateMinutes && day.lateMinutes > 0) ||
-                                (day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0)
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : day.workCoefficient &&
-                                  day.workCoefficient >= 1.0
-                                  ? 'bg-green-100 text-green-800'
+                        : day.dayStatusSummary?.display_color === 'yellow'
+                          ? 'bg-yellow-100 text-yellow-800 border border-yellow-300 animate-pulse'
+                          : day.morning === 'incomplete_attendance' ||
+                            day.afternoon === 'incomplete_attendance' ||
+                            day.evening === 'incomplete_attendance'
+                            ? 'bg-purple-100 text-purple-800'
+                            : day.morning === 'no_data' &&
+                              day.afternoon === 'no_data' &&
+                              day.evening === 'no_data'
+                              ? 'bg-gray-200 text-gray-700'
+                              : day.morning === 'absent' &&
+                                day.afternoon === 'absent' &&
+                                day.evening === 'absent'
+                                ? 'bg-red-100 text-red-800'
+                                : (day.lateMinutes && day.lateMinutes > 0) ||
+                                  (day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0)
+                                  ? 'bg-yellow-100 text-yellow-800'
                                   : day.workCoefficient &&
-                                    day.workCoefficient >= 0.5 &&
-                                    day.workCoefficient < 1.0
-                                    ? 'bg-orange-100 text-orange-800'
-                                    : day.workCoefficient === 0 ||
-                                      day.morning === 'absent' ||
-                                      day.afternoon === 'absent' ||
-                                      day.evening === 'absent'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-yellow-100 text-yellow-800'
+                                    day.workCoefficient >= 1.0
+                                    ? 'bg-green-100 text-green-800'
+                                    : day.workCoefficient &&
+                                      day.workCoefficient >= 0.5 &&
+                                      day.workCoefficient < 1.0
+                                      ? 'bg-orange-100 text-orange-800'
+                                      : day.workCoefficient === 0 ||
+                                        day.morning === 'absent' ||
+                                        day.afternoon === 'absent' ||
+                                        day.evening === 'absent'
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-yellow-100 text-yellow-800'
                         }`}
                     >
                       {day.dayStatusSummary?.summary_text
@@ -947,7 +957,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           <li>Màu xám nhạt: Ngày nghỉ</li>
           <li>Màu xanh dương: Ngày lễ</li>
           <li>Màu xám đậm: Chưa có dữ liệu chấm công</li>
-          <li>Viền xanh lá: Có đơn giải trình, nghỉ phép hoặc làm việc online đã duyệt</li>
+          <li>Viền xanh lá: Có đơn giải trình, đăng ký, nghỉ phép hoặc làm việc online đã duyệt</li>
           <li>Biểu tượng ✓: Có đơn đã được duyệt trong ngày</li>
         </ul>
       </div>

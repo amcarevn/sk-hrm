@@ -12,6 +12,9 @@ const Approvals: React.FC = () => {
   );
   const [approvedExplanations, setApprovedExplanations] = useState<any[]>([]);
   const [rejectedExplanations, setRejectedExplanations] = useState<any[]>([]);
+  const [pendingRegistrations, setPendingRegistrations] = useState<any[]>([]);
+  const [approvedRegistrations, setApprovedRegistrations] = useState<any[]>([]);
+  const [rejectedRegistrations, setRejectedRegistrations] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [overtimeRequests, setOvertimeRequests] = useState<any[]>([]);
   const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
@@ -76,7 +79,9 @@ const Approvals: React.FC = () => {
 
       // Chỉ set list data nếu đang ở tab pending (để tránh overwrite khi chạy fetch song song)
       if (activeTab === 'pending') {
-        setAttendanceExplanations(result.attendance_explanations);
+        const allExplanations = result.attendance_explanations;
+        setAttendanceExplanations(allExplanations.filter((e: any) => !isRegistrationType(e.explanation_type)));
+        setPendingRegistrations(allExplanations.filter((e: any) => isRegistrationType(e.explanation_type)));
         setLeaveRequests(result.leave_requests);
         setOvertimeRequests(result.overtime_requests);
         setOnlineWorkRequests(result.online_work_requests);
@@ -100,7 +105,9 @@ const Approvals: React.FC = () => {
       const result = await approvalService.getAllApprovedRequests();
 
       if (activeTab === 'approved') {
-        setApprovedExplanations(result.attendance_explanations);
+        const allExplanations = result.attendance_explanations;
+        setApprovedExplanations(allExplanations.filter((e: any) => !isRegistrationType(e.explanation_type)));
+        setApprovedRegistrations(allExplanations.filter((e: any) => isRegistrationType(e.explanation_type)));
         setLeaveRequests(result.leave_requests);
         setOvertimeRequests(result.overtime_requests);
         setOnlineWorkRequests(result.online_work_requests);
@@ -120,7 +127,9 @@ const Approvals: React.FC = () => {
       const result = await approvalService.getAllRejectedRequests();
 
       if (activeTab === 'rejected') {
-        setRejectedExplanations(result.attendance_explanations);
+        const allExplanations = result.attendance_explanations;
+        setRejectedExplanations(allExplanations.filter((e: any) => !isRegistrationType(e.explanation_type)));
+        setRejectedRegistrations(allExplanations.filter((e: any) => isRegistrationType(e.explanation_type)));
         setLeaveRequests(result.leave_requests);
         setOvertimeRequests(result.overtime_requests);
         setOnlineWorkRequests(result.online_work_requests);
@@ -135,19 +144,38 @@ const Approvals: React.FC = () => {
     }
   };
 
+  // Mapping trạng thái chấm công sang tiếng Việt
+  const ATTENDANCE_STATUS_MAP: Record<string, string> = {
+    PRESENT: 'Có mặt',
+    LATE: 'Đi muộn',
+    EARLY_LEAVE: 'Về sớm',
+    ABSENT: 'Vắng mặt',
+    HALF_DAY: 'Nửa ngày',
+    INCOMPLETE_ATTENDANCE: 'Quên chấm công',
+  };
+
+  const EXPECTED_STATUS_MAP: Record<string, string> = {
+    ...ATTENDANCE_STATUS_MAP,
+    PRESENT: 'Đủ công',
+  };
+
+  const getOriginalStatusText = (status: string): string =>
+    ATTENDANCE_STATUS_MAP[status] || status;
+
+  const getExpectedStatusText = (status: string): string =>
+    EXPECTED_STATUS_MAP[status] || status;
+
+  // Constants cho các loại đăng ký
+  const REGISTRATION_TYPES = ['OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE'];
+
+  const isRegistrationType = (explanationType: string): boolean =>
+    REGISTRATION_TYPES.includes(explanationType);
+
   // Hàm xác định loại đơn dựa vào explanation_type
   const getRequestTypeLabel = (explanation: any): string => {
-    // CHỈ các loại ĐĂNG KÝ: Tăng ca, Làm thêm giờ, Trực tối, Live
-    const registrationTypes = [
-      'OVERTIME', // Tăng ca
-      'EXTRA_HOURS', // Làm thêm giờ
-      'NIGHT_SHIFT', // Trực tối
-      'LIVE_WORK', // Live
-    ];
-
     if (
       explanation.explanation_type &&
-      registrationTypes.includes(explanation.explanation_type)
+      isRegistrationType(explanation.explanation_type)
     ) {
       return 'Đơn đăng ký';
     }
@@ -207,46 +235,35 @@ const Approvals: React.FC = () => {
       return true;
     }
 
-    // Admin, HR, và người có quyền can_approve_attendance có quyền duyệt (SAU KHI MANAGER DUYỆT)
+    // Admin, HR, và người có quyền can_approve_attendance có quyền duyệt
     if (isAdmin || isHR || hasApprovalPermission) {
-      console.log('canApproveExplanation: User has approval permission', {
-        explanationId: explanation.id,
-        isAdmin,
-        isHR,
-        hasApprovalPermission,
-        currentEmployeeId: currentEmployee.id,
-        permissions: currentEmployee.permissions,
-      });
-      return true;
+      // NẾU LÀ HR (hoặc có quyền tương đương) nhưng KHÔNG PHẢI QLTT
+      // THÌ CHỈ ĐƯỢC DUYỆT KHI:
+      // 1. Quản lý trực tiếp đã duyệt rồi (direct_manager_approved === true)
+      // 2. HOẶC người tạo đơn là Senior Manager (employee_is_senior_manager === true)
+      const directManagerAlreadyApproved =
+        explanation.direct_manager_approved === true;
+      const isCreatorSeniorManager =
+        explanation.employee_is_senior_manager === true;
+
+      if (directManagerAlreadyApproved || isCreatorSeniorManager) {
+        return true;
+      }
+
+      // Nếu chưa thỏa mãn các điều kiện trên, HR chưa được duyệt
+      return false;
     }
 
     // Kiểm tra nếu là trưởng phòng của nhân viên
     if (explanation.employee_department_manager_id === currentEmployee.id) {
-      console.log('canApproveExplanation: User is department manager', {
-        explanationId: explanation.id,
-        currentEmployeeId: currentEmployee.id,
-        employee_department_manager_id:
-          explanation.employee_department_manager_id,
-      });
       return true;
     }
 
     // Kiểm tra nếu là quản lý cấp cao hơn
     if (currentEmployee.is_manager && currentEmployee.management_level >= 2) {
-      console.log('canApproveExplanation: User is higher level manager', {
-        explanationId: explanation.id,
-        currentEmployeeId: currentEmployee.id,
-        is_manager: currentEmployee.is_manager,
-        management_level: currentEmployee.management_level,
-      });
       return true;
     }
 
-    console.log('canApproveExplanation: No approval permission found', {
-      explanationId: explanation.id,
-      currentEmployeeId: currentEmployee.id,
-      permissions: currentEmployee.permissions,
-    });
     return false;
   };
 
@@ -312,7 +329,7 @@ const Approvals: React.FC = () => {
       // 4. HR có thể duyệt ngay nếu người tạo là quản lý cấp cao hoặc NV HR
       if (
         isHR &&
-        (request.employee_is_hr || !request.employee_manager_id) &&
+        (request.employee_is_hr || request.employee_is_senior_manager) &&
         !request.hr_approved
       ) {
         return true;
@@ -449,7 +466,7 @@ const Approvals: React.FC = () => {
 
   const getStatusBadge = (
     status: string,
-    requestType?: 'EXPLANATION' | 'ONLINE_WORK' | 'LEAVE' | 'OVERTIME'
+    requestType?: 'EXPLANATION' | 'REGISTRATION' | 'ONLINE_WORK' | 'LEAVE' | 'OVERTIME'
   ) => {
     let statusText = '';
     switch (status) {
@@ -457,7 +474,9 @@ const Approvals: React.FC = () => {
         statusText = 'Chờ duyệt';
         break;
       case 'APPROVED':
-        if (requestType === 'ONLINE_WORK') {
+        if (requestType === 'REGISTRATION') {
+          statusText = 'Đăng ký đã duyệt';
+        } else if (requestType === 'ONLINE_WORK') {
           statusText = 'Làm việc online đã duyệt';
         } else if (requestType === 'EXPLANATION') {
           statusText = 'Giải trình đã duyệt';
@@ -470,7 +489,9 @@ const Approvals: React.FC = () => {
         }
         break;
       case 'REJECTED':
-        if (requestType === 'ONLINE_WORK') {
+        if (requestType === 'REGISTRATION') {
+          statusText = 'Đăng ký đã từ chối';
+        } else if (requestType === 'ONLINE_WORK') {
           statusText = 'Làm việc online đã từ chối';
         } else if (requestType === 'EXPLANATION') {
           statusText = 'Giải trình đã từ chối';
@@ -771,6 +792,12 @@ const Approvals: React.FC = () => {
     return rejectedExplanations;
   };
 
+  const getCurrentRegistrations = () => {
+    if (activeTab === 'pending') return pendingRegistrations;
+    if (activeTab === 'approved') return approvedRegistrations;
+    return rejectedRegistrations;
+  };
+
   const getCurrentTitle = () => {
     if (activeTab === 'pending') return 'Yêu cầu chờ duyệt';
     if (activeTab === 'approved') return 'Yêu cầu đã duyệt';
@@ -967,6 +994,7 @@ const Approvals: React.FC = () => {
                     </td>
                   </tr>
                 ) : getCurrentExplanations().length === 0 &&
+                  getCurrentRegistrations().length === 0 &&
                   leaveRequests.length === 0 &&
                   overtimeRequests.length === 0 &&
                   onlineWorkRequests.length === 0 ? (
@@ -1105,6 +1133,109 @@ const Approvals: React.FC = () => {
                       </tr>
                     ))}
 
+                    {/* Hiển thị đơn đăng ký (tách riêng từ attendance explanations) */}
+                    {getCurrentRegistrations().map((reg) => (
+                      <tr key={`registration-${reg.id}`}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <svg
+                                className="h-5 w-5 text-blue-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                />
+                              </svg>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                              {getRequestTypeLabel(reg)}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {reg.reason}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {reg.employee_name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {reg.employee_code}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(reg.created_at)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(reg.attendance_date)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getStatusBadge(reg.status, 'REGISTRATION')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            {activeTab === 'pending' ? (
+                              canApproveExplanation(reg) ? (
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      handleApprove(reg.id)
+                                    }
+                                    className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md text-sm"
+                                  >
+                                    Duyệt
+                                  </button>
+                                  <button
+                                    onClick={() => handleReject(reg.id)}
+                                    className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
+                                  >
+                                    Từ chối
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-gray-500 text-sm italic">
+                                  {reg.employee_id ===
+                                    currentEmployee?.id
+                                    ? 'Không thể duyệt đơn của chính mình'
+                                    : 'Không có quyền duyệt'}
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-gray-500 text-sm italic">
+                                {activeTab === 'approved'
+                                  ? 'Đã được duyệt'
+                                  : 'Đã bị từ chối'}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => handleViewDetails(reg)}
+                              className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md text-sm"
+                            >
+                              Chi tiết
+                            </button>
+                            {canDeleteExplanation(reg) && (
+                              <button
+                                onClick={() => handleDelete(reg.id)}
+                                className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
+                                title="Xóa đơn đăng ký"
+                              >
+                                Xóa
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+
                     {/* Hiển thị leave requests */}
                     {leaveRequests.map((request) => (
                       <tr key={`leave-${request.id}`}>
@@ -1156,12 +1287,17 @@ const Approvals: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
-                            <button className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md text-sm">
-                              Duyệt
-                            </button>
-                            <button className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm">
-                              Từ chối
-                            </button>
+                            {activeTab === 'pending' &&
+                              canApproveRequest(request) && (
+                                <>
+                                  <button className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md text-sm">
+                                    Duyệt
+                                  </button>
+                                  <button className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm">
+                                    Từ chối
+                                  </button>
+                                </>
+                              )}
                             <button
                               onClick={() => handleViewDetails(request)}
                               className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md text-sm"
@@ -1223,12 +1359,17 @@ const Approvals: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
-                            <button className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md text-sm">
-                              Duyệt
-                            </button>
-                            <button className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm">
-                              Từ chối
-                            </button>
+                            {activeTab === 'pending' &&
+                              canApproveRequest(request) && (
+                                <>
+                                  <button className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md text-sm">
+                                    Duyệt
+                                  </button>
+                                  <button className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm">
+                                    Từ chối
+                                  </button>
+                                </>
+                              )}
                             <button
                               onClick={() => handleViewDetails(request)}
                               className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md text-sm"
@@ -1375,7 +1516,7 @@ const Approvals: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold text-gray-900">
                     {selectedExplanation
-                      ? 'Chi tiết giải trình'
+                      ? (isRegistrationType(selectedExplanation.explanation_type) ? 'Chi tiết đăng ký' : 'Chi tiết giải trình')
                       : 'Chi tiết đơn làm việc online'}
                   </h3>
                   <button
@@ -1484,7 +1625,7 @@ const Approvals: React.FC = () => {
                   <div>
                     <h4 className="text-sm font-medium text-gray-500 mb-2">
                       {selectedExplanation
-                        ? 'Thông tin giải trình'
+                        ? (isRegistrationType(selectedExplanation.explanation_type) ? 'Thông tin đăng ký' : 'Thông tin giải trình')
                         : 'Thông tin đơn làm việc online'}
                     </h4>
                     <div className="bg-gray-50 p-4 rounded-lg">
@@ -1493,7 +1634,7 @@ const Approvals: React.FC = () => {
                           <>
                             <div className="flex justify-between">
                               <span className="text-sm text-gray-600">
-                                Ngày chấm công:
+                                {isRegistrationType(selectedExplanation.explanation_type) ? 'Ngày đăng ký:' : 'Ngày giải trình:'}
                               </span>
                               <span className="text-sm font-medium text-gray-900">
                                 {formatDate(
@@ -1501,22 +1642,28 @@ const Approvals: React.FC = () => {
                                 )}
                               </span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                Trạng thái gốc:
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {selectedExplanation.original_status}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                Trạng thái mong muốn:
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {selectedExplanation.expected_status}
-                              </span>
-                            </div>
+
+                            {/* Chỉ hiển thị trạng thái gốc/mong muốn cho các loại Giải trình thực sự */}
+                            {!isRegistrationType(selectedExplanation.explanation_type) && (
+                                <>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">
+                                      Trạng thái gốc:
+                                    </span>
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {getOriginalStatusText(selectedExplanation.original_status)}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-gray-600">
+                                      Trạng thái mong muốn:
+                                    </span>
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {getExpectedStatusText(selectedExplanation.expected_status)}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
                           </>
                         ) : (
                           <>
@@ -1550,7 +1697,9 @@ const Approvals: React.FC = () => {
                               selectedExplanation
                                 ? selectedExplanation.status
                                 : selectedOnlineWorkRequest.status,
-                              selectedExplanation ? 'EXPLANATION' : 'ONLINE_WORK'
+                              selectedExplanation
+                                ? (isRegistrationType(selectedExplanation.explanation_type) ? 'REGISTRATION' : 'EXPLANATION')
+                                : 'ONLINE_WORK'
                             )}
                           </span>
                         </div>
@@ -1771,7 +1920,7 @@ const Approvals: React.FC = () => {
                               ? 'bg-green-100 text-green-600'
                               : step.status === 'Đã từ chối'
                                 ? 'bg-red-100 text-red-600'
-                                : 'bg-gray-100 text-gray-600'
+                                : 'bg-green-100 text-green-600'
                               }`}
                           >
                             <span className="text-sm font-medium">
