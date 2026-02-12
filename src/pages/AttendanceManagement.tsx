@@ -39,6 +39,7 @@ const AttendanceManagement: React.FC = () => {
     AttendanceRecord[]
   >([]);
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
+  const [selectedDayData, setSelectedDayData] = useState<any>(null);
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [approvedExplanations, setApprovedExplanations] = useState<any[]>([]);
@@ -48,6 +49,27 @@ const AttendanceManagement: React.FC = () => {
   const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
   const [monthlyWorkCredits, setMonthlyWorkCredits] = useState<any>(null);
   const [workCreditsLoading, setWorkCreditsLoading] = useState(false);
+  const [refreshDataTrigger, setRefreshDataTrigger] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'warning';
+    title: string;
+    message: string;
+  }>({
+    show: false,
+    type: 'success',
+    title: '',
+    message: '',
+  });
+
+  const showNotify = (
+    type: 'success' | 'error' | 'warning',
+    title: string,
+    message: string
+  ) => {
+    setNotification({ show: true, type, title, message });
+  };
 
   // Kiểm tra ngày được chọn có dữ liệu chấm công không (dùng để disable Đơn giải trình)
   const hasAttendanceData = attendanceDetails && attendanceDetails.length > 0;
@@ -253,23 +275,23 @@ const AttendanceManagement: React.FC = () => {
     label: string;
     icon: string;
   }[] = [
-    { id: 'late_minutes', label: 'Đi muộn', icon: 'clock' },
-    { id: 'early_leave_minutes', label: 'Về sớm', icon: 'clock' },
-    { id: 'incomplete_attendance', label: 'Quên chấm công', icon: 'warning' },
-    { id: 'business_trip', label: 'Đi công tác', icon: 'briefcase' },
-    { id: 'first_day', label: 'Ngày đầu đi làm', icon: 'calendar' },
-  ];
+      { id: 'late_minutes', label: 'Đi muộn', icon: 'clock' },
+      { id: 'early_leave_minutes', label: 'Về sớm', icon: 'clock' },
+      { id: 'incomplete_attendance', label: 'Quên chấm công', icon: 'warning' },
+      { id: 'business_trip', label: 'Đi công tác', icon: 'briefcase' },
+      { id: 'first_day', label: 'Ngày đầu đi làm', icon: 'calendar' },
+    ];
 
   const registrationReasons: {
     id: RegistrationReason;
     label: string;
     icon: string;
   }[] = [
-    { id: 'overtime', label: 'Tăng ca', icon: 'bolt' },
-    { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' },
-    { id: 'night_shift', label: 'Trực tối', icon: 'moon' },
-    { id: 'live', label: 'Live', icon: 'video' },
-  ];
+      { id: 'overtime', label: 'Tăng ca', icon: 'bolt' },
+      { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' },
+      { id: 'night_shift', label: 'Trực tối', icon: 'moon' },
+      { id: 'live', label: 'Live', icon: 'video' },
+    ];
 
   // Handle context selection
   const handleContextSelect = (context: ContextType) => {
@@ -659,11 +681,34 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
+  // Refresh all data on page
+  const refreshAllData = async () => {
+    if (currentEmployee) {
+      console.log('🔄 [REFRESH] Refreshing all attendance data...');
+      await Promise.all([
+        fetchAttendanceStats(currentEmployee),
+        fetchAttendanceRecords(currentEmployee),
+        fetchMonthlyWorkCredits(
+          currentDate.getMonth() + 1,
+          currentDate.getFullYear(),
+          currentEmployee.id
+        ),
+        fetchCalendarData(
+          currentDate.getMonth() + 1,
+          currentDate.getFullYear(),
+          currentEmployee.id
+        ),
+      ]);
+      setRefreshDataTrigger((prev) => prev + 1);
+    }
+  };
+
   const handleDateClick = async (date: Date, dayData?: any) => {
     console.log('Date clicked in AttendanceManagement:', date);
     console.log('Day data:', dayData);
 
     setSelectedDate(date);
+    setSelectedDayData(dayData || null);
     setShowAttendanceModal(true);
     setFetchingDetails(true);
 
@@ -719,7 +764,18 @@ const AttendanceManagement: React.FC = () => {
           halfDayCount: response.results.filter(
             (record: AttendanceRecord) => record.status === 'HALF_DAY'
           ).length,
+          incompleteCount: response.results.filter(
+            (record: AttendanceRecord) => record.status === 'INCOMPLETE_ATTENDANCE'
+          ).length,
           totalShifts: response.results.length,
+          workCoefficient: dayData?.workCoefficient ?? (response.results[0] as any)?.work_coefficient ?? 0,
+          totalLateMinutes: dayData?.lateMinutes ?? response.results.reduce(
+            (sum: number, r: any) => sum + (r.late_minutes || 0), 0
+          ),
+          totalEarlyLeaveMinutes: dayData?.earlyLeaveMinutes ?? response.results.reduce(
+            (sum: number, r: any) => sum + (r.early_leave_minutes || 0), 0
+          ),
+          totalPenalty: dayData?.penalty ?? 0,
         };
         setAttendanceSummary(summary);
       } else {
@@ -731,7 +787,12 @@ const AttendanceManagement: React.FC = () => {
           earlyLeaveCount: 0,
           absentCount: 0,
           halfDayCount: 0,
+          incompleteCount: 0,
           totalShifts: 0,
+          workCoefficient: 0,
+          totalLateMinutes: 0,
+          totalEarlyLeaveMinutes: 0,
+          totalPenalty: 0,
         });
       }
     } catch (error) {
@@ -746,6 +807,7 @@ const AttendanceManagement: React.FC = () => {
   const handleCloseModal = () => {
     setShowAttendanceModal(false);
     setSelectedDate(null);
+    setSelectedDayData(null);
     setApprovedExplanations([]);
     setApprovedLeaveRequests([]);
   };
@@ -770,10 +832,15 @@ const AttendanceManagement: React.FC = () => {
 
   const handleSubmitSupplementaryRequest = async () => {
     if (!selectedDate || !currentEmployee || !selectedContext) {
-      alert('Vui lòng hoàn thành thông tin trước khi gửi.');
+      showNotify(
+        'error',
+        'Thông tin chưa đầy đủ',
+        'Vui lòng hoàn thành thông tin trước khi gửi.'
+      );
       return;
     }
 
+    setIsSubmitting(true);
     try {
       // Get original status from attendance details
       let originalStatus = 'ABSENT';
@@ -838,11 +905,13 @@ const AttendanceManagement: React.FC = () => {
             await attendanceService.createOnlineWorkRequest(onlineWorkData);
           console.log('✅ [ONLINE WORK] API Response:', result);
 
-          // Refresh stats to update remaining quota
-          console.log('🔄 [ONLINE WORK] Refreshing stats...');
-          await fetchAttendanceStats();
+          await refreshAllData();
 
-          alert('Đơn làm việc online đã được gửi thành công!');
+          showNotify(
+            'success',
+            'Thành công',
+            'Đơn làm việc online đã được gửi thành công!'
+          );
         } catch (error: any) {
           console.error('❌ [ONLINE WORK] Lỗi khi tạo đơn:', error);
           console.error(
@@ -862,7 +931,7 @@ const AttendanceManagement: React.FC = () => {
             errorMessage = `Lỗi: ${error.message}`;
           }
 
-          alert(errorMessage);
+          showNotify('error', 'Lỗi gửi đơn', errorMessage);
           return;
         }
       } else {
@@ -932,10 +1001,15 @@ const AttendanceManagement: React.FC = () => {
         result =
           await attendanceService.createAttendanceExplanation(explanationData);
         console.log('Attendance explanation created:', result);
-        alert('Đơn bổ sung công đã được gửi thành công!');
+
+        await refreshAllData();
+        showNotify(
+          'success',
+          'Thành công',
+          'Đơn bổ sung công đã được gửi thành công!'
+        );
       }
 
-      await fetchAttendanceStats(currentEmployee);
       handleCloseSupplementaryRequest();
     } catch (error: any) {
       console.error('Error submitting supplementary request:', error);
@@ -945,7 +1019,9 @@ const AttendanceManagement: React.FC = () => {
         (selectedContext === 'online_work'
           ? 'Gửi đơn làm việc online thất bại. Vui lòng thử lại.'
           : 'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.');
-      alert(`Lỗi: ${errorMessage}`);
+      showNotify('error', 'Lỗi hệ thống', errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1004,8 +1080,7 @@ const AttendanceManagement: React.FC = () => {
       if (fileInput) fileInput.value = '';
 
       // Refresh attendance data
-      fetchAttendanceStats(currentEmployee);
-      fetchAttendanceRecords(currentEmployee);
+      await refreshAllData();
     } catch (error: any) {
       console.error('Upload error:', error);
       const errorMessage =
@@ -1086,11 +1161,10 @@ const AttendanceManagement: React.FC = () => {
                   <button
                     onClick={handleUpload}
                     disabled={uploading}
-                    className={`px-4 py-2 rounded-md transition-colors ${
-                      uploading
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-green-600 hover:bg-green-700 text-white'
-                    }`}
+                    className={`px-4 py-2 rounded-md transition-colors ${uploading
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-700 text-white'
+                      }`}
                   >
                     {uploading ? 'Đang upload...' : 'Upload'}
                   </button>
@@ -1128,11 +1202,10 @@ const AttendanceManagement: React.FC = () => {
 
               {uploadMessage && (
                 <div
-                  className={`mt-4 p-3 rounded-md w-full max-w-md ${
-                    uploadMessage.type === 'success'
-                      ? 'bg-green-50 text-green-800'
-                      : 'bg-red-50 text-red-800'
-                  }`}
+                  className={`mt-4 p-3 rounded-md w-full max-w-md ${uploadMessage.type === 'success'
+                    ? 'bg-green-50 text-green-800'
+                    : 'bg-red-50 text-red-800'
+                    }`}
                 >
                   <div className="flex items-center">
                     {uploadMessage.type === 'success' ? (
@@ -1363,6 +1436,7 @@ const AttendanceManagement: React.FC = () => {
           onDateClick={handleDateClick}
           onMonthChange={(date: Date) => setCurrentDate(date)}
           employeeId={currentEmployee?.id}
+          refreshTrigger={refreshDataTrigger}
         />
       </div>
 
@@ -1473,13 +1547,12 @@ const AttendanceManagement: React.FC = () => {
                         ].map((request, reqIdx) => (
                           <div
                             key={reqIdx}
-                            className={`rounded-lg p-3 border-l-4 ${
-                              request.status === 'APPROVED'
-                                ? 'bg-green-50 border-green-500'
-                                : request.status === 'REJECTED'
-                                  ? 'bg-red-50 border-red-500'
-                                  : 'bg-yellow-50 border-yellow-500'
-                            }`}
+                            className={`rounded-lg p-3 border-l-4 ${request.status === 'APPROVED'
+                              ? 'bg-green-50 border-green-500'
+                              : request.status === 'REJECTED'
+                                ? 'bg-red-50 border-red-500'
+                                : 'bg-yellow-50 border-yellow-500'
+                              }`}
                           >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
@@ -1488,15 +1561,14 @@ const AttendanceManagement: React.FC = () => {
                                     {request.request_code}
                                   </p>
                                   <span
-                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                                      request.type === 'explanation'
-                                        ? 'bg-purple-100 text-purple-800'
-                                        : request.type === 'registration'
-                                          ? 'bg-indigo-100 text-indigo-800'
-                                          : request.type === 'online_work'
-                                            ? 'bg-blue-100 text-blue-800'
-                                            : 'bg-orange-100 text-orange-800'
-                                    }`}
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${request.type === 'explanation'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : request.type === 'registration'
+                                        ? 'bg-indigo-100 text-indigo-800'
+                                        : request.type === 'online_work'
+                                          ? 'bg-blue-100 text-blue-800'
+                                          : 'bg-orange-100 text-orange-800'
+                                      }`}
                                   >
                                     {(request.type === 'explanation' || request.type === 'registration')
                                       ? getExplanationTypeLabel(request.explanation_type)
@@ -1544,62 +1616,62 @@ const AttendanceManagement: React.FC = () => {
                                 {(request.type === 'explanation' ||
                                   request.type === 'registration' ||
                                   request.type === 'online_work') && (
-                                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    {/* Step 1: Manager */}
-                                    <div className="flex items-center space-x-2 p-1.5 bg-white bg-opacity-50 rounded border border-gray-100">
-                                      {request.direct_manager_approved || request.status === 'APPROVED' ? (
-                                        <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                                      ) : request.status === 'REJECTED' &&
-                                        !request.direct_manager_approved ? (
-                                        <NoSymbolIcon className="h-4 w-4 text-red-500" />
-                                      ) : (
-                                        <ClockIcon className="h-4 w-4 text-gray-400" />
-                                      )}
-                                      <div className="flex flex-col">
-                                        <span className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">
-                                          Quản lý trực tiếp
-                                        </span>
-                                        <span className="text-xs text-gray-900">
-                                          {request.direct_manager_approved_by_name ||
-                                            (request.status === 'APPROVED'
-                                              ? 'Tự động duyệt'
-                                              : request.status === 'REJECTED' &&
-                                                !request.direct_manager_approved
-                                                ? 'Từ chối'
-                                                : 'Chờ duyệt')}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* Step 2: HR */}
-                                    <div className="flex items-center space-x-2 p-1.5 bg-white bg-opacity-50 rounded border border-gray-100">
-                                      {request.hr_approved || request.status === 'APPROVED' ? (
-                                        <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                                      ) : request.status === 'REJECTED' &&
-                                        request.direct_manager_approved ? (
-                                        <NoSymbolIcon className="h-4 w-4 text-red-500" />
-                                      ) : (
-                                        <ClockIcon className="h-4 w-4 text-gray-400" />
-                                      )}
-                                      <div className="flex flex-col">
-                                        <span className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">
-                                          Nhân sự (HR)
-                                        </span>
-                                        <span className="text-xs text-gray-900">
-                                          {request.hr_approved_by_name ||
-                                            (request.status === 'APPROVED' && !request.hr_approved
-                                              ? 'Không cần duyệt'
-                                              : request.status === 'APPROVED'
-                                                ? 'Đã duyệt'
+                                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                      {/* Step 1: Manager */}
+                                      <div className="flex items-center space-x-2 p-1.5 bg-white bg-opacity-50 rounded border border-gray-100">
+                                        {request.direct_manager_approved || request.status === 'APPROVED' ? (
+                                          <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                                        ) : request.status === 'REJECTED' &&
+                                          !request.direct_manager_approved ? (
+                                          <NoSymbolIcon className="h-4 w-4 text-red-500" />
+                                        ) : (
+                                          <ClockIcon className="h-4 w-4 text-gray-400" />
+                                        )}
+                                        <div className="flex flex-col">
+                                          <span className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">
+                                            Quản lý trực tiếp
+                                          </span>
+                                          <span className="text-xs text-gray-900">
+                                            {request.direct_manager_approved_by_name ||
+                                              (request.status === 'APPROVED'
+                                                ? 'Tự động duyệt'
                                                 : request.status === 'REJECTED' &&
-                                                  request.direct_manager_approved
+                                                  !request.direct_manager_approved
                                                   ? 'Từ chối'
                                                   : 'Chờ duyệt')}
-                                        </span>
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Step 2: HR */}
+                                      <div className="flex items-center space-x-2 p-1.5 bg-white bg-opacity-50 rounded border border-gray-100">
+                                        {request.hr_approved || request.status === 'APPROVED' ? (
+                                          <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                                        ) : request.status === 'REJECTED' &&
+                                          request.direct_manager_approved ? (
+                                          <NoSymbolIcon className="h-4 w-4 text-red-500" />
+                                        ) : (
+                                          <ClockIcon className="h-4 w-4 text-gray-400" />
+                                        )}
+                                        <div className="flex flex-col">
+                                          <span className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">
+                                            Nhân sự (HR)
+                                          </span>
+                                          <span className="text-xs text-gray-900">
+                                            {request.hr_approved_by_name ||
+                                              (request.status === 'APPROVED' && !request.hr_approved
+                                                ? 'Không cần duyệt'
+                                                : request.status === 'APPROVED'
+                                                  ? 'Đã duyệt'
+                                                  : request.status === 'REJECTED' &&
+                                                    request.direct_manager_approved
+                                                    ? 'Từ chối'
+                                                    : 'Chờ duyệt')}
+                                          </span>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
 
                                 {request.type === 'leave' && (
                                   <div className="mt-2 flex items-center space-x-2">
@@ -1613,13 +1685,12 @@ const AttendanceManagement: React.FC = () => {
 
                               <div className="flex flex-col items-end">
                                 <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                    request.status === 'APPROVED'
-                                      ? 'bg-green-100 text-green-800'
-                                      : request.status === 'REJECTED'
-                                        ? 'bg-red-100 text-red-800'
-                                        : 'bg-yellow-100 text-yellow-800'
-                                  }`}
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${request.status === 'APPROVED'
+                                    ? 'bg-green-100 text-green-800'
+                                    : request.status === 'REJECTED'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                    }`}
                                 >
                                   {request.status === 'APPROVED'
                                     ? 'Đã duyệt'
@@ -1662,101 +1733,77 @@ const AttendanceManagement: React.FC = () => {
                         </p>
                       </div>
                     ) : attendanceDetails.length > 0 ? (
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-3 md:px-6 py-3 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Ca làm
-                            </th>
-                            <th className="px-3 md:px-6 py-3 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Giờ vào
-                            </th>
-                            <th className="px-3 md:px-6 py-3 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Giờ ra
-                            </th>
-                            <th className="px-3 md:px-6 py-3 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Tổng giờ
-                            </th>
-                            <th className="px-3 md:px-6 py-3 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Trạng thái
-                            </th>
-                            <th className="px-3 md:px-6 py-3 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Ghi chú
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {attendanceDetails.map((record, index) => (
-                            <tr key={record.id || index}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {record.shift_type_display || 'Cả ngày'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {(() => {
-                                  // Handle INCOMPLETE_ATTENDANCE: swap check_in/check_out based on time
-                                  if (
-                                    record.status === 'INCOMPLETE_ATTENDANCE' &&
-                                    record.check_in &&
-                                    !record.check_out
-                                  ) {
-                                    const checkInTime =
-                                      record.check_in.substring(0, 5); // HH:MM
-                                    if (checkInTime >= '12:00') {
-                                      // check_in >= 12:00 → value thực ra là check_out, hiển thị '--:--' cho check_in
-                                      return '--:--';
+                      <>
+                        {/* Desktop: Table */}
+                        <table className="hidden md:table min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Ca làm
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Giờ vào
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Giờ ra
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Tổng giờ
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Trạng thái
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Ghi chú
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {attendanceDetails.map((record, index) => (
+                              <tr key={record.id || index}>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {record.shift_type_display || 'Cả ngày'}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {(() => {
+                                    if (
+                                      record.status === 'INCOMPLETE_ATTENDANCE' &&
+                                      record.check_in &&
+                                      !record.check_out
+                                    ) {
+                                      const checkInTime = record.check_in.substring(0, 5);
+                                      if (checkInTime >= '12:00') return '--:--';
                                     }
-                                  }
-                                  // Normal case
-                                  return record.check_in
-                                    ? new Date(
-                                        `2000-01-01T${record.check_in}`
-                                      ).toLocaleTimeString('vi-VN', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })
-                                    : '--:--';
-                                })()}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {(() => {
-                                  // Handle INCOMPLETE_ATTENDANCE: swap check_in/check_out based on time
-                                  if (
-                                    record.status === 'INCOMPLETE_ATTENDANCE' &&
-                                    record.check_in &&
-                                    !record.check_out
-                                  ) {
-                                    const checkInTime =
-                                      record.check_in.substring(0, 5); // HH:MM
-                                    if (checkInTime >= '12:00') {
-                                      // check_in >= 12:00 → value thực ra là check_out, hiển thị value của check_in cho check_out
-                                      return new Date(
-                                        `2000-01-01T${record.check_in}`
-                                      ).toLocaleTimeString('vi-VN', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      });
+                                    return record.check_in
+                                      ? new Date(`2000-01-01T${record.check_in}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                                      : '--:--';
+                                  })()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {(() => {
+                                    if (
+                                      record.status === 'INCOMPLETE_ATTENDANCE' &&
+                                      record.check_in &&
+                                      !record.check_out
+                                    ) {
+                                      const checkInTime = record.check_in.substring(0, 5);
+                                      if (checkInTime >= '12:00') {
+                                        return new Date(`2000-01-01T${record.check_in}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                                      }
                                     }
-                                  }
-                                  // Normal case
-                                  return record.check_out
-                                    ? new Date(
-                                        `2000-01-01T${record.check_out}`
-                                      ).toLocaleTimeString('vi-VN', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })
-                                    : '--:--';
-                                })()}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {record.working_hours
-                                  ? `${Number(record.working_hours).toFixed(1)} giờ`
-                                  : '0 giờ'}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span
-                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                    record.status === 'PRESENT'
+                                    return record.check_out
+                                      ? new Date(`2000-01-01T${record.check_out}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                                      : '--:--';
+                                  })()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {record.working_hours
+                                    ? `${Number(record.working_hours).toFixed(1)} giờ`
+                                    : '0 giờ'}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span
+                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'PRESENT'
                                       ? 'bg-green-100 text-green-800'
                                       : record.status === 'LATE'
                                         ? 'bg-yellow-100 text-yellow-800'
@@ -1767,41 +1814,101 @@ const AttendanceManagement: React.FC = () => {
                                             : record.status === 'HALF_DAY'
                                               ? 'bg-blue-100 text-blue-800'
                                               : 'bg-gray-100 text-gray-800'
-                                  }`}
-                                >
-                                  {record.status_display || record.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <div className="space-y-1">
-                                  {record.notes && <div>{record.notes}</div>}
-                                  {(record.late_minutes > 0 ||
-                                    record.early_leave_minutes > 0) && (
-                                    <div className="text-xs text-gray-600">
-                                      {record.late_minutes > 0 && (
-                                        <div>
-                                          Đi muộn: {record.late_minutes} phút
-                                        </div>
-                                      )}
-                                      {record.early_leave_minutes > 0 && (
-                                        <div>
-                                          Về sớm: {record.early_leave_minutes}{' '}
-                                          phút
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                  {!record.notes &&
-                                    record.late_minutes === 0 &&
-                                    record.early_leave_minutes === 0 && (
-                                      <div>-</div>
+                                      }`}
+                                  >
+                                    {record.status_display || record.status}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  <div className="space-y-1">
+                                    {record.notes && <div>{record.notes}</div>}
+                                    {(record.late_minutes > 0 || record.early_leave_minutes > 0) && (
+                                      <div className="text-xs text-gray-600">
+                                        {record.late_minutes > 0 && <div>Đi muộn: {record.late_minutes} phút</div>}
+                                        {record.early_leave_minutes > 0 && <div>Về sớm: {record.early_leave_minutes} phút</div>}
+                                      </div>
                                     )}
+                                    {!record.notes && record.late_minutes === 0 && record.early_leave_minutes === 0 && <div>-</div>}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+
+                        {/* Mobile: Card layout */}
+                        <div className="md:hidden divide-y divide-gray-100">
+                          {attendanceDetails.map((record, index) => {
+                            const checkIn = (() => {
+                              if (record.status === 'INCOMPLETE_ATTENDANCE' && record.check_in && !record.check_out) {
+                                if (record.check_in.substring(0, 5) >= '12:00') return '--:--';
+                              }
+                              return record.check_in
+                                ? new Date(`2000-01-01T${record.check_in}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                                : '--:--';
+                            })();
+                            const checkOut = (() => {
+                              if (record.status === 'INCOMPLETE_ATTENDANCE' && record.check_in && !record.check_out) {
+                                if (record.check_in.substring(0, 5) >= '12:00') {
+                                  return new Date(`2000-01-01T${record.check_in}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                                }
+                              }
+                              return record.check_out
+                                ? new Date(`2000-01-01T${record.check_out}`).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                                : '--:--';
+                            })();
+
+                            return (
+                              <div key={record.id || index} className="p-3 space-y-2">
+                                {/* Row 1: Shift name + Status badge */}
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-semibold text-gray-900">
+                                    {record.shift_type_display || 'Cả ngày'}
+                                  </span>
+                                  <span
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${record.status === 'PRESENT'
+                                      ? 'bg-green-100 text-green-800'
+                                      : record.status === 'LATE'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : record.status === 'EARLY_LEAVE'
+                                          ? 'bg-orange-100 text-orange-800'
+                                          : record.status === 'ABSENT'
+                                            ? 'bg-red-100 text-red-800'
+                                            : record.status === 'HALF_DAY'
+                                              ? 'bg-blue-100 text-blue-800'
+                                              : 'bg-gray-100 text-gray-800'
+                                      }`}
+                                  >
+                                    {record.status_display || record.status}
+                                  </span>
                                 </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                {/* Row 2: Times + Hours */}
+                                <div className="flex items-center gap-3 text-sm text-gray-600">
+                                  <span className="font-mono">{checkIn} &rarr; {checkOut}</span>
+                                  <span className="text-gray-400">|</span>
+                                  <span>{record.working_hours ? `${Number(record.working_hours).toFixed(1)}h` : '0h'}</span>
+                                </div>
+                                {/* Row 3: Notes/penalties (if any) */}
+                                {(record.notes || record.late_minutes > 0 || record.early_leave_minutes > 0) && (
+                                  <div className="text-xs text-gray-500">
+                                    {record.notes && <span>{record.notes}</span>}
+                                    {record.late_minutes > 0 && (
+                                      <span className="text-orange-600">
+                                        {record.notes ? ' · ' : ''}Muộn {record.late_minutes} phút
+                                      </span>
+                                    )}
+                                    {record.early_leave_minutes > 0 && (
+                                      <span className="text-orange-600">
+                                        {record.notes || record.late_minutes > 0 ? ' · ' : ''}Sớm {record.early_leave_minutes} phút
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
                     ) : (
                       <div className="p-8 text-center">
                         <svg
@@ -1826,42 +1933,45 @@ const AttendanceManagement: React.FC = () => {
                   </div>
 
                   {/* Summary */}
-                  <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-blue-900 text-sm">
-                        Tổng giờ làm
-                      </h4>
-                      <p className="text-xl font-bold text-blue-700 mt-1">
-                        {attendanceSummary
-                          ? `${Number(attendanceSummary.totalHours).toFixed(1)} giờ`
-                          : '0 giờ'}
-                      </p>
+                  {attendanceSummary && (
+                    <div className={`mt-6 flex items-center justify-between p-4 rounded-xl border-2 ${attendanceSummary.workCoefficient >= 1
+                      ? 'border-green-200 bg-green-50/50'
+                      : attendanceSummary.workCoefficient >= 0.5
+                        ? 'border-orange-200 bg-orange-50/50'
+                        : attendanceSummary.workCoefficient > 0
+                          ? 'border-yellow-200 bg-yellow-50/50'
+                          : 'border-gray-200 bg-gray-50/50'
+                      }`}>
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">Hệ số công</p>
+                          <p className={`text-3xl font-bold ${attendanceSummary.workCoefficient >= 1
+                            ? 'text-green-700'
+                            : attendanceSummary.workCoefficient >= 0.5
+                              ? 'text-orange-700'
+                              : 'text-gray-700'
+                            }`}>
+                            {attendanceSummary.workCoefficient || 0}
+                          </p>
+                        </div>
+                        <div className="w-px h-10 bg-gray-200" />
+                        <div>
+                          <p className="text-xs text-gray-500 font-medium">Tổng giờ làm</p>
+                          <p className="text-lg font-bold text-blue-700">
+                            {Number(attendanceSummary.totalHours).toFixed(1)}h
+                          </p>
+                        </div>
+                      </div>
+                      {attendanceSummary.totalPenalty > 0 && (
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500 font-medium">Tiền phạt</p>
+                          <p className="text-lg font-bold text-red-600">
+                            -{attendanceSummary.totalPenalty.toLocaleString('vi-VN')}đ
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-green-900 text-sm">
-                        Ca đủ công
-                      </h4>
-                      <p className="text-xl font-bold text-green-700 mt-1">
-                        {attendanceSummary?.presentCount || 0}
-                      </p>
-                    </div>
-                    <div className="bg-yellow-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-yellow-900 text-sm">
-                        Ca đi muộn
-                      </h4>
-                      <p className="text-xl font-bold text-yellow-700 mt-1">
-                        {attendanceSummary?.lateCount || 0}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <h4 className="font-medium text-gray-900 text-sm">
-                        Tổng ca
-                      </h4>
-                      <p className="text-xl font-bold text-gray-700 mt-1">
-                        {attendanceSummary?.totalShifts || 0}
-                      </p>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Action Buttons */}
                   <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3">
@@ -1959,11 +2069,10 @@ const AttendanceManagement: React.FC = () => {
                       {/* Step 1 */}
                       <div className="flex items-center">
                         <div
-                          className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${
-                            currentStep >= 1
-                              ? 'bg-purple-600 text-white shadow-lg'
-                              : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
-                          }`}
+                          className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${currentStep >= 1
+                            ? 'bg-purple-600 text-white shadow-lg'
+                            : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
+                            }`}
                         >
                           {selectedContext ? (
                             <svg
@@ -1982,9 +2091,8 @@ const AttendanceManagement: React.FC = () => {
                           )}
                         </div>
                         <span
-                          className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${
-                            currentStep >= 1 ? 'text-gray-900' : 'text-gray-400'
-                          }`}
+                          className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${currentStep >= 1 ? 'text-gray-900' : 'text-gray-400'
+                            }`}
                         >
                           Chọn loại yêu cầu
                         </span>
@@ -1992,21 +2100,19 @@ const AttendanceManagement: React.FC = () => {
 
                       {/* Connector Line */}
                       <div
-                        className={`w-12 sm:w-24 h-1 mx-4 rounded-full transition-all duration-500 ${
-                          currentStep >= 2
-                            ? 'bg-gradient-to-r from-purple-600 to-purple-600'
-                            : 'bg-gradient-to-r from-purple-600 to-gray-300'
-                        }`}
+                        className={`w-12 sm:w-24 h-1 mx-4 rounded-full transition-all duration-500 ${currentStep >= 2
+                          ? 'bg-gradient-to-r from-purple-600 to-purple-600'
+                          : 'bg-gradient-to-r from-purple-600 to-gray-300'
+                          }`}
                       />
 
                       {/* Step 2 */}
                       <div className="flex items-center">
                         <div
-                          className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${
-                            currentStep >= 2
-                              ? 'bg-purple-600 text-white shadow-lg'
-                              : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
-                          }`}
+                          className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${currentStep >= 2
+                            ? 'bg-purple-600 text-white shadow-lg'
+                            : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
+                            }`}
                         >
                           {selectedReason ? (
                             <svg
@@ -2025,9 +2131,8 @@ const AttendanceManagement: React.FC = () => {
                           )}
                         </div>
                         <span
-                          className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${
-                            currentStep >= 2 ? 'text-gray-900' : 'text-gray-400'
-                          }`}
+                          className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${currentStep >= 2 ? 'text-gray-900' : 'text-gray-400'
+                            }`}
                         >
                           Chọn lý do
                         </span>
@@ -2049,21 +2154,19 @@ const AttendanceManagement: React.FC = () => {
                           hasAttendanceData &&
                           handleContextSelect('explanation')
                         }
-                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${
-                          !hasAttendanceData
-                            ? 'opacity-50 cursor-not-allowed border-gray-200'
-                            : selectedContext === 'explanation'
-                              ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
-                              : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
-                        }`}
+                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${!hasAttendanceData
+                          ? 'opacity-50 cursor-not-allowed border-gray-200'
+                          : selectedContext === 'explanation'
+                            ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
+                            : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
+                          }`}
                       >
                         <div className="flex items-start space-x-4">
                           <div
-                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${
-                              selectedContext === 'explanation'
-                                ? 'bg-purple-100 group-hover:bg-purple-200'
-                                : 'bg-gray-100 group-hover:bg-purple-50'
-                            }`}
+                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'explanation'
+                              ? 'bg-purple-100 group-hover:bg-purple-200'
+                              : 'bg-gray-100 group-hover:bg-purple-50'
+                              }`}
                           >
                             <svg
                               className={`w-6 h-6 ${selectedContext === 'explanation' ? 'text-purple-600' : 'text-gray-500 group-hover:text-purple-500'}`}
@@ -2125,19 +2228,17 @@ const AttendanceManagement: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleContextSelect('registration')}
-                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left ${
-                          selectedContext === 'registration'
-                            ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
-                            : 'border-gray-200 hover:border-purple-400'
-                        }`}
+                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left ${selectedContext === 'registration'
+                          ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
+                          : 'border-gray-200 hover:border-purple-400'
+                          }`}
                       >
                         <div className="flex items-start space-x-4">
                           <div
-                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${
-                              selectedContext === 'registration'
-                                ? 'bg-purple-100 group-hover:bg-purple-200'
-                                : 'bg-blue-50 group-hover:bg-blue-100'
-                            }`}
+                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'registration'
+                              ? 'bg-purple-100 group-hover:bg-purple-200'
+                              : 'bg-blue-50 group-hover:bg-blue-100'
+                              }`}
                           >
                             <svg
                               className={`w-6 h-6 ${selectedContext === 'registration' ? 'text-purple-600' : 'text-blue-600'}`}
@@ -2187,21 +2288,19 @@ const AttendanceManagement: React.FC = () => {
                         type="button"
                         onClick={() => handleContextSelect('monthly_leave')}
                         className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left
-    ${
-      selectedContext === 'monthly_leave'
-        ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
-        : 'border-gray-200 hover:border-purple-400'
-    }
+    ${selectedContext === 'monthly_leave'
+                            ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
+                            : 'border-gray-200 hover:border-purple-400'
+                          }
     ${!(currentEmployee?.position?.is_management && attendanceStats?.max_online_work_per_month > 0) ? 'sm:col-span-2' : ''}
   `}
                       >
                         <div className="flex items-start space-x-4">
                           <div
-                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${
-                              selectedContext === 'monthly_leave'
-                                ? 'bg-purple-100 group-hover:bg-purple-200'
-                                : 'bg-indigo-50 group-hover:bg-indigo-100'
-                            }`}
+                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'monthly_leave'
+                              ? 'bg-purple-100 group-hover:bg-purple-200'
+                              : 'bg-indigo-50 group-hover:bg-indigo-100'
+                              }`}
                           >
                             <svg
                               className={`w-6 h-6 ${selectedContext === 'monthly_leave' ? 'text-purple-600' : 'text-indigo-600'}`}
@@ -2258,28 +2357,25 @@ const AttendanceManagement: React.FC = () => {
                               attendanceStats?.remaining_online_work > 0 &&
                               handleContextSelect('online_work')
                             }
-                            className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${
-                              attendanceStats?.remaining_online_work <= 0
-                                ? 'opacity-50 cursor-not-allowed border-gray-200'
-                                : selectedContext === 'online_work'
-                                  ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
-                                  : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
-                            }`}
+                            className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${attendanceStats?.remaining_online_work <= 0
+                              ? 'opacity-50 cursor-not-allowed border-gray-200'
+                              : selectedContext === 'online_work'
+                                ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
+                                : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
+                              }`}
                           >
                             <div className="flex items-start space-x-4">
                               <div
-                                className={`flex-shrink-0 p-3 rounded-lg transition-colors ${
-                                  selectedContext === 'online_work'
-                                    ? 'bg-purple-100 group-hover:bg-purple-200'
-                                    : 'bg-teal-50 group-hover:bg-teal-100'
-                                }`}
+                                className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'online_work'
+                                  ? 'bg-purple-100 group-hover:bg-purple-200'
+                                  : 'bg-teal-50 group-hover:bg-teal-100'
+                                  }`}
                               >
                                 <svg
-                                  className={`w-6 h-6 ${
-                                    selectedContext === 'online_work'
-                                      ? 'text-purple-600'
-                                      : 'text-teal-600'
-                                  }`}
+                                  className={`w-6 h-6 ${selectedContext === 'online_work'
+                                    ? 'text-purple-600'
+                                    : 'text-teal-600'
+                                    }`}
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -2301,10 +2397,10 @@ const AttendanceManagement: React.FC = () => {
                                 </p>
                                 {attendanceStats?.remaining_online_work <=
                                   0 && (
-                                  <p className="mt-1 text-xs text-red-500">
-                                    Hết lượt đăng ký trong tháng
-                                  </p>
-                                )}
+                                    <p className="mt-1 text-xs text-red-500">
+                                      Hết lượt đăng ký trong tháng
+                                    </p>
+                                  )}
                               </div>
                             </div>
                             {/* Selected indicator */}
@@ -2351,11 +2447,10 @@ const AttendanceManagement: React.FC = () => {
                                 key={reason.id}
                                 type="button"
                                 onClick={() => handleReasonSelect(reason.id)}
-                                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border-2 transition-all duration-150 ${
-                                  isSelected
-                                    ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                                }`}
+                                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border-2 transition-all duration-150 ${isSelected
+                                  ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm'
+                                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                                  }`}
                               >
                                 {renderIcon(reason.icon, isSelected)}
                                 {reason.label}
@@ -2415,11 +2510,11 @@ const AttendanceManagement: React.FC = () => {
                                   <p className="text-xl font-bold text-gray-900">
                                     {attendanceDetails[0]?.check_in
                                       ? new Date(
-                                          `2000-01-01T${attendanceDetails[0].check_in}`
-                                        ).toLocaleTimeString('vi-VN', {
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })
+                                        `2000-01-01T${attendanceDetails[0].check_in}`
+                                      ).toLocaleTimeString('vi-VN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
                                       : '--:--'}
                                   </p>
                                 </div>
@@ -2447,11 +2542,11 @@ const AttendanceManagement: React.FC = () => {
                                   <p className="text-xl font-bold text-gray-900">
                                     {attendanceDetails[0]?.check_out
                                       ? new Date(
-                                          `2000-01-01T${attendanceDetails[0].check_out}`
-                                        ).toLocaleTimeString('vi-VN', {
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })
+                                        `2000-01-01T${attendanceDetails[0].check_out}`
+                                      ).toLocaleTimeString('vi-VN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
                                       : '--:--'}
                                   </p>
                                 </div>
@@ -2523,7 +2618,7 @@ const AttendanceManagement: React.FC = () => {
 
                               {selectedReason === 'early_leave_minutes' &&
                                 attendanceDetails[0]?.early_leave_minutes >
-                                  0 && (
+                                0 && (
                                   <>
                                     <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
                                       <div className="flex items-center justify-between">
@@ -2694,22 +2789,20 @@ const AttendanceManagement: React.FC = () => {
                           {overtimeStartTime && overtimeEndTime && (
                             <div className="mt-4">
                               <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${
-                                  overtimeDuration <= 0 || overtimeDuration < 2
-                                    ? 'border-red-300'
-                                    : 'border-gray-100'
-                                }`}
+                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${overtimeDuration <= 0 || overtimeDuration < 2
+                                  ? 'border-red-300'
+                                  : 'border-gray-100'
+                                  }`}
                               >
                                 <span className="text-sm text-gray-600">
                                   Tổng thời gian:
                                 </span>
                                 <span
-                                  className={`text-lg font-bold ${
-                                    overtimeDuration <= 0 ||
+                                  className={`text-lg font-bold ${overtimeDuration <= 0 ||
                                     overtimeDuration < 2
-                                      ? 'text-red-600'
-                                      : 'text-purple-700'
-                                  }`}
+                                    ? 'text-red-600'
+                                    : 'text-purple-700'
+                                    }`}
                                 >
                                   {overtimeDuration.toFixed(1)} giờ
                                 </span>
@@ -2855,23 +2948,21 @@ const AttendanceManagement: React.FC = () => {
                           {extraHoursStartTime && extraHoursEndTime && (
                             <div className="mt-4">
                               <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${
-                                  extraHoursDuration <= 0 ||
+                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${extraHoursDuration <= 0 ||
                                   extraHoursDuration < 2
-                                    ? 'border-red-300'
-                                    : 'border-gray-100'
-                                }`}
+                                  ? 'border-red-300'
+                                  : 'border-gray-100'
+                                  }`}
                               >
                                 <span className="text-sm text-gray-600">
                                   Tổng thời gian làm thêm:
                                 </span>
                                 <span
-                                  className={`text-lg font-bold ${
-                                    extraHoursDuration <= 0 ||
+                                  className={`text-lg font-bold ${extraHoursDuration <= 0 ||
                                     extraHoursDuration < 2
-                                      ? 'text-red-600'
-                                      : 'text-purple-700'
-                                  }`}
+                                    ? 'text-red-600'
+                                    : 'text-purple-700'
+                                    }`}
                                 >
                                   {extraHoursDuration.toFixed(1)} giờ
                                 </span>
@@ -2987,23 +3078,21 @@ const AttendanceManagement: React.FC = () => {
                           {nightShiftStartTime && nightShiftEndTime && (
                             <div className="mt-4">
                               <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${
-                                  nightShiftDuration <= 0 ||
+                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${nightShiftDuration <= 0 ||
                                   nightShiftDuration < 2
-                                    ? 'border-red-300'
-                                    : 'border-gray-100'
-                                }`}
+                                  ? 'border-red-300'
+                                  : 'border-gray-100'
+                                  }`}
                               >
                                 <span className="text-sm text-gray-600">
                                   Tổng thời gian trực tại nhà:
                                 </span>
                                 <span
-                                  className={`text-lg font-bold ${
-                                    nightShiftDuration <= 0 ||
+                                  className={`text-lg font-bold ${nightShiftDuration <= 0 ||
                                     nightShiftDuration < 2
-                                      ? 'text-red-600'
-                                      : 'text-purple-700'
-                                  }`}
+                                    ? 'text-red-600'
+                                    : 'text-purple-700'
+                                    }`}
                                 >
                                   {nightShiftDuration.toFixed(1)} giờ
                                 </span>
@@ -3120,21 +3209,19 @@ const AttendanceManagement: React.FC = () => {
                           {liveStartTime && liveEndTime && (
                             <div className="mt-4">
                               <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${
-                                  liveDuration <= 0 || liveDuration < 2
-                                    ? 'border-red-300'
-                                    : 'border-gray-100'
-                                }`}
+                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${liveDuration <= 0 || liveDuration < 2
+                                  ? 'border-red-300'
+                                  : 'border-gray-100'
+                                  }`}
                               >
                                 <span className="text-sm text-gray-600">
                                   Tổng thời gian live:
                                 </span>
                                 <span
-                                  className={`text-lg font-bold ${
-                                    liveDuration <= 0 || liveDuration < 2
-                                      ? 'text-red-600'
-                                      : 'text-purple-700'
-                                  }`}
+                                  className={`text-lg font-bold ${liveDuration <= 0 || liveDuration < 2
+                                    ? 'text-red-600'
+                                    : 'text-purple-700'
+                                    }`}
                                 >
                                   {liveDuration.toFixed(1)} giờ
                                 </span>
@@ -3324,36 +3411,47 @@ const AttendanceManagement: React.FC = () => {
                   type="button"
                   onClick={() => setShowConfirmModal(true)}
                   disabled={
+                    isSubmitting ||
                     !selectedContext ||
                     ((selectedContext === 'explanation' ||
                       selectedContext === 'registration') &&
                       !selectedReason) ||
                     !isRegistrationTimeValid()
                   }
-                  className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-transparent shadow-lg text-base font-semibold transition-all duration-200 ${
-                    ((selectedContext &&
+                  className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-transparent shadow-lg text-base font-semibold transition-all duration-200 ${isSubmitting
+                    ? 'bg-purple-400 text-white cursor-wait'
+                    : ((selectedContext &&
                       (selectedContext === 'monthly_leave' ||
                         selectedContext === 'online_work')) ||
                       (selectedContext && selectedReason)) &&
-                    isRegistrationTimeValid()
+                      isRegistrationTimeValid()
                       ? 'text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transform hover:scale-[1.02]'
                       : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
-                  <svg
-                    className="w-5 h-5 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                    />
-                  </svg>
-                  Gửi đơn
+                  {isSubmitting ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Đang xử lý...
+                    </div>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-5 h-5 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                        />
+                      </svg>
+                      Gửi đơn
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -3693,13 +3791,96 @@ const AttendanceManagement: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => {
                     setShowConfirmModal(false);
                     handleSubmitSupplementaryRequest();
                   }}
-                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold hover:from-purple-700 hover:to-purple-800 transition-all duration-200 shadow-lg"
+                  className={`flex-1 px-4 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center justify-center ${isSubmitting
+                    ? 'bg-purple-400 text-white cursor-wait'
+                    : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800'
+                    }`}
                 >
-                  OK
+                  {isSubmitting ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Đang gửi...
+                    </div>
+                  ) : (
+                    'OK'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Notification Dialog */}
+      {notification.show && (
+        <div className="fixed inset-0 z-[100] overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => setNotification((prev) => ({ ...prev, show: false }))}
+            ></div>
+
+            <span
+              className="hidden sm:inline-block sm:align-middle sm:h-screen"
+              aria-hidden="true"
+            >
+              &#8203;
+            </span>
+
+            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm sm:w-full sm:p-6">
+              <div>
+                <div
+                  className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${notification.type === 'success'
+                    ? 'bg-green-100'
+                    : notification.type === 'error'
+                      ? 'bg-red-100'
+                      : 'bg-yellow-100'
+                    }`}
+                >
+                  {notification.type === 'success' ? (
+                    <CheckCircleIcon
+                      className="h-6 w-6 text-green-600"
+                      aria-hidden="true"
+                    />
+                  ) : notification.type === 'error' ? (
+                    <XMarkIcon
+                      className="h-6 w-6 text-red-600"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <ClockIcon
+                      className="h-6 w-6 text-yellow-600"
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+                <div className="mt-3 text-center sm:mt-5">
+                  <h3 className="text-lg leading-6 font-bold text-gray-900">
+                    {notification.title}
+                  </h3>
+                  <div className="mt-2 text-sm text-gray-500">
+                    <p>{notification.message}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-5 sm:mt-6">
+                <button
+                  type="button"
+                  className={`inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm transition-colors ${notification.type === 'success'
+                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                    : notification.type === 'error'
+                      ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                      : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
+                    }`}
+                  onClick={() =>
+                    setNotification((prev) => ({ ...prev, show: false }))
+                  }
+                >
+                  Đóng
                 </button>
               </div>
             </div>
