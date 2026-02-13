@@ -269,13 +269,36 @@ const Approvals: React.FC = () => {
 
   /**
    * Kiểm tra xem có thể xóa đơn giải trình không
-   * CHỈ NGƯỜI TẠO ĐƠN mới được xóa
+   * - CHỈ người tạo đơn mới thấy nút xóa (Admin/HR/QL chỉ có duyệt/từ chối)
+   * - Chỉ được xóa khi status là DRAFT hoặc PENDING
+   * - Không được xóa khi quản lý trực tiếp đã duyệt
+   * - Không được xóa khi có situation đã được xử lý
    */
   const canDeleteExplanation = (explanation: any): boolean => {
     if (!currentEmployee) return false;
 
-    // Chỉ người tạo đơn mới được xóa
-    return explanation.employee_id === currentEmployee.id;
+    // Chỉ người tạo đơn mới thấy nút xóa
+    if (explanation.employee_id !== currentEmployee.id) return false;
+
+    // Chỉ xóa được khi DRAFT hoặc PENDING
+    if (!['DRAFT', 'PENDING'].includes(explanation.status)) return false;
+
+    // Không xóa được khi quản lý trực tiếp đã duyệt
+    if (explanation.direct_manager_approved) return false;
+
+    // Không xóa được khi có situation đã xử lý
+    const situationDetails = explanation.situation_details;
+    if (situationDetails && typeof situationDetails === 'object') {
+      for (const key of Object.keys(situationDetails)) {
+        const situation = situationDetails[key];
+        if (situation && typeof situation === 'object' &&
+          ['APPROVED', 'REJECTED'].includes(situation.status)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   };
 
   // Generic function to check if current user can approve any request type
