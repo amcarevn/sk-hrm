@@ -706,7 +706,76 @@ class AttendanceService {
       throw error;
     }
   }
+
+  /**
+   * Lấy danh sách đơn đăng ký công (tăng ca, làm thêm giờ, trực tối, live)
+   */
+  async getRegistrationRequests(params?: {
+    employee_id?: number;
+    month?: number;
+    year?: number;
+    registration_type?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+    page_size?: number;
+    ordering?: string;
+  }): Promise<{ count: number; results: RegistrationRequest[] }> {
+    try {
+      const response = await managementApi.get('/api-hrm/registration-requests/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching registration requests:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Tạo đơn đăng ký công mới
+   */
+  async createRegistrationRequest(data: {
+    employee_id: number;
+    attendance_date: string;
+    registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE';
+    start_time?: string;
+    end_time?: string;
+    reason: string;
+    status?: string;
+  }): Promise<RegistrationRequest> {
+    try {
+      const response = await managementApi.post('/api-hrm/registration-requests/', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating registration request:', error);
+      throw error;
+    }
+  }
 }
 
 export const attendanceService = new AttendanceService();
 export default attendanceService;
+
+// RegistrationRequest interface
+export interface RegistrationRequest {
+  id: number;
+  request_code: string;
+  employee: number;
+  employee_name: string;
+  employee_id_code?: string;
+  department_name?: string;
+  registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE';
+  registration_type_display: string;
+  attendance_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  total_hours: number;
+  reason: string;
+  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  status_display: string;
+  direct_manager_approved: boolean;
+  hr_approved: boolean;
+  direct_manager_approved_at: string | null;
+  hr_approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

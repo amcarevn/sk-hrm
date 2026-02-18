@@ -5,7 +5,7 @@ import {
   attendanceService,
   AttendanceRecord,
 } from '../services/attendance.service';
-import { employeesAPI, Employee } from '../utils/api';
+import { employeesAPI, Employee, managementApi } from '../utils/api';
 import {
   XMarkIcon,
   DocumentPlusIcon,
@@ -14,6 +14,7 @@ import {
   UserIcon,
   CheckCircleIcon,
   NoSymbolIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 
 const AttendanceManagement: React.FC = () => {
@@ -51,6 +52,22 @@ const AttendanceManagement: React.FC = () => {
   const [workCreditsLoading, setWorkCreditsLoading] = useState(false);
   const [refreshDataTrigger, setRefreshDataTrigger] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // === Lịch sử đơn tháng ===
+  const [showRequestHistoryDrawer, setShowRequestHistoryDrawer] = useState(false);
+  const [requestHistoryLoading, setRequestHistoryLoading] = useState(false);
+  const [monthlyRequestHistory, setMonthlyRequestHistory] = useState<{
+    explanations: any[];
+    registrations: any[];
+    onlineWorks: any[];
+    leaveRequests: any[];
+  }>({
+    explanations: [],
+    registrations: [],
+    onlineWorks: [],
+    leaveRequests: [],
+  });
+  const [historyActiveTab, setHistoryActiveTab] = useState<'all' | 'explanation' | 'registration' | 'online_work' | 'leave'>('all');
   const [notification, setNotification] = useState<{
     show: boolean;
     type: 'success' | 'error' | 'warning';
@@ -275,23 +292,23 @@ const AttendanceManagement: React.FC = () => {
     label: string;
     icon: string;
   }[] = [
-    { id: 'late_minutes', label: 'Đi muộn', icon: 'clock' },
-    { id: 'early_leave_minutes', label: 'Về sớm', icon: 'clock' },
-    { id: 'incomplete_attendance', label: 'Quên chấm công', icon: 'warning' },
-    { id: 'business_trip', label: 'Đi công tác', icon: 'briefcase' },
-    { id: 'first_day', label: 'Ngày đầu đi làm', icon: 'calendar' },
-  ];
+      { id: 'late_minutes', label: 'Đi muộn', icon: 'clock' },
+      { id: 'early_leave_minutes', label: 'Về sớm', icon: 'clock' },
+      { id: 'incomplete_attendance', label: 'Quên chấm công', icon: 'warning' },
+      { id: 'business_trip', label: 'Đi công tác', icon: 'briefcase' },
+      { id: 'first_day', label: 'Ngày đầu đi làm', icon: 'calendar' },
+    ];
 
   const registrationReasons: {
     id: RegistrationReason;
     label: string;
     icon: string;
   }[] = [
-    { id: 'overtime', label: 'Tăng ca', icon: 'bolt' },
-    { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' },
-    { id: 'night_shift', label: 'Trực tối', icon: 'moon' },
-    { id: 'live', label: 'Live', icon: 'video' },
-  ];
+      { id: 'overtime', label: 'Tăng ca', icon: 'bolt' },
+      { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' },
+      { id: 'night_shift', label: 'Trực tối', icon: 'moon' },
+      { id: 'live', label: 'Live', icon: 'video' },
+    ];
 
   // Handle context selection
   const handleContextSelect = (context: ContextType) => {
@@ -681,6 +698,64 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
+  // Fetch lịch sử đơn trong tháng hiện tại
+  const fetchMonthlyRequestHistory = async () => {
+    if (!currentEmployee) return;
+    setRequestHistoryLoading(true);
+    try {
+      const today = currentDate || new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      // Gọi 3 endpoint riêng: giải trình, đăng ký công, online work
+      const [explanationsRes, registrationsRes, onlineWorksRes] = await Promise.all([
+        managementApi.get('/api-hrm/attendance-explanations/', {
+          params: {
+            employee_id: currentEmployee.id,
+            start_date: fmt(firstDay),
+            end_date: fmt(lastDay),
+            page_size: 100,
+            ordering: '-created_at',
+          },
+        }),
+        attendanceService.getRegistrationRequests({
+          employee_id: currentEmployee.id,
+          month: today.getMonth() + 1,
+          year: today.getFullYear(),
+          page_size: 100,
+        }),
+        attendanceService.getOnlineWorkRequests({
+          employee: currentEmployee.id,
+        }),
+      ]);
+
+      const explanations: any[] = explanationsRes.data?.results || [];
+      const registrations: any[] = registrationsRes?.results || [];
+      const onlineWorks = Array.isArray(onlineWorksRes)
+        ? onlineWorksRes
+        : onlineWorksRes?.results || [];
+
+      // Lọc online works theo tháng
+      const filteredOnlineWorks = onlineWorks.filter((ow: any) => {
+        if (!ow.work_date) return false;
+        const d = new Date(ow.work_date);
+        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+      });
+
+      setMonthlyRequestHistory({
+        explanations,
+        registrations,
+        onlineWorks: filteredOnlineWorks,
+        leaveRequests: [],
+      });
+    } catch (error) {
+      console.error('Error fetching monthly request history:', error);
+    } finally {
+      setRequestHistoryLoading(false);
+    }
+  };
+
   // Refresh all data on page
   const refreshAllData = async () => {
     if (currentEmployee) {
@@ -944,34 +1019,59 @@ const AttendanceManagement: React.FC = () => {
           showNotify('error', 'Lỗi gửi đơn', errorMessage);
           return;
         }
-      } else {
-        // Prepare data for API for other request types
-        const isRegistration =
-          selectedContext === 'registration' ||
-          selectedReason === 'business_trip' ||
-          selectedReason === 'first_day';
+      } else if (selectedContext === 'registration') {
+        // Đăng ký công (OVERTIME, EXTRA_HOURS, NIGHT_SHIFT, LIVE) — gọi endpoint mới
+        const registrationTypeMap: Record<string, 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE'> = {
+          overtime: 'OVERTIME',
+          extra_hours: 'EXTRA_HOURS',
+          night_shift: 'NIGHT_SHIFT',
+          live: 'LIVE',
+        };
+        const registrationType = registrationTypeMap[selectedReason as string] || 'OVERTIME';
 
-        // MAP REASON TO EXPLANATION_TYPE
-        let explanationType = 'LATE'; // default
-
-        if (selectedContext === 'explanation') {
-          const typeMap: Record<string, string> = {
-            late_minutes: 'LATE',
-            early_leave_minutes: 'EARLY_LEAVE',
-            incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
-            business_trip: 'BUSINESS_TRIP',
-            first_day: 'FIRST_DAY',
-          };
-          explanationType = typeMap[selectedReason as string] || 'LATE';
-        } else if (selectedContext === 'registration') {
-          const typeMap: Record<string, string> = {
-            overtime: 'OVERTIME',
-            extra_hours: 'EXTRA_HOURS',
-            night_shift: 'NIGHT_SHIFT',
-            live: 'LIVE',
-          };
-          explanationType = typeMap[selectedReason as string] || 'OVERTIME';
+        // Lấy start_time/end_time theo loại
+        let startTime: string | undefined;
+        let endTime: string | undefined;
+        if (selectedReason === 'overtime') {
+          startTime = overtimeStartTime;
+          endTime = overtimeEndTime;
+        } else if (selectedReason === 'extra_hours') {
+          startTime = extraHoursStartTime;
+          endTime = extraHoursEndTime;
+        } else if (selectedReason === 'night_shift') {
+          startTime = nightShiftStartTime;
+          endTime = nightShiftEndTime;
+        } else if (selectedReason === 'live') {
+          startTime = liveStartTime;
+          endTime = liveEndTime;
         }
+
+        const registrationData = {
+          employee_id: currentEmployee.id,
+          attendance_date: dateStr,
+          registration_type: registrationType,
+          start_time: startTime,
+          end_time: endTime,
+          reason: finalReason,
+          status: 'PENDING' as const,
+        };
+
+        console.log('🟢 [REGISTRATION] Data gửi lên API:', JSON.stringify(registrationData, null, 2));
+        result = await attendanceService.createRegistrationRequest(registrationData);
+        console.log('✅ [REGISTRATION] API Response:', result);
+
+        await refreshAllData();
+        showNotify('success', 'Thành công', 'Đơn đăng ký công đã được gửi thành công!');
+      } else {
+        // Giải trình (LATE, EARLY_LEAVE, INCOMPLETE_ATTENDANCE, BUSINESS_TRIP, FIRST_DAY)
+        const explanationTypeMap: Record<string, string> = {
+          late_minutes: 'LATE',
+          early_leave_minutes: 'EARLY_LEAVE',
+          incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
+          business_trip: 'BUSINESS_TRIP',
+          first_day: 'FIRST_DAY',
+        };
+        const explanationType = explanationTypeMap[selectedReason as string] || 'LATE';
 
         console.log('🔍 DEBUG explanation_type mapping:', {
           selectedContext,
@@ -986,38 +1086,15 @@ const AttendanceManagement: React.FC = () => {
           original_status: originalStatus,
           expected_status: expectedStatus,
           reason: finalReason,
-          explanation_type: explanationType, // THÊM FIELD MỚI
+          explanation_type: explanationType,
           status: 'PENDING',
-          is_registration: isRegistration,
         };
 
-        // Add time fields if applicable
-        if (selectedContext === 'registration') {
-          if (selectedReason === 'overtime') {
-            explanationData.expected_check_in = overtimeStartTime;
-            explanationData.expected_check_out = overtimeEndTime;
-          } else if (selectedReason === 'extra_hours') {
-            explanationData.expected_check_in = extraHoursStartTime;
-            explanationData.expected_check_out = extraHoursEndTime;
-          } else if (selectedReason === 'night_shift') {
-            explanationData.expected_check_in = nightShiftStartTime;
-            explanationData.expected_check_out = nightShiftEndTime;
-          } else if (selectedReason === 'live') {
-            explanationData.expected_check_in = liveStartTime;
-            explanationData.expected_check_out = liveEndTime;
-          }
-        }
-
-        result =
-          await attendanceService.createAttendanceExplanation(explanationData);
+        result = await attendanceService.createAttendanceExplanation(explanationData);
         console.log('Attendance explanation created:', result);
 
         await refreshAllData();
-        showNotify(
-          'success',
-          'Thành công',
-          'Đơn bổ sung công đã được gửi thành công!'
-        );
+        showNotify('success', 'Thành công', 'Đơn bổ sung công đã được gửi thành công!');
       }
 
       handleCloseSupplementaryRequest();
@@ -1108,12 +1185,32 @@ const AttendanceManagement: React.FC = () => {
 
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Quản lý chấm công</h1>
-        <p className="text-gray-600 mt-2">
-          Theo dõi và quản lý chấm công, đi muộn, về sớm, nghỉ phép của nhân
-          viên.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Quản lý chấm công</h1>
+          <p className="text-gray-600 mt-2">
+            Theo dõi và quản lý chấm công, đi muộn, về sớm, nghỉ phép của nhân
+            viên.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setShowRequestHistoryDrawer(true);
+            setHistoryActiveTab('all');
+            fetchMonthlyRequestHistory();
+          }}
+          className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white border border-purple-200 text-purple-700 rounded-xl shadow-sm hover:bg-purple-50 hover:border-purple-300 hover:shadow-md transition-all duration-200 font-medium text-sm"
+        >
+          <ClipboardDocumentListIcon className="h-5 w-5" />
+          <span className="hidden sm:inline">Lịch sử đơn tháng</span>
+          <span className="sm:hidden">Lịch sử</span>
+          {/* Badge tổng số đơn */}
+          {(monthlyRequestHistory.explanations.length + monthlyRequestHistory.registrations.length + monthlyRequestHistory.onlineWorks.length) > 0 && (
+            <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-purple-600 text-white rounded-full">
+              {monthlyRequestHistory.explanations.length + monthlyRequestHistory.registrations.length + monthlyRequestHistory.onlineWorks.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Upload Section - Only visible for users with permission */}
@@ -1171,11 +1268,10 @@ const AttendanceManagement: React.FC = () => {
                   <button
                     onClick={handleUpload}
                     disabled={uploading}
-                    className={`px-4 py-2 rounded-md transition-colors ${
-                      uploading
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-green-600 hover:bg-green-700 text-white'
-                    }`}
+                    className={`px-4 py-2 rounded-md transition-colors ${uploading
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-700 text-white'
+                      }`}
                   >
                     {uploading ? 'Đang upload...' : 'Upload'}
                   </button>
@@ -1213,11 +1309,10 @@ const AttendanceManagement: React.FC = () => {
 
               {uploadMessage && (
                 <div
-                  className={`mt-4 p-3 rounded-md w-full max-w-md ${
-                    uploadMessage.type === 'success'
-                      ? 'bg-green-50 text-green-800'
-                      : 'bg-red-50 text-red-800'
-                  }`}
+                  className={`mt-4 p-3 rounded-md w-full max-w-md ${uploadMessage.type === 'success'
+                    ? 'bg-green-50 text-green-800'
+                    : 'bg-red-50 text-red-800'
+                    }`}
                 >
                   <div className="flex items-center">
                     {uploadMessage.type === 'success' ? (
@@ -1613,13 +1708,12 @@ const AttendanceManagement: React.FC = () => {
                         ].map((request, reqIdx) => (
                           <div
                             key={reqIdx}
-                            className={`rounded-lg p-3 border-l-4 ${
-                              request.status === 'APPROVED'
-                                ? 'bg-green-50 border-green-500'
-                                : request.status === 'REJECTED'
-                                  ? 'bg-red-50 border-red-500'
-                                  : 'bg-yellow-50 border-yellow-500'
-                            }`}
+                            className={`rounded-lg p-3 border-l-4 ${request.status === 'APPROVED'
+                              ? 'bg-green-50 border-green-500'
+                              : request.status === 'REJECTED'
+                                ? 'bg-red-50 border-red-500'
+                                : 'bg-yellow-50 border-yellow-500'
+                              }`}
                           >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
@@ -1628,21 +1722,20 @@ const AttendanceManagement: React.FC = () => {
                                     {request.request_code}
                                   </p>
                                   <span
-                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                                      request.type === 'explanation'
-                                        ? 'bg-purple-100 text-purple-800'
-                                        : request.type === 'registration'
-                                          ? 'bg-indigo-100 text-indigo-800'
-                                          : request.type === 'online_work'
-                                            ? 'bg-blue-100 text-blue-800'
-                                            : 'bg-orange-100 text-orange-800'
-                                    }`}
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${request.type === 'explanation'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : request.type === 'registration'
+                                        ? 'bg-indigo-100 text-indigo-800'
+                                        : request.type === 'online_work'
+                                          ? 'bg-blue-100 text-blue-800'
+                                          : 'bg-orange-100 text-orange-800'
+                                      }`}
                                   >
                                     {request.type === 'explanation' ||
-                                    request.type === 'registration'
+                                      request.type === 'registration'
                                       ? getExplanationTypeLabel(
-                                          request.explanation_type
-                                        )
+                                        request.explanation_type
+                                      )
                                       : request.type === 'online_work'
                                         ? 'Làm việc online'
                                         : 'Nghỉ phép'}
@@ -1688,68 +1781,68 @@ const AttendanceManagement: React.FC = () => {
                                 {(request.type === 'explanation' ||
                                   request.type === 'registration' ||
                                   request.type === 'online_work') && (
-                                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    {/* Step 1: Manager */}
-                                    <div className="flex items-center space-x-2 p-1.5 bg-white bg-opacity-50 rounded border border-gray-100">
-                                      {request.direct_manager_approved ||
-                                      request.status === 'APPROVED' ? (
-                                        <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                                      ) : request.status === 'REJECTED' &&
-                                        !request.direct_manager_approved ? (
-                                        <NoSymbolIcon className="h-4 w-4 text-red-500" />
-                                      ) : (
-                                        <ClockIcon className="h-4 w-4 text-gray-400" />
-                                      )}
-                                      <div className="flex flex-col">
-                                        <span className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">
-                                          Quản lý trực tiếp
-                                        </span>
-                                        <span className="text-xs text-gray-900">
-                                          {request.direct_manager_approved_by_name ||
-                                            (request.status === 'APPROVED'
-                                              ? 'Tự động duyệt'
-                                              : request.status === 'REJECTED' &&
-                                                  !request.direct_manager_approved
-                                                ? 'Từ chối'
-                                                : 'Chờ duyệt')}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* Step 2: HR - ẩn khi người làm đơn là HR (chỉ cần QL trực tiếp duyệt) */}
-                                    {!request.employee_is_hr && (
+                                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                      {/* Step 1: Manager */}
                                       <div className="flex items-center space-x-2 p-1.5 bg-white bg-opacity-50 rounded border border-gray-100">
-                                        {request.hr_approved ||
-                                        request.status === 'APPROVED' ? (
+                                        {request.direct_manager_approved ||
+                                          request.status === 'APPROVED' ? (
                                           <CheckCircleIcon className="h-4 w-4 text-green-500" />
                                         ) : request.status === 'REJECTED' &&
-                                          request.direct_manager_approved ? (
+                                          !request.direct_manager_approved ? (
                                           <NoSymbolIcon className="h-4 w-4 text-red-500" />
                                         ) : (
                                           <ClockIcon className="h-4 w-4 text-gray-400" />
                                         )}
                                         <div className="flex flex-col">
                                           <span className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">
-                                            Nhân sự (HR)
+                                            Quản lý trực tiếp
                                           </span>
                                           <span className="text-xs text-gray-900">
-                                            {request.hr_approved_by_name ||
-                                              (request.status === 'APPROVED' &&
-                                              !request.hr_approved
-                                                ? 'Không cần duyệt'
-                                                : request.status === 'APPROVED'
-                                                  ? 'Đã duyệt'
-                                                  : request.status ===
-                                                        'REJECTED' &&
-                                                      request.direct_manager_approved
-                                                    ? 'Từ chối'
-                                                    : 'Chờ duyệt')}
+                                            {request.direct_manager_approved_by_name ||
+                                              (request.status === 'APPROVED'
+                                                ? 'Tự động duyệt'
+                                                : request.status === 'REJECTED' &&
+                                                  !request.direct_manager_approved
+                                                  ? 'Từ chối'
+                                                  : 'Chờ duyệt')}
                                           </span>
                                         </div>
                                       </div>
-                                    )}
-                                  </div>
-                                )}
+
+                                      {/* Step 2: HR - ẩn khi người làm đơn là HR (chỉ cần QL trực tiếp duyệt) */}
+                                      {!request.employee_is_hr && (
+                                        <div className="flex items-center space-x-2 p-1.5 bg-white bg-opacity-50 rounded border border-gray-100">
+                                          {request.hr_approved ||
+                                            request.status === 'APPROVED' ? (
+                                            <CheckCircleIcon className="h-4 w-4 text-green-500" />
+                                          ) : request.status === 'REJECTED' &&
+                                            request.direct_manager_approved ? (
+                                            <NoSymbolIcon className="h-4 w-4 text-red-500" />
+                                          ) : (
+                                            <ClockIcon className="h-4 w-4 text-gray-400" />
+                                          )}
+                                          <div className="flex flex-col">
+                                            <span className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">
+                                              Nhân sự (HR)
+                                            </span>
+                                            <span className="text-xs text-gray-900">
+                                              {request.hr_approved_by_name ||
+                                                (request.status === 'APPROVED' &&
+                                                  !request.hr_approved
+                                                  ? 'Không cần duyệt'
+                                                  : request.status === 'APPROVED'
+                                                    ? 'Đã duyệt'
+                                                    : request.status ===
+                                                      'REJECTED' &&
+                                                      request.direct_manager_approved
+                                                      ? 'Từ chối'
+                                                      : 'Chờ duyệt')}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
 
                                 {request.type === 'leave' && (
                                   <div className="mt-2 flex items-center space-x-2">
@@ -1763,13 +1856,12 @@ const AttendanceManagement: React.FC = () => {
 
                               <div className="flex flex-col items-end">
                                 <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                    request.status === 'APPROVED'
-                                      ? 'bg-green-100 text-green-800'
-                                      : request.status === 'REJECTED'
-                                        ? 'bg-red-100 text-red-800'
-                                        : 'bg-yellow-100 text-yellow-800'
-                                  }`}
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${request.status === 'APPROVED'
+                                    ? 'bg-green-100 text-green-800'
+                                    : request.status === 'REJECTED'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                    }`}
                                 >
                                   {request.status === 'APPROVED'
                                     ? 'Đã duyệt'
@@ -1847,7 +1939,7 @@ const AttendanceManagement: React.FC = () => {
                                   {(() => {
                                     if (
                                       record.status ===
-                                        'INCOMPLETE_ATTENDANCE' &&
+                                      'INCOMPLETE_ATTENDANCE' &&
                                       record.check_in &&
                                       !record.check_out
                                     ) {
@@ -1858,11 +1950,11 @@ const AttendanceManagement: React.FC = () => {
                                     }
                                     return record.check_in
                                       ? new Date(
-                                          `2000-01-01T${record.check_in}`
-                                        ).toLocaleTimeString('vi-VN', {
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })
+                                        `2000-01-01T${record.check_in}`
+                                      ).toLocaleTimeString('vi-VN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
                                       : '--:--';
                                   })()}
                                 </td>
@@ -1870,7 +1962,7 @@ const AttendanceManagement: React.FC = () => {
                                   {(() => {
                                     if (
                                       record.status ===
-                                        'INCOMPLETE_ATTENDANCE' &&
+                                      'INCOMPLETE_ATTENDANCE' &&
                                       record.check_in &&
                                       !record.check_out
                                     ) {
@@ -1887,11 +1979,11 @@ const AttendanceManagement: React.FC = () => {
                                     }
                                     return record.check_out
                                       ? new Date(
-                                          `2000-01-01T${record.check_out}`
-                                        ).toLocaleTimeString('vi-VN', {
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })
+                                        `2000-01-01T${record.check_out}`
+                                      ).toLocaleTimeString('vi-VN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
                                       : '--:--';
                                   })()}
                                 </td>
@@ -1902,19 +1994,18 @@ const AttendanceManagement: React.FC = () => {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <span
-                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                      record.status === 'PRESENT'
-                                        ? 'bg-green-100 text-green-800'
-                                        : record.status === 'LATE'
-                                          ? 'bg-yellow-100 text-yellow-800'
-                                          : record.status === 'EARLY_LEAVE'
-                                            ? 'bg-orange-100 text-orange-800'
-                                            : record.status === 'ABSENT'
-                                              ? 'bg-red-100 text-red-800'
-                                              : record.status === 'HALF_DAY'
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-gray-100 text-gray-800'
-                                    }`}
+                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'PRESENT'
+                                      ? 'bg-green-100 text-green-800'
+                                      : record.status === 'LATE'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : record.status === 'EARLY_LEAVE'
+                                          ? 'bg-orange-100 text-orange-800'
+                                          : record.status === 'ABSENT'
+                                            ? 'bg-red-100 text-red-800'
+                                            : record.status === 'HALF_DAY'
+                                              ? 'bg-blue-100 text-blue-800'
+                                              : 'bg-gray-100 text-gray-800'
+                                      }`}
                                   >
                                     {record.status_display || record.status}
                                   </span>
@@ -1924,20 +2015,20 @@ const AttendanceManagement: React.FC = () => {
                                     {record.notes && <div>{record.notes}</div>}
                                     {(record.late_minutes > 0 ||
                                       record.early_leave_minutes > 0) && (
-                                      <div className="text-xs text-gray-600">
-                                        {record.late_minutes > 0 && (
-                                          <div>
-                                            Đi muộn: {record.late_minutes} phút
-                                          </div>
-                                        )}
-                                        {record.early_leave_minutes > 0 && (
-                                          <div>
-                                            Về sớm: {record.early_leave_minutes}{' '}
-                                            phút
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
+                                        <div className="text-xs text-gray-600">
+                                          {record.late_minutes > 0 && (
+                                            <div>
+                                              Đi muộn: {record.late_minutes} phút
+                                            </div>
+                                          )}
+                                          {record.early_leave_minutes > 0 && (
+                                            <div>
+                                              Về sớm: {record.early_leave_minutes}{' '}
+                                              phút
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                     {!record.notes &&
                                       record.late_minutes === 0 &&
                                       record.early_leave_minutes === 0 && (
@@ -1964,11 +2055,11 @@ const AttendanceManagement: React.FC = () => {
                               }
                               return record.check_in
                                 ? new Date(
-                                    `2000-01-01T${record.check_in}`
-                                  ).toLocaleTimeString('vi-VN', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })
+                                  `2000-01-01T${record.check_in}`
+                                ).toLocaleTimeString('vi-VN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
                                 : '--:--';
                             })();
                             const checkOut = (() => {
@@ -1990,11 +2081,11 @@ const AttendanceManagement: React.FC = () => {
                               }
                               return record.check_out
                                 ? new Date(
-                                    `2000-01-01T${record.check_out}`
-                                  ).toLocaleTimeString('vi-VN', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })
+                                  `2000-01-01T${record.check_out}`
+                                ).toLocaleTimeString('vi-VN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
                                 : '--:--';
                             })();
 
@@ -2009,19 +2100,18 @@ const AttendanceManagement: React.FC = () => {
                                     {record.shift_type_display || 'Cả ngày'}
                                   </span>
                                   <span
-                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                                      record.status === 'PRESENT'
-                                        ? 'bg-green-100 text-green-800'
-                                        : record.status === 'LATE'
-                                          ? 'bg-yellow-100 text-yellow-800'
-                                          : record.status === 'EARLY_LEAVE'
-                                            ? 'bg-orange-100 text-orange-800'
-                                            : record.status === 'ABSENT'
-                                              ? 'bg-red-100 text-red-800'
-                                              : record.status === 'HALF_DAY'
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-gray-100 text-gray-800'
-                                    }`}
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${record.status === 'PRESENT'
+                                      ? 'bg-green-100 text-green-800'
+                                      : record.status === 'LATE'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : record.status === 'EARLY_LEAVE'
+                                          ? 'bg-orange-100 text-orange-800'
+                                          : record.status === 'ABSENT'
+                                            ? 'bg-red-100 text-red-800'
+                                            : record.status === 'HALF_DAY'
+                                              ? 'bg-blue-100 text-blue-800'
+                                              : 'bg-gray-100 text-gray-800'
+                                      }`}
                                   >
                                     {record.status_display || record.status}
                                   </span>
@@ -2042,26 +2132,26 @@ const AttendanceManagement: React.FC = () => {
                                 {(record.notes ||
                                   record.late_minutes > 0 ||
                                   record.early_leave_minutes > 0) && (
-                                  <div className="text-xs text-gray-500">
-                                    {record.notes && (
-                                      <span>{record.notes}</span>
-                                    )}
-                                    {record.late_minutes > 0 && (
-                                      <span className="text-orange-600">
-                                        {record.notes ? ' · ' : ''}Muộn{' '}
-                                        {record.late_minutes} phút
-                                      </span>
-                                    )}
-                                    {record.early_leave_minutes > 0 && (
-                                      <span className="text-orange-600">
-                                        {record.notes || record.late_minutes > 0
-                                          ? ' · '
-                                          : ''}
-                                        Sớm {record.early_leave_minutes} phút
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
+                                    <div className="text-xs text-gray-500">
+                                      {record.notes && (
+                                        <span>{record.notes}</span>
+                                      )}
+                                      {record.late_minutes > 0 && (
+                                        <span className="text-orange-600">
+                                          {record.notes ? ' · ' : ''}Muộn{' '}
+                                          {record.late_minutes} phút
+                                        </span>
+                                      )}
+                                      {record.early_leave_minutes > 0 && (
+                                        <span className="text-orange-600">
+                                          {record.notes || record.late_minutes > 0
+                                            ? ' · '
+                                            : ''}
+                                          Sớm {record.early_leave_minutes} phút
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                               </div>
                             );
                           })}
@@ -2093,15 +2183,14 @@ const AttendanceManagement: React.FC = () => {
                   {/* Summary */}
                   {attendanceSummary && (
                     <div
-                      className={`mt-6 flex items-center justify-between p-4 rounded-xl border-2 ${
-                        attendanceSummary.workCoefficient >= 1
-                          ? 'border-green-200 bg-green-50/50'
-                          : attendanceSummary.workCoefficient >= 0.5
-                            ? 'border-orange-200 bg-orange-50/50'
-                            : attendanceSummary.workCoefficient > 0
-                              ? 'border-yellow-200 bg-yellow-50/50'
-                              : 'border-gray-200 bg-gray-50/50'
-                      }`}
+                      className={`mt-6 flex items-center justify-between p-4 rounded-xl border-2 ${attendanceSummary.workCoefficient >= 1
+                        ? 'border-green-200 bg-green-50/50'
+                        : attendanceSummary.workCoefficient >= 0.5
+                          ? 'border-orange-200 bg-orange-50/50'
+                          : attendanceSummary.workCoefficient > 0
+                            ? 'border-yellow-200 bg-yellow-50/50'
+                            : 'border-gray-200 bg-gray-50/50'
+                        }`}
                     >
                       <div className="flex items-center gap-4">
                         <div>
@@ -2109,13 +2198,12 @@ const AttendanceManagement: React.FC = () => {
                             Hệ số công
                           </p>
                           <p
-                            className={`text-3xl font-bold ${
-                              attendanceSummary.workCoefficient >= 1
-                                ? 'text-green-700'
-                                : attendanceSummary.workCoefficient >= 0.5
-                                  ? 'text-orange-700'
-                                  : 'text-gray-700'
-                            }`}
+                            className={`text-3xl font-bold ${attendanceSummary.workCoefficient >= 1
+                              ? 'text-green-700'
+                              : attendanceSummary.workCoefficient >= 0.5
+                                ? 'text-orange-700'
+                                : 'text-gray-700'
+                              }`}
                           >
                             {attendanceSummary.workCoefficient || 0}
                           </p>
@@ -2243,11 +2331,10 @@ const AttendanceManagement: React.FC = () => {
                       {/* Step 1 */}
                       <div className="flex items-center">
                         <div
-                          className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${
-                            currentStep >= 1
-                              ? 'bg-purple-600 text-white shadow-lg'
-                              : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
-                          }`}
+                          className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${currentStep >= 1
+                            ? 'bg-purple-600 text-white shadow-lg'
+                            : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
+                            }`}
                         >
                           {selectedContext ? (
                             <svg
@@ -2266,9 +2353,8 @@ const AttendanceManagement: React.FC = () => {
                           )}
                         </div>
                         <span
-                          className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${
-                            currentStep >= 1 ? 'text-gray-900' : 'text-gray-400'
-                          }`}
+                          className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${currentStep >= 1 ? 'text-gray-900' : 'text-gray-400'
+                            }`}
                         >
                           Chọn loại yêu cầu
                         </span>
@@ -2276,21 +2362,19 @@ const AttendanceManagement: React.FC = () => {
 
                       {/* Connector Line */}
                       <div
-                        className={`w-12 sm:w-24 h-1 mx-4 rounded-full transition-all duration-500 ${
-                          currentStep >= 2
-                            ? 'bg-gradient-to-r from-purple-600 to-purple-600'
-                            : 'bg-gradient-to-r from-purple-600 to-gray-300'
-                        }`}
+                        className={`w-12 sm:w-24 h-1 mx-4 rounded-full transition-all duration-500 ${currentStep >= 2
+                          ? 'bg-gradient-to-r from-purple-600 to-purple-600'
+                          : 'bg-gradient-to-r from-purple-600 to-gray-300'
+                          }`}
                       />
 
                       {/* Step 2 */}
                       <div className="flex items-center">
                         <div
-                          className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${
-                            currentStep >= 2
-                              ? 'bg-purple-600 text-white shadow-lg'
-                              : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
-                          }`}
+                          className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${currentStep >= 2
+                            ? 'bg-purple-600 text-white shadow-lg'
+                            : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
+                            }`}
                         >
                           {selectedReason ? (
                             <svg
@@ -2309,9 +2393,8 @@ const AttendanceManagement: React.FC = () => {
                           )}
                         </div>
                         <span
-                          className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${
-                            currentStep >= 2 ? 'text-gray-900' : 'text-gray-400'
-                          }`}
+                          className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${currentStep >= 2 ? 'text-gray-900' : 'text-gray-400'
+                            }`}
                         >
                           Chọn lý do
                         </span>
@@ -2333,21 +2416,19 @@ const AttendanceManagement: React.FC = () => {
                           hasAttendanceData &&
                           handleContextSelect('explanation')
                         }
-                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${
-                          !hasAttendanceData
-                            ? 'opacity-50 cursor-not-allowed border-gray-200'
-                            : selectedContext === 'explanation'
-                              ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
-                              : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
-                        }`}
+                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${!hasAttendanceData
+                          ? 'opacity-50 cursor-not-allowed border-gray-200'
+                          : selectedContext === 'explanation'
+                            ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
+                            : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
+                          }`}
                       >
                         <div className="flex items-start space-x-4">
                           <div
-                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${
-                              selectedContext === 'explanation'
-                                ? 'bg-purple-100 group-hover:bg-purple-200'
-                                : 'bg-gray-100 group-hover:bg-purple-50'
-                            }`}
+                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'explanation'
+                              ? 'bg-purple-100 group-hover:bg-purple-200'
+                              : 'bg-gray-100 group-hover:bg-purple-50'
+                              }`}
                           >
                             <svg
                               className={`w-6 h-6 ${selectedContext === 'explanation' ? 'text-purple-600' : 'text-gray-500 group-hover:text-purple-500'}`}
@@ -2409,19 +2490,17 @@ const AttendanceManagement: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleContextSelect('registration')}
-                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left ${
-                          selectedContext === 'registration'
-                            ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
-                            : 'border-gray-200 hover:border-purple-400'
-                        }`}
+                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left ${selectedContext === 'registration'
+                          ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
+                          : 'border-gray-200 hover:border-purple-400'
+                          }`}
                       >
                         <div className="flex items-start space-x-4">
                           <div
-                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${
-                              selectedContext === 'registration'
-                                ? 'bg-purple-100 group-hover:bg-purple-200'
-                                : 'bg-blue-50 group-hover:bg-blue-100'
-                            }`}
+                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'registration'
+                              ? 'bg-purple-100 group-hover:bg-purple-200'
+                              : 'bg-blue-50 group-hover:bg-blue-100'
+                              }`}
                           >
                             <svg
                               className={`w-6 h-6 ${selectedContext === 'registration' ? 'text-purple-600' : 'text-blue-600'}`}
@@ -2471,21 +2550,19 @@ const AttendanceManagement: React.FC = () => {
                         type="button"
                         onClick={() => handleContextSelect('monthly_leave')}
                         className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left
-    ${
-      selectedContext === 'monthly_leave'
-        ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
-        : 'border-gray-200 hover:border-purple-400'
-    }
+    ${selectedContext === 'monthly_leave'
+                            ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
+                            : 'border-gray-200 hover:border-purple-400'
+                          }
     ${!(currentEmployee?.position?.is_management && attendanceStats?.max_online_work_per_month > 0) ? 'sm:col-span-2' : ''}
   `}
                       >
                         <div className="flex items-start space-x-4">
                           <div
-                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${
-                              selectedContext === 'monthly_leave'
-                                ? 'bg-purple-100 group-hover:bg-purple-200'
-                                : 'bg-indigo-50 group-hover:bg-indigo-100'
-                            }`}
+                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'monthly_leave'
+                              ? 'bg-purple-100 group-hover:bg-purple-200'
+                              : 'bg-indigo-50 group-hover:bg-indigo-100'
+                              }`}
                           >
                             <svg
                               className={`w-6 h-6 ${selectedContext === 'monthly_leave' ? 'text-purple-600' : 'text-indigo-600'}`}
@@ -2542,28 +2619,25 @@ const AttendanceManagement: React.FC = () => {
                               attendanceStats?.remaining_online_work > 0 &&
                               handleContextSelect('online_work')
                             }
-                            className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${
-                              attendanceStats?.remaining_online_work <= 0
-                                ? 'opacity-50 cursor-not-allowed border-gray-200'
-                                : selectedContext === 'online_work'
-                                  ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
-                                  : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
-                            }`}
+                            className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${attendanceStats?.remaining_online_work <= 0
+                              ? 'opacity-50 cursor-not-allowed border-gray-200'
+                              : selectedContext === 'online_work'
+                                ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
+                                : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
+                              }`}
                           >
                             <div className="flex items-start space-x-4">
                               <div
-                                className={`flex-shrink-0 p-3 rounded-lg transition-colors ${
-                                  selectedContext === 'online_work'
-                                    ? 'bg-purple-100 group-hover:bg-purple-200'
-                                    : 'bg-teal-50 group-hover:bg-teal-100'
-                                }`}
+                                className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'online_work'
+                                  ? 'bg-purple-100 group-hover:bg-purple-200'
+                                  : 'bg-teal-50 group-hover:bg-teal-100'
+                                  }`}
                               >
                                 <svg
-                                  className={`w-6 h-6 ${
-                                    selectedContext === 'online_work'
-                                      ? 'text-purple-600'
-                                      : 'text-teal-600'
-                                  }`}
+                                  className={`w-6 h-6 ${selectedContext === 'online_work'
+                                    ? 'text-purple-600'
+                                    : 'text-teal-600'
+                                    }`}
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -2585,10 +2659,10 @@ const AttendanceManagement: React.FC = () => {
                                 </p>
                                 {attendanceStats?.remaining_online_work <=
                                   0 && (
-                                  <p className="mt-1 text-xs text-red-500">
-                                    Hết lượt đăng ký trong tháng
-                                  </p>
-                                )}
+                                    <p className="mt-1 text-xs text-red-500">
+                                      Hết lượt đăng ký trong tháng
+                                    </p>
+                                  )}
                               </div>
                             </div>
                             {/* Selected indicator */}
@@ -2635,11 +2709,10 @@ const AttendanceManagement: React.FC = () => {
                                 key={reason.id}
                                 type="button"
                                 onClick={() => handleReasonSelect(reason.id)}
-                                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border-2 transition-all duration-150 ${
-                                  isSelected
-                                    ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm'
-                                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                                }`}
+                                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border-2 transition-all duration-150 ${isSelected
+                                  ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm'
+                                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                                  }`}
                               >
                                 {renderIcon(reason.icon, isSelected)}
                                 {reason.label}
@@ -2699,11 +2772,11 @@ const AttendanceManagement: React.FC = () => {
                                   <p className="text-xl font-bold text-gray-900">
                                     {attendanceDetails[0]?.check_in
                                       ? new Date(
-                                          `2000-01-01T${attendanceDetails[0].check_in}`
-                                        ).toLocaleTimeString('vi-VN', {
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })
+                                        `2000-01-01T${attendanceDetails[0].check_in}`
+                                      ).toLocaleTimeString('vi-VN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
                                       : '--:--'}
                                   </p>
                                 </div>
@@ -2731,11 +2804,11 @@ const AttendanceManagement: React.FC = () => {
                                   <p className="text-xl font-bold text-gray-900">
                                     {attendanceDetails[0]?.check_out
                                       ? new Date(
-                                          `2000-01-01T${attendanceDetails[0].check_out}`
-                                        ).toLocaleTimeString('vi-VN', {
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        })
+                                        `2000-01-01T${attendanceDetails[0].check_out}`
+                                      ).toLocaleTimeString('vi-VN', {
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      })
                                       : '--:--'}
                                   </p>
                                 </div>
@@ -2807,7 +2880,7 @@ const AttendanceManagement: React.FC = () => {
 
                               {selectedReason === 'early_leave_minutes' &&
                                 attendanceDetails[0]?.early_leave_minutes >
-                                  0 && (
+                                0 && (
                                   <>
                                     <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
                                       <div className="flex items-center justify-between">
@@ -2978,22 +3051,20 @@ const AttendanceManagement: React.FC = () => {
                           {overtimeStartTime && overtimeEndTime && (
                             <div className="mt-4">
                               <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${
-                                  overtimeDuration <= 0 || overtimeDuration < 2
-                                    ? 'border-red-300'
-                                    : 'border-gray-100'
-                                }`}
+                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${overtimeDuration <= 0 || overtimeDuration < 2
+                                  ? 'border-red-300'
+                                  : 'border-gray-100'
+                                  }`}
                               >
                                 <span className="text-sm text-gray-600">
                                   Tổng thời gian:
                                 </span>
                                 <span
-                                  className={`text-lg font-bold ${
-                                    overtimeDuration <= 0 ||
+                                  className={`text-lg font-bold ${overtimeDuration <= 0 ||
                                     overtimeDuration < 2
-                                      ? 'text-red-600'
-                                      : 'text-purple-700'
-                                  }`}
+                                    ? 'text-red-600'
+                                    : 'text-purple-700'
+                                    }`}
                                 >
                                   {overtimeDuration.toFixed(1)} giờ
                                 </span>
@@ -3139,23 +3210,21 @@ const AttendanceManagement: React.FC = () => {
                           {extraHoursStartTime && extraHoursEndTime && (
                             <div className="mt-4">
                               <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${
-                                  extraHoursDuration <= 0 ||
+                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${extraHoursDuration <= 0 ||
                                   extraHoursDuration < 2
-                                    ? 'border-red-300'
-                                    : 'border-gray-100'
-                                }`}
+                                  ? 'border-red-300'
+                                  : 'border-gray-100'
+                                  }`}
                               >
                                 <span className="text-sm text-gray-600">
                                   Tổng thời gian làm thêm:
                                 </span>
                                 <span
-                                  className={`text-lg font-bold ${
-                                    extraHoursDuration <= 0 ||
+                                  className={`text-lg font-bold ${extraHoursDuration <= 0 ||
                                     extraHoursDuration < 2
-                                      ? 'text-red-600'
-                                      : 'text-purple-700'
-                                  }`}
+                                    ? 'text-red-600'
+                                    : 'text-purple-700'
+                                    }`}
                                 >
                                   {extraHoursDuration.toFixed(1)} giờ
                                 </span>
@@ -3271,23 +3340,21 @@ const AttendanceManagement: React.FC = () => {
                           {nightShiftStartTime && nightShiftEndTime && (
                             <div className="mt-4">
                               <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${
-                                  nightShiftDuration <= 0 ||
+                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${nightShiftDuration <= 0 ||
                                   nightShiftDuration < 2
-                                    ? 'border-red-300'
-                                    : 'border-gray-100'
-                                }`}
+                                  ? 'border-red-300'
+                                  : 'border-gray-100'
+                                  }`}
                               >
                                 <span className="text-sm text-gray-600">
                                   Tổng thời gian trực tại nhà:
                                 </span>
                                 <span
-                                  className={`text-lg font-bold ${
-                                    nightShiftDuration <= 0 ||
+                                  className={`text-lg font-bold ${nightShiftDuration <= 0 ||
                                     nightShiftDuration < 2
-                                      ? 'text-red-600'
-                                      : 'text-purple-700'
-                                  }`}
+                                    ? 'text-red-600'
+                                    : 'text-purple-700'
+                                    }`}
                                 >
                                   {nightShiftDuration.toFixed(1)} giờ
                                 </span>
@@ -3404,21 +3471,19 @@ const AttendanceManagement: React.FC = () => {
                           {liveStartTime && liveEndTime && (
                             <div className="mt-4">
                               <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${
-                                  liveDuration <= 0 || liveDuration < 2
-                                    ? 'border-red-300'
-                                    : 'border-gray-100'
-                                }`}
+                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${liveDuration <= 0 || liveDuration < 2
+                                  ? 'border-red-300'
+                                  : 'border-gray-100'
+                                  }`}
                               >
                                 <span className="text-sm text-gray-600">
                                   Tổng thời gian live:
                                 </span>
                                 <span
-                                  className={`text-lg font-bold ${
-                                    liveDuration <= 0 || liveDuration < 2
-                                      ? 'text-red-600'
-                                      : 'text-purple-700'
-                                  }`}
+                                  className={`text-lg font-bold ${liveDuration <= 0 || liveDuration < 2
+                                    ? 'text-red-600'
+                                    : 'text-purple-700'
+                                    }`}
                                 >
                                   {liveDuration.toFixed(1)} giờ
                                 </span>
@@ -3615,17 +3680,16 @@ const AttendanceManagement: React.FC = () => {
                       !selectedReason) ||
                     !isRegistrationTimeValid()
                   }
-                  className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-transparent shadow-lg text-base font-semibold transition-all duration-200 ${
-                    isSubmitting
-                      ? 'bg-purple-400 text-white cursor-wait'
-                      : ((selectedContext &&
-                            (selectedContext === 'monthly_leave' ||
-                              selectedContext === 'online_work')) ||
-                            (selectedContext && selectedReason)) &&
-                          isRegistrationTimeValid()
-                        ? 'text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transform hover:scale-[1.02]'
-                        : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                  }`}
+                  className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-transparent shadow-lg text-base font-semibold transition-all duration-200 ${isSubmitting
+                    ? 'bg-purple-400 text-white cursor-wait'
+                    : ((selectedContext &&
+                      (selectedContext === 'monthly_leave' ||
+                        selectedContext === 'online_work')) ||
+                      (selectedContext && selectedReason)) &&
+                      isRegistrationTimeValid()
+                      ? 'text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transform hover:scale-[1.02]'
+                      : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                    }`}
                 >
                   {isSubmitting ? (
                     <div className="flex items-center">
@@ -3994,11 +4058,10 @@ const AttendanceManagement: React.FC = () => {
                     setShowConfirmModal(false);
                     handleSubmitSupplementaryRequest();
                   }}
-                  className={`flex-1 px-4 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center justify-center ${
-                    isSubmitting
-                      ? 'bg-purple-400 text-white cursor-wait'
-                      : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800'
-                  }`}
+                  className={`flex-1 px-4 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center justify-center ${isSubmitting
+                    ? 'bg-purple-400 text-white cursor-wait'
+                    : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800'
+                    }`}
                 >
                   {isSubmitting ? (
                     <div className="flex items-center">
@@ -4014,7 +4077,215 @@ const AttendanceManagement: React.FC = () => {
           </div>
         </div>
       )}
+      {/* ===== DRAWER: Lịch sử đơn tháng ===== */}
+      {showRequestHistoryDrawer && (
+        <div className="fixed inset-0 z-[80] overflow-hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black bg-opacity-40 transition-opacity"
+            onClick={() => setShowRequestHistoryDrawer(false)}
+          />
+          {/* Drawer panel */}
+          <div className="absolute inset-y-0 right-0 flex max-w-full">
+            <div className="relative w-screen max-w-md transform transition-transform duration-300 ease-in-out">
+              <div className="flex h-full flex-col bg-white shadow-2xl">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                        <ClipboardDocumentListIcon className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-bold text-white">Lịch sử đơn tháng</h2>
+                        <p className="text-purple-200 text-xs mt-0.5">
+                          Tháng {currentDate.getMonth() + 1}/{currentDate.getFullYear()}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowRequestHistoryDrawer(false)}
+                      className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center hover:bg-opacity-30 transition-colors"
+                    >
+                      <XMarkIcon className="h-5 w-5 text-white" />
+                    </button>
+                  </div>
+
+                  {/* Summary badges */}
+                  <div className="mt-3 flex gap-2 flex-wrap">
+                    {[
+                      { label: 'Giải trình', count: monthlyRequestHistory.explanations.length, color: 'bg-blue-400' },
+                      { label: 'Đăng ký', count: monthlyRequestHistory.registrations.length, color: 'bg-amber-400' },
+                      { label: 'Làm online', count: monthlyRequestHistory.onlineWorks.length, color: 'bg-teal-400' },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center gap-1.5 bg-white bg-opacity-15 rounded-lg px-2.5 py-1">
+                        <span className={`w-2 h-2 rounded-full ${item.color}`} />
+                        <span className="text-white text-xs font-medium">{item.label}</span>
+                        <span className="text-white text-xs font-bold">{item.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tab filter */}
+                <div className="border-b border-gray-100 bg-gray-50 px-4 pt-3 pb-0">
+                  <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+                    {[
+                      { key: 'all', label: 'Tất cả', count: monthlyRequestHistory.explanations.length + monthlyRequestHistory.registrations.length + monthlyRequestHistory.onlineWorks.length },
+                      { key: 'explanation', label: 'Giải trình', count: monthlyRequestHistory.explanations.length },
+                      { key: 'registration', label: 'Đăng ký', count: monthlyRequestHistory.registrations.length },
+                      { key: 'online_work', label: 'Làm online', count: monthlyRequestHistory.onlineWorks.length },
+                    ].map((tab) => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setHistoryActiveTab(tab.key as any)}
+                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-colors ${historyActiveTab === tab.key
+                          ? 'border-purple-600 text-purple-700'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                          }`}
+                      >
+                        {tab.label}
+                        {tab.count > 0 && (
+                          <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full ${historyActiveTab === tab.key ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-600'
+                            }`}>
+                            {tab.count}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto">
+                  {requestHistoryLoading ? (
+                    <div className="flex flex-col items-center justify-center h-48 gap-3">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+                      <p className="text-sm text-gray-500">Đang tải lịch sử đơn...</p>
+                    </div>
+                  ) : (() => {
+                    // Tổng hợp danh sách theo tab
+                    const allItems = [
+                      ...(historyActiveTab === 'all' || historyActiveTab === 'explanation'
+                        ? monthlyRequestHistory.explanations.map((e) => ({ ...e, _type: 'explanation' }))
+                        : []),
+                      ...(historyActiveTab === 'all' || historyActiveTab === 'registration'
+                        ? monthlyRequestHistory.registrations.map((r) => ({ ...r, _type: 'registration' }))
+                        : []),
+                      ...(historyActiveTab === 'all' || historyActiveTab === 'online_work'
+                        ? monthlyRequestHistory.onlineWorks.map((ow) => ({ ...ow, _type: 'online_work' }))
+                        : []),
+                    ].sort((a, b) => new Date(b.created_at || b.work_date || 0).getTime() - new Date(a.created_at || a.work_date || 0).getTime());
+
+                    if (allItems.length === 0) {
+                      return (
+                        <div className="flex flex-col items-center justify-center h-48 gap-3 text-center px-6">
+                          <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center">
+                            <ClipboardDocumentListIcon className="h-7 w-7 text-gray-400" />
+                          </div>
+                          <p className="text-gray-500 text-sm font-medium">Chưa có đơn nào trong tháng này</p>
+                          <p className="text-gray-400 text-xs">Các đơn bạn tạo sẽ hiển thị tại đây</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="divide-y divide-gray-50">
+                        {allItems.map((item, idx) => {
+                          const statusConfig = ({
+                            APPROVED: { label: 'Đã duyệt', cls: 'bg-green-100 text-green-700' },
+                            REJECTED: { label: 'Từ chối', cls: 'bg-red-100 text-red-700' },
+                            PENDING: { label: 'Chờ duyệt', cls: 'bg-amber-100 text-amber-700' },
+                            DRAFT: { label: 'Nháp', cls: 'bg-gray-100 text-gray-600' },
+                            CANCELLED: { label: 'Đã huỷ', cls: 'bg-gray-100 text-gray-500' },
+                          } as Record<string, { label: string; cls: string }>)[item.status] || { label: item.status, cls: 'bg-gray-100 text-gray-600' };
+
+                          const typeConfig = ({
+                            explanation: { label: 'Giải trình', dot: 'bg-blue-500', bg: 'bg-blue-50' },
+                            registration: { label: 'Đăng ký', dot: 'bg-amber-500', bg: 'bg-amber-50' },
+                            online_work: { label: 'Làm online', dot: 'bg-teal-500', bg: 'bg-teal-50' },
+                          } as Record<string, { label: string; dot: string; bg: string }>)[item._type] || { label: item._type, dot: 'bg-gray-400', bg: 'bg-gray-50' };
+
+                          const dateStr = item.attendance_date || item.work_date || item.created_at;
+                          const displayDate = dateStr
+                            ? new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : '—';
+
+                          const explanationTypeLabel = item.explanation_type
+                            ? (EXPLANATION_TYPE_MAP[item.explanation_type] || item.explanation_type)
+                            : null;
+
+                          return (
+                            <div key={`${item._type}-${item.id}-${idx}`} className="px-4 py-3.5 hover:bg-gray-50 transition-colors">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3 min-w-0">
+                                  {/* Type dot */}
+                                  <div className={`mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0 ${typeConfig.dot}`} />
+                                  <div className="min-w-0">
+                                    {/* Type + code */}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${typeConfig.bg} text-gray-700`}>
+                                        {typeConfig.label}
+                                      </span>
+                                      {item.request_code && (
+                                        <span className="text-[10px] text-gray-400 font-mono">{item.request_code}</span>
+                                      )}
+                                    </div>
+                                    {/* Explanation type */}
+                                    {explanationTypeLabel && (
+                                      <p className="text-sm font-semibold text-gray-800 mt-1 leading-tight">{explanationTypeLabel}</p>
+                                    )}
+                                    {/* Reason */}
+                                    {item.reason && (
+                                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.reason}</p>
+                                    )}
+                                    {/* Work plan (online work) */}
+                                    {item.work_plan && (
+                                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.work_plan}</p>
+                                    )}
+                                    {/* Date */}
+                                    <div className="flex items-center gap-1 mt-1.5">
+                                      <CalendarIcon className="h-3 w-3 text-gray-400" />
+                                      <span className="text-[11px] text-gray-400">{displayDate}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                {/* Status badge */}
+                                <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusConfig.cls}`}>
+                                  {statusConfig.label}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+                  <button
+                    onClick={() => {
+                      setRequestHistoryLoading(true);
+                      fetchMonthlyRequestHistory();
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2 text-sm text-purple-600 font-medium hover:text-purple-700 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Làm mới
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Notification Dialog */}
+
       {notification.show && (
         <div className="fixed inset-0 z-[100] overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -4035,13 +4306,12 @@ const AttendanceManagement: React.FC = () => {
             <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm sm:w-full sm:p-6">
               <div>
                 <div
-                  className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${
-                    notification.type === 'success'
-                      ? 'bg-green-100'
-                      : notification.type === 'error'
-                        ? 'bg-red-100'
-                        : 'bg-yellow-100'
-                  }`}
+                  className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${notification.type === 'success'
+                    ? 'bg-green-100'
+                    : notification.type === 'error'
+                      ? 'bg-red-100'
+                      : 'bg-yellow-100'
+                    }`}
                 >
                   {notification.type === 'success' ? (
                     <CheckCircleIcon
@@ -4072,13 +4342,12 @@ const AttendanceManagement: React.FC = () => {
               <div className="mt-5 sm:mt-6">
                 <button
                   type="button"
-                  className={`inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm transition-colors ${
-                    notification.type === 'success'
-                      ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                      : notification.type === 'error'
-                        ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                        : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
-                  }`}
+                  className={`inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm transition-colors ${notification.type === 'success'
+                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                    : notification.type === 'error'
+                      ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                      : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
+                    }`}
                   onClick={() =>
                     setNotification((prev) => ({ ...prev, show: false }))
                   }
