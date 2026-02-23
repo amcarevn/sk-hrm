@@ -27,6 +27,7 @@ const Approvals: React.FC = () => {
     pending_leave: 0,
     pending_overtime: 0,
     pending_explanation: 0,
+    pending_registration: 0,
     pending_online_work: 0,
     total_pending: 0,
     total_approved: 0,
@@ -77,11 +78,13 @@ const Approvals: React.FC = () => {
     try {
       const result = await approvalService.getAllPendingRequests();
 
-      // Chỉ set list data nếu đang ở tab pending (để tránh overwrite khi chạy fetch song song)
+      // Chỉ set list data nếu đang ở tab pending
       if (activeTab === 'pending') {
         const allExplanations = result.attendance_explanations;
-        setAttendanceExplanations(allExplanations.filter((e: any) => !isRegistrationType(e.explanation_type)));
-        setPendingRegistrations(allExplanations.filter((e: any) => isRegistrationType(e.explanation_type)));
+        console.log('✅ [APPROVALS] Attendance explanations:', allExplanations.length);
+        console.log('✅ [APPROVALS] Registration requests:', (result.registration_requests || []).length);
+        setAttendanceExplanations(allExplanations);
+        setPendingRegistrations(result.registration_requests || []);
         setLeaveRequests(result.leave_requests);
         setOvertimeRequests(result.overtime_requests);
         setOnlineWorkRequests(result.online_work_requests);
@@ -92,6 +95,7 @@ const Approvals: React.FC = () => {
         pending_leave: result.leave_requests.length,
         pending_overtime: result.overtime_requests.length,
         pending_explanation: result.attendance_explanations.length,
+        pending_registration: (result.registration_requests || []).length,
         pending_online_work: result.online_work_requests.length,
         total_pending: result.total_pending || 0,
       }));
@@ -105,9 +109,8 @@ const Approvals: React.FC = () => {
       const result = await approvalService.getAllApprovedRequests();
 
       if (activeTab === 'approved') {
-        const allExplanations = result.attendance_explanations;
-        setApprovedExplanations(allExplanations.filter((e: any) => !isRegistrationType(e.explanation_type)));
-        setApprovedRegistrations(allExplanations.filter((e: any) => isRegistrationType(e.explanation_type)));
+        setApprovedExplanations(result.attendance_explanations);
+        setApprovedRegistrations(result.registration_requests || []);
         setLeaveRequests(result.leave_requests);
         setOvertimeRequests(result.overtime_requests);
         setOnlineWorkRequests(result.online_work_requests);
@@ -127,9 +130,8 @@ const Approvals: React.FC = () => {
       const result = await approvalService.getAllRejectedRequests();
 
       if (activeTab === 'rejected') {
-        const allExplanations = result.attendance_explanations;
-        setRejectedExplanations(allExplanations.filter((e: any) => !isRegistrationType(e.explanation_type)));
-        setRejectedRegistrations(allExplanations.filter((e: any) => isRegistrationType(e.explanation_type)));
+        setRejectedExplanations(result.attendance_explanations);
+        setRejectedRegistrations(result.registration_requests || []);
         setLeaveRequests(result.leave_requests);
         setOvertimeRequests(result.overtime_requests);
         setOnlineWorkRequests(result.online_work_requests);
@@ -142,6 +144,19 @@ const Approvals: React.FC = () => {
     } catch (error) {
       console.error('Error fetching rejected requests:', error);
     }
+  };
+
+  const EXPLANATION_TYPE_MAP: Record<string, string> = {
+    LATE: 'Giải trình đi muộn',
+    EARLY_LEAVE: 'Giải trình về sớm',
+    INCOMPLETE_ATTENDANCE: 'Giải trình quên chấm công',
+    BUSINESS_TRIP: 'Giải trình đi công tác',
+    FIRST_DAY: 'Giải trình ngày đầu đi làm',
+    OTHER: 'Khác',
+    OVERTIME: 'Đăng ký tăng ca',
+    EXTRA_HOURS: 'Đăng ký làm thêm giờ',
+    NIGHT_SHIFT: 'Đăng ký trực tối',
+    LIVE: 'Đăng ký Live',
   };
 
   // Mapping trạng thái chấm công sang tiếng Việt
@@ -165,22 +180,14 @@ const Approvals: React.FC = () => {
   const getExpectedStatusText = (status: string): string =>
     EXPECTED_STATUS_MAP[status] || status;
 
-  // Constants cho các loại đăng ký
-  const REGISTRATION_TYPES = ['OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE'];
-
-  const isRegistrationType = (explanationType: string): boolean =>
-    REGISTRATION_TYPES.includes(explanationType);
-
-  // Hàm xác định loại đơn dựa vào explanation_type
-  const getRequestTypeLabel = (explanation: any): string => {
-    if (
-      explanation.explanation_type &&
-      isRegistrationType(explanation.explanation_type)
-    ) {
-      return 'Đơn đăng ký';
+  // Hàm xác định loại đơn chi tiết dựa vào _itemType và field phụ
+  const getRequestTypeLabel = (req: any): string => {
+    if (req._itemType === 'ONLINE_WORK') return 'Làm việc online';
+    if (req._itemType === 'REGISTRATION') {
+      return req.registration_type ? (EXPLANATION_TYPE_MAP[req.registration_type] || req.registration_type) : 'Đơn đăng ký';
     }
-
-    return 'Đơn giải trình';
+    // Mặc định là đơn giải trình
+    return req.explanation_type ? (EXPLANATION_TYPE_MAP[req.explanation_type] || req.explanation_type) : 'Đơn giải trình';
   };
 
   // Kiểm tra xem người dùng hiện tại có quyền duyệt giải trình không
@@ -320,44 +327,41 @@ const Approvals: React.FC = () => {
       currentEmployee.department?.name?.includes('HR') ||
       currentEmployee.department?.name?.includes('Nhân sự');
     const isDirectManager = request.employee_manager_id === currentEmployee.id;
+    const hasApprovalPermission = currentEmployee.permissions?.can_approve_attendance || false;
 
-    // Admin can approve anything
-    if (isAdmin) return true;
-
-    // ==================== ONLINE WORK REQUEST TWO-STEP WORKFLOW ====================
-    // Check if this is an online work request (has direct_manager_approved field)
+    // ==================== TWO-STEP WORKFLOW (ONLINE WORK / REGISTRATION) ====================
+    // Quy tắc bắt buộc: LUÔN phải đi qua QLTT trước, không bypass dù người làm đơn là quản lý
     if (request.hasOwnProperty('direct_manager_approved')) {
-      // If already rejected by anyone, cannot approve
+      // Nếu đã bị từ chối → không thể duyệt
       if (request.direct_manager_rejected || request.hr_rejected) {
         return false;
       }
 
-      // 1. Quản lý trực tiếp có thể duyệt bước 1
-      if (isDirectManager && !request.direct_manager_approved) {
-        return true;
+      const employeeIsHR = request.employee_is_hr || false;
+
+      // Nếu người làm đơn là HR: chỉ 1 bước (QLTT duyệt là xong)
+      if (employeeIsHR) {
+        if (isAdmin) return true;
+        if (isDirectManager) return !request.direct_manager_approved;
+        return false; // HR khác không được duyệt đơn của HR
       }
 
-      // 2. Trưởng phòng có thể duyệt (nếu chưa được quản lý duyệt thì duyệt thay bước 1, hoặc duyệt bước 2)
-      const isDeptManager =
-        request.employee_department_manager_id === currentEmployee.id;
-      if (isDeptManager && !request.hr_approved) {
-        return true;
+      // Người làm đơn KHÔNG phải HR: bắt buộc 2 bước
+      // Bước 1: QLTT duyệt trước
+      if (isDirectManager) {
+        return !request.direct_manager_approved; // Chỉ được duyệt nếu chưa duyệt
       }
 
-      // 3. HR có thể duyệt bước 2 (sau khi quản lý đã duyệt)
-      if (isHR && request.direct_manager_approved && !request.hr_approved) {
-        return true;
+      // Bước 2: HR/Admin chỉ được duyệt SAU KHI QLTT đã duyệt
+      // KHÔNG có ngoại lệ senior manager ở đây (khác với Explanation)
+      if (isAdmin || isHR || hasApprovalPermission) {
+        if (request.direct_manager_approved === true) {
+          return !request.hr_approved; // HR chỉ duyệt 1 lần
+        }
+        return false; // QLTT chưa duyệt → HR không được phép
       }
 
-      // 4. HR có thể duyệt ngay nếu người tạo là quản lý cấp cao hoặc NV HR
-      if (
-        isHR &&
-        (request.employee_is_hr || request.employee_is_senior_manager) &&
-        !request.hr_approved
-      ) {
-        return true;
-      }
-
+      // Trưởng phòng cũng phải chờ QLTT
       return false;
     }
 
@@ -407,6 +411,53 @@ const Approvals: React.FC = () => {
       fetchRequests(); // Refresh data
     } catch (error) {
       console.error('Error rejecting:', error);
+    }
+  };
+
+  const handleApproveRegistration = async (registrationId: number) => {
+    try {
+      await approvalService.approveRegistrationRequest(
+        registrationId,
+        'Đã duyệt'
+      );
+      fetchRequests(); // Refresh data
+    } catch (error) {
+      console.error('Error approving registration:', error);
+    }
+  };
+
+  const handleRejectRegistration = async (registrationId: number) => {
+    try {
+      await approvalService.rejectRegistrationRequest(
+        registrationId,
+        'Đã từ chối'
+      );
+      fetchRequests(); // Refresh data
+    } catch (error) {
+      console.error('Error rejecting registration:', error);
+    }
+  };
+
+  const handleDeleteRegistration = async (registrationId: number) => {
+    try {
+      const confirmed = window.confirm(
+        'Bạn có chắc chắn muốn xóa đơn đăng ký này không? Hành động này không thể hoàn tác.'
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      await approvalService.deleteRegistrationRequest(registrationId);
+      alert('Đã xóa đơn đăng ký thành công!');
+      fetchRequests();
+    } catch (error: any) {
+      console.error('Error deleting registration request:', error);
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        'Xóa đơn đăng ký thất bại. Vui lòng thử lại.';
+      alert(`Lỗi: ${errorMessage}`);
     }
   };
 
@@ -611,15 +662,18 @@ const Approvals: React.FC = () => {
       explanation.employee_manager_name &&
       explanation.employee_manager_name !== 'None';
     const managerApproved = explanation.direct_manager_approved || false;
+    // LƯU Ý: Nếu trưởng phòng duyệt hoặc ai đó duyệt vòng 1 rồi thì managerApproved = true.
+    // Nếu status = REJECTED mà chưa ai duyệt thì vòng 1 bị từ chối.
     const managerStatus = managerApproved
       ? 'Đã duyệt'
       : explanation.status === 'REJECTED'
         ? 'Đã từ chối'
         : 'Chưa duyệt';
 
-    // Ưu tiên hiển thị tên người đã duyệt thực tế
+    // Ưu tiên hiển thị tên người đã duyệt thực tế. Nếu bị từ chối ở bước này thì dùng rejected_by_name.
     const actualManagerName =
       explanation.direct_manager_approved_by_name ||
+      (managerStatus === 'Đã từ chối' ? explanation.rejected_by_name : null) ||
       explanation.employee_manager_name ||
       'Chưa xác định';
 
@@ -628,7 +682,7 @@ const Approvals: React.FC = () => {
       role: 'Quản lý trực tiếp',
       approver: hasManager ? actualManagerName : 'Chưa xác định',
       status: managerStatus,
-      date: explanation.direct_manager_approved_at || null,
+      date: explanation.direct_manager_approved_at || (managerStatus === 'Đã từ chối' ? explanation.rejected_at : null),
       note: explanation.approval_note || '',
     });
 
@@ -636,22 +690,26 @@ const Approvals: React.FC = () => {
     const hasDeptManager =
       explanation.employee_department_manager_name &&
       explanation.employee_department_manager_name !== 'None';
+    let deptManagerStatus = 'Chưa duyệt';
+
     if (hasDeptManager) {
-      const deptManagerStatus =
-        explanation.status === 'PENDING'
-          ? 'Chưa duyệt'
-          : explanation.status === 'APPROVED'
-            ? 'Đã duyệt'
-            : explanation.status === 'REJECTED'
-              ? 'Đã từ chối'
-              : 'Chưa duyệt';
+      if (explanation.status === 'APPROVED') {
+        deptManagerStatus = 'Đã duyệt';
+      } else if (explanation.status === 'REJECTED') {
+        // Nếu Quản lý trực tiếp chưa duyệt mà đơn bị từ chối -> TP không liên quan
+        if (!managerApproved) {
+          deptManagerStatus = 'Chưa duyệt';
+        } else {
+          deptManagerStatus = 'Đã từ chối';
+        }
+      }
 
       workflow.push({
         step: currentStep++,
         role: 'Trưởng phòng',
-        approver: explanation.employee_department_manager_name,
+        approver: (deptManagerStatus === 'Đã từ chối' ? explanation.rejected_by_name : explanation.employee_department_manager_name),
         status: deptManagerStatus,
-        date: explanation.approved_at || null,
+        date: explanation.approved_at || (deptManagerStatus === 'Đã từ chối' ? explanation.rejected_at : null),
         note: explanation.approval_note || '',
       });
     }
@@ -660,34 +718,41 @@ const Approvals: React.FC = () => {
     // CHỈ HIỂN THỊ bước HR nếu người làm đơn KHÔNG PHẢI HR
     // Nếu người làm đơn là HR, chỉ cần quản lý trực tiếp duyệt là đủ
     if (!employeeIsHR) {
+      const hrStatus = explanation.hr_approved
+        ? 'Đã duyệt'
+        : (explanation.status === 'REJECTED' && managerApproved)
+          ? 'Đã từ chối'
+          : 'Chưa duyệt';
+
+      const hrApproverName = hrStatus === 'Đã từ chối'
+        ? (explanation.hr_rejected_by_name || explanation.rejected_by_name || 'Phòng Nhân sự')
+        : (explanation.hr_approved_by_name || 'Phòng Nhân sự');
+
       workflow.push({
         step: currentStep++,
         role: 'Nhân sự HR',
-        approver: explanation.hr_approved_by_name || 'Phòng Nhân sự',
-        status: explanation.hr_approved
-          ? 'Đã duyệt'
-          : explanation.status === 'REJECTED'
-            ? 'Đã từ chối'
-            : 'Chưa duyệt',
-        date: explanation.hr_approved_at || null,
+        approver: hrApproverName,
+        status: hrStatus,
+        date: explanation.hr_approved_at || (hrStatus === 'Đã từ chối' ? explanation.rejected_at : null),
         note: explanation.approval_note || '',
         approved_by: explanation.hr_approved_by_name || null,
       });
     }
 
-    // Bước 4: Tổng hợp trạng thái cuối cùng
     if (
       explanation.status === 'APPROVED' ||
       explanation.status === 'REJECTED'
     ) {
+      const requestName = explanation._itemType === 'REGISTRATION' ? 'Đăng ký' : 'Giải trình';
       const finalStatus =
         explanation.status === 'APPROVED'
-          ? 'Giải trình đã duyệt'
-          : 'Giải trình đã từ chối';
+          ? `${requestName} đã duyệt`
+          : `${requestName} đã từ chối`;
       const finalApprover =
-        explanation.approved_by_name ||
-        explanation.direct_manager_approved_by_name ||
-        explanation.hr_approved_by_name ||
+        explanation.hr_rejected_by_name ||       // HR từ chối (SerializerMethodField mới)
+        explanation.hr_approved_by_name ||       // HR đã duyệt
+        explanation.approved_by_name ||          // Người xử lý cuối (DM từ chối vòng 1)
+        explanation.direct_manager_approved_by_name || // fallback: DM đã duyệt
         'Hệ thống';
 
       workflow.push({
@@ -704,11 +769,14 @@ const Approvals: React.FC = () => {
   };
 
   /**
-   * Helper function cho timeline duyệt đơn làm việc online (2 bước)
+   * Helper function cho timeline duyệt đơn làm việc online và đăng ký (2 bước)
    */
   const getOnlineWorkApprovalWorkflow = (request: any) => {
     const workflow = [];
     const employeeIsHR = request.employee_is_hr || false;
+    // Registration requests have registration_type, online work requests have work_date mostly
+    const isRegistration = !!request.registration_type;
+    const requestName = isRegistration ? 'Đăng ký' : 'Làm việc online';
     let currentStep = 1;
 
     // Bước 1: Quản lý trực tiếp
@@ -771,9 +839,11 @@ const Approvals: React.FC = () => {
             : 'Chưa duyệt';
 
       const hrApproverName =
-        request.hr_approved_by_name ||
-        request.hr_rejected_by_name ||
-        'Phòng Nhân sự';
+        hrStatus === 'Đã duyệt'
+          ? (request.hr_approved_by_name || 'Phòng Nhân sự')
+          : hrStatus === 'Đã từ chối'
+            ? (request.hr_rejected_by_name || 'Phòng Nhân sự')
+            : 'Phòng Nhân sự'; // Chưa duyệt → chưa biết ai sẽ duyệt
 
       workflow.push({
         step: currentStep++,
@@ -789,9 +859,11 @@ const Approvals: React.FC = () => {
     if (request.status === 'APPROVED' || request.status === 'REJECTED') {
       const finalStatus =
         request.status === 'APPROVED'
-          ? 'Làm việc online đã duyệt'
-          : 'Làm việc online đã từ chối';
+          ? `${requestName} đã duyệt`
+          : `${requestName} đã từ chối`;
       const finalApprover =
+        request.hr_rejected_by_name ||
+        request.direct_manager_rejected_by_name ||
         request.hr_approved_by_name ||
         request.direct_manager_approved_by_name ||
         'Hệ thống';
@@ -821,24 +893,48 @@ const Approvals: React.FC = () => {
     return rejectedRegistrations;
   };
 
+  const getCurrentOnlineWorks = () => {
+    if (activeTab === 'pending') return onlineWorkRequests.filter(req => req.status === 'PENDING');
+    if (activeTab === 'approved') return onlineWorkRequests.filter(req => req.status === 'APPROVED');
+    return onlineWorkRequests.filter(req => req.status === 'REJECTED');
+  };
+
   const getCurrentTitle = () => {
     if (activeTab === 'pending') return 'Yêu cầu chờ duyệt';
     if (activeTab === 'approved') return 'Yêu cầu đã duyệt';
     return 'Yêu cầu đã từ chối';
   };
 
-  const getCurrentCount = () => {
+  // Kết hợp và sắp xếp tất cả các loại đơn để hiển thị trong table
+  const getAllCurrentRequests = () => {
     const explanations = getCurrentExplanations();
-    return (
-      explanations.length +
+    const registrations = getCurrentRegistrations();
+    const onlineWorks = getCurrentOnlineWorks();
+
+    // Đánh dấu type để dễ phân biệt trong loop
+    const markedExplanations = explanations.map(e => ({ ...e, _itemType: 'EXPLANATION' }));
+    const markedRegistrations = registrations.map(r => ({ ...r, _itemType: 'REGISTRATION' }));
+    const markedOnlineWorks = onlineWorks.map(o => ({ ...o, _itemType: 'ONLINE_WORK' }));
+
+    return [...markedExplanations, ...markedRegistrations, ...markedOnlineWorks].sort((a, b) => {
+      const dateA = new Date(a.attendance_date || a.work_date || a.created_at).getTime();
+      const dateB = new Date(b.attendance_date || b.work_date || b.created_at).getTime();
+      return dateB - dateA;
+    });
+  };
+
+  const getCurrentCount = () => {
+    return getAllCurrentRequests().length +
       leaveRequests.length +
-      overtimeRequests.length +
-      onlineWorkRequests.length
-    );
+      overtimeRequests.length;
   };
 
   const totalPending =
-    stats.pending_leave + stats.pending_overtime + stats.pending_explanation;
+    stats.pending_leave +
+    stats.pending_overtime +
+    stats.pending_explanation +
+    stats.pending_registration +
+    stats.pending_online_work;
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -861,10 +957,11 @@ const Approvals: React.FC = () => {
           </div>
           <div className="flex space-x-3">
             <button
-              onClick={fetchRequests}
-              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors"
+              onClick={fetchAllData}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors flex items-center space-x-2"
             >
-              Làm mới
+              {loading && <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>}
+              <span>Làm mới</span>
             </button>
             <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors">
               Lịch sử duyệt
@@ -914,7 +1011,7 @@ const Approvals: React.FC = () => {
           </nav>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
             <div className="flex justify-between items-start">
               <div>
@@ -963,6 +1060,19 @@ const Approvals: React.FC = () => {
                 </p>
               </div>
               <span className="bg-teal-100 text-teal-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                Chờ duyệt
+              </span>
+            </div>
+          </div>
+          <div className="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-medium text-indigo-900">Đăng ký</h3>
+                <p className="text-3xl font-bold text-indigo-700 mt-2">
+                  {stats.pending_registration}
+                </p>
+              </div>
+              <span className="bg-indigo-100 text-indigo-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
                 Chờ duyệt
               </span>
             </div>
@@ -1016,8 +1126,7 @@ const Approvals: React.FC = () => {
                       </div>
                     </td>
                   </tr>
-                ) : getCurrentExplanations().length === 0 &&
-                  getCurrentRegistrations().length === 0 &&
+                ) : getAllCurrentRequests().length === 0 &&
                   leaveRequests.length === 0 &&
                   overtimeRequests.length === 0 &&
                   onlineWorkRequests.length === 0 ? (
@@ -1042,7 +1151,7 @@ const Approvals: React.FC = () => {
                           />
                         </svg>
                         <p className="text-lg font-medium text-gray-900">
-                          Không có yêu cầu nào chờ duyệt
+                          {activeTab === 'pending' ? 'Không có yêu cầu nào chờ duyệt' : 'Không có yêu cầu nào'}
                         </p>
                         <p className="text-gray-500 mt-1">
                           Tất cả yêu cầu đã được xử lý
@@ -1052,212 +1161,155 @@ const Approvals: React.FC = () => {
                   </tr>
                 ) : (
                   <>
-                    {/* Hiển thị attendance explanations theo tab hiện tại */}
-                    {getCurrentExplanations().map((explanation) => (
-                      <tr key={`explanation-${explanation.id}`}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                              <svg
-                                className="h-5 w-5 text-yellow-600"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              </svg>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {getRequestTypeLabel(explanation)}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {explanation.reason}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {explanation.employee_name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {explanation.employee_code}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(explanation.created_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(explanation.attendance_date)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(explanation.status, 'EXPLANATION')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
-                            {activeTab === 'pending' ? (
-                              canApproveExplanation(explanation) ? (
-                                <>
-                                  <button
-                                    onClick={() =>
-                                      handleApprove(explanation.id)
-                                    }
-                                    className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md text-sm"
-                                  >
-                                    Duyệt
-                                  </button>
-                                  <button
-                                    onClick={() => handleReject(explanation.id)}
-                                    className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
-                                  >
-                                    Từ chối
-                                  </button>
-                                </>
-                              ) : (
-                                <span className="text-gray-500 text-sm italic">
-                                  {explanation.employee_id ===
-                                    currentEmployee?.id
-                                    ? 'Không thể duyệt đơn của chính mình'
-                                    : 'Không có quyền duyệt'}
-                                </span>
-                              )
-                            ) : (
-                              <span className="text-gray-500 text-sm italic">
-                                {activeTab === 'approved'
-                                  ? 'Đã được duyệt'
-                                  : 'Đã bị từ chối'}
-                              </span>
-                            )}
-                            <button
-                              onClick={() => handleViewDetails(explanation)}
-                              className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md text-sm"
-                            >
-                              Chi tiết
-                            </button>
-                            {/* CHỈ NGƯỜI TẠO ĐƠN mới thấy nút Xóa */}
-                            {canDeleteExplanation(explanation) && (
-                              <button
-                                onClick={() => handleDelete(explanation.id)}
-                                className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
-                                title="Xóa đơn giải trình"
-                              >
-                                Xóa
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {/* Hiển thị danh sách đơn gộp (Giải trình & Đăng ký) */}
+                    {getAllCurrentRequests().map((item) => {
+                      const isRegistration = item._itemType === 'REGISTRATION';
+                      const isOnlineWork = item._itemType === 'ONLINE_WORK';
+                      const itemKey = isRegistration ? `reg-${item.id}` : isOnlineWork ? `online-work-${item.id}` : `exp-${item.id}`;
 
-                    {/* Hiển thị đơn đăng ký (tách riêng từ attendance explanations) */}
-                    {getCurrentRegistrations().map((reg) => (
-                      <tr key={`registration-${reg.id}`}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <svg
-                                className="h-5 w-5 text-blue-600"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                                />
-                              </svg>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                              {getRequestTypeLabel(reg)}
+                      return (
+                        <tr key={itemKey}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className={`flex-shrink-0 h-10 w-10 ${isRegistration ? 'bg-blue-100' : isOnlineWork ? 'bg-teal-100' : 'bg-yellow-100'} rounded-full flex items-center justify-center`}>
+                                {isRegistration ? (
+                                  <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                  </svg>
+                                ) : isOnlineWork ? (
+                                  <svg className="h-5 w-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                )}
                               </div>
-                              <div className="text-sm text-gray-500">
-                                {reg.reason}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {reg.employee_name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {reg.employee_code}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(reg.created_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(reg.attendance_date)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(reg.status, 'REGISTRATION')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
-                            {activeTab === 'pending' ? (
-                              canApproveExplanation(reg) ? (
-                                <>
-                                  <button
-                                    onClick={() =>
-                                      handleApprove(reg.id)
+                              <div className="ml-4">
+                                <div className="text-sm font-bold text-gray-900">
+                                  {getRequestTypeLabel(item)}
+                                </div>
+                                {(() => {
+                                  let rawReason = item.reason || item.work_plan || '';
+                                  const requestName = getRequestTypeLabel(item);
+
+                                  const prefixes = [
+                                    requestName,
+                                    item.explanation_type ? EXPLANATION_TYPE_MAP[item.explanation_type] : '',
+                                    item.registration_type ? EXPLANATION_TYPE_MAP[item.registration_type] : '',
+                                    'Giải trình đi muộn', 'Giải trình về sớm', 'Giải trình quên chấm công',
+                                    'Giải trình đi công tác', 'Giải trình ngày đầu đi làm',
+                                    'Đi muộn', 'Về sớm', 'Quên chấm công', 'Đi công tác', 'Ngày đầu đi làm',
+                                    'Đăng ký tăng ca', 'Đăng ký làm thêm giờ', 'Đăng ký trực tối', 'Đăng ký Live',
+                                    'Tăng ca', 'Làm thêm giờ', 'Trực tối', 'Live',
+                                    'Làm việc online', 'Làm online', 'Nghỉ phép'
+                                  ].filter(Boolean);
+
+                                  prefixes.sort((a, b) => b.length - a.length);
+
+                                  for (const p of prefixes) {
+                                    if (p && rawReason.toLowerCase().startsWith(p.toLowerCase())) {
+                                      rawReason = rawReason.substring(p.length).replace(/^[\:\-\s]+/, '').trim();
+                                      break;
                                     }
-                                    className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md text-sm"
-                                  >
-                                    Duyệt
-                                  </button>
-                                  <button
-                                    onClick={() => handleReject(reg.id)}
-                                    className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
-                                  >
-                                    Từ chối
-                                  </button>
-                                </>
+                                  }
+
+                                  return rawReason ? (
+                                    <div className="text-sm text-gray-600 truncate max-w-xs mt-0.5" title={rawReason}>
+                                      <span className="font-semibold text-gray-500">Lý do: </span>
+                                      {rawReason}
+                                    </div>
+                                  ) : null;
+                                })()}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {item.employee_name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {item.employee_code}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatDate(item.created_at)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatDate(item.attendance_date || item.work_date)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {getStatusBadge(item.status, isRegistration ? 'REGISTRATION' : isOnlineWork ? 'ONLINE_WORK' : 'EXPLANATION')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex space-x-2">
+                              {activeTab === 'pending' ? (
+                                ((isOnlineWork || isRegistration) ? canApproveRequest(item) : canApproveExplanation(item)) ? (
+                                  <>
+                                    <button
+                                      onClick={() => isRegistration ? handleApproveRegistration(item.id) : isOnlineWork ? handleApproveOnlineWork(item.id) : handleApprove(item.id)}
+                                      className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md text-sm"
+                                    >
+                                      Duyệt
+                                    </button>
+                                    <button
+                                      onClick={() => isRegistration ? handleRejectRegistration(item.id) : isOnlineWork ? handleRejectOnlineWork(item.id) : handleReject(item.id)}
+                                      className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
+                                    >
+                                      Từ chối
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="text-gray-500 text-sm italic">
+                                    {item.employee_id === currentEmployee?.id
+                                      ? 'Không thể duyệt đơn của mình'
+                                      : (!item.direct_manager_approved && !item.direct_manager_rejected)
+                                        ? 'Chờ QLTT xử lý'
+                                        : item.direct_manager_approved === true
+                                          ? 'Chờ HR xử lý'
+                                          : 'Không có quyền'}
+                                  </span>
+                                )
                               ) : (
                                 <span className="text-gray-500 text-sm italic">
-                                  {reg.employee_id ===
-                                    currentEmployee?.id
-                                    ? 'Không thể duyệt đơn của chính mình'
-                                    : 'Không có quyền duyệt'}
+                                  {activeTab === 'approved' ? 'Đã duyệt' : 'Đã từ chối'}
                                 </span>
-                              )
-                            ) : (
-                              <span className="text-gray-500 text-sm italic">
-                                {activeTab === 'approved'
-                                  ? 'Đã được duyệt'
-                                  : 'Đã bị từ chối'}
-                              </span>
-                            )}
-                            <button
-                              onClick={() => handleViewDetails(reg)}
-                              className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md text-sm"
-                            >
-                              Chi tiết
-                            </button>
-                            {canDeleteExplanation(reg) && (
+                              )}
                               <button
-                                onClick={() => handleDelete(reg.id)}
-                                className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
-                                title="Xóa đơn đăng ký"
+                                onClick={() => isOnlineWork ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
+                                className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md text-sm"
                               >
-                                Xóa
+                                Chi tiết
                               </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+
+                              {/* Xóa đơn (Áp dụng riêng điều kiện xóa) */}
+                              {isOnlineWork ? (
+                                activeTab === 'pending' && item.employee_id === currentEmployee?.id && (
+                                  <button
+                                    onClick={() => handleDeleteOnlineWork(item.id)}
+                                    className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
+                                    title="Xóa đơn làm việc online"
+                                  >
+                                    Xóa
+                                  </button>
+                                )
+                              ) : (
+                                canDeleteExplanation(item) && (
+                                  <button
+                                    onClick={() => isRegistration ? handleDeleteRegistration(item.id) : handleDelete(item.id)}
+                                    className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
+                                    title={isRegistration ? "Xóa đơn đăng ký" : "Xóa đơn giải trình"}
+                                  >
+                                    Xóa
+                                  </button>
+                                )
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
 
                     {/* Hiển thị leave requests */}
                     {leaveRequests.map((request) => (
@@ -1281,12 +1333,27 @@ const Approvals: React.FC = () => {
                               </svg>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="text-sm font-bold text-gray-900">
                                 Nghỉ phép
                               </div>
-                              <div className="text-sm text-gray-500">
-                                {request.reason}
-                              </div>
+                              {(() => {
+                                let rawReason = request.reason || '';
+                                const prefixes = ['Nghỉ phép', 'Lý do:'];
+
+                                for (const p of prefixes) {
+                                  if (p && rawReason.toLowerCase().startsWith(p.toLowerCase())) {
+                                    rawReason = rawReason.substring(p.length).replace(/^[\:\-\s]+/, '').trim();
+                                    break;
+                                  }
+                                }
+
+                                return rawReason ? (
+                                  <div className="text-sm text-gray-600 truncate max-w-xs mt-0.5" title={rawReason}>
+                                    <span className="font-semibold text-gray-500">Lý do: </span>
+                                    {rawReason}
+                                  </div>
+                                ) : null;
+                              })()}
                             </div>
                           </div>
                         </td>
@@ -1354,12 +1421,27 @@ const Approvals: React.FC = () => {
                               </svg>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="text-sm font-bold text-gray-900">
                                 Làm thêm giờ
                               </div>
-                              <div className="text-sm text-gray-500">
-                                {request.reason}
-                              </div>
+                              {(() => {
+                                let rawReason = request.reason || '';
+                                const prefixes = ['Làm thêm giờ', 'Tăng ca', 'Đăng ký làm thêm giờ', 'Đăng ký tăng ca', 'Lý do:'];
+
+                                for (const p of prefixes) {
+                                  if (p && rawReason.toLowerCase().startsWith(p.toLowerCase())) {
+                                    rawReason = rawReason.substring(p.length).replace(/^[\:\-\s]+/, '').trim();
+                                    break;
+                                  }
+                                }
+
+                                return rawReason ? (
+                                  <div className="text-sm text-gray-600 truncate max-w-xs mt-0.5" title={rawReason}>
+                                    <span className="font-semibold text-gray-500">Lý do: </span>
+                                    {rawReason}
+                                  </div>
+                                ) : null;
+                              })()}
                             </div>
                           </div>
                         </td>
@@ -1404,99 +1486,7 @@ const Approvals: React.FC = () => {
                       </tr>
                     ))}
 
-                    {/* Hiển thị online work requests */}
-                    {onlineWorkRequests.map((request) => (
-                      <tr key={`online-work-${request.id}`}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 bg-teal-100 rounded-full flex items-center justify-center">
-                              <svg
-                                className="h-5 w-5 text-teal-600"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                                />
-                              </svg>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                Làm việc online
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {request.reason || request.work_plan}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {request.employee_name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {request.employee_code}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(request.created_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(request.work_date)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(request.status, 'ONLINE_WORK')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
-                            {activeTab === 'pending' &&
-                              canApproveRequest(request) && (
-                                <>
-                                  <button
-                                    onClick={() =>
-                                      handleApproveOnlineWork(request.id)
-                                    }
-                                    className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-md text-sm"
-                                  >
-                                    Duyệt
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      handleRejectOnlineWork(request.id)
-                                    }
-                                    className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
-                                  >
-                                    Từ chối
-                                  </button>
-                                </>
-                              )}
-                            <button
-                              onClick={() =>
-                                handleViewOnlineWorkDetails(request)
-                              }
-                              className="text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-md text-sm"
-                            >
-                              Chi tiết
-                            </button>
-                            {activeTab === 'pending' &&
-                              request.employee_id === currentEmployee?.id && (
-                                <button
-                                  onClick={() =>
-                                    handleDeleteOnlineWork(request.id)
-                                  }
-                                  className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md text-sm"
-                                >
-                                  Xóa
-                                </button>
-                              )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+
                   </>
                 )}
               </tbody>
@@ -1538,9 +1528,11 @@ const Approvals: React.FC = () => {
               <div className="px-6 py-4 border-b border-gray-200">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    {selectedExplanation
-                      ? (isRegistrationType(selectedExplanation.explanation_type) ? 'Chi tiết đăng ký' : 'Chi tiết giải trình')
-                      : 'Chi tiết đơn làm việc online'}
+                    {selectedOnlineWorkRequest
+                      ? 'Chi tiết đơn làm việc online'
+                      : selectedExplanation?._itemType === 'REGISTRATION'
+                        ? 'Chi tiết đăng ký'
+                        : 'Chi tiết giải trình'}
                   </h3>
                   <button
                     onClick={() => {
@@ -1569,334 +1561,17 @@ const Approvals: React.FC = () => {
               </div>
 
               <div className="px-6 py-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  {/* Thông tin nhân viên */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">
-                      Thông tin nhân viên
-                    </h4>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex items-center mb-3">
-                        <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                          <svg
-                            className="h-5 w-5 text-blue-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                            />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {selectedExplanation
-                              ? selectedExplanation.employee_name
-                              : selectedOnlineWorkRequest.employee_name}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {selectedExplanation
-                              ? selectedExplanation.employee_code
-                              : selectedOnlineWorkRequest.employee_code}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">
-                            Phòng ban:
-                          </span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {(selectedExplanation
-                              ? selectedExplanation.employee_department
-                              : selectedOnlineWorkRequest.department_name) ||
-                              'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">
-                            Quản lý trực tiếp:
-                          </span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {(selectedExplanation
-                              ? selectedExplanation.employee_manager_name
-                              : selectedOnlineWorkRequest.employee_manager_name) ||
-                              'N/A'}
-                          </span>
-                        </div>
-                        {selectedExplanation && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">
-                              Trưởng phòng:
-                            </span>
-                            <span className="text-sm font-medium text-gray-900">
-                              {selectedExplanation.employee_department_manager_name ||
-                                'N/A'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Thông tin đơn */}
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">
-                      {selectedExplanation
-                        ? (isRegistrationType(selectedExplanation.explanation_type) ? 'Thông tin đăng ký' : 'Thông tin giải trình')
-                        : 'Thông tin đơn làm việc online'}
-                    </h4>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <div className="space-y-3">
-                        {selectedExplanation ? (
-                          <>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                {isRegistrationType(selectedExplanation.explanation_type) ? 'Ngày đăng ký:' : 'Ngày giải trình:'}
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {formatDate(
-                                  selectedExplanation.attendance_date
-                                )}
-                              </span>
-                            </div>
-
-                            {/* Chỉ hiển thị trạng thái gốc/mong muốn cho các loại Giải trình thực sự */}
-                            {!isRegistrationType(selectedExplanation.explanation_type) && (
-                                <>
-                                  <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">
-                                      Trạng thái gốc:
-                                    </span>
-                                    <span className="text-sm font-medium text-gray-900">
-                                      {getOriginalStatusText(selectedExplanation.original_status)}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span className="text-sm text-gray-600">
-                                      Trạng thái mong muốn:
-                                    </span>
-                                    <span className="text-sm font-medium text-gray-900">
-                                      {getExpectedStatusText(selectedExplanation.expected_status)}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                Ngày làm việc:
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {formatDate(
-                                  selectedOnlineWorkRequest.work_date
-                                )}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                Mã đơn:
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {selectedOnlineWorkRequest.request_code}
-                              </span>
-                            </div>
-                          </>
-                        )}
-
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">
-                            Trạng thái hiện tại:
-                          </span>
-                          <span>
-                            {getStatusBadge(
-                              selectedExplanation
-                                ? selectedExplanation.status
-                                : selectedOnlineWorkRequest.status,
-                              selectedExplanation
-                                ? (isRegistrationType(selectedExplanation.explanation_type) ? 'REGISTRATION' : 'EXPLANATION')
-                                : 'ONLINE_WORK'
-                            )}
-                          </span>
-                        </div>
-
-                        {selectedExplanation ? (
-                          <>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                Quản lý trực tiếp đã duyệt:
-                              </span>
-                              <span
-                                className={`text-sm font-medium ${selectedExplanation.direct_manager_approved
-                                  ? 'text-green-600'
-                                  : 'text-gray-400'
-                                  }`}
-                              >
-                                {selectedExplanation.direct_manager_approved
-                                  ? '✓ Đã duyệt'
-                                  : '✗ Chưa duyệt'}
-                              </span>
-                            </div>
-                            {!selectedExplanation.employee_is_hr && (
-                              <div className="flex justify-between">
-                                <span className="text-sm text-gray-600">
-                                  Nhân sự HR đã duyệt:
-                                </span>
-                                <span
-                                  className={`text-sm font-medium ${selectedExplanation.hr_approved
-                                    ? 'text-green-600'
-                                    : 'text-gray-400'
-                                    }`}
-                                >
-                                  {selectedExplanation.hr_approved
-                                    ? '✓ Đã duyệt'
-                                    : '✗ Chưa duyệt'}
-                                </span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                Quản lý trực tiếp đã duyệt:
-                              </span>
-                              <span
-                                className={`text-sm font-medium ${selectedOnlineWorkRequest.direct_manager_approved
-                                  ? 'text-green-600'
-                                  : selectedOnlineWorkRequest.direct_manager_rejected
-                                    ? 'text-red-600'
-                                    : 'text-gray-400'
-                                  }`}
-                              >
-                                {selectedOnlineWorkRequest.direct_manager_approved
-                                  ? '✓ Đã duyệt'
-                                  : selectedOnlineWorkRequest.direct_manager_rejected
-                                    ? '✗ Từ chối'
-                                    : '✗ Chưa duyệt'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                Nhân sự HR đã duyệt:
-                              </span>
-                              <span
-                                className={`text-sm font-medium ${selectedOnlineWorkRequest.hr_approved
-                                  ? 'text-green-600'
-                                  : selectedOnlineWorkRequest.hr_rejected
-                                    ? 'text-red-600'
-                                    : 'text-gray-400'
-                                  }`}
-                              >
-                                {selectedOnlineWorkRequest.hr_approved
-                                  ? '✓ Đã duyệt'
-                                  : selectedOnlineWorkRequest.hr_rejected
-                                    ? '✗ Từ chối'
-                                    : '✗ Chưa duyệt'}
-                              </span>
-                            </div>
-                          </>
-                        )}
-
-                        {/* Timestamps */}
-                        {(selectedExplanation
-                          ? selectedExplanation.direct_manager_approved_at
-                          : selectedOnlineWorkRequest.direct_manager_approved_at) && (
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                QL trực tiếp duyệt lúc:
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {formatDateTime(
-                                  selectedExplanation
-                                    ? selectedExplanation.direct_manager_approved_at
-                                    : selectedOnlineWorkRequest.direct_manager_approved_at
-                                )}
-                              </span>
-                            </div>
-                          )}
-
-                        {selectedOnlineWorkRequest?.direct_manager_rejected_at && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">
-                              QL trực tiếp từ chối lúc:
-                            </span>
-                            <span className="text-sm font-medium text-gray-900">
-                              {formatDateTime(
-                                selectedOnlineWorkRequest.direct_manager_rejected_at
-                              )}
-                            </span>
-                          </div>
-                        )}
-
-                        {(selectedExplanation
-                          ? !selectedExplanation.employee_is_hr &&
-                          selectedExplanation.hr_approved_at
-                          : selectedOnlineWorkRequest.hr_approved_at) && (
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                HR duyệt lúc:
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {formatDateTime(
-                                  selectedExplanation
-                                    ? selectedExplanation.hr_approved_at
-                                    : selectedOnlineWorkRequest.hr_approved_at
-                                )}
-                              </span>
-                            </div>
-                          )}
-
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">
-                            Ngày tạo:
-                          </span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {formatDateTime(
-                              selectedExplanation
-                                ? selectedExplanation.created_at
-                                : selectedOnlineWorkRequest.created_at
-                            )}
-                          </span>
-                        </div>
-
-                        {(selectedExplanation
-                          ? selectedExplanation.approved_at
-                          : selectedOnlineWorkRequest.approved_at) && (
-                            <div className="flex justify-between">
-                              <span className="text-sm text-gray-600">
-                                Ngày duyệt cuối cùng:
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {formatDateTime(
-                                  selectedExplanation
-                                    ? selectedExplanation.approved_at
-                                    : selectedOnlineWorkRequest.approved_at
-                                )}
-                              </span>
-                            </div>
-                          )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reasons / Work Plans */}
+                {/* 1. Kế hoạch / Lý do (Note Box - Đưa lên đầu) */}
                 <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-500 mb-2">
-                    {selectedExplanation
-                      ? 'Lý do giải trình'
-                      : 'Kế hoạch công việc'}
-                  </h4>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-blue-700 font-medium whitespace-pre-wrap">
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl shadow-sm">
+                    <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">
+                      {selectedExplanation
+                        ? selectedExplanation._itemType === 'REGISTRATION'
+                          ? 'Lý do đăng ký'
+                          : 'Lý do giải trình'
+                        : 'Kế hoạch công việc'}
+                    </h4>
+                    <p className="text-gray-800 font-medium whitespace-pre-wrap text-sm leading-relaxed">
                       {selectedExplanation
                         ? selectedExplanation.reason
                         : selectedOnlineWorkRequest.work_plan || 'N/A'}
@@ -1904,81 +1579,222 @@ const Approvals: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Additional Fields for Online Work */}
-                {!selectedExplanation && (
-                  <>
-                    {selectedOnlineWorkRequest.actual_result && (
-                      <div className="mb-6">
-                        <h4 className="text-sm font-medium text-gray-500 mb-2">
-                          Kết quả thực tế
-                        </h4>
-                        <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-                          <p className="text-green-800 whitespace-pre-wrap">
-                            {selectedOnlineWorkRequest.actual_result}
-                          </p>
-                        </div>
+                {/* 2. Grid Thông tin Nhân viên & Chi tiết Đơn */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  {/* Cột 1: Profile Card */}
+                  <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center">
+                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                      Người tạo đơn
+                    </h4>
+                    <div className="flex items-center mb-5">
+                      <div className="h-12 w-12 bg-gradient-to-br from-blue-100 to-blue-50 rounded-full flex items-center justify-center mr-4 border border-blue-200 shadow-inner">
+                        <span className="text-blue-700 font-bold text-lg">
+                          {(selectedExplanation ? selectedExplanation.employee_name : selectedOnlineWorkRequest.employee_name)?.charAt(0) || 'U'}
+                        </span>
                       </div>
-                    )}
-                  </>
+                      <div>
+                        <p className="text-base font-bold text-gray-900 leading-tight">
+                          {selectedExplanation
+                            ? selectedExplanation.employee_name
+                            : selectedOnlineWorkRequest.employee_name}
+                        </p>
+                        <p className="text-sm font-medium text-gray-500 mt-0.5">
+                          {selectedExplanation
+                            ? selectedExplanation.employee_code
+                            : selectedOnlineWorkRequest.employee_code}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-y-3 gap-x-2 pt-4 border-t border-gray-100">
+                      <div>
+                        <span className="block text-xs font-medium text-gray-500 mb-0.5">Phòng ban</span>
+                        <span className="block text-sm font-semibold text-gray-800 truncate">
+                          {(selectedExplanation
+                            ? (selectedExplanation.employee_department || selectedExplanation.department_name)
+                            : selectedOnlineWorkRequest.department_name) || 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-xs font-medium text-gray-500 mb-0.5">Quản lý</span>
+                        <span className="block text-sm font-semibold text-gray-800 truncate">
+                          {(selectedExplanation
+                            ? selectedExplanation.employee_manager_name
+                            : selectedOnlineWorkRequest.employee_manager_name) || 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cột 2: Request Info (Meta Data) */}
+                  <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center">
+                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      Cụ thể yêu cầu
+                    </h4>
+
+                    <div className="space-y-3.5">
+                      {/* Trạng thái hiện tại nổi bật */}
+                      <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg mb-1 border border-gray-100">
+                        <span className="text-sm font-medium text-gray-600">Trạng thái hiện tại:</span>
+                        <span>
+                          {getStatusBadge(
+                            selectedExplanation
+                              ? selectedExplanation.status
+                              : selectedOnlineWorkRequest.status,
+                            selectedExplanation
+                              ? selectedExplanation._itemType
+                              : 'ONLINE_WORK'
+                          )}
+                        </span>
+                      </div>
+
+                      {selectedExplanation ? (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-500">
+                              {selectedExplanation._itemType === 'REGISTRATION' ? 'Ngày đăng ký:' : 'Ngày vi phạm:'}
+                            </span>
+                            <span className="text-sm font-bold text-gray-900">
+                              {formatDate(selectedExplanation.attendance_date)}
+                            </span>
+                          </div>
+                          {selectedExplanation._itemType !== 'REGISTRATION' && (
+                            <>
+                              <div className="flex justify-between items-center border-t border-dashed border-gray-200 pt-2.5 mt-2.5">
+                                <span className="text-sm font-medium text-gray-500">Trạng thái gốc:</span>
+                                <span className="text-sm font-medium text-gray-600 bg-gray-100/80 px-2.5 py-0.5 rounded text-right flex items-center">
+                                  {getOriginalStatusText(selectedExplanation.original_status)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center mt-2.5">
+                                <span className="text-sm font-medium text-gray-500">Mong muốn:</span>
+                                <span className="text-sm font-medium text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded text-right flex items-center">
+                                  {getExpectedStatusText(selectedExplanation.expected_status)}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-gray-500">Ngày làm việc:</span>
+                            <span className="text-sm font-bold text-gray-900">
+                              {formatDate(selectedOnlineWorkRequest.work_date)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center border-t border-dashed border-gray-200 pt-2.5 mt-2.5">
+                            <span className="text-sm font-medium text-gray-500">Mã đơn:</span>
+                            <span className="text-xs font-mono font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                              {selectedOnlineWorkRequest.request_code}
+                            </span>
+                          </div>
+                        </>
+                      )}
+
+                      <div className="flex justify-between items-center pt-2.5 border-t border-gray-100 mt-2">
+                        <span className="text-sm font-medium text-gray-500">Ngày tạo đơn:</span>
+                        <span className="text-sm font-semibold text-gray-800">
+                          {formatDateTime(
+                            selectedExplanation
+                              ? selectedExplanation.created_at
+                              : selectedOnlineWorkRequest.created_at
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Fields for Online Work (Mở rộng) */}
+                {!selectedExplanation && selectedOnlineWorkRequest.actual_result && (
+                  <div className="mb-6">
+                    <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-xl shadow-sm">
+                      <h4 className="text-xs font-bold text-green-800 uppercase tracking-wider mb-2">
+                        Kết quả thực tế
+                      </h4>
+                      <p className="text-gray-800 font-medium whitespace-pre-wrap text-sm leading-relaxed">
+                        {selectedOnlineWorkRequest.actual_result}
+                      </p>
+                    </div>
+                  </div>
                 )}
 
                 {/* Approval Note (Common) */}
 
                 {/* Workflow Timeline */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 mb-2">
+                <div className="mt-8">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center">
+                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     Quy trình duyệt
                   </h4>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="space-y-4">
-                      {(selectedExplanation
-                        ? getApprovalWorkflow(selectedExplanation)
-                        : getOnlineWorkApprovalWorkflow(
-                          selectedOnlineWorkRequest
-                        )
-                      ).map((step) => (
-                        <div key={step.step} className="flex items-start">
-                          <div
-                            className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center mr-3 ${step.status === 'Đã duyệt'
-                              ? 'bg-green-100 text-green-600'
-                              : step.status === 'Đã từ chối'
-                                ? 'bg-red-100 text-red-600'
-                                : 'bg-green-100 text-green-600'
-                              }`}
-                          >
-                            <span className="text-sm font-medium">
-                              {step.step}
-                            </span>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {step.role}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  Người duyệt: {step.approver}
-                                </p>
+                  <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm ring-1 ring-black/5">
+                    <div className="relative border-l-2 border-gray-100 ml-4 space-y-8">
+                      {(() => {
+                        const workflowSteps = selectedExplanation
+                          ? getApprovalWorkflow(selectedExplanation)
+                          : getOnlineWorkApprovalWorkflow(selectedOnlineWorkRequest);
+
+                        return workflowSteps.map((step, index) => {
+                          const isRejected = step.status.includes('từ chối');
+                          const isApproved = step.status.includes('duyệt') && !step.status.includes('Chưa');
+                          const isPending = !isRejected && !isApproved;
+
+                          // Determine the node icon and color
+                          const nodeColor = isRejected
+                            ? 'bg-red-100 text-red-600 border-red-200 shadow-red-100'
+                            : isApproved
+                              ? 'bg-green-100 text-green-600 border-green-200 shadow-green-100'
+                              : 'bg-white text-gray-400 border-gray-200 outline-dashed outline-2 outline-gray-300 outline-offset-2';
+
+                          return (
+                            <div key={step.step} className="relative pl-8">
+                              {/* Timeline Node */}
+                              <div className={`absolute -left-[17px] top-1 h-8 w-8 rounded-full border-2 bg-white flex items-center justify-center shadow-sm z-10 ${nodeColor}`}>
+                                {isRejected ? (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                ) : isApproved ? (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                ) : (
+                                  <span className="h-2 w-2 bg-gray-400 rounded-full animate-pulse"></span>
+                                )}
                               </div>
-                              <span
-                                className={`text-xs font-medium px-2 py-1 rounded-full ${step.status === 'Đã duyệt'
-                                  ? 'bg-green-100 text-green-800'
-                                  : step.status === 'Đã từ chối'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                  }`}
-                              >
-                                {step.status}
-                              </span>
+
+                              {/* Step Content */}
+                              <div className={`bg-gray-50/50 p-4 rounded-xl border ${isRejected ? 'border-red-100/60' : isApproved ? 'border-green-100/60' : 'border-gray-100 opacity-80'}`}>
+                                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                                  <div>
+                                    <p className="text-sm font-bold text-gray-900 flex items-center">
+                                      {step.role}
+                                      {/* Mini Badge */}
+                                      <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${isRejected ? 'bg-red-100 text-red-700' :
+                                        isApproved ? 'bg-green-100 text-green-700' :
+                                          'bg-yellow-100 text-yellow-700'
+                                        }`}
+                                      >
+                                        {step.status}
+                                      </span>
+                                    </p>
+                                    <p className="text-sm text-gray-600 mt-1">
+                                      <span className="text-gray-400 mr-1">{isRejected ? 'Người từ chối:' : 'Người duyệt:'}</span>
+                                      <span className="font-medium text-gray-700">{step.approver}</span>
+                                    </p>
+                                  </div>
+
+                                  {step.date && (
+                                    <div className="text-left sm:text-right bg-white px-3 py-1.5 rounded-lg border border-gray-100 shadow-sm">
+                                      <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Thời gian</p>
+                                      <p className="text-sm font-semibold text-gray-800">{formatDateTime(step.date)}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            {step.date && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                Ngày duyệt: {formatDateTime(step.date)}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                          );
+                        });
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -2003,7 +1819,11 @@ const Approvals: React.FC = () => {
                         <>
                           <button
                             onClick={() => {
-                              handleApprove(selectedExplanation.id);
+                              if (selectedExplanation._itemType === 'REGISTRATION') {
+                                handleApproveRegistration(selectedExplanation.id);
+                              } else {
+                                handleApprove(selectedExplanation.id);
+                              }
                               setShowDetailModal(false);
                             }}
                             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
@@ -2012,7 +1832,11 @@ const Approvals: React.FC = () => {
                           </button>
                           <button
                             onClick={() => {
-                              handleReject(selectedExplanation.id);
+                              if (selectedExplanation._itemType === 'REGISTRATION') {
+                                handleRejectRegistration(selectedExplanation.id);
+                              } else {
+                                handleReject(selectedExplanation.id);
+                              }
                               setShowDetailModal(false);
                             }}
                             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"

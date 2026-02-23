@@ -482,16 +482,18 @@ const AttendanceManagement: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // First, fetch current employee
+      // Fetch current employee trước
       const employee = await fetchCurrentEmployee();
 
-      // Then fetch attendance stats and records using the employee data
       if (employee) {
-        await fetchAttendanceStats(employee);
-        await fetchAttendanceRecords(employee);
-        // Also fetch monthly work credits and calendar data
-        await fetchMonthlyWorkCredits(undefined, undefined, employee.id);
-        await fetchCalendarData(undefined, undefined, employee.id);
+        // Fetch tất cả data song song sau khi có employee
+        await Promise.all([
+          fetchAttendanceStats(employee),
+          fetchAttendanceRecords(employee),
+          fetchMonthlyWorkCredits(undefined, undefined, employee.id),
+          fetchCalendarData(undefined, undefined, employee.id),
+          fetchMonthlyRequestHistory(employee), // truyền employee thẳng, không chờ setState
+        ]);
       }
     };
 
@@ -514,6 +516,8 @@ const AttendanceManagement: React.FC = () => {
         currentDate.getFullYear(),
         currentEmployee.id
       );
+      // Refetch monthly request history khi đổi tháng — truyền currentDate explicit tránh stale closure
+      fetchMonthlyRequestHistory(currentEmployee, currentDate);
     }
   }, [currentDate.getMonth(), currentDate.getFullYear()]);
 
@@ -699,54 +703,51 @@ const AttendanceManagement: React.FC = () => {
   };
 
   // Fetch lịch sử đơn trong tháng hiện tại
-  const fetchMonthlyRequestHistory = async () => {
-    if (!currentEmployee) return;
+  const fetchMonthlyRequestHistory = async (emp?: Employee | null, date?: Date) => {
+    const employee = emp ?? currentEmployee;
+    if (!employee) return;
     setRequestHistoryLoading(true);
     try {
-      const today = currentDate || new Date();
+      const today = date ?? currentDate ?? new Date();
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const startDate = fmt(firstDay);
+      const endDate = fmt(lastDay);
 
-      // Gọi 3 endpoint riêng: giải trình, đăng ký công, online work
+      // Gọi song song 3 endpoint: giải trình, đăng ký công, online work
       const [explanationsRes, registrationsRes, onlineWorksRes] = await Promise.all([
-        managementApi.get('/api-hrm/attendance-explanations/', {
-          params: {
-            employee_id: currentEmployee.id,
-            start_date: fmt(firstDay),
-            end_date: fmt(lastDay),
-            page_size: 100,
-            ordering: '-created_at',
-          },
-        }),
-        attendanceService.getRegistrationRequests({
-          employee_id: currentEmployee.id,
+        attendanceService.getAttendanceExplanations({
+          employee_id: employee.id,
           month: today.getMonth() + 1,
           year: today.getFullYear(),
           page_size: 100,
+          ordering: '-created_at',
+        }),
+        attendanceService.getRegistrationRequests({
+          employee_id: employee.id,
+          start_date: startDate,
+          end_date: endDate,
+          page_size: 100,
         }),
         attendanceService.getOnlineWorkRequests({
-          employee: currentEmployee.id,
+          employee_id: employee.id,
+          start_date: startDate,
+          end_date: endDate,
+          page_size: 100,
         }),
       ]);
 
-      const explanations: any[] = explanationsRes.data?.results || [];
+      const explanations: any[] = explanationsRes.results || [];
       const registrations: any[] = registrationsRes?.results || [];
       const onlineWorks = Array.isArray(onlineWorksRes)
         ? onlineWorksRes
         : onlineWorksRes?.results || [];
 
-      // Lọc online works theo tháng
-      const filteredOnlineWorks = onlineWorks.filter((ow: any) => {
-        if (!ow.work_date) return false;
-        const d = new Date(ow.work_date);
-        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-      });
-
       setMonthlyRequestHistory({
         explanations,
         registrations,
-        onlineWorks: filteredOnlineWorks,
+        onlineWorks,
         leaveRequests: [],
       });
     } catch (error) {
@@ -1877,7 +1878,7 @@ const AttendanceManagement: React.FC = () => {
                     ) : (
                       <div className="bg-gray-50 rounded-lg p-6 text-center border-2 border-dashed border-gray-200">
                         <p className="text-gray-500 text-sm">
-                          Không có đơn bổ sung công hoặc làm online
+                          Không có đơn bổ sung công hoặc làm việc online
                         </p>
                       </div>
                     )}
@@ -4116,7 +4117,9 @@ const AttendanceManagement: React.FC = () => {
                     {[
                       { label: 'Giải trình', count: monthlyRequestHistory.explanations.length, color: 'bg-blue-400' },
                       { label: 'Đăng ký', count: monthlyRequestHistory.registrations.length, color: 'bg-amber-400' },
-                      { label: 'Làm online', count: monthlyRequestHistory.onlineWorks.length, color: 'bg-teal-400' },
+                      ...(currentEmployee?.position?.is_management
+                        ? [{ label: 'Làm việc online', count: monthlyRequestHistory.onlineWorks.length, color: 'bg-teal-400' }]
+                        : []),
                     ].map((item) => (
                       <div key={item.label} className="flex items-center gap-1.5 bg-white bg-opacity-15 rounded-lg px-2.5 py-1">
                         <span className={`w-2 h-2 rounded-full ${item.color}`} />
@@ -4131,10 +4134,17 @@ const AttendanceManagement: React.FC = () => {
                 <div className="border-b border-gray-100 bg-gray-50 px-4 pt-3 pb-0">
                   <div className="flex gap-1 overflow-x-auto scrollbar-hide">
                     {[
-                      { key: 'all', label: 'Tất cả', count: monthlyRequestHistory.explanations.length + monthlyRequestHistory.registrations.length + monthlyRequestHistory.onlineWorks.length },
+                      {
+                        key: 'all',
+                        label: 'Tất cả',
+                        count: monthlyRequestHistory.explanations.length + monthlyRequestHistory.registrations.length
+                          + (currentEmployee?.position?.is_management ? monthlyRequestHistory.onlineWorks.length : 0),
+                      },
                       { key: 'explanation', label: 'Giải trình', count: monthlyRequestHistory.explanations.length },
                       { key: 'registration', label: 'Đăng ký', count: monthlyRequestHistory.registrations.length },
-                      { key: 'online_work', label: 'Làm online', count: monthlyRequestHistory.onlineWorks.length },
+                      ...(currentEmployee?.position?.is_management
+                        ? [{ key: 'online_work', label: 'Làm việc online', count: monthlyRequestHistory.onlineWorks.length }]
+                        : []),
                     ].map((tab) => (
                       <button
                         key={tab.key}
@@ -4190,70 +4200,113 @@ const AttendanceManagement: React.FC = () => {
                     }
 
                     return (
-                      <div className="divide-y divide-gray-50">
+                      <div className="p-4 space-y-3 bg-gray-50/50 min-h-full">
                         {allItems.map((item, idx) => {
                           const statusConfig = ({
-                            APPROVED: { label: 'Đã duyệt', cls: 'bg-green-100 text-green-700' },
-                            REJECTED: { label: 'Từ chối', cls: 'bg-red-100 text-red-700' },
-                            PENDING: { label: 'Chờ duyệt', cls: 'bg-amber-100 text-amber-700' },
-                            DRAFT: { label: 'Nháp', cls: 'bg-gray-100 text-gray-600' },
-                            CANCELLED: { label: 'Đã huỷ', cls: 'bg-gray-100 text-gray-500' },
-                          } as Record<string, { label: string; cls: string }>)[item.status] || { label: item.status, cls: 'bg-gray-100 text-gray-600' };
+                            APPROVED: { label: 'Đã duyệt', cls: 'bg-green-50 text-green-700 ring-1 ring-green-600/20' },
+                            REJECTED: { label: 'Từ chối', cls: 'bg-red-50 text-red-700 ring-1 ring-red-600/20' },
+                            PENDING: { label: 'Chờ duyệt', cls: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
+                            DRAFT: { label: 'Nháp', cls: 'bg-gray-50 text-gray-600 ring-1 ring-gray-500/20' },
+                            CANCELLED: { label: 'Đã huỷ', cls: 'bg-gray-50 text-gray-500 ring-1 ring-gray-500/20' },
+                          } as Record<string, { label: string; cls: string }>)[item.status] || { label: item.status, cls: 'bg-gray-50 text-gray-600 ring-1 ring-gray-500/20' };
 
                           const typeConfig = ({
-                            explanation: { label: 'Giải trình', dot: 'bg-blue-500', bg: 'bg-blue-50' },
-                            registration: { label: 'Đăng ký', dot: 'bg-amber-500', bg: 'bg-amber-50' },
-                            online_work: { label: 'Làm online', dot: 'bg-teal-500', bg: 'bg-teal-50' },
-                          } as Record<string, { label: string; dot: string; bg: string }>)[item._type] || { label: item._type, dot: 'bg-gray-400', bg: 'bg-gray-50' };
+                            explanation: { label: 'Giải trình', bg: 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' },
+                            registration: { label: 'Đăng ký', bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
+                            online_work: { label: 'Làm việc online', bg: 'bg-teal-50 text-teal-700 ring-1 ring-teal-600/20' },
+                          } as Record<string, { label: string; bg: string }>)[item._type] || { label: item._type, bg: 'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20' };
 
                           const dateStr = item.attendance_date || item.work_date || item.created_at;
                           const displayDate = dateStr
                             ? new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
                             : '—';
 
-                          const explanationTypeLabel = item.explanation_type
-                            ? (EXPLANATION_TYPE_MAP[item.explanation_type] || item.explanation_type)
-                            : null;
+                          let requestName = '';
+                          if (item._type === 'explanation') {
+                            requestName = item.explanation_type ? (EXPLANATION_TYPE_MAP[item.explanation_type] || item.explanation_type) : 'Đơn giải trình';
+                          } else if (item._type === 'registration') {
+                            requestName = item.registration_type ? (EXPLANATION_TYPE_MAP[item.registration_type] || item.registration_type) : 'Đơn đăng ký';
+                          } else if (item._type === 'online_work') {
+                            requestName = 'Đơn làm việc online';
+                          } else if (item._type === 'leave') {
+                            requestName = 'Đơn nghỉ phép';
+                          }
 
                           return (
-                            <div key={`${item._type}-${item.id}-${idx}`} className="px-4 py-3.5 hover:bg-gray-50 transition-colors">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-3 min-w-0">
-                                  {/* Type dot */}
-                                  <div className={`mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0 ${typeConfig.dot}`} />
-                                  <div className="min-w-0">
-                                    {/* Type + code */}
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${typeConfig.bg} text-gray-700`}>
-                                        {typeConfig.label}
+                            <div key={`${item._type}-${item.id}-${idx}`} className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-purple-200 transition-all duration-300">
+                              <div className="flex flex-col gap-3">
+                                {/* Header: Badges & Code */}
+                                <div className="flex justify-between items-center">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${typeConfig.bg}`}>
+                                      {typeConfig.label}
+                                    </span>
+                                    {item.request_code && (
+                                      <span className="text-[11px] font-mono text-gray-400 font-medium bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100/50">
+                                        {item.request_code}
                                       </span>
-                                      {item.request_code && (
-                                        <span className="text-[10px] text-gray-400 font-mono">{item.request_code}</span>
-                                      )}
-                                    </div>
-                                    {/* Explanation type */}
-                                    {explanationTypeLabel && (
-                                      <p className="text-sm font-semibold text-gray-800 mt-1 leading-tight">{explanationTypeLabel}</p>
                                     )}
-                                    {/* Reason */}
-                                    {item.reason && (
-                                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.reason}</p>
-                                    )}
-                                    {/* Work plan (online work) */}
-                                    {item.work_plan && (
-                                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{item.work_plan}</p>
-                                    )}
-                                    {/* Date */}
-                                    <div className="flex items-center gap-1 mt-1.5">
-                                      <CalendarIcon className="h-3 w-3 text-gray-400" />
-                                      <span className="text-[11px] text-gray-400">{displayDate}</span>
-                                    </div>
+                                  </div>
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${statusConfig.cls}`}>
+                                    {statusConfig.label}
+                                  </span>
+                                </div>
+
+                                {/* Body: Title & Reason */}
+                                <div className="flex flex-col gap-2 relative z-10">
+                                  {requestName && (
+                                    <h4 className="text-[15px] font-bold text-gray-900 leading-snug">
+                                      {requestName}
+                                    </h4>
+                                  )}
+
+                                  {(() => {
+                                    let rawReason = item.reason || item.work_plan || '';
+
+                                    const prefixes = [
+                                      requestName,
+                                      item.explanation_type ? EXPLANATION_TYPE_MAP[item.explanation_type] : '',
+                                      item.registration_type ? EXPLANATION_TYPE_MAP[item.registration_type] : '',
+                                      'Giải trình đi muộn', 'Giải trình về sớm', 'Giải trình quên chấm công',
+                                      'Giải trình đi công tác', 'Giải trình ngày đầu đi làm',
+                                      'Đi muộn', 'Về sớm', 'Quên chấm công', 'Đi công tác', 'Ngày đầu đi làm',
+                                      'Đăng ký tăng ca', 'Đăng ký làm thêm giờ', 'Đăng ký trực tối', 'Đăng ký Live',
+                                      'Tăng ca', 'Làm thêm giờ', 'Trực tối', 'Live',
+                                      'Làm việc online', 'Làm online', 'Nghỉ phép'
+                                    ].filter(Boolean);
+
+                                    prefixes.sort((a, b) => b.length - a.length);
+
+                                    for (const p of prefixes) {
+                                      if (p && rawReason.toLowerCase().startsWith(p.toLowerCase())) {
+                                        rawReason = rawReason.substring(p.length).replace(/^[\:\-\s]+/, '').trim();
+                                        break;
+                                      }
+                                    }
+
+                                    return rawReason ? (
+                                      <div className="bg-gray-50 rounded-xl p-3 border border-gray-100/60 shadow-inner overflow-hidden relative">
+                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-gray-200 to-gray-100"></div>
+                                        <div className="flex items-start gap-2 pl-1">
+                                          <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h7" />
+                                          </svg>
+                                          <span className="text-[13px] text-gray-600 font-medium leading-relaxed line-clamp-2">
+                                            {rawReason}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ) : null;
+                                  })()}
+                                </div>
+
+                                {/* Footer: Date */}
+                                <div className="flex items-center justify-between pt-2.5 mt-0.5 border-t border-gray-50">
+                                  <div className="flex items-center gap-1.5 text-gray-400">
+                                    <CalendarIcon className="h-4 w-4" />
+                                    <span className="text-xs font-semibold">{displayDate}</span>
                                   </div>
                                 </div>
-                                {/* Status badge */}
-                                <span className={`flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusConfig.cls}`}>
-                                  {statusConfig.label}
-                                </span>
                               </div>
                             </div>
                           );

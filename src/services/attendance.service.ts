@@ -654,6 +654,28 @@ class AttendanceService {
     }
   }
 
+  /**
+   * Lấy danh sách giải trình chấm công
+   */
+  async getAttendanceExplanations(params?: {
+    employee_id?: number;
+    start_date?: string;
+    end_date?: string;
+    month?: number;
+    year?: number;
+    status?: string;
+    page_size?: number;
+    ordering?: string;
+  }): Promise<{ count: number; results: any[] }> {
+    try {
+      const response = await managementApi.get('/api-hrm/attendance-explanations/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attendance explanations:', error);
+      throw error;
+    }
+  }
+
 
   /**
    * Lấy điểm công hàng tháng cho nhân viên
@@ -696,7 +718,11 @@ class AttendanceService {
   async getOnlineWorkRequests(params?: {
     status?: string;
     work_date?: string;
-    employee?: number;
+    employee_id?: number;
+    start_date?: string;
+    end_date?: string;
+    page_size?: number;
+    ordering?: string;
   }): Promise<any> {
     try {
       const response = await managementApi.get('/api-hrm/online-work-requests/', { params });
