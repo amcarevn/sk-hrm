@@ -148,6 +148,73 @@ class ApprovalService {
     }
   }
 
+  // Lấy danh sách registration requests theo trạng thái
+  async getRegistrationRequestsByStatus(status: string): Promise<any[]> {
+    try {
+      const response = await managementApi.get('/api-hrm/registration-requests/', {
+        params: {
+          status: status,
+          ordering: '-created_at'
+        }
+      });
+      return Array.isArray(response.data) ? response.data : (response.data.results || []);
+    } catch (error) {
+      console.error(`Error fetching ${status} registration requests:`, error);
+      throw error;
+    }
+  }
+
+  // Lấy danh sách registration requests chờ duyệt
+  async getPendingRegistrationRequests(): Promise<any[]> {
+    return this.getRegistrationRequestsByStatus('PENDING');
+  }
+
+  // Lấy danh sách registration requests đã duyệt
+  async getApprovedRegistrationRequests(): Promise<any[]> {
+    return this.getRegistrationRequestsByStatus('APPROVED');
+  }
+
+  // Lấy danh sách registration requests đã từ chối
+  async getRejectedRegistrationRequests(): Promise<any[]> {
+    return this.getRegistrationRequestsByStatus('REJECTED');
+  }
+
+  // Duyệt registration request
+  async approveRegistrationRequest(requestId: number, note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post(`/api-hrm/registration-requests/${requestId}/approve/`, {
+        approval_note: note || ''
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error approving registration request:', error);
+      throw error;
+    }
+  }
+
+  // Từ chối registration request
+  async rejectRegistrationRequest(requestId: number, note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post(`/api-hrm/registration-requests/${requestId}/reject/`, {
+        approval_note: note || ''
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting registration request:', error);
+      throw error;
+    }
+  }
+
+  // Xóa registration request
+  async deleteRegistrationRequest(requestId: number): Promise<void> {
+    try {
+      await managementApi.delete(`/api-hrm/registration-requests/${requestId}/`);
+    } catch (error) {
+      console.error('Error deleting registration request:', error);
+      throw error;
+    }
+  }
+
   // Lấy danh sách overtime requests chờ duyệt (tạm thời chưa có API)
   async getPendingOvertimeRequests(): Promise<any[]> {
     try {
@@ -159,26 +226,103 @@ class ApprovalService {
     }
   }
 
+  // Lấy danh sách online work requests theo trạng thái
+  async getOnlineWorkRequestsByStatus(status: string): Promise<any[]> {
+    try {
+      const response = await managementApi.get('/api-hrm/online-work-requests/', {
+        params: {
+          status: status,
+          ordering: '-created_at'
+        }
+      });
+      console.log(`🔵 [APPROVAL SERVICE] Online work ${status} response:`, response.data);
+      // API có thể trả về array trực tiếp hoặc trong results field
+      return Array.isArray(response.data) ? response.data : (response.data.results || []);
+    } catch (error) {
+      console.error(`Error fetching ${status} online work requests:`, error);
+      throw error;
+    }
+  }
+
+  // Lấy danh sách online work requests chờ duyệt
+  async getPendingOnlineWorkRequests(): Promise<any[]> {
+    return this.getOnlineWorkRequestsByStatus('PENDING');
+  }
+
+  // Lấy danh sách online work requests đã duyệt
+  async getApprovedOnlineWorkRequests(): Promise<any[]> {
+    return this.getOnlineWorkRequestsByStatus('APPROVED');
+  }
+
+  // Lấy danh sách online work requests đã từ chối
+  async getRejectedOnlineWorkRequests(): Promise<any[]> {
+    return this.getOnlineWorkRequestsByStatus('REJECTED');
+  }
+
+  // Duyệt online work request
+  async approveOnlineWorkRequest(requestId: number, note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post(
+        `/api-hrm/online-work-requests/${requestId}/approve/`,
+        { approval_note: note || '' }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error approving online work request:', error);
+      throw error;
+    }
+  }
+
+  // Từ chối online work request
+  async rejectOnlineWorkRequest(requestId: number, note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post(
+        `/api-hrm/online-work-requests/${requestId}/reject/`,
+        { approval_note: note || '' }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting online work request:', error);
+      throw error;
+    }
+  }
+
+  // Xóa online work request
+  async deleteOnlineWorkRequest(requestId: number): Promise<void> {
+    try {
+      await managementApi.delete(`/api-hrm/online-work-requests/${requestId}/`);
+    } catch (error) {
+      console.error('Error deleting online work request:', error);
+      throw error;
+    }
+  }
+
   // Tổng hợp tất cả các loại đơn chờ duyệt
   async getAllPendingRequests(): Promise<{
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
+    online_work_requests: any[];
+    registration_requests: any[];
     total_pending: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, overtimeRequests] = await Promise.all([
+      const [attendanceExplanations, leaveRequests, overtimeRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
         this.getPendingAttendanceExplanations(),
         this.getPendingLeaveRequests(),
-        this.getPendingOvertimeRequests()
+        this.getPendingOvertimeRequests(),
+        this.getPendingOnlineWorkRequests(),
+        this.getPendingRegistrationRequests()
       ]);
 
-      const total_pending = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length;
+      const total_pending = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length + onlineWorkRequests.length + registrationRequests.length;
 
       return {
         attendance_explanations: attendanceExplanations,
         leave_requests: leaveRequests,
         overtime_requests: overtimeRequests,
+        online_work_requests: onlineWorkRequests,
+        registration_requests: registrationRequests,
         total_pending
       };
     } catch (error) {
@@ -192,21 +336,27 @@ class ApprovalService {
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
+    online_work_requests: any[];
+    registration_requests: any[];
     total_approved: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, overtimeRequests] = await Promise.all([
+      const [attendanceExplanations, leaveRequests, overtimeRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
         this.getApprovedAttendanceExplanations(),
         this.getPendingLeaveRequests(), // TODO: Cần API cho leave requests đã duyệt
-        this.getPendingOvertimeRequests() // TODO: Cần API cho overtime requests đã duyệt
+        this.getPendingOvertimeRequests(), // TODO: Cần API cho overtime requests đã duyệt
+        this.getApprovedOnlineWorkRequests(),
+        this.getApprovedRegistrationRequests()
       ]);
 
-      const total_approved = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length;
+      const total_approved = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length + onlineWorkRequests.length + registrationRequests.length;
 
       return {
         attendance_explanations: attendanceExplanations,
         leave_requests: leaveRequests,
         overtime_requests: overtimeRequests,
+        online_work_requests: onlineWorkRequests,
+        registration_requests: registrationRequests,
         total_approved
       };
     } catch (error) {
@@ -220,21 +370,27 @@ class ApprovalService {
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
+    online_work_requests: any[];
+    registration_requests: any[];
     total_rejected: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, overtimeRequests] = await Promise.all([
+      const [attendanceExplanations, leaveRequests, overtimeRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
         this.getRejectedAttendanceExplanations(),
         this.getPendingLeaveRequests(), // TODO: Cần API cho leave requests đã từ chối
-        this.getPendingOvertimeRequests() // TODO: Cần API cho overtime requests đã từ chối
+        this.getPendingOvertimeRequests(), // TODO: Cần API cho overtime requests đã từ chối
+        this.getRejectedOnlineWorkRequests(),
+        this.getRejectedRegistrationRequests()
       ]);
 
-      const total_rejected = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length;
+      const total_rejected = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length + onlineWorkRequests.length + registrationRequests.length;
 
       return {
         attendance_explanations: attendanceExplanations,
         leave_requests: leaveRequests,
         overtime_requests: overtimeRequests,
+        online_work_requests: onlineWorkRequests,
+        registration_requests: registrationRequests,
         total_rejected
       };
     } catch (error) {
@@ -270,27 +426,27 @@ class ApprovalService {
   async isHR(): Promise<boolean> {
     try {
       const employee = await this.getCurrentEmployee();
-      
+
       // Kiểm tra qua position
       if (employee.position && (employee.position.title.includes('HR') || employee.position.title.includes('Nhân sự'))) {
         return true;
       }
-      
+
       // Kiểm tra qua department
       if (employee.department && (employee.department.name.includes('HR') || employee.department.name.includes('Nhân sự'))) {
         return true;
       }
-      
+
       // Kiểm tra qua permissions từ API
       if (employee.permissions && employee.permissions.can_approve_attendance) {
         return true;
       }
-      
+
       // Kiểm tra trường is_hr nếu có
       if (employee.is_hr) {
         return true;
       }
-      
+
       return false;
     } catch (error) {
       console.error('Error checking HR status:', error);
@@ -304,7 +460,7 @@ class ApprovalService {
       const currentEmployee = await this.getCurrentEmployee();
       const response = await managementApi.get(`/api-hrm/employees/${employeeId}/`);
       const employee = response.data;
-      
+
       return employee.manager && employee.manager.id === currentEmployee.id;
     } catch (error) {
       console.error('Error checking direct manager status:', error);
@@ -318,7 +474,7 @@ class ApprovalService {
       const currentEmployee = await this.getCurrentEmployee();
       const response = await managementApi.get(`/api-hrm/employees/${employeeId}/`);
       const employee = response.data;
-      
+
       return employee.department && employee.department.manager && employee.department.manager.id === currentEmployee.id;
     } catch (error) {
       console.error('Error checking department head status:', error);
