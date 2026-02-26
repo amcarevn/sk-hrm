@@ -217,9 +217,9 @@ const EmployeeEdit: React.FC = () => {
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="M">Nam</option>
-                <option value="F">Nữ</option>
-                <option value="O">Khác</option>
+                <option value="0">Nam</option>
+                <option value="1">Nữ</option>
+                <option value="2">Khác</option>
               </select>
             </div>
 

@@ -54,6 +54,7 @@ import AttendanceUpload from './pages/AttendanceUpload';
 import AttendanceView from './pages/AttendanceView';
 import Approvals from './pages/Approvals';
 import Onboarding from './pages/Onboarding';
+import OnboardingDetail from './pages/OnboardingDetail'; // ← THÊM IMPORT NÀY
 import Offboarding from './pages/Offboarding';
 import AssetList from './pages/asset/AssetList';
 import OrganizationChart from './pages/OrganizationChart';
@@ -70,6 +71,7 @@ import AttendanceRuleList from './pages/AttendanceRuleList';
 import AttendanceRuleCreate from './pages/AttendanceRuleCreate';
 import LeavePolicyList from './pages/LeavePolicyList';
 import LeavePolicyCreate from './pages/LeavePolicyCreate';
+import { EmployeeOnboardingForm } from "./pages/EmployeeOnboardingForm";
 
 function App() {
   return (
@@ -547,6 +549,10 @@ function App() {
               </ProtectedRoute>
             }
           />
+          
+          {/* ============================================ */}
+          {/* ONBOARDING ROUTES - THÊM MỚI */}
+          {/* ============================================ */}
           <Route
             path="/dashboard/onboarding"
             element={
@@ -557,6 +563,19 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* ⭐ ROUTE MỚI - Detail page */}
+          <Route
+            path="/dashboard/onboarding/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <OnboardingDetail />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* ============================================ */}
+          
           <Route
             path="/dashboard/offboarding"
             element={
@@ -744,6 +763,12 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             }
+          />
+          <Route 
+            path="/onboarding/employee-form/:token" 
+            element={
+              <EmployeeOnboardingForm />
+            } 
           />
         </Routes>
       </AuthProvider>
