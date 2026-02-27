@@ -1641,6 +1641,7 @@ export interface Employee {
     id: number;
     title: string;
     code: string;
+    is_management: boolean;
   };
   department?: {
     id: number;
@@ -1682,7 +1683,7 @@ export interface Employee {
   
   // HR employee flag
   is_hr?: boolean;
-  
+  manager_name: string;
   created_at: string;
   updated_at: string;
 }
@@ -1735,6 +1736,7 @@ export interface EmployeeCreateData {
   position_id?: number;
   department_id?: number;
   manager_id?: number;
+  is_hr?: boolean;
 }
 
 export interface EmployeeUpdateData {
@@ -1753,6 +1755,7 @@ export interface EmployeeUpdateData {
   position_id?: number;
   department_id?: number;
   manager_id?: number;
+  is_hr?: boolean;
 }
 
 // Employees API

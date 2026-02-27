@@ -103,6 +103,14 @@ export interface CalendarViewData {
       approved_at: string;
       approved_by_name: string;
     }>;
+    approved_registrations?: Array<{
+      id: number;
+      request_code: string;
+      explanation_type: string;
+      status: string;
+      approved_at: string;
+      approved_by_name: string;
+    }>;
     approved_leave_requests?: Array<{
       id: number;
       request_code: string;
@@ -111,9 +119,20 @@ export interface CalendarViewData {
       approved_at: string;
       approved_by_name: string;
     }>;
+    approved_online_works?: Array<{
+      id: number;
+      request_code: string;
+      status: string;
+      work_date: string;
+      direct_manager_approved: boolean;
+      hr_approved: boolean;
+      approved_at: string;
+    }>;
     day_status_summary?: {
       has_approved_explanation: boolean;
+      has_approved_registration: boolean;
       has_approved_leave: boolean;
+      has_approved_online_work: boolean;
       has_pending_request: boolean;
       summary_text: string;
       display_color: string;
@@ -502,6 +521,12 @@ class AttendanceService {
       rejected_explanations: number;
       remaining_explanations: number;
       max_explanations_per_month: number;
+      // THÊM MỚI (optional để tương thích ngược)
+      non_quota_explanations?: number;
+      quota_consuming_explanations?: number;
+      // ONLINE WORK STATS
+      max_online_work_per_month?: number;
+      remaining_online_work?: number;
     };
   }> {
     try {
@@ -557,14 +582,19 @@ class AttendanceService {
   }): Promise<any> {
     try {
       const formData = new FormData();
-      
+
       // Add all fields to formData
       formData.append('employee_id', data.employee_id.toString());
       formData.append('attendance_date', data.attendance_date);
       formData.append('original_status', data.original_status);
       formData.append('expected_status', data.expected_status);
       formData.append('reason', data.reason);
-      
+
+      // CRITICAL: Add explanation_type to FormData
+      if ((data as any).explanation_type) {
+        formData.append('explanation_type', (data as any).explanation_type);
+      }
+
       if (data.actual_check_in) {
         formData.append('actual_check_in', data.actual_check_in);
       }
@@ -577,15 +607,15 @@ class AttendanceService {
       if (data.expected_check_out) {
         formData.append('expected_check_out', data.expected_check_out);
       }
-      
+
       if (data.status) {
         formData.append('status', data.status);
       }
-      
+
       if (data.evidence) {
         formData.append('evidence', data.evidence);
       }
-      
+
       const response = await managementApi.post('/api-hrm/attendance-explanations/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -612,6 +642,42 @@ class AttendanceService {
   }
 
   /**
+   * Xóa giải trình chấm công
+   */
+  async deleteAttendanceExplanation(explanationId: number): Promise<any> {
+    try {
+      const response = await managementApi.delete(`/api-hrm/attendance-explanations/${explanationId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting attendance explanation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách giải trình chấm công
+   */
+  async getAttendanceExplanations(params?: {
+    employee_id?: number;
+    start_date?: string;
+    end_date?: string;
+    month?: number;
+    year?: number;
+    status?: string;
+    page_size?: number;
+    ordering?: string;
+  }): Promise<{ count: number; results: any[] }> {
+    try {
+      const response = await managementApi.get('/api-hrm/attendance-explanations/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attendance explanations:', error);
+      throw error;
+    }
+  }
+
+
+  /**
    * Lấy điểm công hàng tháng cho nhân viên
    */
   async getMonthlyWorkCredits(params?: MonthlyWorkCreditsParams): Promise<MonthlyWorkCreditsResponse> {
@@ -623,7 +689,119 @@ class AttendanceService {
       throw error;
     }
   }
+
+  /**
+   * ==================== ONLINE WORK REQUESTS ====================
+   */
+
+  /**
+   * Tạo đơn làm việc online mới
+   */
+  async createOnlineWorkRequest(data: {
+    employee_id: number;
+    work_date: string;
+    reason: string;
+    work_plan?: string;
+  }): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/online-work-requests/', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating online work request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách đơn làm việc online
+   */
+  async getOnlineWorkRequests(params?: {
+    status?: string;
+    work_date?: string;
+    employee_id?: number;
+    start_date?: string;
+    end_date?: string;
+    page_size?: number;
+    ordering?: string;
+  }): Promise<any> {
+    try {
+      const response = await managementApi.get('/api-hrm/online-work-requests/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching online work requests:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách đơn đăng ký công (tăng ca, làm thêm giờ, trực tối, live)
+   */
+  async getRegistrationRequests(params?: {
+    employee_id?: number;
+    month?: number;
+    year?: number;
+    registration_type?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+    page_size?: number;
+    ordering?: string;
+  }): Promise<{ count: number; results: RegistrationRequest[] }> {
+    try {
+      const response = await managementApi.get('/api-hrm/registration-requests/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching registration requests:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Tạo đơn đăng ký công mới
+   */
+  async createRegistrationRequest(data: {
+    employee_id: number;
+    attendance_date: string;
+    registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE';
+    start_time?: string;
+    end_time?: string;
+    reason: string;
+    status?: string;
+  }): Promise<RegistrationRequest> {
+    try {
+      const response = await managementApi.post('/api-hrm/registration-requests/', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating registration request:', error);
+      throw error;
+    }
+  }
 }
 
 export const attendanceService = new AttendanceService();
 export default attendanceService;
+
+// RegistrationRequest interface
+export interface RegistrationRequest {
+  id: number;
+  request_code: string;
+  employee: number;
+  employee_name: string;
+  employee_id_code?: string;
+  department_name?: string;
+  registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE';
+  registration_type_display: string;
+  attendance_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  total_hours: number;
+  reason: string;
+  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  status_display: string;
+  direct_manager_approved: boolean;
+  hr_approved: boolean;
+  direct_manager_approved_at: string | null;
+  hr_approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
