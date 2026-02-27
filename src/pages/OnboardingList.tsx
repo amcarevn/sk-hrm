@@ -1,497 +1,550 @@
 // ==========================================
 // FILE: pages/Onboarding/OnboardingList.tsx
-// Trang quản lý onboarding cho HR
+// Rewritten without antd — uses MUI + Tailwind only
 // ==========================================
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Button, 
-  Table, 
-  Space, 
-  Tag, 
-  Card, 
-  Modal, 
-  Form, 
-  Input, 
-  DatePicker,
-  Select,
-  message,
-  Tooltip,
-  Popover,
-  Typography
-} from 'antd';
-import { 
-  PlusOutlined, 
-  SendOutlined,
-  LinkOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined
-} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import {
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Chip,
+  IconButton,
+  Tooltip,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  Typography,
+  Popover,
+} from '@mui/material';
+import {
+  Add,
+  Send,
+  Link as LinkIcon,
+  CheckCircle,
+  Schedule,
+  Warning,
+  ContentCopy,
+  Refresh,
+  Visibility,
+} from '@mui/icons-material';
 
-const { Text } = Typography;
+// ============================================
+// TYPES
+// ============================================
+
+interface OnboardingRecord {
+  id: number;
+  onboarding_code: string;
+  full_name: string;
+  candidate_email: string;
+  position_title: string;
+  department_name: string;
+  start_date: string;
+  token_status: 'not_generated' | 'active' | 'expired';
+  employee_info_completed: boolean;
+  progress_percentage: number;
+  employee_form_url?: string;
+}
+
+interface CreateFormValues {
+  candidate_name: string;
+  candidate_email: string;
+  start_date: string;
+  position: string;
+  department: string;
+}
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export const OnboardingList: React.FC = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [onboardings, setOnboardings] = useState([]);
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [form] = Form.useForm();
 
-  // ===== FETCH ONBOARDINGS =====
-  useEffect(() => {
-    fetchOnboardings();
-  }, []);
+  const [loading, setLoading] = useState(false);
+  const [onboardings, setOnboardings] = useState<OnboardingRecord[]>([]);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; msg: string } | null>(null);
+
+  // Popover for "active" token actions
+  const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [popoverRecord, setPopoverRecord] = useState<OnboardingRecord | null>(null);
+
+  // Link modal (when email not configured)
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [linkModalUrl, setLinkModalUrl] = useState('');
+
+  const [formValues, setFormValues] = useState<CreateFormValues>({
+    candidate_name: '', candidate_email: '', start_date: '', position: '', department: '',
+  });
+  const [formErrors, setFormErrors] = useState<Partial<CreateFormValues>>({});
+
+  const showToast = (type: 'success' | 'error' | 'warning', msg: string) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  // ===== FETCH =====
+  useEffect(() => { fetchOnboardings(); }, []);
 
   const fetchOnboardings = async () => {
     setLoading(true);
     try {
       const response = await fetch('/api-hrm/onboardings/', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       const data = await response.json();
-      setOnboardings(data);
-    } catch (error) {
-      message.error('Không thể tải danh sách onboarding');
-      console.error(error);
+      setOnboardings(Array.isArray(data) ? data : data.results ?? []);
+    } catch {
+      showToast('error', 'Không thể tải danh sách onboarding');
     } finally {
       setLoading(false);
     }
   };
 
-  // ===== CREATE ONBOARDING (CHỈ THÔNG TIN CƠ BẢN) =====
-  const handleCreateOnboarding = async (values: any) => {
+  // ===== CREATE =====
+  const validateForm = (): boolean => {
+    const errors: Partial<CreateFormValues> = {};
+    if (!formValues.candidate_name.trim()) errors.candidate_name = 'Vui lòng nhập họ tên';
+    if (!formValues.candidate_email.trim()) errors.candidate_email = 'Vui lòng nhập email';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formValues.candidate_email))
+      errors.candidate_email = 'Email không hợp lệ';
+    if (!formValues.start_date) errors.start_date = 'Vui lòng chọn ngày bắt đầu';
+    if (!formValues.position) errors.position = 'Vui lòng chọn vị trí';
+    if (!formValues.department) errors.department = 'Vui lòng chọn phòng ban';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleCreateOnboarding = async () => {
+    if (!validateForm()) return;
+    setSubmitting(true);
     try {
       const response = await fetch('/api-hrm/onboardings/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({
-          candidate_name: values.candidate_name,
-          candidate_email: values.candidate_email,
-          start_date: values.start_date.format('YYYY-MM-DD'),
-          position: values.position,
-          department: values.department,
-          // Chỉ tạo với thông tin cơ bản - nhân viên sẽ điền chi tiết sau
-        })
+          candidate_name: formValues.candidate_name,
+          candidate_email: formValues.candidate_email,
+          start_date: formValues.start_date,
+          position: formValues.position,
+          department: formValues.department,
+        }),
       });
 
-      if (!response.ok) throw new Error('Không thể tạo onboarding');
+      if (!response.ok) throw new Error('Tạo onboarding thất bại');
 
       const data = await response.json();
-      message.success('Đã tạo onboarding!');
-      setCreateModalVisible(false);
-      form.resetFields();
-      
-      // Tự động gửi email cho nhân viên
+      showToast('success', 'Đã tạo onboarding!');
+      setCreateModalOpen(false);
+      setFormValues({ candidate_name: '', candidate_email: '', start_date: '', position: '', department: '' });
       await sendEmployeeEmail(data.id);
-      
       fetchOnboardings();
-    } catch (error) {
-      message.error('Lỗi khi tạo onboarding');
-      console.error(error);
+    } catch {
+      showToast('error', 'Lỗi khi tạo onboarding');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  // ===== GỬI EMAIL CHO NHÂN VIÊN =====
+  // ===== SEND EMAIL =====
   const sendEmployeeEmail = async (onboardingId: number) => {
     try {
-      const response = await fetch(
-        `/api-hrm/onboardings/${onboardingId}/send-employee-email/`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
-
+      const response = await fetch(`/api-hrm/onboardings/${onboardingId}/send-employee-email/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
       const data = await response.json();
-      
       if (data.success) {
-        // Nếu email được gửi thành công
-        if (data.message.includes('email')) {
-          message.success(`Đã gửi email đến nhân viên!`);
+        if (data.message?.includes('email')) {
+          showToast('success', 'Đã gửi email đến nhân viên!');
         } else {
-          // Nếu email chưa cấu hình, hiện link để copy
-          Modal.info({
-            title: 'Link cho nhân viên',
-            content: (
-              <div>
-                <Text>Email chưa được cấu hình. Vui lòng gửi link này cho nhân viên:</Text>
-                <Input.TextArea 
-                  value={data.employee_form_url}
-                  autoSize
-                  style={{ marginTop: 8 }}
-                />
-                <Button 
-                  type="link"
-                  onClick={() => {
-                    navigator.clipboard.writeText(data.employee_form_url);
-                    message.success('Đã copy link!');
-                  }}
-                >
-                  Copy link
-                </Button>
-              </div>
-            )
-          });
+          setLinkModalUrl(data.employee_form_url ?? '');
+          setLinkModalOpen(true);
         }
       }
-    } catch (error) {
-      console.error('Error sending email:', error);
-      message.warning('Không thể gửi email. Vui lòng gửi link thủ công.');
+    } catch {
+      showToast('warning', 'Không thể gửi email. Vui lòng gửi link thủ công.');
     }
   };
 
-  // ===== GỬI LẠI EMAIL =====
-  const handleResendEmail = async (record: any) => {
-    await sendEmployeeEmail(record.id);
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    showToast('success', 'Đã copy link!');
   };
 
-  // ===== RENDER TOKEN STATUS =====
-  const renderTokenStatus = (record: any) => {
-    const { token_status, employee_info_completed } = record;
-
-    if (employee_info_completed) {
+  // ===== TOKEN STATUS CELL =====
+  const renderTokenStatus = (record: OnboardingRecord) => {
+    if (record.employee_info_completed) {
       return (
-        <Tag icon={<CheckCircleOutlined />} color="success">
-          Đã điền thông tin
-        </Tag>
+        <Chip
+          icon={<CheckCircle sx={{ fontSize: 16 }} />}
+          label="Đã điền thông tin"
+          color="success" size="small" variant="filled"
+        />
       );
     }
 
-    switch (token_status) {
+    switch (record.token_status) {
       case 'not_generated':
         return (
           <Tooltip title="Click để gửi link cho nhân viên">
-            <Button 
-              type="link" 
-              size="small"
-              icon={<SendOutlined />}
+            <Button
+              size="small" variant="text" color="primary"
+              startIcon={<Send sx={{ fontSize: 14 }} />}
               onClick={() => sendEmployeeEmail(record.id)}
+              sx={{ fontSize: 12 }}
             >
               Gửi link
             </Button>
           </Tooltip>
         );
-      
+
       case 'active':
         return (
-          <Popover
-            content={
-              <Space direction="vertical">
-                <Button 
-                  type="link" 
-                  size="small"
-                  icon={<LinkOutlined />}
-                  onClick={() => {
-                    navigator.clipboard.writeText(record.employee_form_url);
-                    message.success('Đã copy link!');
-                  }}
+          <>
+            <Chip
+              icon={<Schedule sx={{ fontSize: 14 }} />}
+              label="Chờ nhân viên điền"
+              color="primary" size="small" variant="outlined"
+              onClick={(e) => { setPopoverAnchor(e.currentTarget); setPopoverRecord(record); }}
+              sx={{ cursor: 'pointer' }}
+            />
+            <Popover
+              open={popoverRecord?.id === record.id && Boolean(popoverAnchor)}
+              anchorEl={popoverAnchor}
+              onClose={() => { setPopoverAnchor(null); setPopoverRecord(null); }}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            >
+              <div className="p-2 flex flex-col gap-1 min-w-[160px]">
+                <Button
+                  size="small" startIcon={<LinkIcon sx={{ fontSize: 14 }} />}
+                  onClick={() => { copyToClipboard(record.employee_form_url ?? ''); setPopoverAnchor(null); setPopoverRecord(null); }}
                 >
                   Copy link
                 </Button>
-                <Button 
-                  type="link" 
-                  size="small"
-                  icon={<SendOutlined />}
-                  onClick={() => handleResendEmail(record)}
+                <Button
+                  size="small" startIcon={<Send sx={{ fontSize: 14 }} />}
+                  onClick={() => { sendEmployeeEmail(record.id); setPopoverAnchor(null); setPopoverRecord(null); }}
                 >
                   Gửi lại email
                 </Button>
-              </Space>
-            }
-            trigger="click"
-          >
-            <Tag 
-              icon={<ClockCircleOutlined />} 
-              color="processing"
-              style={{ cursor: 'pointer' }}
-            >
-              Chờ nhân viên điền
-            </Tag>
-          </Popover>
+              </div>
+            </Popover>
+          </>
         );
-      
+
       case 'expired':
         return (
           <Tooltip title="Token đã hết hạn. Click để tạo lại">
-            <Button 
-              type="link" 
-              size="small"
-              danger
-              icon={<ExclamationCircleOutlined />}
+            <Button
+              size="small" variant="text" color="error"
+              startIcon={<Warning sx={{ fontSize: 14 }} />}
               onClick={() => sendEmployeeEmail(record.id)}
+              sx={{ fontSize: 12 }}
             >
               Tạo lại link
             </Button>
           </Tooltip>
         );
-      
+
       default:
-        return <Tag color="default">Không xác định</Tag>;
+        return <Chip label="Không xác định" size="small" />;
     }
   };
 
-  // ===== TABLE COLUMNS =====
-  const columns = [
-    {
-      title: 'Mã Onboarding',
-      dataIndex: 'onboarding_code',
-      key: 'onboarding_code',
-      width: 150,
-    },
-    {
-      title: 'Ứng viên',
-      dataIndex: 'full_name',
-      key: 'full_name',
-      render: (text: string, record: any) => (
-        <div>
-          <div><strong>{text}</strong></div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.candidate_email}
-          </Text>
-        </div>
-      )
-    },
-    {
-      title: 'Vị trí',
-      dataIndex: 'position_title',
-      key: 'position_title',
-    },
-    {
-      title: 'Phòng ban',
-      dataIndex: 'department_name',
-      key: 'department_name',
-    },
-    {
-      title: 'Ngày bắt đầu',
-      dataIndex: 'start_date',
-      key: 'start_date',
-      render: (date: string) => new Date(date).toLocaleDateString('vi-VN')
-    },
-    {
-      title: 'Trạng thái điền form',
-      key: 'token_status',
-      width: 180,
-      render: (_: any, record: any) => renderTokenStatus(record)
-    },
-    {
-      title: 'Tiến độ',
-      dataIndex: 'progress_percentage',
-      key: 'progress_percentage',
-      render: (progress: number) => (
-        <Tag color={progress === 100 ? 'success' : 'processing'}>
-          {progress}%
-        </Tag>
-      )
-    },
-    {
-      title: 'Thao tác',
-      key: 'action',
-      render: (_: any, record: any) => (
-        <Space>
-          <Button 
-            type="link" 
-            onClick={() => navigate(`/onboarding/${record.id}`)}
-          >
-            Chi tiết
-          </Button>
-        </Space>
-      ),
-    },
-  ];
+  // ===== STATS =====
+  const stats = {
+    total: onboardings.length,
+    waiting: onboardings.filter((o) => o.token_status === 'active').length,
+    completed: onboardings.filter((o) => o.employee_info_completed).length,
+    expired: onboardings.filter((o) => o.token_status === 'expired').length,
+  };
 
-  // ===== RENDER =====
+  // ============================================
+  // RENDER
+  // ============================================
+
   return (
-    <div style={{ padding: '24px' }}>
+    <div className="p-6">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm max-w-sm
+          ${toast.type === 'success' ? 'bg-green-500' : toast.type === 'error' ? 'bg-red-500' : 'bg-amber-500'}`}>
+          {toast.msg}
+        </div>
+      )}
+
       {/* Header */}
-      <Card>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: 24
-        }}>
-          <div>
-            <h1 style={{ margin: 0 }}>Onboard nhân sự</h1>
-            <Text type="secondary">
-              Quản lý quy trình tuyển dụng và onboarding nhân viên mới.
-            </Text>
-          </div>
-          
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />}
-            onClick={() => setCreateModalVisible(true)}
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Onboard nhân sự</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Quản lý quy trình tuyển dụng và onboarding nhân viên mới.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Tooltip title="Làm mới">
+            <IconButton onClick={fetchOnboardings} disabled={loading}>
+              <Refresh />
+            </IconButton>
+          </Tooltip>
+          <Button
+            variant="contained" startIcon={<Add />}
+            onClick={() => setCreateModalOpen(true)}
           >
             Tạo onboarding mới
           </Button>
         </div>
+      </div>
 
-        {/* Info boxes */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(4, 1fr)', 
-          gap: 16,
-          marginBottom: 24
-        }}>
-          <Card size="small">
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 'bold' }}>
-                {onboardings.length}
-              </div>
-              <Text type="secondary">Tổng số</Text>
-            </div>
-          </Card>
-          
-          <Card size="small">
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 'bold', color: '#1890ff' }}>
-                {onboardings.filter((o: any) => o.token_status === 'active').length}
-              </div>
-              <Text type="secondary">Chờ điền thông tin</Text>
-            </div>
-          </Card>
-          
-          <Card size="small">
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 'bold', color: '#52c41a' }}>
-                {onboardings.filter((o: any) => o.employee_info_completed).length}
-              </div>
-              <Text type="secondary">Đã điền thông tin</Text>
-            </div>
-          </Card>
-          
-          <Card size="small">
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 'bold', color: '#ff4d4f' }}>
-                {onboardings.filter((o: any) => o.token_status === 'expired').length}
-              </div>
-              <Text type="secondary">Token hết hạn</Text>
-            </div>
-          </Card>
-        </div>
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'Tổng số', value: stats.total, color: 'text-gray-800', bg: 'bg-gray-50' },
+          { label: 'Chờ điền thông tin', value: stats.waiting, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Đã điền thông tin', value: stats.completed, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: 'Token hết hạn', value: stats.expired, color: 'text-red-500', bg: 'bg-red-50' },
+        ].map(({ label, value, color, bg }) => (
+          <div key={label} className={`${bg} rounded-xl p-4 border border-gray-100 text-center`}>
+            <p className={`text-2xl font-bold ${color}`}>{value}</p>
+            <p className="text-xs text-gray-500 mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
 
-        {/* Table */}
-        <Table
-          columns={columns}
-          dataSource={onboardings}
-          loading={loading}
-          rowKey="id"
-          pagination={{ pageSize: 10 }}
+      {/* Table */}
+      <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#f9fafb' }}>
+                <TableCell sx={{ fontWeight: 600 }}>Mã Onboarding</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Ứng viên</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Vị trí</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Phòng ban</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Ngày bắt đầu</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Trạng thái form</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Tiến độ</TableCell>
+                <TableCell sx={{ fontWeight: 600 }} align="center">Thao tác</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                    <CircularProgress size={32} />
+                  </TableCell>
+                </TableRow>
+              ) : onboardings.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#9ca3af' }}>
+                    Chưa có dữ liệu onboarding
+                  </TableCell>
+                </TableRow>
+              ) : (
+                onboardings
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((record) => (
+                    <TableRow key={record.id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontFamily="monospace" color="text.secondary">
+                          {record.onboarding_code}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">{record.full_name}</p>
+                          <p className="text-xs text-gray-400">{record.candidate_email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{record.position_title || '—'}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{record.department_name || '—'}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {record.start_date
+                            ? new Date(record.start_date).toLocaleDateString('vi-VN') : '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{renderTokenStatus(record)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all
+                                ${record.progress_percentage === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                              style={{ width: `${record.progress_percentage}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500 whitespace-nowrap">
+                            {record.progress_percentage}%
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Tooltip title="Xem chi tiết">
+                          <IconButton
+                            size="small"
+                            onClick={() => navigate(`/onboarding/${record.id}`)}
+                          >
+                            <Visibility sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <TablePagination
+          component="div"
+          count={onboardings.length}
+          page={page}
+          onPageChange={(_, p) => setPage(p)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value)); setPage(0); }}
+          rowsPerPageOptions={[10, 25, 50]}
+          labelRowsPerPage="Hàng/trang:"
+          labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
         />
-      </Card>
+      </Paper>
 
-      {/* Modal: Tạo Onboarding Mới */}
-      <Modal
-        title="Tạo onboarding mới"
-        open={createModalVisible}
-        onCancel={() => {
-          setCreateModalVisible(false);
-          form.resetFields();
-        }}
-        onOk={() => form.submit()}
-        okText="Tạo và gửi link"
-        cancelText="Hủy"
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCreateOnboarding}
-        >
-          <Form.Item
-            label="Họ và tên ứng viên"
-            name="candidate_name"
-            rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
-          >
-            <Input placeholder="Nguyễn Văn A" />
-          </Form.Item>
-
-          <Form.Item
-            label="Email"
-            name="candidate_email"
-            rules={[
-              { required: true, message: 'Vui lòng nhập email' },
-              { type: 'email', message: 'Email không hợp lệ' }
-            ]}
-          >
-            <Input placeholder="nva@example.com" />
-          </Form.Item>
-
-          <Form.Item
-            label="Ngày bắt đầu"
-            name="start_date"
-            rules={[{ required: true, message: 'Vui lòng chọn ngày bắt đầu' }]}
-          >
-            <DatePicker style={{ width: '100%' }} placeholder="Chọn ngày" />
-          </Form.Item>
-
-          <Form.Item
-            label="Vị trí"
-            name="position"
-            rules={[{ required: true, message: 'Vui lòng chọn vị trí' }]}
-          >
-            <Select placeholder="Chọn vị trí">
-              {/* Load from API */}
-              <Select.Option value={1}>Software Engineer</Select.Option>
-              <Select.Option value={2}>Product Manager</Select.Option>
+      {/* ===== CREATE MODAL ===== */}
+      <Dialog open={createModalOpen} onClose={() => setCreateModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Tạo onboarding mới</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '16px !important' }}>
+          <TextField
+            fullWidth label="Họ và tên ứng viên" size="small" required
+            value={formValues.candidate_name}
+            onChange={(e) => setFormValues((v) => ({ ...v, candidate_name: e.target.value }))}
+            error={!!formErrors.candidate_name} helperText={formErrors.candidate_name}
+            placeholder="Nguyễn Văn A"
+          />
+          <TextField
+            fullWidth label="Email" size="small" required type="email"
+            value={formValues.candidate_email}
+            onChange={(e) => setFormValues((v) => ({ ...v, candidate_email: e.target.value }))}
+            error={!!formErrors.candidate_email} helperText={formErrors.candidate_email}
+            placeholder="nva@example.com"
+          />
+          <TextField
+            fullWidth label="Ngày bắt đầu" size="small" required type="date"
+            value={formValues.start_date}
+            onChange={(e) => setFormValues((v) => ({ ...v, start_date: e.target.value }))}
+            error={!!formErrors.start_date} helperText={formErrors.start_date}
+            InputLabelProps={{ shrink: true }}
+          />
+          <FormControl fullWidth size="small" required error={!!formErrors.position}>
+            <InputLabel>Vị trí</InputLabel>
+            <Select
+              value={formValues.position} label="Vị trí"
+              onChange={(e) => setFormValues((v) => ({ ...v, position: e.target.value }))}
+            >
+              <MenuItem value=""><em>-- Chọn vị trí --</em></MenuItem>
+              <MenuItem value="1">Software Engineer</MenuItem>
+              <MenuItem value="2">Product Manager</MenuItem>
             </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Phòng ban"
-            name="department"
-            rules={[{ required: true, message: 'Vui lòng chọn phòng ban' }]}
-          >
-            <Select placeholder="Chọn phòng ban">
-              {/* Load from API */}
-              <Select.Option value={1}>IT</Select.Option>
-              <Select.Option value={2}>HR</Select.Option>
+            {formErrors.position && (
+              <Typography variant="caption" color="error" sx={{ ml: 1.5, mt: 0.5 }}>
+                {formErrors.position}
+              </Typography>
+            )}
+          </FormControl>
+          <FormControl fullWidth size="small" required error={!!formErrors.department}>
+            <InputLabel>Phòng ban</InputLabel>
+            <Select
+              value={formValues.department} label="Phòng ban"
+              onChange={(e) => setFormValues((v) => ({ ...v, department: e.target.value }))}
+            >
+              <MenuItem value=""><em>-- Chọn phòng ban --</em></MenuItem>
+              <MenuItem value="1">IT</MenuItem>
+              <MenuItem value="2">HR</MenuItem>
             </Select>
-          </Form.Item>
-        </Form>
+            {formErrors.department && (
+              <Typography variant="caption" color="error" sx={{ ml: 1.5, mt: 0.5 }}>
+                {formErrors.department}
+              </Typography>
+            )}
+          </FormControl>
+          <Typography variant="caption" color="text.secondary">
+            💡 Sau khi tạo, hệ thống sẽ tự động gửi link cho nhân viên để điền thông tin chi tiết.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button
+            variant="outlined"
+            onClick={() => { setCreateModalOpen(false); setFormErrors({}); }}
+            disabled={submitting}
+          >
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateOnboarding}
+            disabled={submitting}
+            startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <Send />}
+          >
+            {submitting ? 'Đang tạo...' : 'Tạo và gửi link'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          💡 Sau khi tạo, hệ thống sẽ tự động gửi link cho nhân viên để điền thông tin chi tiết.
-        </Text>
-      </Modal>
+      {/* ===== LINK MODAL (khi email chưa cấu hình) ===== */}
+      <Dialog open={linkModalOpen} onClose={() => setLinkModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Link cho nhân viên</DialogTitle>
+        <DialogContent sx={{ pt: '16px !important' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Email chưa được cấu hình. Vui lòng gửi link này cho nhân viên:
+          </Typography>
+          <div className="flex gap-2 items-center">
+            <TextField
+              fullWidth size="small" value={linkModalUrl}
+              InputProps={{ readOnly: true }}
+            />
+            <Tooltip title="Copy link">
+              <IconButton onClick={() => copyToClipboard(linkModalUrl)}>
+                <ContentCopy />
+              </IconButton>
+            </Tooltip>
+          </div>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button variant="outlined" onClick={() => setLinkModalOpen(false)}>Đóng</Button>
+          <Button
+            variant="contained"
+            onClick={() => { copyToClipboard(linkModalUrl); setLinkModalOpen(false); }}
+            startIcon={<ContentCopy />}
+          >
+            Copy & Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };
-
-// ==========================================
-// GIẢI THÍCH THAY ĐỔI
-// ==========================================
-
-/*
-TRƯỚC:
-- Nút "+ Điền thông tin cá nhân" → HR điền form đầy đủ
-
-SAU:
-- Nút "+ Tạo onboarding mới" → HR chỉ điền thông tin cơ bản
-- Hệ thống tự động gửi link cho nhân viên
-- Nhân viên mở link công khai và điền thông tin đầy đủ
-
-LUỒNG MỚI:
-1. HR: Click "Tạo onboarding mới"
-2. HR: Điền họ tên, email, ngày bắt đầu, vị trí (4 field)
-3. System: Tự động gửi email với link cho nhân viên
-4. Nhân viên: Mở link (không cần login)
-5. Nhân viên: Điền form đầy đủ 35+ fields
-6. System: Auto-complete 4 tasks đầu tiên
-7. HR: Xem trạng thái "Đã điền thông tin"
-
-TOKEN STATUS:
-- "Gửi link" (xám) → Chưa tạo token, click để gửi
-- "Chờ nhân viên điền" (xanh) → Token active, nhân viên chưa điền
-- "Đã điền thông tin" (xanh lá) → Nhân viên đã hoàn thành
-- "Tạo lại link" (đỏ) → Token hết hạn
-*/

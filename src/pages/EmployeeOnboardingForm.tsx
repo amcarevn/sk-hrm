@@ -1,58 +1,58 @@
 // ==========================================
 // FILE: pages/EmployeeOnboardingForm.tsx
-// Form công khai cho nhân viên điền thông tin (KHÔNG cần login)
-// Khớp chính xác với EmployeeInfoForm.tsx — cùng bước, cùng fields, cùng logic
+// Fixed: focus loss bug (Field components moved outside), better date inputs
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  Form,
-  Input,
-  DatePicker,
+  TextField,
   Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
   Button,
-  Steps,
-  Card,
-  message,
-  Result,
-  Spin,
-  Typography,
-  Space,
+  CircularProgress,
   Alert,
+  RadioGroup,
+  FormControlLabel,
   Radio,
-} from 'antd';
+  FormLabel,
+  LinearProgress,
+  Box,
+  Typography,
+  Paper,
+  InputAdornment,
+} from '@mui/material';
 import {
-  UserOutlined,
-  ApartmentOutlined,
-  FileTextOutlined,
-  HomeOutlined,
-  ContactsOutlined,
-  DollarOutlined,
-} from '@ant-design/icons';
-
-const { Title, Text } = Typography;
-const { TextArea } = Input;
+  Person,
+  Apartment,
+  Description,
+  Home,
+  Contacts,
+  AttachMoney,
+  CheckCircle,
+  ErrorOutline,
+  CalendarToday,
+} from '@mui/icons-material';
 
 // ============================================
-// CONSTANTS — đồng bộ hoàn toàn với EmployeeInfoForm.tsx
+// CONSTANTS
 // ============================================
 
 const WORK_LOCATION_OPTIONS = [
-  { value: '789_LE_HONG_PHONG', label: '789/C9 Lê Hồng Phong, Phường 12, Quận 10, Thành phố Hồ Chí Minh' },
+  { value: '789_LE_HONG_PHONG', label: '789/C9 Lê Hồng Phong, Phường 12, Quận 10, TP.HCM' },
   { value: '16_NGUYEN_NHU_DO', label: '16 Nguyễn Như Đổ, Văn Miếu, Đống Đa, Hà Nội' },
   { value: '61_VU_THANH', label: '61 Vũ Thạnh, Ô Chợ Dừa, Đống Đa, Hà Nội' },
-  { value: '9_SU_VAN_HANH', label: '9 Sư Vạn Hạnh, Phường 9, Quận 5, Thành phố Hồ Chí Minh' },
+  { value: '9_SU_VAN_HANH', label: '9 Sư Vạn Hạnh, Phường 9, Quận 5, TP.HCM' },
   { value: '355_AN_DUONG_VUONG', label: '355 An Dương Vương' },
   { value: '1E_TRUONG_TRINH', label: 'Số 1E Trường Trinh, Hà Nội' },
   { value: '50_TRUNG_PHUNG', label: 'Số 50 Trung Phụng, Hà Nội' },
   { value: '219_TRUNG_KINH', label: 'Số 219 Trung Kính, Cầu Giấy, Hà Nội' },
-] as const;
+];
 
-const REGION_OPTIONS = ['Miền Bắc', 'Miền Nam'] as const;
-
-const BLOCK_OPTIONS = ['Khối Back office', 'Khối Marketing', 'Khối Kinh doanh'] as const;
-
+const REGION_OPTIONS = ['Miền Bắc', 'Miền Nam'];
+const BLOCK_OPTIONS = ['Khối Back office', 'Khối Marketing', 'Khối Kinh doanh'];
 const SUB_DEPARTMENT_OPTIONS = [
   'ADS', 'ADS2', 'KD 1', 'KD 2', 'KD 3', 'KD 4', 'KD MN',
   'CSKH MB', 'CSKH MN', 'Media MB', 'Media MN', 'Giám sát nội bộ',
@@ -63,20 +63,16 @@ const SUB_DEPARTMENT_OPTIONS = [
   'Tiktok 5', 'TTTH 15', 'Pháp chế', 'Tiktok 4', 'KD 5',
   'Mua hàng', 'Công nghệ thông tin', 'Tiktok 6', 'Tiktok 7',
   'Tiktok 8', 'Tiktok 9', 'Tiktok 10',
-] as const;
-
-const SECTION_OPTIONS = ['Phẫu thuật thẩm mỹ', 'Da liễu'] as const;
-
-const RANK_OPTIONS = ['Nhân viên', 'Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'] as const;
-
+];
+const SECTION_OPTIONS = ['Phẫu thuật thẩm mỹ', 'Da liễu'];
+const RANK_OPTIONS = ['Nhân viên', 'Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'];
 const WORK_FORM_OPTIONS = [
   { value: 'FULL_TIME', label: 'Full-time' },
   { value: 'PART_TIME', label: 'Part-time' },
-] as const;
-
-const EDUCATION_LEVEL_OPTIONS = [
-  'Thạc sĩ', 'Cử nhân đại học', 'Cử nhân cao đẳng', 'Trung cấp', 'Khác',
-] as const;
+];
+const EDUCATION_LEVEL_OPTIONS = ['Thạc sĩ', 'Cử nhân đại học', 'Cử nhân cao đẳng', 'Trung cấp', 'Khác'];
+const STEP_ICONS = [Person, Apartment, Description, Home, Contacts, AttachMoney];
+const STEP_LABELS = ['Cơ bản', 'Công việc', 'CCCD', 'Địa chỉ', 'Liên hệ', 'Lương'];
 
 // ============================================
 // TYPES
@@ -93,11 +89,140 @@ interface OnboardingData {
   token_expires_at: string;
 }
 
-// Dùng state riêng để track work_type (giống EmployeeInfoForm)
-interface FormExtras {
-  work_type: string;
-  citizen_id_file: File | null;
+interface FormValues {
+  candidate_name: string;
+  candidate_email: string;
+  candidate_phone: string;
+  date_of_birth: string;
+  gender: string;
+  education_level: string;
+  facebook_link: string;
+  start_date: string;
+  region: string;
+  block: string;
+  sub_department: string;
+  section: string;
+  job_rank: string;
+  doctor_team: string;
+  work_form: string;
+  work_location: string;
+  citizen_id: string;
+  citizen_id_issue_date: string;
+  citizen_id_issue_place: string;
+  old_id_number: string;
+  permanent_address: string;
+  current_address: string;
+  social_insurance_number: string;
+  tax_code: string;
+  marital_status: string;
+  emergency_contact_name: string;
+  emergency_contact_relationship: string;
+  emergency_contact_phone: string;
+  emergency_contact_dob: string;
+  emergency_contact_occupation: string;
+  emergency_contact_address: string;
+  salary: string;
+  allowance: string;
+  probation_period_months: string;
 }
+
+// ============================================
+// STANDALONE FIELD COMPONENTS (outside main component → no re-mount on parent re-render)
+// ============================================
+
+interface TFProps {
+  label: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  type?: string;
+  disabled?: boolean;
+  required?: boolean;
+  multiline?: boolean;
+  rows?: number;
+}
+
+const TF: React.FC<TFProps> = ({ label, value, onChange, placeholder, type = 'text', disabled, required, multiline, rows }) => (
+  <TextField
+    fullWidth size="small" variant="outlined"
+    label={label} value={value} onChange={onChange}
+    placeholder={placeholder} type={type}
+    disabled={disabled} required={required}
+    multiline={multiline} rows={rows}
+    InputLabelProps={type === 'date' ? { shrink: true } : undefined}
+    InputProps={type === 'date' ? {
+      endAdornment: (
+        <InputAdornment position="end">
+          <CalendarToday sx={{ fontSize: 16, color: '#9ca3af' }} />
+        </InputAdornment>
+      ),
+    } : undefined}
+    sx={{
+      '& .MuiOutlinedInput-root': {
+        '&:hover fieldset': { borderColor: '#3b82f6' },
+        '&.Mui-focused fieldset': { borderColor: '#2563eb' },
+      },
+      '& input[type="date"]::-webkit-calendar-picker-indicator': {
+        opacity: 0,
+        position: 'absolute',
+        right: 0,
+        width: '100%',
+        cursor: 'pointer',
+      },
+    }}
+  />
+);
+
+interface SFProps {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: ({ value: string; label: string } | string)[];
+  required?: boolean;
+}
+
+const SF: React.FC<SFProps> = ({ label, value, onChange, options, required }) => {
+  const normalized = options.map((o) => typeof o === 'string' ? { value: o, label: o } : o);
+  return (
+    <FormControl fullWidth size="small" required={required}>
+      <InputLabel>{label}</InputLabel>
+      <Select value={value} label={label} onChange={(e) => onChange(e.target.value as string)}>
+        <MenuItem value=""><em>-- Chọn --</em></MenuItem>
+        {normalized.map((o) => (
+          <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+};
+
+interface RFProps {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: ({ value: string; label: string } | string)[];
+  row?: boolean;
+}
+
+const RF: React.FC<RFProps> = ({ label, value, onChange, options, row }) => {
+  const normalized = options.map((o) => typeof o === 'string' ? { value: o, label: o } : o);
+  return (
+    <FormControl component="fieldset">
+      <FormLabel component="legend" sx={{ fontSize: 13, color: '#374151', mb: 0.5, '&.Mui-focused': { color: '#374151' } }}>
+        {label}
+      </FormLabel>
+      <RadioGroup value={value} onChange={(e) => onChange(e.target.value)} row={row}>
+        {normalized.map((o) => (
+          <FormControlLabel
+            key={o.value} value={o.value}
+            control={<Radio size="small" sx={{ py: 0.5 }} />}
+            label={<span style={{ fontSize: 14 }}>{o.label}</span>}
+          />
+        ))}
+      </RadioGroup>
+    </FormControl>
+  );
+};
 
 // ============================================
 // MAIN COMPONENT
@@ -105,235 +230,168 @@ interface FormExtras {
 
 export const EmployeeOnboardingForm: React.FC = () => {
   const { token } = useParams<{ token: string }>();
-  const [form] = Form.useForm();
 
-  const [currentStep, setCurrentStep] = useState(0); // 0-indexed, hiển thị là 1-6
+  const [currentStep, setCurrentStep] = useState(0);
   const totalSteps = 6;
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; msg: string } | null>(null);
+  const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
+  const [workType, setWorkType] = useState('');
 
-  // State riêng cho các trường không dùng antd Form (khớp với EmployeeInfoForm)
-  const [extras, setExtras] = useState<FormExtras>({
-    work_type: '',
-    citizen_id_file: null,
+  const [values, setValues] = useState<FormValues>({
+    candidate_name: '', candidate_email: '', candidate_phone: '',
+    date_of_birth: '', gender: 'M', education_level: '', facebook_link: '',
+    start_date: '', region: '', block: '', sub_department: '', section: '',
+    job_rank: '', doctor_team: '', work_form: '', work_location: '',
+    citizen_id: '', citizen_id_issue_date: '', citizen_id_issue_place: '',
+    old_id_number: '', permanent_address: '', current_address: '',
+    social_insurance_number: '', tax_code: '', marital_status: 'SINGLE',
+    emergency_contact_name: '', emergency_contact_relationship: '',
+    emergency_contact_phone: '', emergency_contact_dob: '',
+    emergency_contact_occupation: '', emergency_contact_address: '',
+    salary: '', allowance: '', probation_period_months: '2',
   });
 
-  // ===== FETCH ONBOARDING DATA =====
+  const showToast = (type: 'success' | 'error' | 'warning', msg: string) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  // useCallback để tránh tạo function mới mỗi render → không gây re-mount TF
+  const handleChange = useCallback((field: keyof FormValues) =>
+    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setValues((v) => ({ ...v, [field]: e.target.value }))
+  , []);
+
+  const handleSelect = useCallback((field: keyof FormValues) =>
+    (value: string) => setValues((v) => ({ ...v, [field]: value }))
+  , []);
+
+  // ===== FETCH =====
   useEffect(() => {
-    fetchOnboardingData();
+    const fetch_ = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `http://localhost:8000/api-hrm/employee-onboarding-form/by-token/${token}/`,
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+        const data = await res.json();
+        if (!data.success) { setPageError(data.error); return; }
+        setOnboardingData(data.data);
+        setValues((v) => ({
+          ...v,
+          candidate_name: data.data.candidate_name,
+          candidate_email: data.data.candidate_email,
+        }));
+      } catch {
+        setPageError('Không thể tải thông tin. Vui lòng kiểm tra lại link.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch_();
   }, [token]);
 
-  const fetchOnboardingData = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `http://localhost:8000/api-hrm/employee-onboarding-form/by-token/${token}/`,
-        { method: 'GET', headers: { 'Content-Type': 'application/json' } }
-      );
-      const data = await response.json();
-      if (!data.success) {
-        setError(data.error);
-        return;
-      }
-      setOnboardingData(data.data);
-      form.setFieldsValue({
-        candidate_name: data.data.candidate_name,
-        candidate_email: data.data.candidate_email,
-      });
-    } catch (err) {
-      setError('Không thể tải thông tin. Vui lòng kiểm tra lại link.');
-      console.error(err);
-    } finally {
-      setLoading(false);
+  // ===== VALIDATION =====
+  const validateStep = (step: number): boolean => {
+    if (step === 1) {
+      if (!values.candidate_name.trim()) { showToast('error', 'Vui lòng nhập họ và tên'); return false; }
+      if (!values.date_of_birth) { showToast('error', 'Vui lòng chọn ngày sinh'); return false; }
+      if (!values.candidate_phone.trim()) { showToast('error', 'Vui lòng nhập số điện thoại'); return false; }
     }
-  };
-
-  // ============================================
-  // VALIDATION — khớp với validateStep() của EmployeeInfoForm
-  // ============================================
-
-  const validateStep = async (step: number): Promise<boolean> => {
-    // step là 1-indexed để khớp với EmployeeInfoForm
-    switch (step) {
-      case 1: {
-        try {
-          await form.validateFields([
-            'candidate_name', 'date_of_birth', 'candidate_phone',
-          ]);
-          return true;
-        } catch (err) {
-          return false;
-        }
-        // const vals = form.getFieldsValue();
-        // if (!vals.candidate_name?.trim()) {
-        //   message.error('Vui lòng nhập họ và tên'); return false;
-        // }
-        // if (!vals.date_of_birth) {
-        //   message.error('Vui lòng chọn ngày sinh'); return false;
-        // }
-        // if (!vals.candidate_phone?.trim()) {
-        //   message.error('Vui lòng nhập số điện thoại'); return false;
-        // }
-        // return true;
-      }
-      case 3: {
-        const vals = form.getFieldsValue();
-        if (!vals.citizen_id?.trim()) {
-          message.error('Vui lòng nhập số CCCD'); return false;
-        }
-        if (!extras.citizen_id_file) {
-          message.error('Vui lòng upload file CCCD (PDF)'); return false;
-        }
-        return true;
-      }
-      default:
-        return true;
+    if (step === 3) {
+      if (!values.citizen_id.trim()) { showToast('error', 'Vui lòng nhập số CCCD'); return false; }
+      if (!citizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return false; }
     }
+    return true;
   };
 
-  const handleNext = async () => {
-    const stepNumber = currentStep + 1; // chuyển sang 1-indexed
-    const valid = await validateStep(stepNumber);
-    if (valid) {
-      setCurrentStep(Math.min(currentStep + 1, totalSteps - 1));
-    }
+  const handleNext = () => {
+    if (validateStep(currentStep + 1)) setCurrentStep((s) => Math.min(s + 1, totalSteps - 1));
   };
+  const handlePrevious = () => setCurrentStep((s) => Math.max(s - 1, 0));
 
-  const handlePrevious = () => {
-    setCurrentStep(Math.max(currentStep - 1, 0));
-  };
-
-  // ============================================
-  // FILE HANDLER — khớp với handleFileChange() của EmployeeInfoForm
-  // ============================================
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ===== FILE =====
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (!file.name.toLowerCase().endsWith('.pdf')) {
-        message.error('File CCCD phải là định dạng PDF');
-        e.target.value = '';
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        message.error('File CCCD không được vượt quá 5MB');
-        e.target.value = '';
-        return;
-      }
-      setExtras((prev) => ({ ...prev, citizen_id_file: file }));
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      showToast('error', 'File CCCD phải là định dạng PDF'); e.target.value = ''; return;
     }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('error', 'File CCCD không được vượt quá 5MB'); e.target.value = ''; return;
+    }
+    setCitizenIdFile(file);
   };
 
-
+  // ===== SUBMIT =====
   const handleSubmit = async () => {
-    if (!(await validateStep(1))) return;
-    // Check file manual
-    if (!extras.citizen_id_file) {
-      message.error('Vui lòng upload file CCCD (PDF)');
-      return;
-    }
+    if (!validateStep(1)) return;
+    if (!citizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return; }
     setSubmitting(true);
     try {
-      const values = form.getFieldsValue(true);
       const payload = new FormData();
-
-      const append = (key: string, val: any) => {
-        if (val !== undefined && val !== null && val !== '') {
-          payload.append(key, val);
-        }
+      const ap = (key: string, val: string | File | null | undefined) => {
+        if (val !== undefined && val !== null && val !== '') payload.append(key, val);
       };
-
-      // ── Step 1: Thông tin cơ bản ──
-      append('candidate_name',  values.candidate_name);
-      append('candidate_email', values.candidate_email);
-      append('candidate_phone', values.candidate_phone);
-      append('date_of_birth',   values.date_of_birth?.format?.('YYYY-MM-DD') ?? values.date_of_birth);
-      append('gender',          values.gender);
-      append('education_level', values.education_level);
-      append('facebook_link',   values.facebook_link);
-      append('start_date',      values.start_date?.format?.('YYYY-MM-DD') ?? values.start_date);
-
-      // ── Step 2: Thông tin công việc ──
-      append('region',          values.region);
-      append('block',           values.block);
-      append('sub_department',  values.sub_department);
-      append('section',         values.section);
-      append('rank',            values.job_rank);   // backend nhận 'rank' (khớp InfoForm)
-      append('doctor_team',     values.doctor_team);
-      append('work_form',       values.work_form);
-      append('work_type',       extras.work_type);  // set bởi work_form onChange
-      append('work_location',   values.work_location);
-
-      // ── Step 3: CCCD ──
-      append('citizen_id',             values.citizen_id);
-      if (extras.citizen_id_file) {
-        payload.append('citizen_id_file', extras.citizen_id_file);
-      }
-      append('citizen_id_issue_date',  values.citizen_id_issue_date?.format?.('YYYY-MM-DD') ?? values.citizen_id_issue_date);
-      append('citizen_id_issue_place', values.citizen_id_issue_place);
-      append('old_id_number',          values.old_id_number);
-
-      // ── Step 4: Địa chỉ & BHXH ──
-      append('permanent_address',       values.permanent_address);
-      append('current_address',         values.current_address);
-      append('social_insurance_number', values.social_insurance_number);
-      append('tax_code',                values.tax_code);
-      append('marital_status',          values.marital_status);
-
-      // ── Step 5: Người liên hệ khẩn cấp ──
-      append('emergency_contact_name',         values.emergency_contact_name);
-      append('emergency_contact_relationship', values.emergency_contact_relationship);
-      append('emergency_contact_phone',        values.emergency_contact_phone);
-      append('emergency_contact_dob',          values.emergency_contact_dob?.format?.('YYYY-MM-DD') ?? values.emergency_contact_dob);
-      append('emergency_contact_occupation',   values.emergency_contact_occupation);
-      append('emergency_contact_address',      values.emergency_contact_address);
-
-      // ── Step 6: Lương ──
-      append('salary',                  values.salary);
-      append('allowance',               values.allowance);
-      append('probation_period_months', values.probation_period_months);
-
-      // Debug log (giống EmployeeInfoForm)
-      console.log('📤 Payload fields:');
-      for (const [k, v] of payload.entries()) {
-        console.log(`  ${k}:`, v instanceof File ? `[File: ${v.name}]` : v);
-      }
+      ap('candidate_name', values.candidate_name);
+      ap('candidate_email', values.candidate_email);
+      ap('candidate_phone', values.candidate_phone);
+      ap('date_of_birth', values.date_of_birth);
+      ap('gender', values.gender);
+      ap('education_level', values.education_level);
+      ap('facebook_link', values.facebook_link);
+      ap('start_date', values.start_date);
+      ap('region', values.region);
+      ap('block', values.block);
+      ap('sub_department', values.sub_department);
+      ap('section', values.section);
+      ap('rank', values.job_rank);
+      ap('doctor_team', values.doctor_team);
+      ap('work_form', values.work_form);
+      ap('work_type', workType);
+      ap('work_location', values.work_location);
+      ap('citizen_id', values.citizen_id);
+      if (citizenIdFile) payload.append('citizen_id_file', citizenIdFile);
+      ap('citizen_id_issue_date', values.citizen_id_issue_date);
+      ap('citizen_id_issue_place', values.citizen_id_issue_place);
+      ap('old_id_number', values.old_id_number);
+      ap('permanent_address', values.permanent_address);
+      ap('current_address', values.current_address);
+      ap('social_insurance_number', values.social_insurance_number);
+      ap('tax_code', values.tax_code);
+      ap('marital_status', values.marital_status);
+      ap('emergency_contact_name', values.emergency_contact_name);
+      ap('emergency_contact_relationship', values.emergency_contact_relationship);
+      ap('emergency_contact_phone', values.emergency_contact_phone);
+      ap('emergency_contact_dob', values.emergency_contact_dob);
+      ap('emergency_contact_occupation', values.emergency_contact_occupation);
+      ap('emergency_contact_address', values.emergency_contact_address);
+      ap('salary', values.salary);
+      ap('allowance', values.allowance);
+      ap('probation_period_months', values.probation_period_months);
 
       const res = await fetch(
         `http://localhost:8000/api-hrm/employee-onboarding-form/submit/${token}/`,
-        {
-          method: 'POST',
-          body: payload,
-          // KHÔNG set Content-Type — browser tự set multipart boundary
-        }
+        { method: 'POST', body: payload }
       );
-
-      console.log('📥 Response:', res.status, res.statusText);
-
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        console.error('❌ Error:', JSON.stringify(errorData, null, 2));
-        const messages: string[] = [];
-        Object.entries(errorData).forEach(([field, val]) => {
-          const msg = Array.isArray(val) ? val.join(', ') : String(val);
-          messages.push(`${field}: ${msg}`);
+        const err = await res.json().catch(() => ({}));
+        const msgs: string[] = [];
+        Object.entries(err.errors ?? err).forEach(([f, v]) => {
+          msgs.push(`${f}: ${Array.isArray(v) ? v.join(', ') : String(v)}`);
         });
-        message.error(messages.length ? messages.join('\n') : 'Lưu thất bại. Kiểm tra console để xem chi tiết.');
+        showToast('error', msgs.length ? msgs.join(' | ') : 'Lưu thất bại');
         return;
       }
-
-      const data = await res.json();
-      console.log('✅ Success:', data);
-
-      const taskList = (data.completed_tasks ?? []).map((t: any) => `- ${t.name}`).join('\n');
-      message.success(`✅ ${data.message ?? 'Cập nhật thành công!'}`);
       setSuccess(true);
-    } catch (error) {
-      console.error('💥 Exception:', error);
-      message.error('Có lỗi xảy ra khi kết nối server. Vui lòng thử lại.');
+    } catch {
+      showToast('error', 'Có lỗi xảy ra khi kết nối server.');
     } finally {
       setSubmitting(false);
     }
@@ -343,463 +401,362 @@ export const EmployeeOnboardingForm: React.FC = () => {
   // LOADING / ERROR / SUCCESS
   // ============================================
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="text-center"><CircularProgress size={48} /><p className="mt-4 text-gray-500">Đang tải...</p></div>
+    </div>
+  );
 
-  if (error) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', padding: 20 }}>
-        <Result
-          status="error"
-          title="Không thể truy cập form"
-          subTitle={error}
-          extra={[<Button type="primary" key="contact">Liên hệ HR</Button>]}
-        />
+  if (pageError) return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+      <div className="text-center max-w-md">
+        <ErrorOutline sx={{ fontSize: 64, color: '#ef4444', mb: 2 }} />
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Không thể truy cập form</h2>
+        <p className="text-gray-500 mb-6">{pageError}</p>
+        <Button variant="outlined">Liên hệ HR</Button>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (success) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', padding: 20 }}>
-        <Result
-          status="success"
-          title="Hoàn thành!"
-          subTitle="Cảm ơn bạn đã điền thông tin. HR sẽ liên hệ với bạn sớm."
-          extra={[<Button type="primary" key="close" onClick={() => window.close()}>Đóng trang</Button>]}
-        />
+  if (success) return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+      <div className="text-center max-w-md">
+        <CheckCircle sx={{ fontSize: 80, color: '#22c55e', mb: 2 }} />
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Hoàn thành!</h2>
+        <p className="text-gray-500 mb-6">Cảm ơn bạn đã điền thông tin. HR sẽ liên hệ với bạn sớm.</p>
+        <Button variant="contained" onClick={() => window.close()}>Đóng trang</Button>
       </div>
-    );
-  }
+    </div>
+  );
+
+  const stepNumber = currentStep + 1;
 
   // ============================================
-  // RENDER STEPS — khớp hoàn toàn với EmployeeInfoForm
+  // RENDER STEPS — dùng TF/SF/RF đã định nghĩa ngoài component
   // ============================================
 
   const renderStep = () => {
     switch (currentStep) {
-      // ── BƯỚC 1 (index 0): Thông tin cơ bản ────────────────────────────
-      case 0:
-        return (
-          <div>
-            <Title level={4} style={{ marginBottom: 16 }}>Thông tin cơ bản</Title>
 
-            <Form.Item label="Họ và tên" name="candidate_name"
-              rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}>
-              <Input placeholder="Nguyễn Văn A" />
-            </Form.Item>
+      // ── BƯỚC 1: Thông tin cơ bản ──────────────────────────────────────
+      case 0: return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Thông tin cơ bản</h3>
 
-            <Form.Item label="Ngày sinh" name="date_of_birth"
-              rules={[{ required: true, message: 'Vui lòng chọn ngày sinh' }]}>
-              <DatePicker style={{ width: '100%' }} placeholder="Chọn ngày sinh" format="DD/MM/YYYY" />
-            </Form.Item>
+          <TF label="Họ và tên" value={values.candidate_name}
+            onChange={handleChange('candidate_name')} required placeholder="Nguyễn Văn A" />
 
-            {/* gender dùng Select, giống EmployeeInfoForm */}
-            <Form.Item label={<>Giới tính <span style={{ color: 'red' }}>*</span></>} name="gender" initialValue="M">
-              <Select>
-                <Select.Option value="M">Nam</Select.Option>
-                <Select.Option value="F">Nữ</Select.Option>
-                <Select.Option value="O">Khác</Select.Option>
-              </Select>
-            </Form.Item>
+          <TF label="Ngày sinh" value={values.date_of_birth}
+            onChange={handleChange('date_of_birth')} required type="date" />
 
-            <Form.Item label="Số điện thoại" name="candidate_phone"
-              rules={[{ required: true, message: 'Vui lòng nhập số điện thoại' }]}>
-              <Input placeholder="0123456789" />
-            </Form.Item>
+          <SF label="Giới tính" value={values.gender} onChange={handleSelect('gender')}
+            options={[{ value: 'M', label: 'Nam' }, { value: 'F', label: 'Nữ' }, { value: 'O', label: 'Khác' }]} />
 
-            <Form.Item label="Email" name="candidate_email">
-              <Input disabled />
-            </Form.Item>
+          <TF label="Số điện thoại" value={values.candidate_phone}
+            onChange={handleChange('candidate_phone')} required placeholder="0123456789" />
 
-            {/* start_date — nhân viên tự xác nhận ngày bắt đầu */}
-            <Form.Item label="Ngày bắt đầu" name="start_date">
-              <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
-            </Form.Item>
+          <TF label="Email" value={values.candidate_email}
+            onChange={handleChange('candidate_email')} disabled />
 
-            <Form.Item label="Trình độ học vấn" name="education_level">
-              <Select placeholder="-- Chọn trình độ --" allowClear>
-                {EDUCATION_LEVEL_OPTIONS.map((opt) => (
-                  <Select.Option key={opt} value={opt}>{opt}</Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
+          <TF label="Ngày bắt đầu" value={values.start_date}
+            onChange={handleChange('start_date')} type="date" />
 
-            <Form.Item label="Link Facebook" name="facebook_link">
-              <Input placeholder="https://facebook.com/..." />
-            </Form.Item>
+          <SF label="Trình độ học vấn" value={values.education_level}
+            onChange={handleSelect('education_level')} options={EDUCATION_LEVEL_OPTIONS} />
+
+          <TF label="Link Facebook" value={values.facebook_link}
+            onChange={handleChange('facebook_link')} placeholder="https://facebook.com/..." />
+        </div>
+      );
+
+      // ── BƯỚC 2: Thông tin công việc ───────────────────────────────────
+      case 1: return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Thông tin công việc chi tiết</h3>
+
+          <div className="grid grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg">
+            <RF label="Vùng/Miền" value={values.region}
+              onChange={handleSelect('region')} options={REGION_OPTIONS} />
+            <RF label="Khối" value={values.block}
+              onChange={handleSelect('block')} options={BLOCK_OPTIONS} />
           </div>
-        );
 
-      // ── BƯỚC 2 (index 1): Thông tin công việc chi tiết ────────────────
-      case 1:
-        return (
-          <div>
-            <Title level={4} style={{ marginBottom: 16 }}>Thông tin công việc chi tiết</Title>
+          <SF label="Phòng/Ban" value={values.sub_department}
+            onChange={handleSelect('sub_department')} options={SUB_DEPARTMENT_OPTIONS} />
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-              <Form.Item label="Vùng/Miền" name="region" style={{ marginBottom: 0 }}>
-                <Radio.Group style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 8 }}>
-                  {REGION_OPTIONS.map((opt) => (
-                    <Radio key={opt} value={opt}>{opt}</Radio>
-                  ))}
-                </Radio.Group>
-              </Form.Item>
-
-              <Form.Item label="Khối" name="block" style={{ marginBottom: 0 }}>
-                <Radio.Group style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                  {BLOCK_OPTIONS.map((opt) => (
-                    <Radio key={opt} value={opt}>{opt}</Radio>
-                  ))}
-                </Radio.Group>
-              </Form.Item>
-            </div>
-
-            <Form.Item label="Phòng/Ban" name="sub_department">
-              <Select placeholder="-- Chọn phòng/ban --" showSearch allowClear>
-                {SUB_DEPARTMENT_OPTIONS.map((opt) => (
-                  <Select.Option key={opt} value={opt}>{opt}</Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Form.Item label="Bộ phận (Section)" name="section">
-                <Radio.Group style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-                  {SECTION_OPTIONS.map((opt) => (
-                    <Radio key={opt} value={opt}>{opt}</Radio>
-                  ))}
-                </Radio.Group>
-              </Form.Item>
-
-              <Form.Item label="Cấp bậc" name="job_rank">
-                <Select placeholder="-- Chọn cấp bậc --" allowClear>
-                  {RANK_OPTIONS.map((opt) => (
-                    <Select.Option key={opt} value={opt}>{opt}</Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </div>
-
-            <Form.Item label="Team Bác sĩ" name="doctor_team">
-              <Input placeholder="Team Dr. Nguyễn Văn A..." />
-            </Form.Item>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Form.Item label="Hình thức làm việc" name="work_form">
-                {/* onChange set cả work_type, giống EmployeeInfoForm */}
-                <Radio.Group
-                  style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}
-                  onChange={(e) => {
-                    const selected = WORK_FORM_OPTIONS.find((o) => o.value === e.target.value);
-                    setExtras((prev) => ({ ...prev, work_type: selected?.label ?? '' }));
-                  }}
-                >
-                  {WORK_FORM_OPTIONS.map((opt) => (
-                    <Radio key={opt.value} value={opt.value}>{opt.label}</Radio>
-                  ))}
-                </Radio.Group>
-              </Form.Item>
-
-              <Form.Item label="Địa điểm làm việc" name="work_location">
-                <Select placeholder="-- Chọn địa điểm làm việc --" allowClear>
-                  {WORK_LOCATION_OPTIONS.map((opt) => (
-                    <Select.Option key={opt.value} value={opt.value}>{opt.label}</Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </div>
+          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+            <RF label="Bộ phận (Section)" value={values.section}
+              onChange={handleSelect('section')} options={SECTION_OPTIONS} />
+            <SF label="Cấp bậc" value={values.job_rank}
+              onChange={handleSelect('job_rank')} options={RANK_OPTIONS} />
           </div>
-        );
 
-      // ── BƯỚC 3 (index 2): Thông tin CCCD ──────────────────────────────
-      case 2:
-        return (
-          <div>
-            <Title level={4} style={{ marginBottom: 16 }}>Thông tin CCCD</Title>
+          <TF label="Team Bác sĩ" value={values.doctor_team}
+            onChange={handleChange('doctor_team')} placeholder="Team Dr. Nguyễn Văn A..." />
 
-            <Form.Item label={<>Số CCCD <span style={{ color: 'red' }}>*</span></>} name="citizen_id"
-              rules={[{ required: true, message: 'Vui lòng nhập số CCCD' }]}>
-              <Input placeholder="001234567890" />
-            </Form.Item>
-
-            {/* input file thuần — giống EmployeeInfoForm, KHÔNG dùng antd Upload */}
-            <Form.Item label={<>File CCCD (2 mặt - PDF) <span style={{ color: 'red' }}>*</span></>}>
-              <input
-                type="file"
-                accept=".pdf"
-                style={{
-                  width: '100%',
-                  border: '1px solid #d9d9d9',
-                  borderRadius: 6,
-                  padding: '6px 12px',
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <RF label="Hình thức làm việc" value={values.work_form}
+                onChange={(val) => {
+                  handleSelect('work_form')(val);
+                  setWorkType(WORK_FORM_OPTIONS.find((o) => o.value === val)?.label ?? '');
                 }}
-                onChange={handleFileChange}
-              />
-              <p style={{ fontSize: 12, color: '#8c8c8c', marginTop: 4 }}>
-                Chỉ chấp nhận file PDF, tối đa 5MB
-              </p>
-              {extras.citizen_id_file && (
-                <p style={{ fontSize: 12, color: '#52c41a', marginTop: 4 }}>
-                  ✓ Đã chọn: {extras.citizen_id_file.name}
-                </p>
-              )}
-            </Form.Item>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Form.Item label="Ngày cấp" name="citizen_id_issue_date">
-                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" placeholder="Chọn ngày cấp" />
-              </Form.Item>
-              <Form.Item label="Nơi cấp" name="citizen_id_issue_place">
-                <Input placeholder="Cục Cảnh sát..." />
-              </Form.Item>
+                options={WORK_FORM_OPTIONS} />
             </div>
-
-            <Form.Item label="Số CMND cũ (nếu có)" name="old_id_number">
-              <Input placeholder="123456789" />
-            </Form.Item>
+            <SF label="Địa điểm làm việc" value={values.work_location}
+              onChange={handleSelect('work_location')} options={WORK_LOCATION_OPTIONS} />
           </div>
-        );
+        </div>
+      );
 
-      // ── BƯỚC 4 (index 3): Địa chỉ & BHXH ─────────────────────────────
-      case 3:
-        return (
+      // ── BƯỚC 3: CCCD ──────────────────────────────────────────────────
+      case 2: return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Thông tin CCCD</h3>
+
+          <TF label="Số CCCD" value={values.citizen_id}
+            onChange={handleChange('citizen_id')} required placeholder="001234567890" />
+
           <div>
-            <Title level={4} style={{ marginBottom: 16 }}>Địa chỉ & BHXH</Title>
-
-            <Form.Item label="Địa chỉ thường trú" name="permanent_address">
-              <TextArea rows={2} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
-            </Form.Item>
-
-            <Form.Item label="Địa chỉ hiện tại" name="current_address">
-              <TextArea rows={2} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
-            </Form.Item>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Form.Item label="Mã BHXH" name="social_insurance_number">
-                <Input placeholder="1234567890" />
-              </Form.Item>
-              <Form.Item label="Mã số thuế" name="tax_code">
-                <Input placeholder="0123456789" />
-              </Form.Item>
-            </div>
-
-            <Form.Item label="Tình trạng hôn nhân" name="marital_status" initialValue="SINGLE">
-              <Select>
-                <Select.Option value="SINGLE">Độc thân</Select.Option>
-                <Select.Option value="MARRIED">Đã kết hôn</Select.Option>
-                <Select.Option value="DIVORCED">Ly hôn</Select.Option>
-                <Select.Option value="WIDOWED">Góa</Select.Option>
-              </Select>
-            </Form.Item>
+            <p className="text-sm font-medium text-gray-700 mb-1">
+              File CCCD (2 mặt - PDF) <span className="text-red-500">*</span>
+            </p>
+            <label className={`flex items-center gap-3 w-full border-2 border-dashed rounded-lg px-4 py-3 cursor-pointer transition-colors
+              ${citizenIdFile ? 'border-green-400 bg-green-50' : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'}`}>
+              <span className="text-2xl">{citizenIdFile ? '✅' : '📄'}</span>
+              <div className="flex-1 min-w-0">
+                {citizenIdFile
+                  ? <p className="text-sm text-green-700 font-medium truncate">{citizenIdFile.name}</p>
+                  : <p className="text-sm text-gray-500">Nhấn để chọn file PDF (tối đa 5MB)</p>
+                }
+              </div>
+              <input type="file" accept=".pdf" onChange={handleFileChange} className="hidden" />
+            </label>
           </div>
-        );
 
-      // ── BƯỚC 5 (index 4): Người liên hệ khẩn cấp ─────────────────────
-      case 4:
-        return (
-          <div>
-            <Title level={4} style={{ marginBottom: 16 }}>Người liên hệ khẩn cấp</Title>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Form.Item label="Họ và tên" name="emergency_contact_name">
-                <Input placeholder="Nguyễn Văn B" />
-              </Form.Item>
-              <Form.Item label="Mối quan hệ" name="emergency_contact_relationship">
-                <Input placeholder="Bố, mẹ, vợ, chồng..." />
-              </Form.Item>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Form.Item label="Số điện thoại" name="emergency_contact_phone">
-                <Input placeholder="0987654321" />
-              </Form.Item>
-              <Form.Item label="Ngày sinh" name="emergency_contact_dob">
-                <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" placeholder="Chọn ngày sinh" />
-              </Form.Item>
-            </div>
-
-            <Form.Item label="Nghề nghiệp" name="emergency_contact_occupation">
-              <Input placeholder="Giáo viên, Bác sĩ..." />
-            </Form.Item>
-
-            <Form.Item label="Địa chỉ" name="emergency_contact_address">
-              <TextArea rows={2} placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
-            </Form.Item>
+          <div className="grid grid-cols-2 gap-4">
+            <TF label="Ngày cấp" value={values.citizen_id_issue_date}
+              onChange={handleChange('citizen_id_issue_date')} type="date" />
+            <TF label="Nơi cấp" value={values.citizen_id_issue_place}
+              onChange={handleChange('citizen_id_issue_place')} placeholder="Cục Cảnh sát..." />
           </div>
-        );
 
-      // ── BƯỚC 6 (index 5): Thông tin lương ─────────────────────────────
-      case 5:
-        return (
-          <div>
-            <Title level={4} style={{ marginBottom: 16 }}>Thông tin lương</Title>
+          <TF label="Số CMND cũ (nếu có)" value={values.old_id_number}
+            onChange={handleChange('old_id_number')} placeholder="123456789" />
+        </div>
+      );
 
-            <Form.Item label="Mức lương cơ bản (VNĐ)" name="salary">
-              <Input type="number" placeholder="10000000" />
-            </Form.Item>
+      // ── BƯỚC 4: Địa chỉ & BHXH ────────────────────────────────────────
+      case 3: return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Địa chỉ & BHXH</h3>
 
-            <Form.Item label="Phụ cấp (VNĐ)" name="allowance">
-              <Input type="number" placeholder="2000000" />
-            </Form.Item>
+          <TF label="Địa chỉ thường trú" value={values.permanent_address}
+            onChange={handleChange('permanent_address')} multiline rows={2}
+            placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
 
-            <Form.Item label="Số tháng thử việc" name="probation_period_months" initialValue="2">
-              <Select>
-                <Select.Option value="1">1 tháng</Select.Option>
-                <Select.Option value="2">2 tháng</Select.Option>
-                <Select.Option value="3">3 tháng</Select.Option>
-                <Select.Option value="6">6 tháng</Select.Option>
-              </Select>
-            </Form.Item>
+          <TF label="Địa chỉ hiện tại" value={values.current_address}
+            onChange={handleChange('current_address')} multiline rows={2}
+            placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
 
-            {/* Tóm tắt thông tin — giống EmployeeInfoForm step 6 */}
-            <div style={{
-              background: '#e6f4ff',
-              border: '1px solid #91caff',
-              borderRadius: 8,
-              padding: 16,
-              marginTop: 24,
-            }}>
-              <Title level={5} style={{ color: '#003eb3', marginBottom: 8 }}>📋 Tóm tắt thông tin</Title>
-              {(() => {
-                const vals = form.getFieldsValue();
-                return (
-                  <ul style={{ fontSize: 14, color: '#003eb3', margin: 0, paddingLeft: 16 }}>
-                    <li>Họ tên: {vals.candidate_name || '(Chưa điền)'}</li>
-                    <li>Email: {vals.candidate_email || '(Chưa điền)'}</li>
-                    <li>CCCD: {vals.citizen_id || '(Chưa điền)'}</li>
-                    <li>File CCCD: {extras.citizen_id_file ? `✓ ${extras.citizen_id_file.name}` : '(Chưa tải lên)'}</li>
-                    <li>Lương: {vals.salary ? `${parseInt(vals.salary).toLocaleString()} VNĐ` : '(Chưa điền)'}</li>
-                  </ul>
-                );
-              })()}
+          <div className="grid grid-cols-2 gap-4">
+            <TF label="Mã BHXH" value={values.social_insurance_number}
+              onChange={handleChange('social_insurance_number')} placeholder="1234567890" />
+            <TF label="Mã số thuế" value={values.tax_code}
+              onChange={handleChange('tax_code')} placeholder="0123456789" />
+          </div>
+
+          <SF label="Tình trạng hôn nhân" value={values.marital_status}
+            onChange={handleSelect('marital_status')} options={[
+              { value: 'SINGLE', label: 'Độc thân' },
+              { value: 'MARRIED', label: 'Đã kết hôn' },
+              { value: 'DIVORCED', label: 'Ly hôn' },
+              { value: 'WIDOWED', label: 'Góa' },
+            ]} />
+        </div>
+      );
+
+      // ── BƯỚC 5: Người liên hệ khẩn cấp ───────────────────────────────
+      case 4: return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Người liên hệ khẩn cấp</h3>
+
+          <div className="grid grid-cols-2 gap-4">
+            <TF label="Họ và tên" value={values.emergency_contact_name}
+              onChange={handleChange('emergency_contact_name')} placeholder="Nguyễn Văn B" />
+            <TF label="Mối quan hệ" value={values.emergency_contact_relationship}
+              onChange={handleChange('emergency_contact_relationship')} placeholder="Bố, mẹ, vợ, chồng..." />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <TF label="Số điện thoại" value={values.emergency_contact_phone}
+              onChange={handleChange('emergency_contact_phone')} placeholder="0987654321" />
+            <TF label="Ngày sinh" value={values.emergency_contact_dob}
+              onChange={handleChange('emergency_contact_dob')} type="date" />
+          </div>
+
+          <TF label="Nghề nghiệp" value={values.emergency_contact_occupation}
+            onChange={handleChange('emergency_contact_occupation')} placeholder="Giáo viên, Bác sĩ..." />
+
+          <TF label="Địa chỉ" value={values.emergency_contact_address}
+            onChange={handleChange('emergency_contact_address')} multiline rows={2}
+            placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
+        </div>
+      );
+
+      // ── BƯỚC 6: Thông tin lương ────────────────────────────────────────
+      case 5: return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Thông tin lương</h3>
+
+          <TF label="Mức lương cơ bản (VNĐ)" value={values.salary}
+            onChange={handleChange('salary')} type="number" placeholder="10000000" />
+
+          <TF label="Phụ cấp (VNĐ)" value={values.allowance}
+            onChange={handleChange('allowance')} type="number" placeholder="2000000" />
+
+          <SF label="Số tháng thử việc" value={values.probation_period_months}
+            onChange={handleSelect('probation_period_months')} options={[
+              { value: '1', label: '1 tháng' },
+              { value: '2', label: '2 tháng' },
+              { value: '3', label: '3 tháng' },
+              { value: '6', label: '6 tháng' },
+            ]} />
+
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mt-2">
+            <p className="text-sm font-semibold text-blue-800 mb-3">📋 Tóm tắt thông tin</p>
+            <div className="space-y-1.5">
+              {[
+                ['Họ tên', values.candidate_name],
+                ['Email', values.candidate_email],
+                ['CCCD', values.citizen_id],
+                ['File CCCD', citizenIdFile ? `✓ ${citizenIdFile.name}` : null],
+                ['Lương', values.salary ? `${parseInt(values.salary).toLocaleString()} VNĐ` : null],
+              ].map(([label, val]) => (
+                <div key={label as string} className="flex gap-2 text-sm">
+                  <span className="text-blue-500 w-20 shrink-0">{label}:</span>
+                  <span className={val ? 'text-blue-800 font-medium' : 'text-blue-300 italic'}>
+                    {val || '(Chưa điền)'}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-        );
+        </div>
+      );
 
-      default:
-        return null;
+      default: return null;
     }
   };
-
-  const stepNumber = currentStep + 1; // hiển thị 1-indexed
 
   // ============================================
   // MAIN RENDER
   // ============================================
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f0f2f5', padding: '40px 20px' }}>
-      <Card style={{ maxWidth: 800, margin: '0 auto', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 py-10 px-4">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-white text-sm max-w-sm
+          ${toast.type === 'success' ? 'bg-green-500' : toast.type === 'error' ? 'bg-red-500' : 'bg-amber-500'}`}>
+          {toast.msg}
+        </div>
+      )}
+
+      <Paper elevation={3} sx={{ maxWidth: 760, mx: 'auto', borderRadius: 4, overflow: 'hidden' }}>
 
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <Title level={2}>Thông tin Onboarding</Title>
-          <Space direction="vertical">
-            <Text>Xin chào, <strong>{onboardingData?.candidate_name}</strong>!</Text>
-            <Text type="secondary">
-              Vị trí: {onboardingData?.position_name} — {onboardingData?.department_name}
-            </Text>
-            <Text type="secondary">
-              Ngày bắt đầu: {new Date(onboardingData?.start_date || '').toLocaleDateString('vi-VN')}
-            </Text>
-          </Space>
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 pt-8 pb-6 text-center text-white">
+          <h2 className="text-2xl font-bold">Thông tin Onboarding</h2>
+          <p className="mt-1 opacity-90">
+            Xin chào, <strong>{onboardingData?.candidate_name}</strong>!
+          </p>
+          <p className="text-sm opacity-75 mt-1">
+            {onboardingData?.position_name || '—'} — {onboardingData?.department_name || '—'}
+          </p>
+          <p className="text-sm opacity-75">
+            Ngày bắt đầu:{' '}
+            {onboardingData?.start_date
+              ? new Date(onboardingData.start_date).toLocaleDateString('vi-VN') : '—'}
+          </p>
         </div>
 
         {/* Warning */}
-        <Alert
-          message="Lưu ý"
-          description={`Link này có hiệu lực đến ${new Date(onboardingData?.token_expires_at || '').toLocaleString('vi-VN')}. Vui lòng hoàn thành trong thời hạn.`}
-          type="warning"
-          showIcon
-          style={{ marginBottom: 24 }}
-        />
+        <div className="px-8 pt-4">
+          <Alert severity="warning" sx={{ borderRadius: 2, fontSize: 13 }}>
+            Link có hiệu lực đến{' '}
+            <strong>
+              {onboardingData?.token_expires_at
+                ? new Date(onboardingData.token_expires_at).toLocaleString('vi-VN') : '—'}
+            </strong>
+          </Alert>
+        </div>
 
-        {/* Steps indicator */}
-        <Steps
-          current={currentStep}
-          size="small"
-          style={{ marginBottom: 32 }}
-          items={[
-            { title: 'Cơ bản',    icon: <UserOutlined /> },
-            { title: 'Công việc', icon: <ApartmentOutlined /> },
-            { title: 'CCCD',      icon: <FileTextOutlined /> },
-            { title: 'Địa chỉ',  icon: <HomeOutlined /> },
-            { title: 'Liên hệ',  icon: <ContactsOutlined /> },
-            { title: 'Lương',     icon: <DollarOutlined /> },
-          ]}
-        />
-
-        {/* Progress bar — giống EmployeeInfoForm */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ background: '#f0f0f0', borderRadius: 4, height: 8 }}>
-            <div
-              style={{
-                background: '#1677ff',
-                borderRadius: 4,
-                height: 8,
-                width: `${(stepNumber / totalSteps) * 100}%`,
-                transition: 'width 0.3s',
+        {/* Step indicators */}
+        <div className="px-8 pt-5 pb-2">
+          <div className="flex items-start justify-between mb-3">
+            {STEP_LABELS.map((label, i) => {
+              const Icon = STEP_ICONS[i];
+              const active = i === currentStep;
+              const done = i < currentStep;
+              return (
+                <div key={label} className="flex flex-col items-center flex-1">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 shadow-sm transition-all
+                    ${done ? 'bg-green-500' : active ? 'bg-blue-600' : 'bg-gray-100'}`}>
+                    {done
+                      ? <CheckCircle sx={{ fontSize: 20, color: 'white' }} />
+                      : <Icon sx={{ fontSize: 20, color: active ? 'white' : '#9ca3af' }} />
+                    }
+                  </div>
+                  <span className={`text-xs font-medium hidden sm:block text-center leading-tight
+                    ${active ? 'text-blue-600' : done ? 'text-green-600' : 'text-gray-400'}`}>
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <Box sx={{ mb: 0.5 }}>
+            <LinearProgress
+              variant="determinate"
+              value={(stepNumber / totalSteps) * 100}
+              sx={{
+                height: 6, borderRadius: 3, bgcolor: '#e5e7eb',
+                '& .MuiLinearProgress-bar': { borderRadius: 3, bgcolor: '#2563eb' }
               }}
             />
-          </div>
-          <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
             Bước {stepNumber} / {totalSteps}
-          </Text>
+          </Typography>
         </div>
 
         {/* Form body */}
-        <Form form={form} layout="vertical">
+        <div className="px-8 py-6">
           {renderStep()}
+        </div>
 
-          {/* Footer navigation — khớp với EmployeeInfoForm */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: 32,
-            paddingTop: 16,
-            borderTop: '1px solid #f0f0f0',
-          }}>
-            <Button
-              onClick={handlePrevious}
-              disabled={currentStep === 0 || submitting}
-            >
-              ← Quay lại
+        {/* Navigation */}
+        <div className="px-8 pb-8 flex justify-between items-center border-t border-gray-100 pt-4">
+          <Button variant="outlined" onClick={handlePrevious}
+            disabled={currentStep === 0 || submitting}>
+            ← Quay lại
+          </Button>
+          {currentStep < totalSteps - 1 ? (
+            <Button variant="contained" onClick={handleNext} disabled={submitting}>
+              Tiếp theo →
             </Button>
-
-            {currentStep < totalSteps - 1 ? (
-              <Button type="primary" onClick={handleNext} disabled={submitting}>
-                Tiếp theo →
-              </Button>
-            ) : (
-              <Button
-                type="primary"
-                onClick={handleSubmit}
-                loading={submitting}
-                style={{ background: '#52c41a', borderColor: '#52c41a' }}
-              >
-                {submitting ? 'Đang gửi...' : '✓ Hoàn thành'}
-              </Button>
-            )}
-          </div>
-        </Form>
-      </Card>
+          ) : (
+            <Button
+              variant="contained" onClick={handleSubmit} disabled={submitting}
+              startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : null}
+              sx={{ bgcolor: '#22c55e', '&:hover': { bgcolor: '#16a34a' }, px: 3 }}
+            >
+              {submitting ? 'Đang gửi...' : '✓ Hoàn thành'}
+            </Button>
+          )}
+        </div>
+      </Paper>
     </div>
   );
 };
-
-// ==========================================
-// THÊM VÀO ROUTER (App.tsx hoặc routes.tsx)
-// ==========================================
-/*
-<Route
-  path="/onboarding/employee-form/:token"
-  element={<EmployeeOnboardingForm />}
-/>
-*/
