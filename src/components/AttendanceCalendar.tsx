@@ -64,6 +64,50 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   const [attendanceData, setAttendanceData] = useState<AttendanceDay[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Map API shift status string to AttendanceStatus
+  const mapShiftStatus = (shift: any): AttendanceStatus => {
+    if (!shift) return 'no_data';
+    switch ((shift.status || '').toUpperCase()) {
+      case 'PRESENT': return 'present';
+      case 'ABSENT': return 'absent';
+      case 'HALF_DAY': return 'present';
+      case 'INCOMPLETE_ATTENDANCE': return 'incomplete_attendance';
+      case 'LATE': return 'late';
+      case 'EARLY_LEAVE': return 'late';
+      case 'EMPTY': return 'no_data';
+      default: return 'no_data';
+    }
+  };
+
+  // Map day_status to display color
+  const getDayStatusDisplayColor = (dayStatus: string): string => {
+    switch (dayStatus) {
+      case 'FULL': return 'green';
+      case 'HALF': return 'orange';
+      case 'ABSENT': return 'red';
+      case 'LATE_EARLY': return 'yellow';
+      case 'FORGOT_CC': return 'purple';
+      case 'LEAVE': return 'gray';
+      case 'HOLIDAY': return 'blue';
+      default: return 'default';
+    }
+  };
+
+  // Map day_status to summary badge text
+  const getDayStatusSummaryText = (dayItem: any): string => {
+    if (dayItem.status_badge) return dayItem.status_badge;
+    switch (dayItem.day_status) {
+      case 'FULL': return 'Đủ công';
+      case 'HALF': return 'Nửa công';
+      case 'ABSENT': return 'Vắng';
+      case 'LATE_EARLY': return 'Muộn/Sớm';
+      case 'FORGOT_CC': return 'Quên CC';
+      case 'LEAVE': return 'Nghỉ phép';
+      case 'HOLIDAY': return 'Lễ';
+      default: return '';
+    }
+  };
+
   // Fetch calendar data from API
   const fetchCalendarData = async () => {
     try {
@@ -71,387 +115,94 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth() + 1; // API expects 1-indexed month
 
-      const params: any = {
-        year,
-        month,
-      };
+      const params: any = { year, month };
+      if (employeeId) params.employee_id = employeeId;
+      if (departmentId) params.department_id = departmentId;
 
-      if (employeeId) {
-        params.employee_id = employeeId;
-      }
+      console.log('AttendanceCalendar fetching calendar data with params:', params);
 
-      if (departmentId) {
-        params.department_id = departmentId;
-      }
+      const responseData = await attendanceService.getCalendarView(params);
 
-      console.log(
-        'AttendanceCalendar fetching calendar data with params:',
-        params
-      );
+      // Support new API format: { success: true, data: { calendar: [...], ... } }
+      // and old format: { calendar_data: [...], ... }
+      const calendarDays: any[] =
+        (responseData as any)?.data?.calendar ||
+        (responseData as any)?.calendar_data ||
+        [];
 
-      const data = await attendanceService.getCalendarView(params);
+      const transformedData: AttendanceDay[] = calendarDays.map((dayItem: any) => {
+        // Parse date as local time (append T00:00:00 to avoid UTC offset shifting the day)
+        const date = new Date(dayItem.date + 'T00:00:00');
 
-      // Transform API data to our local format
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const transformedData: AttendanceDay[] = [];
+        const morningShift = dayItem.shifts?.find((s: any) => s.shift_type === 'MORNING');
+        const afternoonShift = dayItem.shifts?.find((s: any) => s.shift_type === 'AFTERNOON');
+        const eveningShift = dayItem.shifts?.find((s: any) => s.shift_type === 'EVENING');
 
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month - 1, day);
-        // Format date as YYYY-MM-DD in local timezone (not UTC)
-        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        let morning: AttendanceStatus;
+        let afternoon: AttendanceStatus;
+        let evening: AttendanceStatus;
 
-        // Find attendance records for this date
-        const dayRecords =
-          data.calendar_data?.filter(
-            (record: any) => record.date === dateStr
-          ) || [];
-
-        // Find records for each shift type
-        const morningRecord = dayRecords.find(
-          (record: any) =>
-            record.shift_type === 'MORNING' || record.shift_type === 'FULL_DAY'
-        );
-        const afternoonRecord = dayRecords.find(
-          (record: any) =>
-            record.shift_type === 'AFTERNOON' ||
-            record.shift_type === 'FULL_DAY'
-        );
-        const eveningRecord = dayRecords.find(
-          (record: any) => record.shift_type === 'EVENING'
-        );
-
-        // Determine status for each shift
-        let morning: AttendanceStatus = 'off';
-        let afternoon: AttendanceStatus = 'off';
-        let evening: AttendanceStatus = 'off';
-        let firstCheckIn: string | undefined = undefined;
-        let lastCheckOut: string | undefined = undefined;
-        let notes = '';
-        let workCoefficient = 1.0;
-        let appliedRules: any[] = [];
-        let lateMinutes = 0;
-        let earlyLeaveMinutes = 0;
-        let approvedExplanations: any[] = [];
-        let approvedRegistrations: any[] = [];
-        let approvedLeaveRequests: any[] = [];
-        let approvedOnlineWorks: any[] = [];
-        let penalty = 0;
-        let dayStatusSummary = {
-          has_approved_explanation: false,
-          has_approved_registration: false,
-          has_approved_leave: false,
-          has_approved_online_work: false,
-          has_pending_request: false,
-          summary_text: '',
-          display_color: 'default',
-        };
-
-        if (dayRecords.length > 0) {
-          // Use the first record for work coefficient and applied rules (if available)
-          const firstRecord = dayRecords[0];
-          workCoefficient = firstRecord.work_coefficient || 0.0;
-          appliedRules = firstRecord.applied_rules || [];
-          lateMinutes = firstRecord.late_minutes || 0;
-          earlyLeaveMinutes = firstRecord.early_leave_minutes || 0;
-
-          // Get approved requests information
-          approvedExplanations =
-            (firstRecord as any).approved_explanations || [];
-          approvedRegistrations =
-            (firstRecord as any).approved_registrations || [];
-          approvedLeaveRequests =
-            (firstRecord as any).approved_leave_requests || [];
-          approvedOnlineWorks =
-            (firstRecord as any).approved_online_works || [];
-          dayStatusSummary = (firstRecord as any).day_status_summary || {
-            has_approved_explanation: false,
-            has_approved_registration: false,
-            has_approved_leave: false,
-            has_approved_online_work: false,
-            has_pending_request: false,
-            summary_text: '',
-            display_color: 'default',
-          };
-
-          // Mock penalty calculation
-          penalty = (lateMinutes + earlyLeaveMinutes) * 1000;
-
-          // Helper function to determine status for a record
-          const getStatusForRecord = (
-            record: any,
-            shift: 'morning' | 'afternoon' | 'evening'
-          ): AttendanceStatus => {
-            if (!record) return 'no_data';
-
-            const status = record.status?.toLowerCase();
-            const hasCheckIn =
-              record.check_in &&
-              record.check_in !== null &&
-              record.check_in !== '';
-            const hasCheckOut =
-              record.check_out &&
-              record.check_out !== null &&
-              record.check_out !== '';
-            const workingHours = record.working_hours || 0;
-
-            // Handle INCOMPLETE_ATTENDANCE status (quên chấm công)
-            // Xác định dựa trên thời gian của check_in:
-            // - Nếu check_in >= 12:00 → Quên chấm ca sáng, value trong check_in thực ra là check_out
-            // - Nếu check_in < 12:00 → Chấm ca sáng đúng, quên chấm ca chiều
-            if (status === 'incomplete_attendance') {
-              if (hasCheckIn && !hasCheckOut) {
-                const checkInTime = record.check_in
-                  ? record.check_in.substring(0, 5)
-                  : ''; // HH:MM
-
-                if (checkInTime >= '12:00') {
-                  // Case 1: check_in >= 12:00 (vd: 18:24)
-                  // => Quên chấm ca sáng, value trong check_in thực ra là check_out (chấm về chiều)
-                  if (shift === 'morning') {
-                    return 'no_data'; // Quên chấm buổi sáng
-                  } else if (shift === 'afternoon') {
-                    return 'incomplete_attendance'; // Có chấm về chiều (value nằm sai ở check_in)
-                  } else if (shift === 'evening') {
-                    return 'no_data';
-                  }
-                } else {
-                  // Case 2: check_in < 12:00 (vd: 08:22)
-                  // => Chấm ca sáng đúng, quên chấm ca chiều
-                  if (shift === 'morning') {
-                    return 'incomplete_attendance'; // Có chấm vào sáng
-                  } else if (shift === 'afternoon') {
-                    return 'no_data'; // Quên chấm về chiều
-                  } else if (shift === 'evening') {
-                    return 'no_data';
-                  }
-                }
-              } else if (!hasCheckIn && hasCheckOut) {
-                // check_in null, check_out có value
-                // => Có chấm ca sáng, quên chấm ca chiều (hoặc ngược lại tùy thời gian)
-                const checkOutTime = record.check_out
-                  ? record.check_out.substring(0, 5)
-                  : '';
-
-                if (checkOutTime < '12:00') {
-                  // check_out < 12:00 → thực ra là check_in sáng
-                  if (shift === 'morning') {
-                    return 'incomplete_attendance';
-                  } else if (shift === 'afternoon') {
-                    return 'no_data';
-                  } else if (shift === 'evening') {
-                    return 'no_data';
-                  }
-                } else {
-                  // check_out >= 12:00 → đúng là check_out chiều
-                  if (shift === 'morning') {
-                    return 'no_data';
-                  } else if (shift === 'afternoon') {
-                    return 'incomplete_attendance';
-                  } else if (shift === 'evening') {
-                    return 'no_data';
-                  }
-                }
-              }
-              // Nếu cả hai đều có hoặc đều không có, vẫn trả incomplete_attendance
-              return 'incomplete_attendance';
-            }
-
-            // If there's a record but no check_in and no check_out, it's absent (red color)
-            if (!hasCheckIn && !hasCheckOut) {
-              return 'absent';
-            }
-
-            const hasValidAttendanceData =
-              hasCheckIn && hasCheckOut && workingHours > 0;
-
-            if (!hasValidAttendanceData) {
-              return 'no_data';
-            }
-
-            // Check late_minutes và early_leave_minutes để hiển thị màu vàng (đi muộn/về sớm)
-            // QUAN TRỌNG: Phải check TRƯỚC logic HALF_DAY + FULL_DAY để đảm bảo hiển thị đúng màu vàng
-            const lateMinutes = record.late_minutes || 0;
-            const earlyLeaveMinutes = record.early_leave_minutes || 0;
-
-            // Ca sáng: nếu có đi muộn (late_minutes > 0) → hiển thị màu vàng
-            if (shift === 'morning' && lateMinutes > 0) {
-              return 'late';
-            }
-
-            // Ca chiều: nếu có về sớm (early_leave_minutes > 0) → hiển thị màu vàng
-            if (shift === 'afternoon' && earlyLeaveMinutes > 0) {
-              return 'late';
-            }
-
-            // Handle HALF_DAY status for FULL_DAY shift type
-            // Cả ca sáng và ca chiều đều hiển thị màu xanh (present)
-            // Chỉ áp dụng nếu KHÔNG có đi muộn/về sớm (đã check ở trên)
-            if (record.shift_type === 'FULL_DAY' && status === 'half_day') {
-              if (shift === 'morning' || shift === 'afternoon') {
-                return 'present'; // Cả 2 ca đều hiển thị màu xanh
-              } else if (shift === 'evening') {
-                return 'no_data';
-              }
-            }
-
-            if (status === 'late' || status === 'LATE') {
-              return 'late';
-            } else if (status === 'early_leave' || status === 'EARLY_LEAVE') {
-              return 'incomplete_attendance';
-            } else if (status === 'absent' || status === 'ABSENT') {
-              return 'absent';
-            } else if (workingHours > 0) {
-              return 'present';
-            } else {
-              return 'no_data';
-            }
-          };
-
-          // Get status for each shift
-          morning = getStatusForRecord(morningRecord, 'morning');
-          afternoon = getStatusForRecord(afternoonRecord, 'afternoon');
-          evening = getStatusForRecord(eveningRecord, 'evening');
-
-          // Extract all check-in/check-out times for the day
-          const allCheckIns: string[] = [];
-          const allCheckOuts: string[] = [];
-
-          [morningRecord, afternoonRecord, eveningRecord].forEach((record) => {
-            if (!record) return;
-
-            const recordStatus = record.status?.toLowerCase();
-            const hasRecordCheckIn =
-              record.check_in &&
-              record.check_in !== null &&
-              record.check_in !== '';
-            const hasRecordCheckOut =
-              record.check_out &&
-              record.check_out !== null &&
-              record.check_out !== '';
-
-            // Handle INCOMPLETE_ATTENDANCE: swap check_in/check_out values based on time
-            if (recordStatus === 'incomplete_attendance') {
-              if (hasRecordCheckIn && !hasRecordCheckOut) {
-                const checkInTime = record.check_in.substring(0, 5); // HH:MM
-
-                if (checkInTime >= '12:00') {
-                  // Case 1: check_in >= 12:00 (vd: 18:24)
-                  // => Value trong check_in thực ra là check_out, swap sang allCheckOuts
-                  allCheckOuts.push(checkInTime);
-                } else {
-                  // Case 2: check_in < 12:00 (vd: 08:22)
-                  // => Value đúng là check_in, giữ nguyên
-                  allCheckIns.push(checkInTime);
-                }
-              } else if (!hasRecordCheckIn && hasRecordCheckOut) {
-                const checkOutTime = record.check_out.substring(0, 5);
-
-                if (checkOutTime < '12:00') {
-                  // check_out < 12:00 → thực ra là check_in, swap sang allCheckIns
-                  allCheckIns.push(checkOutTime);
-                } else {
-                  // check_out >= 12:00 → đúng là check_out, giữ nguyên
-                  allCheckOuts.push(checkOutTime);
-                }
-              } else {
-                // Normal case - có cả hai hoặc không có gì
-                if (hasRecordCheckIn) {
-                  allCheckIns.push(record.check_in.substring(0, 5));
-                }
-                if (hasRecordCheckOut) {
-                  allCheckOuts.push(record.check_out.substring(0, 5));
-                }
-              }
-            } else {
-              // Normal status - no swap needed
-              if (hasRecordCheckIn) {
-                allCheckIns.push(record.check_in.substring(0, 5));
-              }
-              if (hasRecordCheckOut) {
-                allCheckOuts.push(record.check_out.substring(0, 5));
-              }
-            }
-          });
-
-          // Find first check-in (earliest time)
-          if (allCheckIns.length > 0) {
-            firstCheckIn = allCheckIns.sort()[0];
-          }
-
-          // Find last check-out (latest time)
-          if (allCheckOuts.length > 0) {
-            lastCheckOut = allCheckOuts.sort().reverse()[0];
-          }
-
-          // Build notes
-          notes = firstRecord.notes || '';
-
-          // Add late minutes to notes if applicable
-          if (firstRecord.late_minutes && firstRecord.late_minutes > 0) {
-            if (notes) {
-              notes += ` | Đi muộn: ${firstRecord.late_minutes} phút`;
-            } else {
-              notes = `Đi muộn: ${firstRecord.late_minutes} phút`;
-            }
-          }
-
-          // Add early leave minutes to notes if applicable
-          if (
-            firstRecord.early_leave_minutes &&
-            firstRecord.early_leave_minutes > 0
-          ) {
-            if (notes) {
-              notes += ` | Về sớm: ${firstRecord.early_leave_minutes} phút`;
-            } else {
-              notes = `Về sớm: ${firstRecord.early_leave_minutes} phút`;
-            }
-          }
-
-          if (approvedLeaveRequests.length > 0) {
-            if (notes) {
-              notes += ` | Nghỉ phép đã duyệt: ${approvedLeaveRequests.length}`;
-            } else {
-              notes = `Nghỉ phép đã duyệt: ${approvedLeaveRequests.length}`;
-            }
-          }
-
-          // Check for incomplete data notes - only set if we don't already have notes
-          if (
-            morning === 'no_data' &&
-            afternoon === 'no_data' &&
-            evening === 'no_data' &&
-            !notes
-          ) {
-            notes = 'Chưa có dữ liệu';
-          }
+        if (dayItem.is_holiday) {
+          morning = 'holiday';
+          afternoon = 'holiday';
+          evening = 'holiday';
         } else {
-          // No attendance record for this day - always mark as no_data (gray color)
-          morning = 'no_data';
-          afternoon = 'no_data';
-          evening = 'no_data';
-          notes = '';
+          morning = mapShiftStatus(morningShift);
+          afternoon = mapShiftStatus(afternoonShift);
+          evening = mapShiftStatus(eveningShift);
         }
 
-        transformedData.push({
+        // Extract check-in / check-out times from shifts
+        const allCheckIns: string[] = [];
+        const allCheckOuts: string[] = [];
+        (dayItem.shifts || []).forEach((shift: any) => {
+          if (shift.check_in) allCheckIns.push(shift.check_in.substring(0, 5));
+          if (shift.check_out) allCheckOuts.push(shift.check_out.substring(0, 5));
+        });
+
+        const firstCheckIn = allCheckIns.length > 0 ? allCheckIns.sort()[0] : undefined;
+        const lastCheckOut = allCheckOuts.length > 0 ? allCheckOuts.sort().reverse()[0] : undefined;
+
+        // Work coefficient based on day_status
+        let workCoefficient = 0;
+        switch (dayItem.day_status) {
+          case 'FULL': workCoefficient = 1.0; break;
+          case 'HALF': workCoefficient = 0.5; break;
+          case 'LATE_EARLY': workCoefficient = 1.0; break;
+          case 'FORGOT_CC': workCoefficient = 0; break;
+          default: workCoefficient = 0;
+        }
+
+        const isLeave = dayItem.is_leave || false;
+
+        return {
           date,
           morning,
           afternoon,
           evening,
           firstCheckIn,
           lastCheckOut,
-          notes: notes || undefined,
+          notes: dayItem.status_badge || undefined,
           workCoefficient,
-          appliedRules,
-          lateMinutes,
-          earlyLeaveMinutes,
-          approvedExplanations,
-          approvedRegistrations,
-          approvedLeaveRequests,
-          approvedOnlineWorks,
-          penalty,
-          dayStatusSummary,
-        });
-      }
+          appliedRules: [],
+          lateMinutes: 0,
+          earlyLeaveMinutes: 0,
+          approvedExplanations: [],
+          approvedRegistrations: [],
+          approvedLeaveRequests: isLeave ? [{ leave: true }] : [],
+          approvedOnlineWorks: [],
+          penalty: 0,
+          dayStatusSummary: {
+            has_approved_explanation: false,
+            has_approved_registration: false,
+            has_approved_leave: isLeave,
+            has_approved_online_work: false,
+            has_pending_request: false,
+            summary_text: getDayStatusSummaryText(dayItem),
+            display_color: getDayStatusDisplayColor(dayItem.day_status),
+          },
+        };
+      });
 
       setAttendanceData(transformedData);
     } catch (error) {

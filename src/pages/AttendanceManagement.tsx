@@ -475,6 +475,19 @@ const AttendanceManagement: React.FC = () => {
   };
   // ===================== END STEP-BASED FORM STATE =====================
   const [calendarData, setCalendarData] = useState<any[]>([]);
+  const [calendarSummary, setCalendarSummary] = useState<{
+    total_work_days: number;
+    full_days: number;
+    half_days: number;
+    late_or_early_days: number;
+    absent_days: number;
+    forgot_checkin_days: number;
+    overtime_hours: number;
+    extra_hours: number;
+    night_shift_sessions: number;
+    live_sessions: number;
+    leave_days: number;
+  } | null>(null);
 
   // Check if user has permission to upload attendance files
   // For now, only ADMIN role can upload
@@ -695,7 +708,20 @@ const AttendanceManagement: React.FC = () => {
       };
 
       const response = await attendanceService.getCalendarView(params);
-      setCalendarData(response.calendar_data || []);
+
+      // Support new API format: { success: true, data: { calendar: [...], summary: {...} } }
+      // and old format: { calendar_data: [...] }
+      const calendarArray =
+        (response as any)?.data?.calendar ||
+        (response as any)?.calendar_data ||
+        [];
+      setCalendarData(calendarArray);
+
+      // Extract summary from new API format
+      const summary = (response as any)?.data?.summary;
+      if (summary) {
+        setCalendarSummary(summary);
+      }
     } catch (error) {
       console.error('Error fetching calendar data:', error);
       setCalendarData([]);
@@ -1390,21 +1416,7 @@ const AttendanceManagement: React.FC = () => {
             Ngày đủ công
           </h3>
           <p className="text-xl md:text-2xl font-bold text-green-700 mt-1 md:mt-2">
-            {(() => {
-              const dateSet = new Set<string>();
-              calendarData.forEach((record: any) => {
-                if (
-                  record.work_coefficient !== undefined &&
-                  record.work_coefficient >= 1.0 &&
-                  (!record.late_minutes || record.late_minutes === 0) &&
-                  (!record.early_leave_minutes ||
-                    record.early_leave_minutes === 0)
-                ) {
-                  dateSet.add(record.date);
-                }
-              });
-              return dateSet.size;
-            })()}
+            {calendarSummary?.full_days ?? 0}
           </p>
         </div>
 
@@ -1413,20 +1425,7 @@ const AttendanceManagement: React.FC = () => {
             Nửa ngày công
           </h3>
           <p className="text-xl md:text-2xl font-bold text-orange-700 mt-1 md:mt-2">
-            {(() => {
-              const dateSet = new Set<string>();
-              calendarData.forEach((record: any) => {
-                if (
-                  record.work_coefficient !== undefined &&
-                  record.work_coefficient >= 0.5 &&
-                  record.work_coefficient < 1.0 &&
-                  record.status === 'HALF_DAY'
-                ) {
-                  dateSet.add(record.date);
-                }
-              });
-              return dateSet.size;
-            })()}
+            {calendarSummary?.half_days ?? 0}
           </p>
         </div>
 
@@ -1436,20 +1435,7 @@ const AttendanceManagement: React.FC = () => {
             Đi muộn/sớm
           </h3>
           <p className="text-xl md:text-2xl font-bold text-yellow-700 mt-1 md:mt-2">
-            {
-              calendarData
-                .filter((record: any) => {
-                  return (
-                    (record.late_minutes && record.late_minutes > 0) ||
-                    (record.early_leave_minutes &&
-                      record.early_leave_minutes > 0)
-                  );
-                })
-                .reduce((acc: Set<string>, record: any) => {
-                  acc.add(record.date);
-                  return acc;
-                }, new Set<string>()).size
-            }
+            {calendarSummary?.late_or_early_days ?? 0}
           </p>
         </div>
 
@@ -1458,18 +1444,7 @@ const AttendanceManagement: React.FC = () => {
             Vắng mặt
           </h3>
           <p className="text-xl md:text-2xl font-bold text-red-700 mt-1 md:mt-2">
-            {
-              calendarData
-                .filter((record: any) => {
-                  return (
-                    record.work_coefficient === 0 && record.status === 'ABSENT'
-                  );
-                })
-                .reduce((acc: Set<string>, record: any) => {
-                  acc.add(record.date);
-                  return acc;
-                }, new Set<string>()).size
-            }
+            {calendarSummary?.absent_days ?? 0}
           </p>
         </div>
 
@@ -1478,16 +1453,7 @@ const AttendanceManagement: React.FC = () => {
             Quên chấm công
           </h3>
           <p className="text-xl md:text-2xl font-bold text-purple-700 mt-1 md:mt-2">
-            {
-              calendarData
-                .filter(
-                  (record: any) => record.status === 'INCOMPLETE_ATTENDANCE'
-                )
-                .reduce((acc: Set<string>, record: any) => {
-                  acc.add(record.date);
-                  return acc;
-                }, new Set<string>()).size
-            }
+            {calendarSummary?.forgot_checkin_days ?? 0}
           </p>
         </div>
       </div>
