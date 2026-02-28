@@ -6,7 +6,7 @@ const API_BASE_URL = "https://app-uat.amcare.vn/";
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 300000,
   headers: {
     'Content-Type': 'application/json',
   },
