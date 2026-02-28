@@ -41,7 +41,7 @@ type OnboardingItem = {
 // Form HR điền — chỉ 4 trường cơ bản
 type CreateOnboardingForm = {
   candidate_name: string;
-  gender: string;
+  gender: 'M' | 'F' | 'O';
   candidate_email: string;
   candidate_phone: string;
 };
@@ -224,7 +224,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
             <select
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={form.gender}
-              onChange={(e) => setForm({ ...form, gender: e.target.value })}
+              onChange={(e) => setForm({ ...form, gender: e.target.value as 'M' | 'F' | 'O' })}
             >
               <option value="M">Nam</option>
               <option value="F">Nữ</option>

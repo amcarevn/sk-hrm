@@ -154,8 +154,8 @@ export interface CreateOnboardingRequest {
   candidate_name: string;
   candidate_email: string;
   start_date: string;
-  position: number;
-  department: number;
+  position?: number;
+  department?: number;
   direct_manager?: number;
   gender?: 'M' | 'F' | 'O';
   // Extended fields
