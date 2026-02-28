@@ -12,6 +12,7 @@ import {
   FunnelIcon,
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
+import onboardingService from '../services/onboarding.service';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -60,13 +61,6 @@ type DocumentsSectionProps = {
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-};
 
 const showError = (msg: string) => window.alert(msg);
 const showSuccess = (msg: string) => window.alert(msg);
@@ -146,19 +140,8 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
   const fetchTemplates = async () => {
     setLoadingTemplates(true);
     try {
-      const res = await fetch('http://localhost:8000/api-hrm/onboarding-document-templates/', {
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to fetch templates');
-      }
-
-      const data = await res.json();
-      setTemplates(data.results || data);
+      const data = await onboardingService.getTemplates();
+      setTemplates(data);
     } catch (error) {
       console.error('FETCH TEMPLATES ERROR:', error);
       showError('Không thể tải danh sách template');
@@ -176,29 +159,14 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
     setApplying(true);
 
     try {
-      const res = await fetch(
-        'http://localhost:8000/api-hrm/onboarding-document-templates/bulk_apply/',
-        {
-          method: 'POST',
-          headers: {
-            ...getAuthHeaders(),
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            onboarding_id: onboardingId,
-            template_ids: selectedTemplates,
-          }),
-        }
-      );
-
-      const result = await res.json();
+      const result = await onboardingService.bulkApplyTemplates(onboardingId, selectedTemplates);
 
       if (!result.success) {
-        showError(result.error || 'Không thể áp dụng template');
+        showError(result.message || 'Không thể áp dụng template');
         return;
       }
 
-      showSuccess(result.message || `Đã thêm ${result.created_count} tài liệu thành công`);
+      showSuccess(result.message || 'Đã thêm tài liệu thành công');
       setShowModal(false);
       setSelectedTemplates([]);
       onUpdate();
@@ -231,78 +199,31 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
       formData.append('is_required', String(uploadForm.is_required));
       formData.append('requires_signature', String(uploadForm.requires_signature));
       formData.append('is_active', 'true');
-      formData.append('apply_to_all_new_onboarding', 'false'); // Upload thủ công = không auto apply
+      formData.append('apply_to_all_new_onboarding', 'false');
       formData.append('file', uploadForm.file);
 
-      const res = await fetch('http://localhost:8000/api-hrm/onboarding-document-templates/', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: formData,
-      });
-
-      if (!res.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const newTemplate = await res.json();
+      const newTemplate = await onboardingService.createTemplate(formData);
 
       // Tự động apply template vừa tạo vào onboarding này
-      await handleApplyTemplates_Single(newTemplate.id);
+      await onboardingService.bulkApplyTemplates(onboardingId, [newTemplate.id]);
 
       showSuccess('Tạo và thêm tài liệu thành công');
       setShowModal(false);
       resetUploadForm();
       onUpdate();
-      fetchTemplates(); // Refresh template list
-    } catch (error) {
+      fetchTemplates();
+    } catch (error: any) {
       console.error('CREATE TEMPLATE ERROR:', error);
-      showError('Không thể tạo tài liệu');
+      showError(error.response?.data?.message || 'Không thể tạo tài liệu');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleApplyTemplates_Single = async (templateId: number) => {
-    try {
-      const res = await fetch(
-        'http://localhost:8000/api-hrm/onboarding-document-templates/bulk_apply/',
-        {
-          method: 'POST',
-          headers: {
-            ...getAuthHeaders(),
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            onboarding_id: onboardingId,
-            template_ids: [templateId],
-          }),
-        }
-      );
-
-      const result = await res.json();
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-    } catch (error) {
-      console.error('APPLY SINGLE TEMPLATE ERROR:', error);
-      throw error;
-    }
-  };
 
   const handleMarkAsRead = async (documentId: number) => {
     try {
-      const res = await fetch(
-        `http://localhost:8000/api-hrm/onboarding-documents/${documentId}/mark_read/`,
-        {
-          method: 'POST',
-          headers: {
-            ...getAuthHeaders(),
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      const result = await res.json();
+      const result = await onboardingService.markDocumentAsRead(documentId);
 
       if (!result.success) {
         showError(result.message || 'Không thể đánh dấu đã đọc');
@@ -311,9 +232,9 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
 
       showSuccess(result.message || 'Đã đánh dấu tài liệu là đã đọc');
       onUpdate();
-    } catch (error) {
+    } catch (error: any) {
       console.error('MARK READ ERROR:', error);
-      showError('Không thể đánh dấu đã đọc');
+      showError(error.response?.data?.message || 'Không thể đánh dấu đã đọc');
     }
   };
 
@@ -321,29 +242,12 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
     if (!confirm('Bạn có chắc muốn ký tài liệu này?')) return;
 
     try {
-      const res = await fetch(
-        `http://localhost:8000/api-hrm/onboarding-documents/${documentId}/sign/`,
-        {
-          method: 'POST',
-          headers: {
-            ...getAuthHeaders(),
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      const result = await res.json();
-
-      if (!result.success) {
-        showError(result.message || 'Không thể ký tài liệu');
-        return;
-      }
-
-      showSuccess(result.message || 'Đã ký tài liệu thành công');
+      await onboardingService.signDocument(documentId);
+      showSuccess('Đã ký tài liệu thành công');
       onUpdate();
-    } catch (error) {
+    } catch (error: any) {
       console.error('SIGN DOCUMENT ERROR:', error);
-      showError('Không thể ký tài liệu');
+      showError(error.response?.data?.message || 'Không thể ký tài liệu');
     }
   };
 
@@ -615,21 +519,19 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
               <div className="flex gap-2">
                 <button
                   onClick={() => setModalMode('template')}
-                  className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                    modalMode === 'template'
+                  className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${modalMode === 'template'
                       ? 'bg-blue-600 text-white shadow-sm'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   📚 Chọn từ Thư viện Template
                 </button>
                 <button
                   onClick={() => setModalMode('upload')}
-                  className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                    modalMode === 'upload'
+                  className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${modalMode === 'upload'
                       ? 'bg-blue-600 text-white shadow-sm'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   ➕ Tạo Tài Liệu Mới
                 </button>
@@ -703,10 +605,9 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
                             onClick={() => toggleTemplateSelection(template.id)}
                             className={`
                               cursor-pointer border-2 rounded-xl p-5 transition-all duration-200
-                              ${
-                                isSelected
-                                  ? 'border-blue-500 bg-blue-50 shadow-md'
-                                  : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                              ${isSelected
+                                ? 'border-blue-500 bg-blue-50 shadow-md'
+                                : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
                               }
                             `}
                           >
@@ -714,11 +615,10 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
                               <div
                                 className={`
                                 flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all
-                                ${
-                                  isSelected
+                                ${isSelected
                                     ? 'bg-blue-600 border-blue-600'
                                     : 'border-gray-300 bg-white'
-                                }
+                                  }
                               `}
                               >
                                 {isSelected && (

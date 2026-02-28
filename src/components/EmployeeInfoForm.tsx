@@ -151,10 +151,10 @@ const EmployeeInfoForm: React.FC<EmployeeInfoFormProps> = ({
         try {
           const [deptRes, posRes] = await Promise.all([
             fetch('http://localhost:8000/api-hrm/departments/', {
-              headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+              headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
             }),
             fetch('http://localhost:8000/api-hrm/positions/', {
-              headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+              headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
             }),
           ]);
           const deptData = await deptRes.json();
@@ -183,12 +183,12 @@ const EmployeeInfoForm: React.FC<EmployeeInfoFormProps> = ({
     region: '',
     block: '',
     sub_department: '',
-  section: '',
+    section: '',
     team: '',
     job_rank: '',
     doctor_team: '',
-  work_form: '',
-  work_type: '',
+    work_form: '',
+    work_type: '',
     work_location: '',
     citizen_id: '',
     citizen_id_file: null,
@@ -297,54 +297,54 @@ const EmployeeInfoForm: React.FC<EmployeeInfoFormProps> = ({
       // (code cũ có bug: const isCreatingNew = onboardingId === null → shadow prop)
 
       // Thông tin cơ bản
-      if (formData.candidate_name)  payload.append('candidate_name', formData.candidate_name);
+      if (formData.candidate_name) payload.append('candidate_name', formData.candidate_name);
       if (formData.candidate_email) payload.append('candidate_email', formData.candidate_email);
       if (formData.candidate_phone) payload.append('candidate_phone', formData.candidate_phone);
-      if (formData.date_of_birth)   payload.append('date_of_birth', formData.date_of_birth);
-      if (formData.gender)          payload.append('gender', formData.gender);
+      if (formData.date_of_birth) payload.append('date_of_birth', formData.date_of_birth);
+      if (formData.gender) payload.append('gender', formData.gender);
       if (formData.education_level) payload.append('education_level', formData.education_level);
-      if (formData.facebook_link)   payload.append('facebook_link', formData.facebook_link);
+      if (formData.facebook_link) payload.append('facebook_link', formData.facebook_link);
 
       // ✅ FIX 2: position_id → 'position', department_id → 'department'
       // (backend serializer nhận field tên 'position' và 'department')
-      if (formData.position_id)   payload.append('position', formData.position_id);
+      if (formData.position_id) payload.append('position', formData.position_id);
       if (formData.department_id) payload.append('department', formData.department_id);
-      if (formData.start_date)    payload.append('start_date', formData.start_date);
+      if (formData.start_date) payload.append('start_date', formData.start_date);
 
-      if (formData.region)        payload.append('region', formData.region);
-      if (formData.block)         payload.append('block', formData.block);
+      if (formData.region) payload.append('region', formData.region);
+      if (formData.block) payload.append('block', formData.block);
       if (formData.sub_department) payload.append('sub_department', formData.sub_department);
-      if (formData.section)       payload.append('section', formData.section);
-      if (formData.team)          payload.append('team', formData.team);
-      if (formData.job_rank)      payload.append('rank', formData.job_rank);
-      if (formData.doctor_team)   payload.append('doctor_team', formData.doctor_team);
-      if (formData.work_form)     payload.append('work_form', formData.work_form);
-      if (formData.work_type)     payload.append('work_type', formData.work_type);
+      if (formData.section) payload.append('section', formData.section);
+      if (formData.team) payload.append('team', formData.team);
+      if (formData.job_rank) payload.append('rank', formData.job_rank);
+      if (formData.doctor_team) payload.append('doctor_team', formData.doctor_team);
+      if (formData.work_form) payload.append('work_form', formData.work_form);
+      if (formData.work_type) payload.append('work_type', formData.work_type);
       if (formData.work_location) payload.append('work_location', formData.work_location);
 
       // ✅ FIX 3: citizen_id → 'citizen_id' (backend serializer field là citizen_id,
       // sau đó create() mới lấy để lưu vào Employee.cccd_number)
-      if (formData.citizen_id)            payload.append('citizen_id', formData.citizen_id);
-      if (formData.citizen_id_file)       payload.append('citizen_id_file', formData.citizen_id_file);
+      if (formData.citizen_id) payload.append('citizen_id', formData.citizen_id);
+      if (formData.citizen_id_file) payload.append('citizen_id_file', formData.citizen_id_file);
       if (formData.citizen_id_issue_date) payload.append('citizen_id_issue_date', formData.citizen_id_issue_date);
       if (formData.citizen_id_issue_place) payload.append('citizen_id_issue_place', formData.citizen_id_issue_place);
-      if (formData.old_id_number)         payload.append('old_id_number', formData.old_id_number);
+      if (formData.old_id_number) payload.append('old_id_number', formData.old_id_number);
 
-      if (formData.permanent_address)    payload.append('permanent_address', formData.permanent_address);
-      if (formData.current_address)      payload.append('current_address', formData.current_address);
+      if (formData.permanent_address) payload.append('permanent_address', formData.permanent_address);
+      if (formData.current_address) payload.append('current_address', formData.current_address);
       if (formData.social_insurance_number) payload.append('social_insurance_number', formData.social_insurance_number);
-      if (formData.tax_code)             payload.append('tax_code', formData.tax_code);
-      if (formData.marital_status)       payload.append('marital_status', formData.marital_status);
+      if (formData.tax_code) payload.append('tax_code', formData.tax_code);
+      if (formData.marital_status) payload.append('marital_status', formData.marital_status);
 
-      if (formData.emergency_contact_name)         payload.append('emergency_contact_name', formData.emergency_contact_name);
+      if (formData.emergency_contact_name) payload.append('emergency_contact_name', formData.emergency_contact_name);
       if (formData.emergency_contact_relationship) payload.append('emergency_contact_relationship', formData.emergency_contact_relationship);
-      if (formData.emergency_contact_phone)        payload.append('emergency_contact_phone', formData.emergency_contact_phone);
-      if (formData.emergency_contact_dob)          payload.append('emergency_contact_dob', formData.emergency_contact_dob);
-      if (formData.emergency_contact_occupation)   payload.append('emergency_contact_occupation', formData.emergency_contact_occupation);
-      if (formData.emergency_contact_address)      payload.append('emergency_contact_address', formData.emergency_contact_address);
+      if (formData.emergency_contact_phone) payload.append('emergency_contact_phone', formData.emergency_contact_phone);
+      if (formData.emergency_contact_dob) payload.append('emergency_contact_dob', formData.emergency_contact_dob);
+      if (formData.emergency_contact_occupation) payload.append('emergency_contact_occupation', formData.emergency_contact_occupation);
+      if (formData.emergency_contact_address) payload.append('emergency_contact_address', formData.emergency_contact_address);
 
-      if (formData.salary)                  payload.append('salary', formData.salary);
-      if (formData.allowance)               payload.append('allowance', formData.allowance);
+      if (formData.salary) payload.append('salary', formData.salary);
+      if (formData.allowance) payload.append('allowance', formData.allowance);
       if (formData.probation_period_months) payload.append('probation_period_months', formData.probation_period_months);
 
       // Debug log
@@ -362,7 +362,7 @@ const EmployeeInfoForm: React.FC<EmployeeInfoFormProps> = ({
 
       const res = await fetch(url, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         body: payload,
       });
 

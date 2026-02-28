@@ -1,27 +1,5 @@
-// ==========================================
-// FILE: src/services/onboardingService.ts
-// API service cho onboarding
-// ==========================================
-import axios, { AxiosResponse } from 'axios';
-
-const API_BASE = '/api-hrm';
-
-// Axios instance với auth
-const api = axios.create({
-  baseURL: API_BASE,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import { AxiosResponse } from 'axios';
+import { managementApi } from '../utils/api';
 
 // ==================== TYPES ====================
 
@@ -179,7 +157,7 @@ export interface CreateOnboardingRequest {
   position: number;
   department: number;
   direct_manager?: number;
-
+  gender?: 'M' | 'F' | 'O';
   // Extended fields
   full_name?: string;
   position_title?: string;
@@ -246,7 +224,7 @@ export const onboardingService = {
     ordering?: string;
   }): Promise<PaginatedResponse<OnboardingProcess>> => {
     const response: AxiosResponse<PaginatedResponse<OnboardingProcess>> =
-      await api.get('/onboardings/', { params });
+      await managementApi.get('/api-hrm/onboardings/', { params });
     return response.data;
   },
 
@@ -254,16 +232,16 @@ export const onboardingService = {
    * Lấy chi tiết onboarding
    */
   get: async (id: number): Promise<OnboardingProcess> => {
-    const response: AxiosResponse<OnboardingProcess> = await api.get(
-      `/onboardings/${id}/`
+    const response: AxiosResponse<OnboardingProcess> = await managementApi.get(
+      `/api-hrm/onboardings/${id}/`
     );
     return response.data;
   },
 
   /** Alias của get() — dùng khi cần tên rõ nghĩa hơn */
   getById: async (id: number): Promise<OnboardingProcess> => {
-    const response: AxiosResponse<OnboardingProcess> = await api.get(
-      `/onboardings/${id}/`
+    const response: AxiosResponse<OnboardingProcess> = await managementApi.get(
+      `/api-hrm/onboardings/${id}/`
     );
     return response.data;
   },
@@ -272,8 +250,8 @@ export const onboardingService = {
    * Tạo onboarding mới
    */
   create: async (data: CreateOnboardingRequest): Promise<OnboardingProcess> => {
-    const response: AxiosResponse<OnboardingProcess> = await api.post(
-      '/onboardings/',
+    const response: AxiosResponse<OnboardingProcess> = await managementApi.post(
+      '/api-hrm/onboardings/',
       data
     );
     return response.data;
@@ -286,8 +264,8 @@ export const onboardingService = {
     id: number,
     data: Partial<CreateOnboardingRequest>
   ): Promise<OnboardingProcess> => {
-    const response: AxiosResponse<OnboardingProcess> = await api.put(
-      `/onboardings/${id}/`,
+    const response: AxiosResponse<OnboardingProcess> = await managementApi.put(
+      `/api-hrm/onboardings/${id}/`,
       data
     );
     return response.data;
@@ -300,8 +278,8 @@ export const onboardingService = {
     id: number,
     data: Partial<CreateOnboardingRequest>
   ): Promise<OnboardingProcess> => {
-    const response: AxiosResponse<OnboardingProcess> = await api.patch(
-      `/onboardings/${id}/`,
+    const response: AxiosResponse<OnboardingProcess> = await managementApi.patch(
+      `/api-hrm/onboardings/${id}/`,
       data
     );
     return response.data;
@@ -311,7 +289,7 @@ export const onboardingService = {
    * Xóa onboarding
    */
   delete: async (id: number): Promise<void> => {
-    await api.delete(`/onboardings/${id}/`);
+    await managementApi.delete(`/api-hrm/onboardings/${id}/`);
   },
 
   /**
@@ -319,7 +297,7 @@ export const onboardingService = {
    */
   start: async (id: number): Promise<OnboardingProcess> => {
     const response: AxiosResponse<ActionResponse<OnboardingProcess>> =
-      await api.post(`/onboardings/${id}/start/`);
+      await managementApi.post(`/api-hrm/onboardings/${id}/start/`);
     return response.data.data;
   },
 
@@ -328,7 +306,7 @@ export const onboardingService = {
    */
   complete: async (id: number): Promise<OnboardingProcess> => {
     const response: AxiosResponse<ActionResponse<OnboardingProcess>> =
-      await api.post(`/onboardings/${id}/complete/`);
+      await managementApi.post(`/api-hrm/onboardings/${id}/complete/`);
     return response.data.data;
   },
 
@@ -342,7 +320,7 @@ export const onboardingService = {
       success: boolean;
       message: string;
       employee: any;
-    }> = await api.post(`/onboardings/${id}/create_employee/`);
+    }> = await managementApi.post(`/api-hrm/onboardings/${id}/create_employee/`);
     return {
       employee: response.data.employee,
       message: response.data.message,
@@ -353,8 +331,8 @@ export const onboardingService = {
    * Lấy thống kê onboarding
    */
   getStatistics: async (): Promise<OnboardingStatistics> => {
-    const response: AxiosResponse<OnboardingStatistics> = await api.get(
-      '/onboardings/statistics/'
+    const response: AxiosResponse<OnboardingStatistics> = await managementApi.get(
+      '/api-hrm/onboardings/statistics/'
     );
     return response.data;
   },
@@ -368,7 +346,7 @@ export const onboardingService = {
     id: number
   ): Promise<{ token: string; expires_at: string }> => {
     const response: AxiosResponse<{ token: string; expires_at: string }> =
-      await api.post(`/onboardings/${id}/generate_employee_token/`);
+      await managementApi.post(`/api-hrm/onboardings/${id}/generate_employee_token/`);
     return response.data;
   },
 
@@ -379,7 +357,7 @@ export const onboardingService = {
     id: number
   ): Promise<{ success: boolean; message: string }> => {
     const response: AxiosResponse<{ success: boolean; message: string }> =
-      await api.post(`/onboardings/${id}/send-employee-email/`);
+      await managementApi.post(`/api-hrm/onboardings/${id}/send-employee-email/`);
     return response.data;
   },
 
@@ -395,7 +373,7 @@ export const onboardingService = {
       employee_info_completed: boolean;
       token_status: 'not_generated' | 'active' | 'expired' | 'completed';
       token_expires_at: string | null;
-    }> = await api.get(`/onboardings/${id}/employee-info-status/`);
+    }> = await managementApi.get(`/api-hrm/onboardings/${id}/employee-info-status/`);
     return response.data;
   },
 
@@ -405,8 +383,8 @@ export const onboardingService = {
    * Lấy danh sách tasks của onboarding
    */
   getTasks: async (onboardingId: number): Promise<OnboardingTask[]> => {
-    const response: AxiosResponse<OnboardingTask[]> = await api.get(
-      `/onboardings/${onboardingId}/tasks/`
+    const response: AxiosResponse<OnboardingTask[]> = await managementApi.get(
+      `/api-hrm/onboardings/${onboardingId}/tasks/`
     );
     return response.data;
   },
@@ -416,7 +394,7 @@ export const onboardingService = {
    */
   startTask: async (taskId: number): Promise<OnboardingTask> => {
     const response: AxiosResponse<ActionResponse<OnboardingTask>> =
-      await api.post(`/onboarding-tasks/${taskId}/start/`);
+      await managementApi.post(`/api-hrm/onboarding-tasks/${taskId}/start/`);
     return response.data.data;
   },
 
@@ -428,7 +406,7 @@ export const onboardingService = {
     completionNote?: string
   ): Promise<OnboardingTask> => {
     const response: AxiosResponse<ActionResponse<OnboardingTask>> =
-      await api.post(`/onboarding-tasks/${taskId}/complete/`, {
+      await managementApi.post(`/api-hrm/onboarding-tasks/${taskId}/complete/`, {
         completion_note: completionNote,
       });
     return response.data.data;
@@ -442,8 +420,21 @@ export const onboardingService = {
     reason?: string
   ): Promise<OnboardingTask> => {
     const response: AxiosResponse<ActionResponse<OnboardingTask>> =
-      await api.post(`/onboarding-tasks/${taskId}/skip/`, { reason });
+      await managementApi.post(`/api-hrm/onboarding-tasks/${taskId}/skip/`, { reason });
     return response.data.data;
+  },
+
+  /**
+   * Toggle trạng thái checklist
+   */
+  toggleChecklist: async (
+    checklistId: number
+  ): Promise<{ success: boolean; message: string }> => {
+    const response: AxiosResponse<{ success: boolean; message: string }> =
+      await managementApi.post(
+        `/api-hrm/onboarding-checklists/${checklistId}/toggle/`
+      );
+    return response.data;
   },
 
   // ========== Onboarding Documents ==========
@@ -452,8 +443,8 @@ export const onboardingService = {
    * Lấy danh sách documents của onboarding
    */
   getDocuments: async (onboardingId: number): Promise<OnboardingDocument[]> => {
-    const response: AxiosResponse<OnboardingDocument[]> = await api.get(
-      `/onboardings/${onboardingId}/documents/`
+    const response: AxiosResponse<OnboardingDocument[]> = await managementApi.get(
+      `/api-hrm/onboardings/${onboardingId}/documents/`
     );
     return response.data;
   },
@@ -465,8 +456,8 @@ export const onboardingService = {
     onboardingId: number,
     formData: FormData
   ): Promise<OnboardingDocument> => {
-    const response: AxiosResponse<OnboardingDocument> = await api.post(
-      '/onboarding-documents/',
+    const response: AxiosResponse<OnboardingDocument> = await managementApi.post(
+      '/api-hrm/onboarding-documents/',
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -480,10 +471,12 @@ export const onboardingService = {
    */
   markDocumentAsRead: async (
     documentId: number
-  ): Promise<OnboardingDocument> => {
-    const response: AxiosResponse<ActionResponse<OnboardingDocument>> =
-      await api.post(`/onboarding-documents/${documentId}/mark_read/`);
-    return response.data.data;
+  ): Promise<{ success: boolean; message: string }> => {
+    const response: AxiosResponse<{ success: boolean; message: string }> =
+      await managementApi.post(
+        `/api-hrm/onboarding-documents/${documentId}/mark_read/`
+      );
+    return response.data;
   },
 
   /**
@@ -498,10 +491,61 @@ export const onboardingService = {
       formData.append('signature_file', signatureFile);
     }
     const response: AxiosResponse<ActionResponse<OnboardingDocument>> =
-      await api.post(`/onboarding-documents/${documentId}/sign/`, formData, {
+      await managementApi.post(`/api-hrm/onboarding-documents/${documentId}/sign/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     return response.data.data;
+  },
+
+  // ========== Onboarding Document Templates ==========
+
+  /**
+   * Lấy danh sách templates
+   */
+  getTemplates: async (params?: {
+    search?: string;
+    document_type?: string;
+  }): Promise<any[]> => {
+    const response: AxiosResponse<any> = await managementApi.get(
+      '/api-hrm/onboarding-document-templates/',
+      { params }
+    );
+    return response.data.results || response.data;
+  },
+
+  /**
+   * Áp dụng bulk templates vào onboarding
+   */
+  bulkApplyTemplates: async (
+    onboardingId: number,
+    templateIds: number[]
+  ): Promise<{ success: boolean; message: string; created_count?: number }> => {
+    const response: AxiosResponse<{
+      success: boolean;
+      message: string;
+      created_count?: number;
+    }> = await managementApi.post(
+      '/api-hrm/onboarding-document-templates/bulk_apply/',
+      {
+        onboarding_id: onboardingId,
+        template_ids: templateIds,
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Tạo template mới (thực chất là upload doc mới vào onboarding này và lưu làm template)
+   */
+  createTemplate: async (formData: FormData): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.post(
+      '/api-hrm/onboarding-document-templates/',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+    return response.data;
   },
 
   // ========== Public Endpoints (không cần auth) ==========
@@ -510,14 +554,10 @@ export const onboardingService = {
    * Lấy thông tin onboarding bằng token (PUBLIC)
    */
   getByToken: async (token: string): Promise<OnboardingProcess> => {
-    const response = await fetch(
-      `${API_BASE}/employee-onboarding-form/by-token/${token}/`,
-      {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      }
+    const response: AxiosResponse<OnboardingProcess> = await managementApi.get(
+      `/api-hrm/employee-onboarding-form/by-token/${token}/`
     );
-    return response.json();
+    return response.data;
   },
 
   /**
@@ -527,15 +567,11 @@ export const onboardingService = {
     token: string,
     data: EmployeeFormData
   ): Promise<{ success: boolean; message: string }> => {
-    const response = await fetch(
-      `${API_BASE}/employee-onboarding-form/submit/${token}/`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }
+    const response: AxiosResponse<{ success: boolean; message: string }> = await managementApi.post(
+      `/api-hrm/employee-onboarding-form/submit/${token}/`,
+      data
     );
-    return response.json();
+    return response.data;
   },
 };
 

@@ -65,7 +65,7 @@ type TemplateForm = {
 // ============================================
 
 const getAuthHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+  Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
 });
 
 const showError = (msg: string) => window.alert(msg);
@@ -98,7 +98,7 @@ const DocumentTemplates: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<DocumentTemplate | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  
+
   const [formData, setFormData] = useState<TemplateForm>({
     template_name: '',
     document_type: 'OTHER',
@@ -187,7 +187,7 @@ const DocumentTemplates: React.FC = () => {
       formDataToSend.append('requires_signature', String(formData.requires_signature));
       formDataToSend.append('is_active', String(formData.is_active));
       formDataToSend.append('apply_to_all_new_onboarding', String(formData.apply_to_all_new_onboarding));
-      
+
       if (formData.file) {
         formDataToSend.append('file', formData.file);
       }
@@ -199,7 +199,7 @@ const DocumentTemplates: React.FC = () => {
       const url = editingTemplate
         ? `http://localhost:8000/api-hrm/onboarding-document-templates/${editingTemplate.id}/`
         : 'http://localhost:8000/api-hrm/onboarding-document-templates/';
-      
+
       const method = editingTemplate ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -253,7 +253,7 @@ const DocumentTemplates: React.FC = () => {
       );
 
       const result = await res.json();
-      
+
       if (!result.success) {
         showError(result.message || 'Đồng bộ thất bại');
         return;
@@ -278,7 +278,7 @@ const DocumentTemplates: React.FC = () => {
       );
 
       const result = await res.json();
-      
+
       if (!result.success) {
         showError(result.message || 'Thao tác thất bại');
         return;

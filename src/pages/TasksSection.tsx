@@ -8,6 +8,7 @@ import {
   ChevronUpIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
+import onboardingService from '../services/onboarding.service';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -53,11 +54,6 @@ type TasksSectionProps = {
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
-
-const getAuthHeaders = () => ({
-  'Content-Type': 'application/json',
-  Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-});
 
 const showError = (msg: string) => window.alert(msg);
 const showSuccess = (msg: string) => window.alert(msg);
@@ -133,23 +129,12 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
 
   const handleStartTask = async (taskId: number) => {
     try {
-      const res = await fetch(`http://localhost:8000/api-hrm/onboarding-tasks/${taskId}/start/`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-
-      const result = await res.json();
-
-      if (!result.success) {
-        showError(result.message || 'Không thể bắt đầu task');
-        return;
-      }
-
-      showSuccess(result.message || 'Đã bắt đầu task');
+      await onboardingService.startTask(taskId);
+      showSuccess('Đã bắt đầu task');
       onUpdate();
-    } catch (error) {
+    } catch (error: any) {
       console.error('START TASK ERROR:', error);
-      showError('Không thể bắt đầu task');
+      showError(error.response?.data?.message || 'Không thể bắt đầu task');
     }
   };
 
@@ -157,30 +142,15 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
     if (!selectedTask) return;
 
     try {
-      const res = await fetch(
-        `http://localhost:8000/api-hrm/onboarding-tasks/${selectedTask.id}/complete/`,
-        {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ completion_note: completionNote }),
-        }
-      );
-
-      const result = await res.json();
-
-      if (!result.success) {
-        showError(result.message || 'Không thể hoàn thành task');
-        return;
-      }
-
-      showSuccess(result.message || 'Đã hoàn thành task');
+      await onboardingService.completeTask(selectedTask.id, completionNote);
+      showSuccess('Đã hoàn thành task');
       setShowCompleteModal(false);
       setCompletionNote('');
       setSelectedTask(null);
       onUpdate();
-    } catch (error) {
+    } catch (error: any) {
       console.error('COMPLETE TASK ERROR:', error);
-      showError('Không thể hoàn thành task');
+      showError(error.response?.data?.message || 'Không thể hoàn thành task');
     }
   };
 
@@ -188,54 +158,25 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
     if (!selectedTask) return;
 
     try {
-      const res = await fetch(
-        `http://localhost:8000/api-hrm/onboarding-tasks/${selectedTask.id}/skip/`,
-        {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ reason: skipReason }),
-        }
-      );
-
-      const result = await res.json();
-
-      if (!result.success) {
-        showError(result.message || 'Không thể bỏ qua task');
-        return;
-      }
-
-      showSuccess(result.message || 'Đã bỏ qua task');
+      await onboardingService.skipTask(selectedTask.id, skipReason);
+      showSuccess('Đã bỏ qua task');
       setShowSkipModal(false);
       setSkipReason('');
       setSelectedTask(null);
       onUpdate();
-    } catch (error) {
+    } catch (error: any) {
       console.error('SKIP TASK ERROR:', error);
-      showError('Không thể bỏ qua task');
+      showError(error.response?.data?.message || 'Không thể bỏ qua task');
     }
   };
 
   const handleToggleChecklist = async (checklistId: number) => {
     try {
-      const res = await fetch(
-        `http://localhost:8000/api-hrm/onboarding-checklists/${checklistId}/toggle/`,
-        {
-          method: 'POST',
-          headers: getAuthHeaders(),
-        }
-      );
-
-      const result = await res.json();
-
-      if (!result.success) {
-        showError(result.message || 'Không thể cập nhật checklist');
-        return;
-      }
-
+      await onboardingService.toggleChecklist(checklistId);
       onUpdate();
-    } catch (error) {
+    } catch (error: any) {
       console.error('TOGGLE CHECKLIST ERROR:', error);
-      showError('Không thể cập nhật checklist');
+      showError(error.response?.data?.message || 'Không thể cập nhật checklist');
     }
   };
 
@@ -259,7 +200,7 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
             Bắt đầu
           </button>
         )}
-        
+
         {(task.status === 'IN_PROGRESS' || task.status === 'PENDING') && (
           <>
             <button
@@ -307,9 +248,8 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
               />
               <div className="flex-1">
                 <p
-                  className={`text-sm ${
-                    item.is_completed ? 'line-through text-gray-500' : 'text-gray-900'
-                  }`}
+                  className={`text-sm ${item.is_completed ? 'line-through text-gray-500' : 'text-gray-900'
+                    }`}
                 >
                   {item.title}
                   {item.is_required && <span className="text-red-500 ml-1">*</span>}
@@ -369,8 +309,8 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
                                 task.days_until_deadline < 0
                                   ? 'text-red-600 font-medium'
                                   : task.days_until_deadline <= 3
-                                  ? 'text-yellow-600 font-medium'
-                                  : ''
+                                    ? 'text-yellow-600 font-medium'
+                                    : ''
                               }
                             >
                               {' '}

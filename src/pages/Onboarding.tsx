@@ -11,6 +11,7 @@ import {
   XMarkIcon,
   UserPlusIcon,
 } from '@heroicons/react/24/outline';
+import onboardingService from '../services/onboarding.service';
 
 // ============================================
 // TYPES
@@ -47,15 +48,6 @@ type CreateOnboardingForm = {
 
 type ApiResponse<T> = { results?: T[]; count?: number } | T[];
 
-// ============================================
-// HELPERS
-// ============================================
-
-const getAuthHeaders = () => ({
-  'Content-Type': 'application/json',
-  Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-});
-
 const getProgressPercentage = (value?: number | string | null): number => {
   if (value == null) return 0;
   const n = typeof value === 'string' ? parseFloat(value) : value;
@@ -65,11 +57,11 @@ const getProgressPercentage = (value?: number | string | null): number => {
 
 const getStatusBadge = (status?: string | null) => {
   const map: Record<string, { label: string; color: string }> = {
-    DRAFT:       { label: 'Nháp',           color: 'bg-gray-100 text-gray-700' },
-    PENDING:     { label: 'Chờ xử lý',      color: 'bg-yellow-100 text-yellow-700' },
+    DRAFT: { label: 'Nháp', color: 'bg-gray-100 text-gray-700' },
+    PENDING: { label: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-700' },
     IN_PROGRESS: { label: 'Đang thực hiện', color: 'bg-blue-100 text-blue-700' },
-    COMPLETED:   { label: 'Hoàn thành',     color: 'bg-green-100 text-green-700' },
-    CANCELLED:   { label: 'Đã hủy',         color: 'bg-red-100 text-red-700' },
+    COMPLETED: { label: 'Hoàn thành', color: 'bg-green-100 text-green-700' },
+    CANCELLED: { label: 'Đã hủy', color: 'bg-red-100 text-red-700' },
   };
   if (!status) return null;
   const cfg = map[status] ?? map.DRAFT;
@@ -144,35 +136,25 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
     if (!validate()) return;
     setSubmitting(true);
     try {
-      const res = await fetch('http://localhost:8000/api-hrm/onboardings/', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          candidate_name: form.candidate_name,
-          full_name: form.candidate_name,
-          gender: form.gender,
-          candidate_email: form.candidate_email,
-          candidate_phone: form.candidate_phone,
-          // start_date mặc định hôm nay, nhân viên sẽ xác nhận lại trong form của họ
-          start_date: new Date().toISOString().slice(0, 10),
-        }),
+      const data = await onboardingService.create({
+        candidate_name: form.candidate_name,
+        full_name: form.candidate_name,
+        gender: form.gender,
+        candidate_email: form.candidate_email,
+        candidate_phone: form.candidate_phone,
+        // start_date mặc định hôm nay, nhân viên sẽ xác nhận lại trong form của họ
+        start_date: new Date().toISOString().slice(0, 10),
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        const msgs = Object.entries(errData)
-          .map(([f, v]) => `${f}: ${Array.isArray(v) ? v.join(', ') : v}`)
-          .join('\n');
-        alert(msgs || 'Tạo quy trình thất bại. Vui lòng thử lại.');
-        return;
-      }
-
-      const data = await res.json();
       alert(`✅ Tạo quy trình thành công!\nMã: ${data.onboarding_code ?? data.id}`);
       onSuccess();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Có lỗi xảy ra. Vui lòng thử lại.');
+      const errData = e.response?.data || {};
+      const msgs = Object.entries(errData)
+        .map(([f, v]) => `${f}: ${Array.isArray(v) ? v.join(', ') : v}`)
+        .join('\n');
+      alert(msgs || 'Tạo quy trình thất bại. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
@@ -301,8 +283,8 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
 const Onboarding: React.FC = () => {
   const navigate = useNavigate();
 
-  const [onboardings, setOnboardings]   = useState<OnboardingItem[]>([]);
-  const [loading, setLoading]           = useState(false);
+  const [onboardings, setOnboardings] = useState<OnboardingItem[]>([]);
+  const [loading, setLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -313,18 +295,14 @@ const Onboarding: React.FC = () => {
   const fetchOnboardings = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api-hrm/onboardings/', {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: ApiResponse<OnboardingItem> = await res.json();
+      const data = await onboardingService.list();
       const items = Array.isArray(data) ? data : data.results ?? [];
       setOnboardings(
         items.map((item) => ({
           ...item,
-          full_name:       item.candidate_name || item.full_name || 'N/A',
-          position_title:  item.position?.title || item.position_title || 'N/A',
-          department_name: item.department?.name || item.department_name || 'N/A',
+          full_name: item.candidate_name || item.full_name || 'N/A',
+          position_title: item.position_name || item.position_title || 'N/A',
+          department_name: item.department_name || 'N/A',
           progress_percentage: getProgressPercentage(item.progress_percentage),
         }))
       );
@@ -347,11 +325,7 @@ const Onboarding: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (!confirm('Bạn chắc chắn muốn xoá quy trình này?')) return;
     try {
-      const res = await fetch(`http://localhost:8000/api-hrm/onboardings/${id}/`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error('Delete failed');
+      await onboardingService.delete(id);
       alert('Xoá thành công');
       await fetchOnboardings();
     } catch (e) {
@@ -367,11 +341,7 @@ const Onboarding: React.FC = () => {
   const handleGenerateToken = async (item: OnboardingItem) => {
     setTokenLoading(item.id);
     try {
-      const res = await fetch(
-        `http://localhost:8000/api-hrm/onboardings/${item.id}/generate_employee_token/`,
-        { method: 'POST', headers: getAuthHeaders() }
-      );
-      if (!res.ok) throw new Error('Generate token failed');
+      await onboardingService.generateToken(item.id);
       alert('Đã tạo link thành công! Bạn có thể copy hoặc gửi email cho nhân viên.');
       await fetchOnboardings();
     } catch (e) {
@@ -389,11 +359,7 @@ const Onboarding: React.FC = () => {
     }
     setTokenLoading(item.id);
     try {
-      const res = await fetch(
-        `http://localhost:8000/api-hrm/onboardings/${item.id}/send-employee-email/`,
-        { method: 'POST', headers: getAuthHeaders() }
-      );
-      if (!res.ok) throw new Error('Send email failed');
+      await onboardingService.sendEmployeeEmail(item.id);
       alert(`Đã gửi email đến ${item.candidate_email}`);
     } catch (e) {
       console.error(e);
@@ -624,9 +590,9 @@ const Onboarding: React.FC = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Các bước onboarding tiêu chuẩn</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { num: 1, title: 'Đào tạo',           desc: 'Đào tạo nội quy, hội nhập nhân sự' },
-              { num: 2, title: 'Ký hợp đồng',        desc: 'Chuẩn bị và ký kết hợp đồng lao động' },
-              { num: 3, title: 'Tiếp nhận hồ sơ',   desc: 'Kiểm tra và xác nhận hồ sơ ứng viên' },
+              { num: 1, title: 'Đào tạo', desc: 'Đào tạo nội quy, hội nhập nhân sự' },
+              { num: 2, title: 'Ký hợp đồng', desc: 'Chuẩn bị và ký kết hợp đồng lao động' },
+              { num: 3, title: 'Tiếp nhận hồ sơ', desc: 'Kiểm tra và xác nhận hồ sơ ứng viên' },
               { num: 4, title: 'Bàn giao công việc', desc: 'Bàn giao thiết bị và công việc chính thức' },
             ].map((step) => (
               <div key={step.num} className="bg-white p-4 rounded-lg border">

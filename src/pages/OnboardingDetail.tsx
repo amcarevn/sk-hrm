@@ -12,6 +12,7 @@ import {
   ExclamationTriangleIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline';
+import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
 import DocumentsSection from './DocumentsSection';
 
@@ -96,11 +97,6 @@ type OnboardingDetail = {
 // HELPER FUNCTIONS
 // ============================================
 
-const getAuthHeaders = () => ({
-  'Content-Type': 'application/json',
-  Authorization: `Bearer ${localStorage.getItem('access_token')}`,
-});
-
 const showError = (msg: string) => {
   console.error('ERROR:', msg);
   window.alert(msg);
@@ -148,37 +144,26 @@ const OnboardingDetail: React.FC = () => {
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       console.log('🔄 Fetching onboarding detail for ID:', id);
-      
-      const res = await fetch(`http://localhost:8000/api-hrm/onboardings/${id}/`, {
-        headers: getAuthHeaders(),
-      });
-
-      console.log('📡 Response status:', res.status);
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('❌ API Error:', errorText);
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
-      }
-
-      const data = await res.json();
+      const data = await onboardingService.get(parseInt(id));
       console.log('✅ Onboarding data received:', data);
-      
+
       // ⭐ NORMALIZE DATA - Convert progress_percentage from string to number
       if (data.progress_percentage !== undefined && data.progress_percentage !== null) {
-        data.progress_percentage = parseFloat(data.progress_percentage);
+        data.progress_percentage = typeof data.progress_percentage === 'string'
+          ? parseFloat(data.progress_percentage)
+          : data.progress_percentage;
       }
-      
-      setOnboarding(data);
-    } catch (error) {
+
+      setOnboarding(data as any);
+    } catch (error: any) {
       console.error('❌ FETCH DETAIL ERROR:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Không thể tải thông tin quy trình onboarding';
+      const errorMessage = error.response?.data?.message || error.message || 'Không thể tải thông tin quy trình onboarding';
       setError(errorMessage);
       showError(errorMessage);
     } finally {
@@ -192,22 +177,12 @@ const OnboardingDetail: React.FC = () => {
     if (!confirm('Bạn có chắc muốn bắt đầu quy trình onboarding này?')) return;
 
     try {
-      const res = await fetch(`http://localhost:8000/api-hrm/onboardings/${id}/start/`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to start process');
-      }
-
-      const result = await res.json();
-      showSuccess(result.message || 'Đã bắt đầu quy trình onboarding');
+      await onboardingService.start(parseInt(id));
+      showSuccess('Đã bắt đầu quy trình onboarding');
       await fetchOnboardingDetail();
-    } catch (error) {
+    } catch (error: any) {
       console.error('START PROCESS ERROR:', error);
-      showError('Không thể bắt đầu quy trình onboarding');
+      showError(error.response?.data?.message || 'Không thể bắt đầu quy trình onboarding');
     }
   };
 
@@ -217,23 +192,12 @@ const OnboardingDetail: React.FC = () => {
     if (!confirm('Bạn có chắc muốn hoàn thành quy trình onboarding này?')) return;
 
     try {
-      const res = await fetch(`http://localhost:8000/api-hrm/onboardings/${id}/complete/`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-
-      const result = await res.json();
-
-      if (!result.success) {
-        showError(result.message || 'Không thể hoàn thành quy trình');
-        return;
-      }
-
-      showSuccess(result.message || 'Đã hoàn thành quy trình onboarding');
+      await onboardingService.complete(parseInt(id));
+      showSuccess('Đã hoàn thành quy trình onboarding');
       await fetchOnboardingDetail();
-    } catch (error) {
+    } catch (error: any) {
       console.error('COMPLETE PROCESS ERROR:', error);
-      showError('Không thể hoàn thành quy trình onboarding');
+      showError(error.response?.data?.message || 'Không thể hoàn thành quy trình onboarding');
     }
   };
 
@@ -358,7 +322,7 @@ const OnboardingDetail: React.FC = () => {
               Bắt đầu quy trình
             </button>
           )}
-          
+
           {onboarding.status === 'IN_PROGRESS' && (
             <button
               onClick={handleCompleteProcess}
@@ -495,14 +459,14 @@ const OnboardingDetail: React.FC = () => {
         <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
           <div
             className="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500 ease-out"
-            style={{ 
+            style={{
               width: `${(() => {
                 const progress = onboarding.progress_percentage;
                 if (progress == null || typeof progress !== 'number' || isNaN(progress)) {
                   return 0;
                 }
                 return Math.max(0, Math.min(100, progress));
-              })()}%` 
+              })()}%`
             }}
           />
         </div>
@@ -517,31 +481,28 @@ const OnboardingDetail: React.FC = () => {
           <nav className="flex space-x-8 px-6">
             <button
               onClick={() => setActiveTab('info')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'info'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'info'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Thông tin chung
             </button>
             <button
               onClick={() => setActiveTab('tasks')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'tasks'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'tasks'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Tasks ({onboarding.tasks?.length || 0})
             </button>
             <button
               onClick={() => setActiveTab('documents')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'documents'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'documents'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
             >
               Tài liệu ({onboarding.documents?.length || 0})
             </button>
