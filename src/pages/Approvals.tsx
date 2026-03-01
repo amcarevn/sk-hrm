@@ -18,6 +18,9 @@ const Approvals: React.FC = () => {
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [overtimeRequests, setOvertimeRequests] = useState<any[]>([]);
   const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  const [filterName, setFilterName] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('');
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const [selectedExplanation, setSelectedExplanation] = useState<any>(null);
   const [selectedOnlineWorkRequest, setSelectedOnlineWorkRequest] =
@@ -905,16 +908,36 @@ const Approvals: React.FC = () => {
     return 'Yêu cầu đã từ chối';
   };
 
+  const toggleFilter = (type: string) => {
+    setFilterTypes(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+
+  const matchesTextFilters = (req: any) => {
+    const name = (req.employee_name || '').toLowerCase();
+    const dept = (req.employee_department || req.department_name || '').toLowerCase();
+    if (filterName && !name.includes(filterName.toLowerCase())) return false;
+    if (filterDepartment && !dept.includes(filterDepartment.toLowerCase())) return false;
+    return true;
+  };
+
   // Kết hợp và sắp xếp tất cả các loại đơn để hiển thị trong table
   const getAllCurrentRequests = () => {
     const explanations = getCurrentExplanations();
     const registrations = getCurrentRegistrations();
     const onlineWorks = getCurrentOnlineWorks();
 
-    // Đánh dấu type để dễ phân biệt trong loop
-    const markedExplanations = explanations.map(e => ({ ...e, _itemType: 'EXPLANATION' }));
-    const markedRegistrations = registrations.map(r => ({ ...r, _itemType: 'REGISTRATION' }));
-    const markedOnlineWorks = onlineWorks.map(o => ({ ...o, _itemType: 'ONLINE_WORK' }));
+    // Đánh dấu type để dễ phân biệt trong loop, lọc theo filterTypes và text search
+    const markedExplanations = (filterTypes.length === 0 || filterTypes.includes('EXPLANATION'))
+      ? explanations.filter(matchesTextFilters).map(e => ({ ...e, _itemType: 'EXPLANATION' }))
+      : [];
+    const markedRegistrations = (filterTypes.length === 0 || filterTypes.includes('REGISTRATION'))
+      ? registrations.filter(matchesTextFilters).map(r => ({ ...r, _itemType: 'REGISTRATION' }))
+      : [];
+    const markedOnlineWorks = (filterTypes.length === 0 || filterTypes.includes('ONLINE_WORK'))
+      ? onlineWorks.filter(matchesTextFilters).map(o => ({ ...o, _itemType: 'ONLINE_WORK' }))
+      : [];
 
     return [...markedExplanations, ...markedRegistrations, ...markedOnlineWorks].sort((a, b) => {
       const dateA = new Date(a.attendance_date || a.work_date || a.created_at).getTime();
@@ -923,10 +946,28 @@ const Approvals: React.FC = () => {
     });
   };
 
+  const getFilteredLeaveRequests = () => {
+    const typeOk = filterTypes.length === 0 || filterTypes.includes('LEAVE');
+    return typeOk ? leaveRequests.filter(matchesTextFilters) : [];
+  };
+
+  const getFilteredOvertimeRequests = () => {
+    const typeOk = filterTypes.length === 0 || filterTypes.includes('OVERTIME');
+    return typeOk ? overtimeRequests.filter(matchesTextFilters) : [];
+  };
+
+  const hasActiveFilters = filterTypes.length > 0 || filterName !== '' || filterDepartment !== '';
+
+  const clearAllFilters = () => {
+    setFilterTypes([]);
+    setFilterName('');
+    setFilterDepartment('');
+  };
+
   const getCurrentCount = () => {
     return getAllCurrentRequests().length +
-      leaveRequests.length +
-      overtimeRequests.length;
+      getFilteredLeaveRequests().length +
+      getFilteredOvertimeRequests().length;
   };
 
   const totalPending =
@@ -1012,7 +1053,12 @@ const Approvals: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
-          <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+          <button
+            onClick={() => toggleFilter('LEAVE')}
+            aria-pressed={filterTypes.includes('LEAVE')}
+            aria-label="Lọc theo loại đơn Nghỉ phép"
+            className={`bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500 text-left transition-all hover:shadow-md ${filterTypes.includes('LEAVE') ? 'ring-2 ring-blue-400' : ''}`}
+          >
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-medium text-blue-900">Nghỉ phép</h3>
@@ -1024,8 +1070,13 @@ const Approvals: React.FC = () => {
                 Chờ duyệt
               </span>
             </div>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500">
+          </button>
+          <button
+            onClick={() => toggleFilter('OVERTIME')}
+            aria-pressed={filterTypes.includes('OVERTIME')}
+            aria-label="Lọc theo loại đơn Làm thêm giờ"
+            className={`bg-purple-50 p-4 rounded-lg border-l-4 border-purple-500 text-left transition-all hover:shadow-md ${filterTypes.includes('OVERTIME') ? 'ring-2 ring-purple-400' : ''}`}
+          >
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-medium text-purple-900">Làm thêm giờ</h3>
@@ -1037,8 +1088,13 @@ const Approvals: React.FC = () => {
                 Chờ duyệt
               </span>
             </div>
-          </div>
-          <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
+          </button>
+          <button
+            onClick={() => toggleFilter('EXPLANATION')}
+            aria-pressed={filterTypes.includes('EXPLANATION')}
+            aria-label="Lọc theo loại đơn Giải trình"
+            className={`bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500 text-left transition-all hover:shadow-md ${filterTypes.includes('EXPLANATION') ? 'ring-2 ring-yellow-400' : ''}`}
+          >
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-medium text-yellow-900">Giải trình</h3>
@@ -1050,8 +1106,13 @@ const Approvals: React.FC = () => {
                 Chờ duyệt
               </span>
             </div>
-          </div>
-          <div className="bg-teal-50 p-4 rounded-lg border-l-4 border-teal-500">
+          </button>
+          <button
+            onClick={() => toggleFilter('ONLINE_WORK')}
+            aria-pressed={filterTypes.includes('ONLINE_WORK')}
+            aria-label="Lọc theo loại đơn Làm việc online"
+            className={`bg-teal-50 p-4 rounded-lg border-l-4 border-teal-500 text-left transition-all hover:shadow-md ${filterTypes.includes('ONLINE_WORK') ? 'ring-2 ring-teal-400' : ''}`}
+          >
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-medium text-teal-900">Online</h3>
@@ -1063,8 +1124,13 @@ const Approvals: React.FC = () => {
                 Chờ duyệt
               </span>
             </div>
-          </div>
-          <div className="bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-500">
+          </button>
+          <button
+            onClick={() => toggleFilter('REGISTRATION')}
+            aria-pressed={filterTypes.includes('REGISTRATION')}
+            aria-label="Lọc theo loại đơn Đăng ký"
+            className={`bg-indigo-50 p-4 rounded-lg border-l-4 border-indigo-500 text-left transition-all hover:shadow-md ${filterTypes.includes('REGISTRATION') ? 'ring-2 ring-indigo-400' : ''}`}
+          >
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-medium text-indigo-900">Đăng ký</h3>
@@ -1076,7 +1142,7 @@ const Approvals: React.FC = () => {
                 Chờ duyệt
               </span>
             </div>
-          </div>
+          </button>
           <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
             <div className="flex justify-between items-start">
               <div>
@@ -1089,6 +1155,79 @@ const Approvals: React.FC = () => {
                 Tháng này
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* Bộ lọc */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 space-y-3">
+          {/* Tìm kiếm theo tên và phòng ban */}
+          <div className="flex flex-wrap gap-3">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Tên nhân viên</label>
+              <div className="relative">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={filterName}
+                  onChange={e => setFilterName(e.target.value)}
+                  placeholder="Tìm theo tên..."
+                  aria-label="Tìm kiếm theo tên nhân viên"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
+                />
+              </div>
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Phòng ban</label>
+              <div className="relative">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <input
+                  type="text"
+                  value={filterDepartment}
+                  onChange={e => setFilterDepartment(e.target.value)}
+                  placeholder="Tìm theo phòng ban..."
+                  aria-label="Tìm kiếm theo phòng ban"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Lọc theo loại đơn */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">Loại đơn:</span>
+            {[
+              { value: 'EXPLANATION', label: 'Giải trình' },
+              { value: 'REGISTRATION', label: 'Đơn đăng ký' },
+              { value: 'ONLINE_WORK', label: 'Làm việc online' },
+              { value: 'LEAVE', label: 'Nghỉ phép' },
+              { value: 'OVERTIME', label: 'Làm thêm giờ' },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => toggleFilter(opt.value)}
+                aria-pressed={filterTypes.includes(opt.value)}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                  filterTypes.includes(opt.value)
+                    ? 'bg-primary-600 text-white ring-2 ring-primary-300'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                aria-label="Xóa tất cả bộ lọc"
+                className="px-3 py-1 rounded-full text-sm font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors"
+              >
+                ✕ Xóa bộ lọc
+              </button>
+            )}
           </div>
         </div>
 
@@ -1127,9 +1266,8 @@ const Approvals: React.FC = () => {
                     </td>
                   </tr>
                 ) : getAllCurrentRequests().length === 0 &&
-                  leaveRequests.length === 0 &&
-                  overtimeRequests.length === 0 &&
-                  onlineWorkRequests.length === 0 ? (
+                  getFilteredLeaveRequests().length === 0 &&
+                  getFilteredOvertimeRequests().length === 0 ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -1312,7 +1450,7 @@ const Approvals: React.FC = () => {
                     })}
 
                     {/* Hiển thị leave requests */}
-                    {leaveRequests.map((request) => (
+                    {getFilteredLeaveRequests().map((request) => (
                       <tr key={`leave-${request.id}`}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
@@ -1400,7 +1538,7 @@ const Approvals: React.FC = () => {
                     ))}
 
                     {/* Hiển thị overtime requests */}
-                    {overtimeRequests.map((request) => (
+                    {getFilteredOvertimeRequests().map((request) => (
                       <tr key={`overtime-${request.id}`}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
