@@ -19,6 +19,8 @@ const Approvals: React.FC = () => {
   const [overtimeRequests, setOvertimeRequests] = useState<any[]>([]);
   const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  const [filterName, setFilterName] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('');
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const [selectedExplanation, setSelectedExplanation] = useState<any>(null);
   const [selectedOnlineWorkRequest, setSelectedOnlineWorkRequest] =
@@ -912,21 +914,29 @@ const Approvals: React.FC = () => {
     );
   };
 
+  const matchesTextFilters = (req: any) => {
+    const name = (req.employee_name || '').toLowerCase();
+    const dept = (req.employee_department || req.department_name || '').toLowerCase();
+    if (filterName && !name.includes(filterName.toLowerCase())) return false;
+    if (filterDepartment && !dept.includes(filterDepartment.toLowerCase())) return false;
+    return true;
+  };
+
   // Kết hợp và sắp xếp tất cả các loại đơn để hiển thị trong table
   const getAllCurrentRequests = () => {
     const explanations = getCurrentExplanations();
     const registrations = getCurrentRegistrations();
     const onlineWorks = getCurrentOnlineWorks();
 
-    // Đánh dấu type để dễ phân biệt trong loop, lọc theo filterTypes
+    // Đánh dấu type để dễ phân biệt trong loop, lọc theo filterTypes và text search
     const markedExplanations = (filterTypes.length === 0 || filterTypes.includes('EXPLANATION'))
-      ? explanations.map(e => ({ ...e, _itemType: 'EXPLANATION' }))
+      ? explanations.filter(matchesTextFilters).map(e => ({ ...e, _itemType: 'EXPLANATION' }))
       : [];
     const markedRegistrations = (filterTypes.length === 0 || filterTypes.includes('REGISTRATION'))
-      ? registrations.map(r => ({ ...r, _itemType: 'REGISTRATION' }))
+      ? registrations.filter(matchesTextFilters).map(r => ({ ...r, _itemType: 'REGISTRATION' }))
       : [];
     const markedOnlineWorks = (filterTypes.length === 0 || filterTypes.includes('ONLINE_WORK'))
-      ? onlineWorks.map(o => ({ ...o, _itemType: 'ONLINE_WORK' }))
+      ? onlineWorks.filter(matchesTextFilters).map(o => ({ ...o, _itemType: 'ONLINE_WORK' }))
       : [];
 
     return [...markedExplanations, ...markedRegistrations, ...markedOnlineWorks].sort((a, b) => {
@@ -936,11 +946,23 @@ const Approvals: React.FC = () => {
     });
   };
 
-  const getFilteredLeaveRequests = () =>
-    filterTypes.length === 0 || filterTypes.includes('LEAVE') ? leaveRequests : [];
+  const getFilteredLeaveRequests = () => {
+    const typeOk = filterTypes.length === 0 || filterTypes.includes('LEAVE');
+    return typeOk ? leaveRequests.filter(matchesTextFilters) : [];
+  };
 
-  const getFilteredOvertimeRequests = () =>
-    filterTypes.length === 0 || filterTypes.includes('OVERTIME') ? overtimeRequests : [];
+  const getFilteredOvertimeRequests = () => {
+    const typeOk = filterTypes.length === 0 || filterTypes.includes('OVERTIME');
+    return typeOk ? overtimeRequests.filter(matchesTextFilters) : [];
+  };
+
+  const hasActiveFilters = filterTypes.length > 0 || filterName !== '' || filterDepartment !== '';
+
+  const clearAllFilters = () => {
+    setFilterTypes([]);
+    setFilterName('');
+    setFilterDepartment('');
+  };
 
   const getCurrentCount = () => {
     return getAllCurrentRequests().length +
@@ -1136,38 +1158,77 @@ const Approvals: React.FC = () => {
           </div>
         </div>
 
-        {/* Bộ lọc loại đơn */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className="text-sm font-medium text-gray-500">Lọc theo loại:</span>
-          {[
-            { value: 'EXPLANATION', label: 'Giải trình' },
-            { value: 'REGISTRATION', label: 'Đơn đăng ký' },
-            { value: 'ONLINE_WORK', label: 'Làm việc online' },
-            { value: 'LEAVE', label: 'Nghỉ phép' },
-            { value: 'OVERTIME', label: 'Làm thêm giờ' },
-          ].map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => toggleFilter(opt.value)}
-              aria-pressed={filterTypes.includes(opt.value)}
-              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                filterTypes.includes(opt.value)
-                  ? 'bg-primary-600 text-white ring-2 ring-primary-300'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-          {filterTypes.length > 0 && (
-            <button
-              onClick={() => setFilterTypes([])}
-              aria-label="Xóa tất cả bộ lọc"
-              className="px-3 py-1 rounded-full text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
-            >
-              ✕ Xóa bộ lọc
-            </button>
-          )}
+        {/* Bộ lọc */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 space-y-3">
+          {/* Tìm kiếm theo tên và phòng ban */}
+          <div className="flex flex-wrap gap-3">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Tên nhân viên</label>
+              <div className="relative">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={filterName}
+                  onChange={e => setFilterName(e.target.value)}
+                  placeholder="Tìm theo tên..."
+                  aria-label="Tìm kiếm theo tên nhân viên"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
+                />
+              </div>
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Phòng ban</label>
+              <div className="relative">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <input
+                  type="text"
+                  value={filterDepartment}
+                  onChange={e => setFilterDepartment(e.target.value)}
+                  placeholder="Tìm theo phòng ban..."
+                  aria-label="Tìm kiếm theo phòng ban"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Lọc theo loại đơn */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">Loại đơn:</span>
+            {[
+              { value: 'EXPLANATION', label: 'Giải trình' },
+              { value: 'REGISTRATION', label: 'Đơn đăng ký' },
+              { value: 'ONLINE_WORK', label: 'Làm việc online' },
+              { value: 'LEAVE', label: 'Nghỉ phép' },
+              { value: 'OVERTIME', label: 'Làm thêm giờ' },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => toggleFilter(opt.value)}
+                aria-pressed={filterTypes.includes(opt.value)}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                  filterTypes.includes(opt.value)
+                    ? 'bg-primary-600 text-white ring-2 ring-primary-300'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                aria-label="Xóa tất cả bộ lọc"
+                className="px-3 py-1 rounded-full text-sm font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors"
+              >
+                ✕ Xóa bộ lọc
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="border rounded-lg overflow-hidden">
