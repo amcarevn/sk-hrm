@@ -2163,6 +2163,7 @@ const AttendanceManagement: React.FC = () => {
                       attendance: 'Chấm công',
                       explanation: 'Giải trình',
                       explanation_approval: 'Phê duyệt giải trình',
+                      overtime: 'Tăng ca',
                     };
                     const statusLabel: Record<string, string> = {
                       APPROVED: 'Đã duyệt',
@@ -2182,6 +2183,11 @@ const AttendanceManagement: React.FC = () => {
                       if (
                         ev.event_type === 'explanation_approval' &&
                         ev.data?.action === 'APPROVE'
+                      )
+                        return true;
+                      if (
+                        ev.event_type === 'overtime' &&
+                        ev.data?.status === 'APPROVED'
                       )
                         return true;
                       return false;
@@ -2282,6 +2288,47 @@ const AttendanceManagement: React.FC = () => {
                                       {ev.data?.note && (
                                         <p className="italic text-gray-500">
                                           "{ev.data.note}"
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                  {ev.event_type === 'overtime' && (
+                                    <div className="text-xs text-gray-600 space-y-0.5">
+                                      {ev.data?.registration_type && (
+                                        <p>
+                                          Loại:{' '}
+                                          {getExplanationTypeLabel(
+                                            ev.data.registration_type
+                                          )}
+                                        </p>
+                                      )}
+                                      {(ev.check_in || ev.check_out) && (
+                                        <p>
+                                          Thời gian: {ev.check_in ?? '--'} —{' '}
+                                          {ev.check_out ?? '--'}
+                                        </p>
+                                      )}
+                                      {(ev.notes || ev.data?.reason) && (
+                                        <p>
+                                          Lý do: {ev.notes || ev.data?.reason}
+                                        </p>
+                                      )}
+                                      {ev.data?.status && (
+                                        <p>
+                                          Trạng thái:{' '}
+                                          {statusLabel[ev.data.status] ??
+                                            ev.data.status}
+                                        </p>
+                                      )}
+                                      {ev.data?.direct_manager_approved_by_name && (
+                                        <p>
+                                          Quản lý trực tiếp:{' '}
+                                          {ev.data.direct_manager_approved_by_name}
+                                        </p>
+                                      )}
+                                      {ev.data?.hr_approved_by_name && (
+                                        <p>
+                                          HR: {ev.data.hr_approved_by_name}
                                         </p>
                                       )}
                                     </div>
