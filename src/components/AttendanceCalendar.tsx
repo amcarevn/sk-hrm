@@ -405,6 +405,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   // Helper: Get badge style for a day
   const getDayBadgeStyle = (day: AttendanceDay): string => {
     if (day.dayStatusSummary?.display_color === 'green') {
+      if (day.dayStatusSummary?.has_approved_leave) {
+        return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300';
+      }
       return 'bg-green-100 text-green-700 ring-1 ring-green-300';
     }
     if (day.dayStatusSummary?.display_color === 'yellow') {
