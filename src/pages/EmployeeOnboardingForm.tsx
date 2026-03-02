@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, ChangeEvent, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../utils/api';
 import {
   TextField,
   Select,
@@ -277,7 +278,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
       setLoading(true);
       try {
         const res = await fetch(
-          `http://localhost:8000/api-hrm/employee-onboarding-form/by-token/${token}/`,
+          `${API_BASE_URL}/api-hrm/employee-onboarding-form/by-token/${token}/`,
           { headers: { 'Content-Type': 'application/json' } }
         );
         const data = await res.json();
@@ -287,6 +288,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
           ...v,
           candidate_name: data.data.candidate_name,
           candidate_email: data.data.candidate_email,
+          candidate_phone: data.data.candidate_phone,
         }));
       } catch {
         setPageError('Không thể tải thông tin. Vui lòng kiểm tra lại link.');
@@ -377,7 +379,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('probation_period_months', values.probation_period_months);
 
       const res = await fetch(
-        `http://localhost:8000/api-hrm/employee-onboarding-form/submit/${token}/`,
+        `${API_BASE_URL}/api-hrm/employee-onboarding-form/submit/${token}/`,
         { method: 'POST', body: payload }
       );
       if (!res.ok) {

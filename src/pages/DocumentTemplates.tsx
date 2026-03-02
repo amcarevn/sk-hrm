@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL }from '../utils/api';
 import {
   DocumentTextIcon,
   PlusIcon,
@@ -119,7 +120,7 @@ const DocumentTemplates: React.FC = () => {
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api-hrm/onboarding-document-templates/', {
+      const res = await fetch(`${API_BASE_URL}/api-hrm/onboarding-document-templates/`, {
         headers: getAuthHeaders(),
       });
 
@@ -137,7 +138,7 @@ const DocumentTemplates: React.FC = () => {
 
   const fetchPositions = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api-hrm/positions/', {
+      const res = await fetch(`${API_BASE_URL}/api-hrm/positions/`, {
         headers: getAuthHeaders(),
       });
       const data = await res.json();
@@ -149,7 +150,7 @@ const DocumentTemplates: React.FC = () => {
 
   const fetchDepartments = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api-hrm/departments/', {
+      const res = await fetch(`${API_BASE_URL}/api-hrm/departments/`, {
         headers: getAuthHeaders(),
       });
       const data = await res.json();
@@ -225,7 +226,7 @@ const DocumentTemplates: React.FC = () => {
     if (!confirm('Bạn có chắc muốn xóa template này?')) return;
 
     try {
-      const res = await fetch(`http://localhost:8000/api-hrm/onboarding-document-templates/${id}/`, {
+      const res = await fetch(`${API_BASE_URL}/api-hrm/onboarding-document-templates/${id}/`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
@@ -245,7 +246,7 @@ const DocumentTemplates: React.FC = () => {
 
     try {
       const res = await fetch(
-        `http://localhost:8000/api-hrm/onboarding-document-templates/${id}/sync_to_active/`,
+        `${API_BASE_URL}/api-hrm/onboarding-document-templates/${id}/sync_to_active/`,
         {
           method: 'POST',
           headers: getAuthHeaders(),
@@ -270,7 +271,7 @@ const DocumentTemplates: React.FC = () => {
   const handleToggleActive = async (id: number) => {
     try {
       const res = await fetch(
-        `http://localhost:8000/api-hrm/onboarding-document-templates/${id}/toggle_active/`,
+        `${API_BASE_URL}/api-hrm/onboarding-document-templates/${id}/toggle_active/`,
         {
           method: 'POST',
           headers: getAuthHeaders(),

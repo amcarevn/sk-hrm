@@ -1,8 +1,10 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
-// API Configuration
-const API_BASE_URL = "https://app-uat.amcare.vn/";
-//const API_BASE_URL = 'http://localhost:8000';
+export const API_BASE_URL = import.meta.env.DEV 
+  ? 'http://localhost:8000' 
+  : 'https://app-uat.amcare.vn';
+
+
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -11,6 +13,8 @@ export const managementApi: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// ... rest of the file
 
 // Request interceptor for Management API
 managementApi.interceptors.request.use(
