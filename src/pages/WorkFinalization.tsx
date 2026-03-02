@@ -5,10 +5,13 @@ import {
   ArrowPathIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
+  UserIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
-import { departmentsAPI, Department } from '../utils/api';
+import { departmentsAPI, employeesAPI, Department, Employee } from '../utils/api';
 import { workFinalizationService, WorkFinalizationRecord } from '../services/workFinalization.service';
+import AttendanceCalendar from '../components/AttendanceCalendar';
 
 const WorkFinalization: React.FC = () => {
   const { user } = useAuth();
@@ -18,16 +21,20 @@ const WorkFinalization: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
-  const [employeeCodeFilter, setEmployeeCodeFilter] = useState<string>('');
 
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [records, setRecords] = useState<WorkFinalizationRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [loadingRecords, setLoadingRecords] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [finalizing, setFinalizing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [total, setTotal] = useState(0);
+
+  // Selected employee for calendar view
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   // Load departments once
   useEffect(() => {
@@ -37,72 +44,81 @@ const WorkFinalization: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  // Load employees when dept filter changes
+  const loadEmployees = useCallback(async () => {
+    setLoadingEmployees(true);
+    try {
+      const params: any = { page_size: 200 };
+      if (selectedDepartment) params.department = Number(selectedDepartment);
+      const res = await employeesAPI.list(params);
+      setEmployees(res.results);
+    } catch {
+      setEmployees([]);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  }, [selectedDepartment]);
+
+  useEffect(() => {
+    loadEmployees();
+  }, [loadEmployees]);
+
+  // Load finalization records for the selected month/year/dept
+  const loadRecords = useCallback(async () => {
+    setLoadingRecords(true);
     setError(null);
     try {
       const params: any = { year: selectedYear, month: selectedMonth };
       if (selectedDepartment) params.department_id = Number(selectedDepartment);
-      if (employeeCodeFilter.trim()) params.employee_code = employeeCodeFilter.trim();
-
       const res = await workFinalizationService.list(params);
       setRecords(res.results);
-      setTotal(res.total);
     } catch (err: any) {
       setError(
         err?.response?.data?.error ||
           'Không thể tải dữ liệu chốt công. Vui lòng thử lại.'
       );
       setRecords([]);
-      setTotal(0);
     } finally {
-      setLoading(false);
+      setLoadingRecords(false);
     }
-  }, [selectedYear, selectedMonth, selectedDepartment, employeeCodeFilter]);
+  }, [selectedYear, selectedMonth, selectedDepartment]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadRecords();
+  }, [loadRecords]);
 
-  const handleFinalize = async (employeeCode: string) => {
-    setFinalizing(employeeCode);
+  // Returns the finalization record for an employee (by employee_id / ma_nv)
+  const getFinalizedRecord = (emp: Employee): WorkFinalizationRecord | undefined =>
+    records.find((r) => r.ma_nv === emp.employee_id);
+
+  const handleFinalize = async (emp: Employee) => {
+    setFinalizing(emp.employee_id);
     setError(null);
     setSuccessMsg(null);
     try {
       const res = await workFinalizationService.finalize({
-        employee_code: employeeCode,
+        employee_code: emp.employee_id,
         year: selectedYear,
         month: selectedMonth,
       });
       setSuccessMsg(
-        `${res.created ? 'Chốt công thành công' : 'Đã cập nhật chốt công'} cho ${employeeCode}`
+        `${res.created ? 'Chốt công thành công' : 'Đã cập nhật chốt công'} cho ${emp.employee_id} - ${emp.full_name}`
       );
-      await loadData();
+      await loadRecords();
     } catch (err: any) {
       setError(
         err?.response?.data?.error ||
-          `Lỗi khi chốt công cho ${employeeCode}`
+          `Lỗi khi chốt công cho ${emp.employee_id}`
       );
     } finally {
       setFinalizing(null);
     }
   };
 
-  const formatDate = (value: string | null) => {
-    if (!value) return '';
-    return new Date(value).toLocaleDateString('vi-VN');
-  };
-
-  const formatNumber = (value: number | null) => {
-    if (value === null || value === undefined) return '';
-    return value.toLocaleString('vi-VN');
-  };
-
   const handleExport = async () => {
     if (records.length === 0) return;
     setExporting(true);
     try {
-      // Dynamically import exceljs to keep the bundle lean
       const ExcelJS = (await import('exceljs')).default;
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet(
@@ -154,7 +170,6 @@ const WorkFinalization: React.FC = () => {
 
       sheet.columns = headers;
 
-      // Style header row
       const headerRow = sheet.getRow(1);
       headerRow.eachCell((cell) => {
         cell.fill = HEADER_FILL;
@@ -164,7 +179,6 @@ const WorkFinalization: React.FC = () => {
       });
       headerRow.height = 36;
 
-      // Add data rows
       records.forEach((rec) => {
         const row = sheet.addRow({
           stt: rec.stt,
@@ -200,7 +214,6 @@ const WorkFinalization: React.FC = () => {
 
         row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
           cell.border = BORDER;
-          // Numeric columns: right-align
           if (colNumber >= 12) {
             cell.alignment = { horizontal: 'right', vertical: 'middle' };
           } else {
@@ -208,7 +221,6 @@ const WorkFinalization: React.FC = () => {
           }
         });
 
-        // Format date cells
         ['ngay_bat_dau_lam_viec', 'ngay_ket_thuc_thu_viec', 'ngay_nghi_viec'].forEach(
           (key) => {
             const col = headers.findIndex((h) => h.key === key) + 1;
@@ -219,17 +231,14 @@ const WorkFinalization: React.FC = () => {
           }
         );
 
-        // Format currency/number cells for tong_phat and phu_cap_gui_xe
         const tongPhatCol = headers.findIndex((h) => h.key === 'tong_phat') + 1;
         const phuCapCol = headers.findIndex((h) => h.key === 'phu_cap_gui_xe') + 1;
         row.getCell(tongPhatCol).numFmt = '#,##0';
         row.getCell(phuCapCol).numFmt = '#,##0';
       });
 
-      // Freeze first row
       sheet.views = [{ state: 'frozen', ySplit: 1 }];
 
-      // Generate file and trigger download
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -253,6 +262,11 @@ const WorkFinalization: React.FC = () => {
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
+  const formatNumber = (value: number | null) => {
+    if (value === null || value === undefined) return '—';
+    return value.toLocaleString('vi-VN');
+  };
+
   if (userRole !== 'ADMIN' && userRole !== 'HR') {
     return (
       <div className="flex items-center justify-center h-64">
@@ -261,8 +275,10 @@ const WorkFinalization: React.FC = () => {
     );
   }
 
+  const finalizedRec = selectedEmployee ? getFinalizedRecord(selectedEmployee) : undefined;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -277,7 +293,7 @@ const WorkFinalization: React.FC = () => {
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
-          {exporting ? 'Đang xuất...' : 'Xuất Excel (.xlsx)'}
+          {exporting ? 'Đang xuất...' : `Xuất Excel (${records.length} đã chốt)`}
         </button>
       </div>
 
@@ -302,7 +318,6 @@ const WorkFinalization: React.FC = () => {
           <span className="text-sm font-medium text-gray-700">Bộ lọc</span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* Month */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Tháng</label>
             <select
@@ -317,8 +332,6 @@ const WorkFinalization: React.FC = () => {
               ))}
             </select>
           </div>
-
-          {/* Year */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Năm</label>
             <select
@@ -333,15 +346,14 @@ const WorkFinalization: React.FC = () => {
               ))}
             </select>
           </div>
-
-          {/* Department */}
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Phòng Ban
-            </label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Phòng Ban</label>
             <select
               value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
+              onChange={(e) => {
+                setSelectedDepartment(e.target.value);
+                setSelectedEmployee(null);
+              }}
               className="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             >
               <option value="">Tất cả phòng ban</option>
@@ -352,170 +364,222 @@ const WorkFinalization: React.FC = () => {
               ))}
             </select>
           </div>
-
-          {/* Employee Code */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Mã Nhân Viên
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={employeeCodeFilter}
-                onChange={(e) => setEmployeeCodeFilter(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && loadData()}
-                placeholder="VD: NV001"
-                className="block w-full pl-3 pr-3 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-              <button
-                onClick={loadData}
-                className="p-2 text-gray-500 hover:text-indigo-600"
-                title="Tải lại"
-              >
-                <ArrowPathIcon className="w-5 h-5" />
-              </button>
-            </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => { loadEmployees(); loadRecords(); }}
+              className="inline-flex items-center px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              <ArrowPathIcon className="w-4 h-4 mr-1" />
+              Làm mới
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        {/* Table summary */}
-        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <span className="text-sm text-gray-700">
-            Tháng <strong>{selectedMonth}/{selectedYear}</strong> — Tổng:{' '}
-            <strong>{total}</strong> nhân viên
-          </span>
+      {/* Main two-panel layout */}
+      <div className="flex gap-4 min-h-[600px]">
+        {/* Left: Employee list */}
+        <div className="w-80 flex-shrink-0 bg-white shadow rounded-lg overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-800">
+              Danh sách nhân sự
+            </span>
+            <span className="text-xs text-gray-500">
+              {employees.length} NV · {records.length} đã chốt
+            </span>
+          </div>
+          {loadingEmployees ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+            </div>
+          ) : employees.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-sm text-gray-400 p-4 text-center">
+              Không có nhân viên nào
+            </div>
+          ) : (
+            <ul className="flex-1 overflow-y-auto divide-y divide-gray-100">
+              {employees.map((emp) => {
+                const rec = getFinalizedRecord(emp);
+                const isFinalized = !!rec;
+                const isSelected = selectedEmployee?.id === emp.id;
+                const isBeingFinalized = finalizing === emp.employee_id;
+                return (
+                  <li
+                    key={emp.id}
+                    onClick={() => setSelectedEmployee(emp)}
+                    className={`px-3 py-3 cursor-pointer hover:bg-indigo-50 transition-colors ${
+                      isSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                          <UserIcon className="h-4 w-4 text-indigo-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {emp.full_name}
+                          </p>
+                          <p className="text-xs text-gray-500 font-mono">
+                            {emp.employee_id}
+                          </p>
+                          {emp.department && (
+                            <p className="text-xs text-gray-400 truncate">
+                              {emp.department.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 flex flex-col items-end gap-1">
+                        {isFinalized ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircleIcon className="w-3 h-3 mr-0.5" />
+                            Đã chốt
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                            Chưa chốt
+                          </span>
+                        )}
+                        {!isFinalized && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleFinalize(emp);
+                            }}
+                            disabled={isBeingFinalized}
+                            className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isBeingFinalized ? (
+                              <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                            ) : (
+                              'Chốt công'
+                            )}
+                          </button>
+                        )}
+                        {isFinalized && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleFinalize(emp);
+                            }}
+                            disabled={isBeingFinalized}
+                            className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-indigo-700 bg-indigo-50 rounded hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isBeingFinalized ? (
+                              <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                            ) : (
+                              'Chốt lại'
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {/* Show summary if finalized */}
+                    {isFinalized && rec && (
+                      <div className="mt-2 flex gap-3 text-xs text-gray-500">
+                        <span>Công: <strong className="text-gray-700">{rec.tong_cong}</strong></span>
+                        <span>Phạt: <strong className="text-red-600">{formatNumber(rec.tong_phat)}đ</strong></span>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
-        {loading ? (
-          <div className="text-center py-16">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto" />
-            <p className="mt-3 text-sm text-gray-500">Đang tải dữ liệu...</p>
-          </div>
-        ) : records.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-sm text-gray-500">
-              Chưa có dữ liệu chốt công cho tháng {selectedMonth}/{selectedYear}.
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              Hãy chốt công cho từng nhân viên bằng nút bên dưới.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-xs">
-              <thead className="bg-indigo-600 text-white">
-                <tr>
-                  {[
-                    'STT',
-                    'Mã NV',
-                    'Họ và Tên',
-                    'Phòng Ban',
-                    'Vị Trí',
-                    'Bác Sĩ',
-                    'Ngày BĐ LV',
-                    'Ngày KT TV',
-                    'ON/OFF',
-                    'Ngày NV',
-                    'Hình Thức LV',
-                    'C. Thử Việc',
-                    'C. Chính Thức',
-                    'Có Lễ',
-                    'C. Thực Tế',
-                    'Tổng Công',
-                    'Tổng Phạt',
-                    'Tăng Ca',
-                    'Làm Tối',
-                    'Trực Tối',
-                    'Thêm Giờ',
-                    'Live',
-                    'PC Gửi Xe',
-                    'Thao Tác',
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="px-2 py-2 text-center font-semibold whitespace-nowrap"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {records.map((rec, idx) => (
-                  <tr
-                    key={rec.id}
-                    className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+        {/* Right: Calendar / Detail panel */}
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
+          {!selectedEmployee ? (
+            <div className="flex-1 bg-white shadow rounded-lg flex flex-col items-center justify-center text-gray-400 p-10">
+              <CalendarIcon className="h-16 w-16 mb-4 text-gray-200" />
+              <p className="text-base font-medium">Chọn một nhân viên</p>
+              <p className="text-sm mt-1">để xem lịch chấm công</p>
+            </div>
+          ) : (
+            <>
+              {/* Employee info bar */}
+              <div className="bg-white shadow rounded-lg px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                    <UserIcon className="h-5 w-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{selectedEmployee.full_name}</p>
+                    <p className="text-xs text-gray-500 font-mono">
+                      {selectedEmployee.employee_id}
+                      {selectedEmployee.department && ` · ${selectedEmployee.department.name}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {finalizedRec ? (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                      <CheckCircleIcon className="w-4 h-4 mr-1" />
+                      Đã chốt công tháng {selectedMonth}/{selectedYear}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                      Chưa chốt công tháng {selectedMonth}/{selectedYear}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handleFinalize(selectedEmployee)}
+                    disabled={finalizing === selectedEmployee.employee_id}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <td className="px-2 py-2 text-center">{rec.stt}</td>
-                    <td className="px-2 py-2 font-mono font-medium text-indigo-700">
-                      {rec.ma_nv}
-                    </td>
-                    <td className="px-2 py-2 whitespace-nowrap">{rec.ho_va_ten}</td>
-                    <td className="px-2 py-2 whitespace-nowrap">{rec.phong_ban ?? '—'}</td>
-                    <td className="px-2 py-2 whitespace-nowrap">{rec.vi_tri ?? '—'}</td>
-                    <td className="px-2 py-2 text-center">{rec.bac_si ?? '—'}</td>
-                    <td className="px-2 py-2 text-center">
-                      {formatDate(rec.ngay_bat_dau_lam_viec)}
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      {formatDate(rec.ngay_ket_thuc_thu_viec)}
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      <span
-                        className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${
-                          rec.on_off === 'ON'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {rec.on_off ?? '—'}
-                      </span>
-                    </td>
-                    <td className="px-2 py-2 text-center">
-                      {formatDate(rec.ngay_nghi_viec)}
-                    </td>
-                    <td className="px-2 py-2 whitespace-nowrap">
-                      {rec.hinh_thuc_lam_viec ?? '—'}
-                    </td>
-                    <td className="px-2 py-2 text-right">{formatNumber(rec.cong_thu_viec)}</td>
-                    <td className="px-2 py-2 text-right">{formatNumber(rec.cong_chinh_thuc)}</td>
-                    <td className="px-2 py-2 text-right">{formatNumber(rec.co_le)}</td>
-                    <td className="px-2 py-2 text-right">{formatNumber(rec.cong_thuc_te)}</td>
-                    <td className="px-2 py-2 text-right font-semibold">{formatNumber(rec.tong_cong)}</td>
-                    <td className="px-2 py-2 text-right text-red-600">{formatNumber(rec.tong_phat)}</td>
-                    <td className="px-2 py-2 text-right">{formatNumber(rec.tang_ca)}</td>
-                    <td className="px-2 py-2 text-right">{formatNumber(rec.lam_toi)}</td>
-                    <td className="px-2 py-2 text-right">{formatNumber(rec.truc_toi)}</td>
-                    <td className="px-2 py-2 text-right">{formatNumber(rec.them_gio)}</td>
-                    <td className="px-2 py-2 text-right">{rec.live}</td>
-                    <td className="px-2 py-2 text-right">{formatNumber(rec.phu_cap_gui_xe)}</td>
-                    <td className="px-2 py-2 text-center">
-                      <button
-                        onClick={() => handleFinalize(rec.ma_nv)}
-                        disabled={finalizing === rec.ma_nv}
-                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Chốt công lại"
-                      >
-                        {finalizing === rec.ma_nv ? (
-                          <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <CheckCircleIcon className="w-3 h-3 mr-1" />
-                        )}
-                        {finalizing === rec.ma_nv ? '' : 'Chốt lại'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    {finalizing === selectedEmployee.employee_id ? (
+                      <ArrowPathIcon className="w-4 h-4 animate-spin mr-1" />
+                    ) : (
+                      <CheckCircleIcon className="w-4 h-4 mr-1" />
+                    )}
+                    {finalizedRec ? 'Chốt lại' : 'Chốt công'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Attendance Calendar */}
+              <AttendanceCalendar
+                year={selectedYear}
+                month={selectedMonth - 1}
+                employeeId={selectedEmployee.id}
+              />
+
+              {/* Finalization details if finalized */}
+              {finalizedRec && (
+                <div className="bg-white shadow rounded-lg p-5">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-4">
+                    Kết quả chốt công tháng {selectedMonth}/{selectedYear}
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+                    {[
+                      { label: 'Công thử việc', value: String(finalizedRec.cong_thu_viec), cardCls: 'bg-blue-50', labelCls: 'text-blue-700', valCls: 'text-blue-800 font-bold' },
+                      { label: 'Công chính thức', value: String(finalizedRec.cong_chinh_thuc), cardCls: 'bg-indigo-50', labelCls: 'text-indigo-700', valCls: 'text-indigo-800 font-bold' },
+                      { label: 'Công thực tế', value: String(finalizedRec.cong_thuc_te), cardCls: 'bg-green-50', labelCls: 'text-green-700', valCls: 'text-green-800 font-bold' },
+                      { label: 'Tổng công', value: String(finalizedRec.tong_cong), cardCls: 'bg-emerald-50', labelCls: 'text-emerald-700', valCls: 'text-emerald-800 font-extrabold' },
+                      { label: 'Tổng phạt', value: `${formatNumber(finalizedRec.tong_phat)}đ`, cardCls: 'bg-red-50', labelCls: 'text-red-700', valCls: 'text-red-800 font-bold' },
+                      { label: 'Tăng ca', value: String(finalizedRec.tang_ca), cardCls: 'bg-orange-50', labelCls: 'text-orange-700', valCls: 'text-orange-800 font-bold' },
+                      { label: 'Trực tối', value: String(finalizedRec.truc_toi), cardCls: 'bg-purple-50', labelCls: 'text-purple-700', valCls: 'text-purple-800 font-bold' },
+                      { label: 'Thêm giờ', value: String(finalizedRec.them_gio), cardCls: 'bg-yellow-50', labelCls: 'text-yellow-700', valCls: 'text-yellow-800 font-bold' },
+                      { label: 'Live', value: String(finalizedRec.live), cardCls: 'bg-pink-50', labelCls: 'text-pink-700', valCls: 'text-pink-800 font-bold' },
+                      { label: 'PC Gửi xe', value: `${formatNumber(finalizedRec.phu_cap_gui_xe)}đ`, cardCls: 'bg-teal-50', labelCls: 'text-teal-700', valCls: 'text-teal-800 font-bold' },
+                    ].map((item) => (
+                      <div key={item.label} className={`${item.cardCls} rounded-lg p-3`}>
+                        <p className={`text-xs font-medium ${item.labelCls}`}>{item.label}</p>
+                        <p className={`text-lg mt-0.5 ${item.valCls}`}>{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
 export default WorkFinalization;
+
