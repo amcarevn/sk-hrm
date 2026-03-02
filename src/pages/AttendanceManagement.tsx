@@ -2204,35 +2204,9 @@ const AttendanceManagement: React.FC = () => {
 
                   {/* Action Buttons */}
                   <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3">
-                    {/* Ẩn nút làm đơn bổ sung công nếu:
-                        1. Đã có đơn được duyệt
-                        2. Ngày được chọn thuộc tháng trước (chỉ cho phép làm đơn cho tháng hiện tại hoặc tháng sau)
-                    */}
-                    {(() => {
-                      // Kiểm tra ngày được chọn có thuộc tháng trước không
-                      const now = new Date();
-                      const currentMonth = now.getMonth();
-                      const currentYear = now.getFullYear();
-                      const selectedMonth = selectedDate?.getMonth() || 0;
-                      const selectedYear = selectedDate?.getFullYear() || 0;
-
-                      // Tính tổng tháng để so sánh (năm * 12 + tháng)
-                      const currentTotalMonths =
-                        currentYear * 12 + currentMonth;
-                      const selectedTotalMonths =
-                        selectedYear * 12 + selectedMonth;
-
-                      // Chỉ hiển thị nút nếu ngày được chọn thuộc tháng hiện tại hoặc tháng sau
-                      const isCurrentOrFutureMonth =
-                        selectedTotalMonths >= currentTotalMonths;
-
-                      // Điều kiện hiển thị: không có đơn được duyệt VÀ thuộc tháng hiện tại hoặc tháng sau
-                      const shouldShowButton =
-                        approvedExplanations.length === 0 &&
-                        approvedLeaveRequests.length === 0 &&
-                        isCurrentOrFutureMonth;
-
-                      return shouldShowButton ? (
+                    {/* Ẩn nút làm đơn bổ sung công nếu đã có đơn được duyệt */}
+                    {approvedExplanations.length === 0 &&
+                      approvedLeaveRequests.length === 0 && (
                         <button
                           onClick={handleOpenSupplementaryRequest}
                           className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
@@ -2240,8 +2214,7 @@ const AttendanceManagement: React.FC = () => {
                           <DocumentPlusIcon className="h-5 w-5 mr-2" />
                           Làm đơn bổ sung
                         </button>
-                      ) : null;
-                    })()}
+                      )}
                     <button
                       onClick={handleCloseModal}
                       className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
