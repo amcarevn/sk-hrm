@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { API_BASE_URL } from '../utils/api';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -355,8 +356,8 @@ const EmployeeInfoForm: React.FC<EmployeeInfoFormProps> = ({
 
       // ✅ FIX 4: Dùng đúng prop isCreatingNew (KHÔNG tạo biến local mới)
       const url = isCreatingNew
-        ? 'http://localhost:8000/api-hrm/onboardings/'
-        : `http://localhost:8000/api-hrm/onboardings/${onboardingId}/submit-employee-info/`;
+        ? `${API_BASE_URL}/api-hrm/onboardings/`
+        : `${API_BASE_URL}/api-hrm/onboardings/${onboardingId}/submit-employee-info/`;
 
       console.log(`🚀 ${isCreatingNew ? 'CREATE' : 'UPDATE'} → POST ${url}`);
 

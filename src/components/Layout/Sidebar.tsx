@@ -119,7 +119,7 @@ const navigationItems: NavigationItem[] = [
     name: 'Onboard nhân sự',
     href: '/dashboard/onboarding',
     icon: UserPlusIcon,
-    roles: ['ADMIN'],
+    roles: ['ADMIN', 'HR'],
   },
   {
     name: 'Offboard nhân sự',
