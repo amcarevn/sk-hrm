@@ -1,8 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
-export const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:8000' 
-  : 'https://app-uat.amcare.vn';
+export const API_BASE_URL = 'https://app-uat.amcare.vn';
 
 
 // Create axios instance for Management API
