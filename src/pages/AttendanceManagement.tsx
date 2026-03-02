@@ -4,6 +4,7 @@ import AttendanceCalendar from '../components/AttendanceCalendar';
 import {
   attendanceService,
   AttendanceRecord,
+  AttendanceEvent,
 } from '../services/attendance.service';
 import { employeesAPI, Employee, managementApi } from '../utils/api';
 import {
@@ -2146,6 +2147,158 @@ const AttendanceManagement: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Events Timeline */}
+                  {(() => {
+                    const allEvents: AttendanceEvent[] = attendanceDetails.flatMap(
+                      (r) => r.events || []
+                    );
+                    const sortedEvents = [...allEvents].sort(
+                      (a, b) =>
+                        new Date(a.created_at).getTime() -
+                        new Date(b.created_at).getTime()
+                    );
+                    if (sortedEvents.length === 0) return null;
+                    const eventTypeLabel: Record<string, string> = {
+                      attendance: 'Chấm công',
+                      explanation: 'Giải trình',
+                      explanation_approval: 'Phê duyệt giải trình',
+                    };
+                    const statusLabel: Record<string, string> = {
+                      APPROVED: 'Đã duyệt',
+                      REJECTED: 'Từ chối',
+                      PENDING: 'Chờ duyệt',
+                    };
+                    const approvalLevelLabel: Record<string, string> = {
+                      DIRECT_MANAGER: 'Quản lý trực tiếp',
+                      HR: 'HR',
+                    };
+                    const isApproved = (ev: AttendanceEvent) => {
+                      if (
+                        ev.event_type === 'explanation' &&
+                        ev.data?.status === 'APPROVED'
+                      )
+                        return true;
+                      if (
+                        ev.event_type === 'explanation_approval' &&
+                        ev.data?.action === 'APPROVE'
+                      )
+                        return true;
+                      return false;
+                    };
+                    return (
+                      <div className="mt-6">
+                        <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                          <ClockIcon className="h-5 w-5 mr-2 text-primary-600" />
+                          Lịch sử sự kiện
+                        </h4>
+                        <ol className="relative border-l border-gray-200 ml-3 space-y-4">
+                          {sortedEvents.map((ev) => {
+                            const approved = isApproved(ev);
+                            return (
+                              <li key={ev.id} className="ml-4">
+                                <div
+                                  className={`absolute w-3 h-3 rounded-full mt-1.5 -left-1.5 border ${approved
+                                    ? 'bg-green-500 border-green-300'
+                                    : 'bg-gray-300 border-gray-200'
+                                    }`}
+                                />
+                                <div
+                                  className={`p-3 rounded-lg border ${approved
+                                    ? 'bg-green-50 border-green-200'
+                                    : 'bg-gray-50 border-gray-200'
+                                    }`}
+                                >
+                                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <span
+                                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${ev.event_type === 'attendance'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : ev.event_type === 'explanation'
+                                          ? 'bg-purple-100 text-purple-800'
+                                          : 'bg-indigo-100 text-indigo-800'
+                                        }`}
+                                    >
+                                      {eventTypeLabel[ev.event_type] ||
+                                        ev.event_type}
+                                    </span>
+                                    {approved && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800">
+                                        ✓ Đã duyệt
+                                      </span>
+                                    )}
+                                    <time className="text-xs text-gray-500 ml-auto">
+                                      {new Date(ev.created_at).toLocaleString(
+                                        'vi-VN'
+                                      )}
+                                    </time>
+                                  </div>
+                                  {ev.explanation && (
+                                    <p className="text-sm text-gray-700 mb-1">
+                                      {ev.explanation}
+                                    </p>
+                                  )}
+                                  {ev.event_type === 'attendance' && (
+                                    <p className="text-xs text-gray-600">
+                                      Trạng thái:{' '}
+                                      {statusLabel[ev.data?.status] ??
+                                        ev.data?.status}
+                                      {ev.data?.import_source && (
+                                        <span className="ml-2 text-gray-400">
+                                          ({ev.data.import_source})
+                                        </span>
+                                      )}
+                                    </p>
+                                  )}
+                                  {ev.event_type === 'explanation' && (
+                                    <div className="text-xs text-gray-600 space-y-0.5">
+                                      {ev.data?.reason && (
+                                        <p>Lý do: {ev.data.reason}</p>
+                                      )}
+                                      {ev.data?.status && (
+                                        <p>
+                                          Trạng thái:{' '}
+                                          {statusLabel[ev.data.status] ??
+                                            ev.data.status}
+                                        </p>
+                                      )}
+                                      {ev.data?.request_code && (
+                                        <p className="font-mono text-gray-500">
+                                          {ev.data.request_code}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                  {ev.event_type === 'explanation_approval' && (
+                                    <div className="text-xs text-gray-600 space-y-0.5">
+                                      <p>
+                                        {approvalLevelLabel[
+                                          ev.data?.approval_level
+                                        ] ??
+                                          ev.data?.approval_level ??
+                                          'Unknown'}
+                                        :{' '}
+                                        {ev.data?.approved_by_name}
+                                      </p>
+                                      {ev.data?.note && (
+                                        <p className="italic text-gray-500">
+                                          "{ev.data.note}"
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                  {ev.created_by && (
+                                    <p className="text-xs text-gray-400 mt-1">
+                                      Bởi: {ev.created_by}
+                                    </p>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </div>
+                    );
+                  })()}
 
                   {/* Summary */}
                   {attendanceSummary && (
