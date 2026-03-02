@@ -219,7 +219,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             has_approved_online_work: false,
             has_pending_request: false,
             summary_text: summaryText,
-            display_color: getDayStatusDisplayColor(dayItem.day_status),
+            display_color: dayItem.status_badge === 'Nghỉ phép tháng' ? 'green' : getDayStatusDisplayColor(dayItem.day_status),
           },
         };
       });
