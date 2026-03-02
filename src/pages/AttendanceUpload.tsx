@@ -471,340 +471,37 @@ const AttendanceUpload: React.FC = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* View Attendance Section - Main content on the left */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* View Attendance Section - Moved to top/left as main content */}
+      <div className="flex justify-center">
+        <div className="w-full max-w-2xl space-y-6">
+
+          {/* Upload File Section */}
           <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Xem chấm công</h2>
-                <p className="text-gray-500 text-sm">
-                  Xem và lọc chấm công theo nhân viên hoặc phòng ban
-                </p>
-              </div>
-              <EyeIcon className="h-6 w-6 text-gray-400" />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* Employee Filter with Search */}
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label htmlFor="view-employee" className="block text-sm font-medium text-gray-700">
-                    <div className="flex items-center">
-                      <UserIcon className="h-4 w-4 text-gray-500 mr-1" />
-                      Xem theo nhân viên
-                    </div>
-                  </label>
-                  <div className="text-xs text-gray-500">
-                    {employees.length} nhân viên
-                  </div>
-                </div>
-                
-                {/* Search input for employees */}
-                <div className="mb-2">
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Tìm theo tên hoặc mã nhân viên..."
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                </div>
-                
-                <select
-                  id="view-employee"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  value={mainViewEmployee}
-                  onChange={(e) => {
-                    setMainViewEmployee(e.target.value);
-                    setMainViewDepartment(''); // Clear department if employee is selected
-                  }}
-                  disabled={loadingEmployees}
-                >
-                  <option value="">-- Chọn nhân viên --</option>
-                  {loadingEmployees ? (
-                    <option value="" disabled>Đang tải nhân viên...</option>
-                  ) : (
-                    filteredEmployees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.code} - {emp.name} ({emp.department})
-                      </option>
-                    ))
-                  )}
-                </select>
-                
-                {searchQuery && filteredEmployees.length === 0 && (
-                  <div className="mt-2 text-xs text-red-600">
-                    Không tìm thấy nhân viên phù hợp với "{searchQuery}"
-                  </div>
-                )}
-              </div>
-
-            {/* Department Filter */}
-            <div>
-              <label htmlFor="view-department" className="block text-sm font-medium text-gray-700 mb-2">
-                <div className="flex items-center">
-                  <BuildingOfficeIcon className="h-4 w-4 text-gray-500 mr-1" />
-                  Xem theo phòng ban
-                </div>
-              </label>
-              <select
-                id="view-department"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                value={mainViewDepartment}
-                onChange={(e) => {
-                  setMainViewDepartment(e.target.value);
-                  setMainViewEmployee(''); // Clear employee if department is selected
-                  // Fetch employees for the selected department in main view
-                  if (e.target.value) {
-                    fetchEmployeesByDepartment(e.target.value);
-                  } else {
-                    fetchEmployees(); // Reset to all employees
-                  }
-                }}
-                disabled={loadingDepartments}
-              >
-                <option value="">-- Chọn phòng ban --</option>
-                {loadingDepartments ? (
-                  <option value="" disabled>Đang tải phòng ban...</option>
-                ) : (
-                  departments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>
-                      {dept.name} ({dept.employeeCount} nhân viên)
-                    </option>
-                  ))
-                )}
-              </select>
-              {loadingDepartments && (
-                <div className="mt-1 text-xs text-gray-500">Đang tải danh sách phòng ban...</div>
-              )}
-            </div>
-            </div>
-
-            {/* Error message display */}
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 rounded-lg">
-                <div className="flex items-center">
-                  <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2" />
-                  <p className="text-red-700">{error}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Instructions */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-medium text-blue-900 mb-2">Hướng dẫn sử dụng:</h3>
-              <ul className="list-disc pl-5 text-sm text-blue-800 space-y-1">
-                <li>Chọn nhân viên để xem chấm công của nhân viên đó</li>
-                <li>Chọn phòng ban để xem chấm công của toàn bộ phòng ban</li>
-                <li>Chỉ có thể chọn một trong hai: nhân viên HOẶC phòng ban</li>
-                <li>Dữ liệu sẽ tự động cập nhật khi thay đổi bộ lọc</li>
-              </ul>
-            </div>
-
-            {/* Employee List or Attendance Table */}
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-gray-50 px-6 py-3 border-b">
-                <h3 className="font-medium text-gray-900">
-                  {mainViewDepartment ? `Danh sách nhân viên - ${departments.find(d => d.id === mainViewDepartment)?.name}` : 
-                   mainViewEmployee ? `Chấm công - ${employees.find(e => e.id === mainViewEmployee)?.name}` :
-                   'Kết quả chấm công'}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {mainViewDepartment ? `Hiển thị danh sách nhân viên trong phòng ban` :
-                   mainViewEmployee ? `Hiển thị chấm công của nhân viên` :
-                   'Chọn nhân viên hoặc phòng ban để xem dữ liệu'}
-                </p>
-              </div>
-              
-              {mainViewDepartment ? (
-                // Employee List for selected department
-                <div className="p-6">
-                  <div className="mb-4">
-                    <div className="flex items-center bg-blue-50 p-3 rounded-lg">
-                      <BuildingOfficeIcon className="h-5 w-5 text-blue-500 mr-2" />
-                      <div>
-                        <h4 className="font-medium text-blue-900">Phòng ban: {departments.find(d => d.id === mainViewDepartment)?.name}</h4>
-                        <p className="text-sm text-blue-700">
-                          {employees.filter(emp => departments.find(d => d.id === mainViewDepartment)?.name === emp.department).length} nhân viên
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {departmentEmployees.map((emp) => (
-                      <div key={emp.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-400 hover:shadow-md transition-all">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0">
-                            <UserIcon className="h-10 w-10 text-gray-400" />
-                          </div>
-                          <div className="ml-4 flex-1">
-                            <h4 className="text-sm font-medium text-gray-900">{emp.name}</h4>
-                            <p className="text-xs text-gray-500 mt-1">Mã: {emp.code}</p>
-                            <p className="text-xs text-gray-500">Phòng ban: {emp.department}</p>
-                          </div>
-                        </div>
-                        <div className="mt-4 flex justify-end">
-                          <button
-                            onClick={() => {
-                              setSelectedEmployee(emp.id);
-                              setShowDetailView(true);
-                              setViewMode('employee');
-                              setSelectedDepartment(mainViewDepartment);
-                            }}
-                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                          >
-                            <EyeIcon className="h-3 w-3 mr-1" />
-                            Xem chi tiết
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : mainViewEmployee ? (
-                // Attendance table for selected employee
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ngày
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Nhân viên
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Giờ vào
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Giờ ra
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tổng giờ
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Trạng thái
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          09/01/2026
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {employees.find(e => e.id === mainViewEmployee)?.name} ({employees.find(e => e.id === mainViewEmployee)?.code})
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          08:00
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          17:30
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          8.5 giờ
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Đủ công
-                          </span>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          08/01/2026
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {employees.find(e => e.id === mainViewEmployee)?.name} ({employees.find(e => e.id === mainViewEmployee)?.code})
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          08:15
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          17:45
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          8.5 giờ
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                            Đi muộn
-                          </span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                // Default message when nothing is selected
-                <div className="p-8 text-center">
-                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">Chưa có dữ liệu</h4>
-                  <p className="text-gray-600">
-                    Vui lòng chọn nhân viên hoặc phòng ban để xem dữ liệu chấm công.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="mt-6 flex justify-end space-x-3">
-              <button 
-                onClick={handleViewDetail}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                <EyeIcon className="h-5 w-5 mr-2" />
-                Xem chi tiết
-              </button>
-              <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                Xuất Excel
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Upload file (small) + Template & History */}
-        <div className="space-y-6">
-          {/* Upload File Section - Small version on the right */}
-          <div className="bg-white rounded-lg shadow p-5">
-            <div className="mb-3">
-              <h2 className="text-base font-semibold text-gray-900">Upload file chấm công</h2>
-              <p className="text-gray-500 text-xs">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Upload file chấm công</h2>
+              <p className="text-gray-500 text-sm">
                 Upload file Excel hoặc CSV
               </p>
             </div>
 
             <div 
-              className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-400 transition-colors"
+              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-400 transition-colors"
               onDragOver={handleDragOver}
               onDrop={handleDrop}
             >
               <div className="flex flex-col items-center">
-                <svg className="w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
                 
-                <p className="text-gray-600 text-xs mb-1">
-                  Kéo thả file hoặc click
+                <p className="text-gray-600 text-sm mb-1">
+                  Kéo thả file hoặc click để chọn file
                 </p>
-                <p className="text-gray-500 text-xs mb-3">
+                <p className="text-gray-500 text-sm mb-4">
                   Excel (.xlsx, .xls) hoặc CSV
                 </p>
                 
-                  <div className="flex flex-col items-center justify-center space-y-2">
-                  <label className="cursor-pointer bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors text-xs font-medium">
+                  <div className="flex flex-col items-center justify-center space-y-3">
+                  <label className="cursor-pointer bg-primary-600 text-white px-6 py-2.5 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium">
                     <span>Chọn file</span>
                     <input
                       id="attendance-file"
@@ -821,7 +518,7 @@ const AttendanceUpload: React.FC = () => {
                       <button
                         onClick={handleValidateFile}
                         disabled={uploading}
-                        className={`px-4 py-2 rounded-md transition-colors text-xs font-medium ${
+                        className={`px-5 py-2.5 rounded-md transition-colors text-sm font-medium ${
                           uploading 
                             ? 'bg-gray-400 cursor-not-allowed' 
                             : 'bg-yellow-600 hover:bg-yellow-700 text-white'
@@ -840,7 +537,7 @@ const AttendanceUpload: React.FC = () => {
                       <button
                         onClick={handleUpload}
                         disabled={uploading}
-                        className={`px-4 py-2 rounded-md transition-colors text-xs font-medium ${
+                        className={`px-5 py-2.5 rounded-md transition-colors text-sm font-medium ${
                           uploading 
                             ? 'bg-gray-400 cursor-not-allowed' 
                             : 'bg-green-600 hover:bg-green-700 text-white'
@@ -892,17 +589,17 @@ const AttendanceUpload: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       )}
-                      <span className="text-xs">{uploadMessage.text}</span>
+                      <span className="text-sm">{uploadMessage.text}</span>
                     </div>
                   </div>
                 )}
               </div>
             </div>
             
-            <div className="mt-3">
-              <h3 className="font-medium text-gray-900 mb-1 text-xs">Hướng dẫn:</h3>
-              <div className="bg-gray-50 p-2 rounded-lg">
-                <ul className="list-disc pl-3 space-y-0.5 text-xs text-gray-600">
+            <div className="mt-4">
+              <h3 className="font-medium text-gray-900 mb-2 text-sm">Hướng dẫn:</h3>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <ul className="list-disc pl-4 space-y-1 text-sm text-gray-600">
                   <li>File có cấu trúc cột đúng</li>
                   <li>Định dạng: Excel hoặc CSV</li>
                   <li>Dung lượng tối đa: 10MB</li>
