@@ -1,5 +1,19 @@
 import { managementApi } from '../utils/api';
 
+export interface AttendanceEvent {
+  id: number;
+  event_type: string;
+  event_date: string;
+  check_in: string | null;
+  check_out: string | null;
+  overtime_hours: number | null;
+  explanation: string | null;
+  notes: string;
+  data: Record<string, any>;
+  created_at: string;
+  created_by: string | null;
+}
+
 export interface AttendanceRecord {
   id: number;
   attendance_date: string;
@@ -17,6 +31,7 @@ export interface AttendanceRecord {
   employee_name: string;
   employee_code: string;
   department_name: string;
+  events?: AttendanceEvent[];
 }
 
 export interface AttendanceStats {
