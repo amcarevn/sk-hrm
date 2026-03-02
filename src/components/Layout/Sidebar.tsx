@@ -22,6 +22,7 @@ import {
   EyeIcon,
   UserGroupIcon,
   ShieldCheckIcon,
+  TableCellsIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -125,6 +126,12 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard/offboarding',
     icon: UserMinusIcon,
     roles: ['ADMIN'],
+  },
+  {
+    name: 'Chốt công',
+    href: '/dashboard/work-finalization',
+    icon: TableCellsIcon,
+    roles: ['ADMIN', 'HR'],
   },
 ];
 

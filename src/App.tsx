@@ -72,6 +72,7 @@ import AttendanceRuleCreate from './pages/AttendanceRuleCreate';
 import LeavePolicyList from './pages/LeavePolicyList';
 import LeavePolicyCreate from './pages/LeavePolicyCreate';
 import { EmployeeOnboardingForm } from "./pages/EmployeeOnboardingForm";
+import WorkFinalization from './pages/WorkFinalization';
 
 function App() {
   return (
@@ -719,6 +720,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <LeavePolicyList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Work Finalization Route */}
+          <Route
+            path="/dashboard/work-finalization"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <WorkFinalization />
                 </Layout>
               </ProtectedRoute>
             }
