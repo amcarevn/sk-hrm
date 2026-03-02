@@ -175,6 +175,26 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
         const isLeave = dayItem.is_leave || false;
 
+        // Process registrations to extract approved explanations
+        const registrations = dayItem.registrations || [];
+        const approvedExplanationItems = registrations
+          .filter((r: any) => r.event_type === 'explanation' && r.data?.status === 'APPROVED')
+          .map((r: any) => ({
+            request_code: r.data?.request_code,
+            original_status: r.data?.original_status,
+            expected_status: r.data?.expected_status,
+            approved_by_name: r.data?.approved_by_name || r.data?.hr_approved_by_name,
+            approved_at: r.data?.approved_at || r.data?.hr_approved_at,
+            reason: r.explanation || r.data?.reason,
+          }));
+        const hasApprovedExplanations = approvedExplanationItems.length > 0;
+
+        // For EMPTY days with approved registrations, use the registration reason as summary text
+        let summaryText = getDayStatusSummaryText(dayItem);
+        if (!summaryText && hasApprovedExplanations) {
+          summaryText = approvedExplanationItems[0].reason || 'Có đơn đã duyệt';
+        }
+
         return {
           date,
           morning,
@@ -187,18 +207,18 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           appliedRules: [],
           lateMinutes: 0,
           earlyLeaveMinutes: 0,
-          approvedExplanations: [],
+          approvedExplanations: approvedExplanationItems,
           approvedRegistrations: [],
           approvedLeaveRequests: isLeave ? [{ leave: true }] : [],
           approvedOnlineWorks: [],
           penalty: 0,
           dayStatusSummary: {
-            has_approved_explanation: false,
+            has_approved_explanation: hasApprovedExplanations,
             has_approved_registration: false,
             has_approved_leave: isLeave,
             has_approved_online_work: false,
             has_pending_request: false,
-            summary_text: getDayStatusSummaryText(dayItem),
+            summary_text: summaryText,
             display_color: getDayStatusDisplayColor(dayItem.day_status),
           },
         };
@@ -389,6 +409,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     }
     if (day.dayStatusSummary?.display_color === 'yellow') {
       return 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-300 animate-pulse';
+    }
+    if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration) {
+      return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300';
     }
     const hasIncomplete = day.morning === 'incomplete_attendance' || day.afternoon === 'incomplete_attendance' || day.evening === 'incomplete_attendance';
     if (hasIncomplete) return 'bg-purple-100 text-purple-700';
@@ -681,7 +704,11 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                       )}
                     </>
                   ) : (
-                    <span className="text-[11px] text-gray-400">Chưa có dữ liệu</span>
+                    <span className={`text-[11px] ${day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration ? 'text-blue-600' : 'text-gray-400'}`}>
+                      {day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration
+                        ? day.approvedExplanations?.[0]?.reason || 'Có đơn đã duyệt'
+                        : 'Chưa có dữ liệu'}
+                    </span>
                   )}
                 </div>
 
