@@ -452,7 +452,7 @@ const EmployeeCreate: React.FC = () => {
                   setFormData({ ...formData, department_id: val })
                 }
               />
-              
+
               <SelectBox
                 label="Chức vụ"
                 value={formData.position_id}
@@ -469,11 +469,17 @@ const EmployeeCreate: React.FC = () => {
                 label="Quản lý trực tiếp"
                 value={formData.manager_id}
                 options={[
-                  { value: undefined, label: 'Chọn quản lý' },
-                  ...employees.map((emp) => ({
-                    value: emp.id,
-                    label: `${emp.full_name} (${emp.employee_id})`,
-                  })),
+                  { value: undefined, label: 'Không có quản lý' },
+                  ...employees
+                    .filter(
+                      (emp) =>
+                        positions.find((p) => p.id === emp.position?.id)
+                          ?.is_management === true
+                    )
+                    .map((emp) => ({
+                      value: emp.id,
+                      label: `${emp.full_name} (${emp.employee_id}) - ${emp.department?.name ?? 'Chưa có phòng ban'}`,
+                    })),
                 ]}
                 onChange={(val) =>
                   setFormData({ ...formData, manager_id: val })
