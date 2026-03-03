@@ -2163,6 +2163,7 @@ const AttendanceManagement: React.FC = () => {
                       explanation: 'Giải trình',
                       explanation_approval: 'Phê duyệt giải trình',
                       overtime: 'Tăng ca',
+                      livestream: 'Livestream',
                     };
                     const statusLabel: Record<string, string> = {
                       APPROVED: 'Đã duyệt',
@@ -2186,6 +2187,11 @@ const AttendanceManagement: React.FC = () => {
                         return true;
                       if (
                         ev.event_type === 'overtime' &&
+                        ev.data?.status === 'APPROVED'
+                      )
+                        return true;
+                      if (
+                        ev.event_type === 'livestream' &&
                         ev.data?.status === 'APPROVED'
                       )
                         return true;
@@ -2220,7 +2226,9 @@ const AttendanceManagement: React.FC = () => {
                                         ? 'bg-blue-100 text-blue-800'
                                         : ev.event_type === 'explanation'
                                           ? 'bg-purple-100 text-purple-800'
-                                          : 'bg-indigo-100 text-indigo-800'
+                                          : ev.event_type === 'livestream'
+                                            ? 'bg-pink-100 text-pink-800'
+                                            : 'bg-indigo-100 text-indigo-800'
                                         }`}
                                     >
                                       {eventTypeLabel[ev.event_type] ||
@@ -2292,6 +2300,47 @@ const AttendanceManagement: React.FC = () => {
                                     </div>
                                   )}
                                   {ev.event_type === 'overtime' && (
+                                    <div className="text-xs text-gray-600 space-y-0.5">
+                                      {ev.data?.registration_type && (
+                                        <p>
+                                          Loại:{' '}
+                                          {getExplanationTypeLabel(
+                                            ev.data.registration_type
+                                          )}
+                                        </p>
+                                      )}
+                                      {(ev.check_in || ev.check_out) && (
+                                        <p>
+                                          Thời gian: {ev.check_in ?? '--'} —{' '}
+                                          {ev.check_out ?? '--'}
+                                        </p>
+                                      )}
+                                      {(ev.notes || ev.data?.reason) && (
+                                        <p>
+                                          Lý do: {ev.notes || ev.data?.reason}
+                                        </p>
+                                      )}
+                                      {ev.data?.status && (
+                                        <p>
+                                          Trạng thái:{' '}
+                                          {statusLabel[ev.data.status] ??
+                                            ev.data.status}
+                                        </p>
+                                      )}
+                                      {ev.data?.direct_manager_approved_by_name && (
+                                        <p>
+                                          Quản lý trực tiếp:{' '}
+                                          {ev.data.direct_manager_approved_by_name}
+                                        </p>
+                                      )}
+                                      {ev.data?.hr_approved_by_name && (
+                                        <p>
+                                          HR: {ev.data.hr_approved_by_name}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                  {ev.event_type === 'livestream' && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
                                       {ev.data?.registration_type && (
                                         <p>
