@@ -105,53 +105,13 @@ const OrganizationChart: React.FC = () => {
   const fetchOrganizationData = async () => {
     try {
       setLoading(true);
-      const [departmentsResponse, employeesResponse, profileData] = await Promise.all([
+      const [departmentsResponse, employeesResponse] = await Promise.all([
         departmentsAPI.list(),
-        employeesAPI.list({ page_size: 1000 }),
-        authAPI.getProfile()
+        employeesAPI.list({ page_size: 1000 })
       ]);
 
       let departments = departmentsResponse.results;
       let employees = employeesResponse.results;
-
-      // Extract user from profile response (handle different shapes)
-      const user = profileData.user || profileData;
-
-      // Find the employee object for the current user to get their department
-      const currentUserEmployee = employees.find(emp =>
-        emp.user?.username === user.username ||
-        emp.employee_id === user.employee_profile?.employee_id ||
-        emp.employee_id === user.hrm_user?.employee_id
-      );
-
-      // Robust Role & Department based filtering
-      const isAdmin = user.is_superuser ||
-        user.is_staff ||
-        user.is_super_admin ||
-        user.role === 'admin';
-
-      const isHR = user.role === 'hrm' ||
-        currentUserEmployee?.is_hr ||
-        currentUserEmployee?.position?.title?.toLowerCase().includes('hr') ||
-        currentUserEmployee?.position?.title?.toLowerCase().includes('nhân sự') ||
-        currentUserEmployee?.department?.name?.toLowerCase().includes('nhân sự');
-
-      if (!isAdmin && !isHR && currentUserEmployee?.department) {
-        const userDeptId = currentUserEmployee.department.id;
-
-        // Find all sub-departments recursively
-        const getSubDeptIds = (deptId: number): number[] => {
-          const subs = departments.filter(d => d.parent_department === deptId);
-          return [deptId, ...subs.flatMap(s => getSubDeptIds(s.id))];
-        };
-
-        const visibleDeptIds = getSubDeptIds(userDeptId);
-
-        // Filter departments only to those in the visible set
-        departments = departments.filter(d => visibleDeptIds.includes(d.id));
-
-        employees = employees.filter(e => e.department && visibleDeptIds.includes(e.department.id));
-      }
 
       const nodeMap = new Map<string, TreeNode>();
       const rootNodes: TreeNode[] = [];
