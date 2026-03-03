@@ -1685,6 +1685,8 @@ export interface Employee {
   
   // HR employee flag
   is_hr?: boolean;
+  is_senior_manager?: boolean;
+  management_level?: number;
   manager_name: string;
   created_at: string;
   updated_at: string;

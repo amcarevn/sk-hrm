@@ -3,16 +3,129 @@ import { useAuth } from '../contexts/AuthContext';
 import { attendanceService } from '../services/attendance.service';
 import { departmentsAPI, employeesAPI } from '../utils/api';
 import AttendanceCalendar from '../components/AttendanceCalendar';
-import { 
+import {
   EyeIcon,
   UserIcon,
   BuildingOfficeIcon,
   XMarkIcon,
   ArrowLeftIcon,
   DocumentArrowDownIcon,
+  CloudArrowUpIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  MagnifyingGlassIcon,
+  ChevronRightIcon,
+  DocumentTextIcon,
+  ClockIcon,
+  InformationCircleIcon,
+  ShieldCheckIcon,
+  CheckBadgeIcon,
+  HomeIcon,
 } from '@heroicons/react/24/outline';
+
+/* ─── tiny helper ─── */
+const cx = (...classes: (string | false | undefined | null)[]) =>
+  classes.filter(Boolean).join(' ');
+
+/* ─── Toast / Alert banner ─── */
+const Alert = ({
+  type,
+  text,
+  onClose,
+}: {
+  type: 'success' | 'error' | 'info';
+  text: string;
+  onClose: () => void;
+}) => {
+  const cfg = {
+    success: {
+      bg: 'bg-emerald-50/80 border-emerald-200/50 backdrop-blur-md',
+      icon: <CheckCircleIcon className="w-5 h-5 text-emerald-500 shrink-0" />,
+      text: 'text-emerald-800',
+    },
+    error: {
+      bg: 'bg-rose-50/80 border-rose-200/50 backdrop-blur-md',
+      icon: (
+        <ExclamationTriangleIcon className="w-5 h-5 text-rose-500 shrink-0" />
+      ),
+      text: 'text-rose-800',
+    },
+    info: {
+      bg: 'bg-sky-50/80 border-sky-200/50 backdrop-blur-md',
+      icon: <InformationCircleIcon className="w-5 h-5 text-sky-500 shrink-0" />,
+      text: 'text-sky-800',
+    },
+  }[type as 'success' | 'error' | 'info'] || {
+    bg: 'bg-slate-50',
+    icon: <InformationCircleIcon />,
+    text: 'text-slate-800'
+  };
+
+  return (
+    <div
+      className={cx(
+        'flex items-center gap-3 rounded-2xl border px-5 py-3.5 text-sm font-medium shadow-sm ring-1 ring-black/5 animate-fade-in',
+        cfg.bg,
+        cfg.text
+      )}
+    >
+      {cfg.icon}
+      <span className="flex-1 leading-snug">{text}</span>
+      <button
+        onClick={onClose}
+        className="opacity-40 hover:opacity-100 transition-opacity p-1 hover:bg-black/5 rounded-lg"
+      >
+        <XMarkIcon className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
+/* ─── Status badge ─── */
+// ─── Status badge ─── */
+const StatusBadge = ({
+  status,
+}: {
+  status: 'success' | 'error' | 'processing';
+}) => {
+  const configs = {
+    success: { bg: 'bg-emerald-50/80', text: 'text-emerald-600', dot: 'bg-emerald-500', label: 'Thành công' },
+    error: { bg: 'bg-rose-50/80', text: 'text-rose-600', dot: 'bg-rose-500', label: 'Thất bại' },
+    processing: { bg: 'bg-amber-50/80', text: 'text-amber-600', dot: 'bg-amber-500', label: 'Đang xử lý' },
+  };
+  const config = configs[status];
+  return (
+    <span className={cx('inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-white shadow-sm', config.bg, config.text)}>
+      <span className={cx('w-1.5 h-1.5 rounded-full animate-pulse', config.dot)} />
+      {config.label}
+    </span>
+  );
+};
+
+/* ─── Stat card ─── */
+// ─── Stat card ─── */
+const StatCard = ({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  color: 'green' | 'yellow' | 'red' | 'blue';
+}) => {
+  const themes = {
+    green: 'bg-emerald-50/50 text-emerald-600 border-emerald-100/50 glow-emerald',
+    yellow: 'bg-amber-50/50 text-amber-600 border-amber-100/50 glow-amber',
+    red: 'bg-rose-50/50 text-rose-600 border-rose-100/50 glow-rose',
+    blue: 'bg-indigo-50/50 text-indigo-600 border-indigo-100/50 glow-indigo',
+  };
+  return (
+    <div className={cx('p-6 rounded-[2rem] border backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:shadow-2xl animate-scale-up-sm', themes[color])}>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-70 mb-2">{label}</p>
+      <p className="text-3xl font-black tracking-tight animate-count-up transform-gpu">{value}</p>
+    </div>
+  );
+};
 
 const AttendanceUpload: React.FC = () => {
   const { user } = useAuth();
@@ -35,6 +148,17 @@ const AttendanceUpload: React.FC = () => {
   const [viewMode, setViewMode] = useState<'department' | 'employee'>('department');
   const [mainViewDepartment, setMainViewDepartment] = useState<string>('');
   const [mainViewEmployee, setMainViewEmployee] = useState<string>('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check for mobile screen size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // State for departments and employees from API
   const [departments, setDepartments] = useState<Array<{
@@ -145,7 +269,7 @@ const AttendanceUpload: React.FC = () => {
 
   const handleViewDetail = () => {
     setShowDetailView(true);
-    
+
     if (mainViewEmployee) {
       // If an employee is selected in main view, show that employee's detail
       setSelectedEmployee(mainViewEmployee);
@@ -205,23 +329,23 @@ const AttendanceUpload: React.FC = () => {
   };
 
   // Filter employees based on search query
-  const filteredEmployees = employees.filter(emp => 
+  const filteredEmployees = employees.filter(emp =>
     emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     emp.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
     emp.department.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Filter employees by selected department
-  const departmentEmployees = selectedDepartment 
-    ? filteredEmployees.filter(emp => 
-        emp.department_id === selectedDepartment
-      )
+  const departmentEmployees = selectedDepartment
+    ? filteredEmployees.filter(emp =>
+      emp.department_id === selectedDepartment
+    )
     : filteredEmployees;
 
   // Check if user has permission to upload attendance files
   // Only ADMIN, HR staff, super admins, and HCNS department staff can upload
   const userRole = user?.role ? user.role.toUpperCase() : '';
-  
+
   // Get user's department code from various possible locations in user object
   const userDepartmentCode = (
     user?.employee_profile?.department_code ||
@@ -229,10 +353,10 @@ const AttendanceUpload: React.FC = () => {
     (user as any)?.department_code ||
     null
   );
-  
-  const canUploadAttendance = 
-    userRole === 'ADMIN' || 
-    userRole === 'HR' || 
+
+  const canUploadAttendance =
+    userRole === 'ADMIN' ||
+    userRole === 'HR' ||
     user?.is_super_admin ||
     userDepartmentCode === 'HCNS'; // Allow HCNS department staff
 
@@ -277,7 +401,7 @@ const AttendanceUpload: React.FC = () => {
     try {
       // Call real API
       const result = await attendanceService.uploadAttendanceFile(selectedFile);
-      
+
       // Create upload history entry
       const newUpload = {
         id: uploadHistory.length + 1,
@@ -287,22 +411,22 @@ const AttendanceUpload: React.FC = () => {
         records: result.imported_records || result.total_records || 0,
         user: user?.username || 'Unknown'
       };
-      
+
       setUploadHistory([newUpload, ...uploadHistory]);
-      setUploadMessage({ 
-        type: 'success', 
-        text: `Upload file "${selectedFile.name}" thành công! Đã import ${newUpload.records} bản ghi chấm công.` 
+      setUploadMessage({
+        type: 'success',
+        text: `Upload file "${selectedFile.name}" thành công! Đã import ${newUpload.records} bản ghi chấm công.`
       });
       setSelectedFile(null);
-      
+
       // Clear file input
       const fileInput = document.getElementById('attendance-file') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
-      
+
     } catch (error: any) {
       console.error('Upload error:', error);
       let errorMessage = 'Upload thất bại. Vui lòng thử lại.';
-      
+
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.errors) {
@@ -315,9 +439,9 @@ const AttendanceUpload: React.FC = () => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
-      setUploadMessage({ 
-        type: 'error', 
+
+      setUploadMessage({
+        type: 'error',
         text: errorMessage
       });
     } finally {
@@ -333,7 +457,7 @@ const AttendanceUpload: React.FC = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
@@ -353,16 +477,16 @@ const AttendanceUpload: React.FC = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
-      setUploadMessage({ 
-        type: 'success', 
-        text: 'Đã tải mẫu file thành công!' 
+
+      setUploadMessage({
+        type: 'success',
+        text: 'Đã tải mẫu file thành công!'
       });
     } catch (error) {
       console.error('Error downloading template:', error);
-      setUploadMessage({ 
-        type: 'error', 
-        text: 'Tải mẫu file thất bại. Vui lòng thử lại.' 
+      setUploadMessage({
+        type: 'error',
+        text: 'Tải mẫu file thất bại. Vui lòng thử lại.'
       });
     }
   };
@@ -401,16 +525,16 @@ const AttendanceUpload: React.FC = () => {
 
     try {
       const result = await attendanceService.validateAttendanceFile(selectedFile);
-      
-      setUploadMessage({ 
-        type: 'success', 
-        text: `Validate thành công! File có ${result.validation_results?.total_rows || 0} dòng, trong đó ${result.validation_results?.valid_rows || 0} dòng hợp lệ.` 
+
+      setUploadMessage({
+        type: 'success',
+        text: `Validate thành công! File có ${result.validation_results?.total_rows || 0} dòng, trong đó ${result.validation_results?.valid_rows || 0} dòng hợp lệ.`
       });
-      
+
     } catch (error: any) {
       console.error('Validate error:', error);
       let errorMessage = 'Validate thất bại. Vui lòng thử lại.';
-      
+
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.response?.data?.errors) {
@@ -423,9 +547,9 @@ const AttendanceUpload: React.FC = () => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
-      setUploadMessage({ 
-        type: 'error', 
+
+      setUploadMessage({
+        type: 'error',
         text: errorMessage
       });
     } finally {
@@ -433,562 +557,577 @@ const AttendanceUpload: React.FC = () => {
     }
   };
 
-  // If user doesn't have permission, show message
+  const fileSchema = [
+    ['STT', 'Số thứ tự'],
+    ['Mã nhân viên', 'Bắt buộc'],
+    ['Tên nhân viên', 'Tên nhân viên'],
+    ['Phòng Ban', 'Phòng ban'],
+    ['Ngày', 'Ngày chấm công (bắt buộc)'],
+    ['Thứ', 'Thứ trong tuần'],
+    ['Giờ vào', 'Giờ vào làm'],
+    ['Giờ ra', 'Giờ ra về'],
+    ['Trễ', 'Số phút đi trễ'],
+    ['Sớm', 'Số phút về sớm'],
+    ['Công', 'Số công'],
+    ['Tổng giờ', 'Tổng giờ làm'],
+    ['Tăng ca', 'Số giờ tăng ca'],
+    ['Tổng toàn bộ', 'Tổng giờ toàn bộ'],
+    ['Ca', 'Ca làm việc'],
+  ];
+
+  /* ═══ Main Render ═══ */
   if (!canUploadAttendance) {
     return (
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Upload chấm công</h1>
-          <p className="text-gray-600 mt-2">
-            Upload file chấm công để import dữ liệu vào hệ thống.
-          </p>
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-6 relative">
+        <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+          <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-indigo-50/50 blur-[120px] rounded-full" />
+          <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-violet-50/50 blur-[120px] rounded-full" />
         </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-center py-12">
-            <svg className="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H9m3-6a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Không có quyền truy cập</h3>
-            <p className="text-gray-600">
-              Chức năng này chỉ dành cho quản trị viên và nhân viên hành chính nhân sự.
-            </p>
-            <p className="text-gray-500 text-sm mt-2">
-              Vui lòng liên hệ quản trị viên nếu bạn cần sử dụng chức năng này.
-            </p>
+        <div className="bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white p-12 max-w-lg w-full text-center animate-fade-in">
+          <div className="w-20 h-20 rounded-3xl bg-rose-50 flex items-center justify-center mx-auto mb-8">
+            <ShieldCheckIcon className="w-10 h-10 text-rose-500" />
           </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-4">Quyền truy cập hạn chế</h2>
+          <p className="text-slate-500 font-medium leading-relaxed mb-10">
+            Tính năng này chỉ dành cho quản trị viên và nhân sự cấp cao. Vui lòng liên hệ quản trị viên hệ thống để biết thêm chi tiết.
+          </p>
+          <button
+            onClick={() => window.history.back()}
+            className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-black transition-all"
+          >
+            QUAY LẠI TRANG CHỦ
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Upload chấm công</h1>
-        <p className="text-gray-600 mt-2">
-          Upload file chấm công để import dữ liệu vào hệ thống.
-        </p>
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 selection:bg-indigo-100 overflow-x-hidden p-6 md:p-10 lg:p-12 relative">
+      {/* Background blobs for premium feel */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-indigo-50/50 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-violet-50/50 blur-[120px] rounded-full" />
       </div>
 
-      <div className="flex justify-center">
-        <div className="w-full max-w-2xl space-y-6">
-
-          {/* Upload File Section */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Upload file chấm công</h2>
-              <p className="text-gray-500 text-sm">
-                Upload file Excel hoặc CSV
-              </p>
-            </div>
-
-            <div 
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-400 transition-colors"
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-            >
-              <div className="flex flex-col items-center">
-                <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                
-                <p className="text-gray-600 text-sm mb-1">
-                  Kéo thả file hoặc click để chọn file
-                </p>
-                <p className="text-gray-500 text-sm mb-4">
-                  Excel (.xlsx, .xls) hoặc CSV
-                </p>
-                
-                  <div className="flex flex-col items-center justify-center space-y-3">
-                  <label className="cursor-pointer bg-primary-600 text-white px-6 py-2.5 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium">
-                    <span>Chọn file</span>
-                    <input
-                      id="attendance-file"
-                      type="file"
-                      className="hidden"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={handleFileChange}
-                      disabled={uploading}
-                    />
-                  </label>
-                  
-                  {selectedFile && (
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={handleValidateFile}
-                        disabled={uploading}
-                        className={`px-5 py-2.5 rounded-md transition-colors text-sm font-medium ${
-                          uploading 
-                            ? 'bg-gray-400 cursor-not-allowed' 
-                            : 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                        }`}
-                      >
-                        {uploading ? (
-                          <span className="flex items-center">
-                            <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            Đang xử lý...
-                          </span>
-                        ) : 'Validate'}
-                      </button>
-                      <button
-                        onClick={handleUpload}
-                        disabled={uploading}
-                        className={`px-5 py-2.5 rounded-md transition-colors text-sm font-medium ${
-                          uploading 
-                            ? 'bg-gray-400 cursor-not-allowed' 
-                            : 'bg-green-600 hover:bg-green-700 text-white'
-                        }`}
-                      >
-                        Upload
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                {selectedFile && (
-                  <div className="mt-3 p-2 bg-blue-50 rounded-md">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <svg className="w-3 h-3 text-blue-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <div>
-                          <span className="text-gray-700 font-medium truncate block text-xs">{selectedFile.name}</span>
-                          <span className="text-gray-500 text-xs">
-                            {(selectedFile.size / 1024).toFixed(2)} KB
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setSelectedFile(null)}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                )}
-                
-                {uploadMessage && (
-                  <div className={`mt-3 p-2 rounded-md ${
-                    uploadMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-                  }`}>
-                    <div className="flex items-center">
-                      {uploadMessage.type === 'success' ? (
-                        <svg className="w-3 h-3 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-3 h-3 text-red-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      )}
-                      <span className="text-sm">{uploadMessage.text}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="mt-4">
-              <h3 className="font-medium text-gray-900 mb-2 text-sm">Hướng dẫn:</h3>
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <ul className="list-disc pl-4 space-y-1 text-sm text-gray-600">
-                  <li>File có cấu trúc cột đúng</li>
-                  <li>Định dạng: Excel hoặc CSV</li>
-                  <li>Dung lượng tối đa: 10MB</li>
-                </ul>
-              </div>
+      {/* Page Header - Tối ưu Responsive & Premium UI */}
+      <div className="mb-12 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+          {/* Premium Icon Container with Glow Effect */}
+          <div className="relative group/icon shrink-0">
+            <div className="absolute inset-0 bg-indigo-500 blur-2xl opacity-20 group-hover/icon:opacity-40 transition-opacity duration-500 rounded-full" />
+            <div className="relative w-16 h-16 rounded-[1.5rem] bg-indigo-600 flex items-center justify-center shadow-2xl shadow-indigo-200 border border-indigo-400/50 group-hover/icon:scale-110 transition-transform duration-500">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-50 rounded-[1.5rem]" />
+              <CloudArrowUpIcon className="w-8 h-8 text-white drop-shadow-md" />
             </div>
           </div>
 
-          {/* Template Download */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Mẫu file chấm công</h3>
-            <p className="text-gray-600 text-sm mb-4">
-              Tải về mẫu file Excel để nhập dữ liệu chấm công.
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase transition-all duration-300">
+                Upload <span className="text-indigo-600">Chấm công</span>
+              </h1>
+            </div>
+            <p className="text-base md:text-lg text-slate-500 font-bold uppercase tracking-[0.2em] opacity-60">
+              Kênh nhập liệu hiệu suất cao cho hành chính nhân sự
             </p>
-            <button 
-              onClick={handleDownloadTemplate}
-              className="w-full bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-3 rounded-md transition-colors flex items-center justify-center"
-            >
-              <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
-              Tải mẫu file Excel
-            </button>
-            
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <h4 className="font-medium text-gray-900 mb-2">Cấu trúc file:</h4>
-              <div className="text-sm text-gray-600 space-y-1">
-                <div className="flex justify-between">
-                  <span>STT:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Số thứ tự</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Mã nhân viên:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Mã nhân viên (bắt buộc)</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tên nhân viên:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Tên nhân viên</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Phòng Ban:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Phòng ban</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Ngày:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Ngày chấm công (bắt buộc)</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Thứ:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Thứ trong tuần</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Giờ vào:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Giờ vào làm</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Giờ ra:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Giờ ra về</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Trễ:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Số phút đi trễ</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Sớm:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Số phút về sớm</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Công:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Số công</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tổng giờ:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Tổng giờ làm</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tăng ca:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Số giờ tăng ca</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tổng toàn bộ:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Tổng giờ toàn bộ</code>
-                </div>
-                <div className="flex justify-between">
-                  <span>Ca:</span>
-                  <code className="bg-gray-100 px-2 py-1 rounded">Ca làm việc</code>
-                </div>
-              </div>
-            </div>
           </div>
+        </div>
 
-          {/* Upload History */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Lịch sử upload</h3>
-            {uploadHistory.length === 0 ? (
-              <div className="text-center py-4">
-                <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-gray-500">Chưa có lịch sử upload</p>
-                <p className="text-gray-400 text-sm mt-1">Các file upload sẽ hiển thị ở đây</p>
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {uploadHistory.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      <svg className={`w-5 h-5 mr-3 ${item.status === 'success' ? 'text-green-500' : item.status === 'error' ? 'text-red-500' : 'text-yellow-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 truncate">{item.filename}</p>
-                        <p className="text-xs text-gray-500">{item.uploadedAt} • {item.records} bản ghi</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleDownloadTemplate}
+            className="flex-1 sm:flex-none group flex items-center justify-center gap-3 bg-white/60 backdrop-blur-xl hover:bg-white text-slate-700 border border-slate-200/60 px-6 py-4 rounded-2xl font-black transition-all duration-300 shadow-xl shadow-slate-200/20 hover:shadow-indigo-100 hover:-translate-y-1"
+            title="Tải mẫu file Excel"
+          >
+            <DocumentArrowDownIcon className="w-5 h-5 text-indigo-500" />
+            <span className="hidden sm:inline">Tải mẫu file</span>
+            <span className="sm:hidden text-xs">MẪU FILE</span>
+          </button>
+
+          <button
+            onClick={handleViewDetail}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-3 bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black shadow-2xl shadow-indigo-200 transition-all duration-300 hover:bg-indigo-700 hover:scale-105 active:scale-95"
+            title="Xem chi tiết lịch sử và cấu trúc"
+          >
+            <EyeIcon className="w-5 h-5 drop-shadow-md" />
+            <span className="hidden sm:inline">Xem Chi tiết</span>
+            <span className="sm:hidden text-xs">CHI TIẾT</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* ── Left Column: Upload Main ── */}
+        <div className="lg:col-span-8 space-y-10">
+          <div className="bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-slate-200/40 border border-white p-6 sm:p-10 relative overflow-hidden group">
+            {/* Background Glows for Upload Card */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/50 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-indigo-100/60 transition-colors duration-700" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-violet-50/50 rounded-full blur-3xl -ml-24 -mb-24 group-hover:bg-violet-100/60 transition-colors duration-700" />
+
+            <div className="relative space-y-8">
+              {/* Drop zone - Nâng cấp hiện đại */}
+              <div
+                className={cx(
+                  'relative min-h-[360px] rounded-[2rem] border-2 border-dashed transition-all duration-700 cursor-pointer flex flex-col items-center justify-center p-8 group/drop',
+                  dragOver
+                    ? 'border-indigo-500 bg-indigo-50/80 scale-[0.98] shadow-inner'
+                    : selectedFile
+                      ? 'border-emerald-400 bg-emerald-50/30'
+                      : 'border-slate-200 bg-slate-50/30 hover:border-indigo-400 hover:bg-white hover:shadow-[0_20px_50px_rgba(79,70,229,0.1)]'
+                )}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { handleDrop(e); setDragOver(false); }}
+                onClick={() => !selectedFile && fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  id="attendance-file"
+                  type="file"
+                  className="hidden"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileChange}
+                  disabled={uploading}
+                />
+
+                {selectedFile ? (
+                  <div className="flex flex-col items-center text-center w-full max-w-sm animate-fade-in">
+                    <div className="relative mb-8 group/file">
+                      <div className="absolute inset-0 bg-emerald-400 blur-2xl opacity-20 group-hover/file:opacity-40 transition-opacity rounded-full" />
+                      <div className="relative w-24 h-24 rounded-[1.75rem] bg-emerald-500 flex items-center justify-center shadow-2xl shadow-emerald-200 border border-emerald-400/50 transition-transform group-hover/file:-rotate-3">
+                        <DocumentTextIcon className="w-12 h-12 text-white" />
                       </div>
                     </div>
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${item.status === 'success' ? 'bg-green-100 text-green-800' : item.status === 'error' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {item.status === 'success' ? 'Thành công' : item.status === 'error' ? 'Lỗi' : 'Đang xử lý'}
+
+                    <h3 className="text-2xl font-black text-slate-800 break-all mb-3 tracking-tight">
+                      {selectedFile.name}
+                    </h3>
+                    <div className="flex flex-col items-center gap-3 mb-10">
+                      <span className="inline-flex items-center gap-2 text-xs font-black text-emerald-600 bg-emerald-50 px-4 py-2 rounded-xl uppercase tracking-widest border border-emerald-100">
+                        <CheckCircleIcon className="w-4 h-4" />
+                        Sẵn sàng upload
+                      </span>
+                      <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                        DUNG LƯỢNG: {(selectedFile.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedFile(null);
+                      }}
+                      className="text-slate-400 hover:text-rose-600 font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center gap-2 p-3 hover:bg-rose-50 rounded-xl"
+                    >
+                      <XMarkIcon className="w-4 h-4" />
+                      Hủy và chọn lại
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center text-center animate-fade-in max-w-sm">
+                    <div className="relative mb-8 group/upload">
+                      <div className="absolute inset-0 bg-indigo-500 blur-2xl opacity-10 group-hover/drop:opacity-30 transition-opacity rounded-full" />
+                      <div className="relative w-24 h-24 rounded-[1.75rem] bg-white flex items-center justify-center border border-slate-100 shadow-xl group-hover/drop:bg-indigo-600 group-hover/drop:border-indigo-500 transition-all duration-500">
+                        <CloudArrowUpIcon className="w-12 h-12 text-indigo-400 group-hover/drop:text-white transition-colors" />
+                      </div>
+                    </div>
+                    <p className="text-2xl font-black text-slate-800 mb-3 tracking-tight">
+                      Kéo thả file vào đây
+                    </p>
+                    <p className="text-base text-slate-400 font-bold uppercase tracking-widest mb-10 opacity-70">
+                      Excel hoặc CSV • Tối đa 10MB
+                    </p>
+                    <span className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-2xl shadow-indigo-100 hover:shadow-indigo-200 hover:-translate-y-1 transition-all uppercase tracking-widest text-sm translate-z-0">
+                      Chọn file
                     </span>
                   </div>
-                ))}
+                )}
+              </div>
+
+              {/* Action grid - Nâng cấp hiện đại */}
+              {selectedFile && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 animate-fade-in pt-4">
+                  <button
+                    onClick={handleValidateFile}
+                    disabled={uploading}
+                    className={cx(
+                      'flex items-center justify-center gap-3 rounded-[1.25rem] px-8 py-5 text-sm font-black transition-all border-2 uppercase tracking-widest leading-none',
+                      uploading
+                        ? 'bg-slate-50 text-slate-300 border-slate-100'
+                        : 'bg-white text-amber-600 border-amber-100 hover:bg-amber-50 hover:border-amber-200'
+                    )}
+                  >
+                    <CheckBadgeIcon className="w-5 h-5" />
+                    KIỂM TRA CẤU TRÚC
+                  </button>
+                  <button
+                    onClick={handleUpload}
+                    disabled={uploading}
+                    className={cx(
+                      'flex items-center justify-center gap-3 rounded-[1.25rem] px-8 py-5 text-sm font-black transition-all shadow-2xl uppercase tracking-widest leading-none',
+                      uploading
+                        ? 'bg-slate-50 text-slate-300'
+                        : 'bg-indigo-600 text-white hover:bg-slate-900 shadow-indigo-200'
+                    )}
+                  >
+                    {uploading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <CloudArrowUpIcon className="w-5 h-5" />
+                    )}
+                    {uploading ? 'ĐANG UPLOAD...' : 'BẮT ĐẦU UPLOAD'}
+                  </button>
+                </div>
+              )}
+
+              {/* Status Alert */}
+              {uploadMessage && (
+                <div className="animate-fade-in">
+                  <Alert
+                    type={uploadMessage.type as 'success' | 'error'}
+                    text={uploadMessage.text}
+                    onClose={() => setUploadMessage(null)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-xl shadow-slate-200/30 border border-white p-8 sm:p-10">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                <InformationCircleIcon className="w-6 h-6 text-indigo-500" />
+              </div>
+              <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Cấu trúc dữ liệu yêu cầu</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {fileSchema.map(([col, desc], i) => (
+                <div key={i} className="group p-5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:bg-white transition-all duration-300 hover:shadow-lg">
+                  <p className="text-[10px] font-black text-indigo-500 mb-1 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded inline-block">[{col}]</p>
+                  <p className="text-[11px] font-bold text-slate-600 uppercase tracking-tight leading-relaxed mt-2">{desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Right Column: Sidebar ── */}
+        <div className="lg:col-span-4 transition-all">
+          <div className="bg-white/70 backdrop-blur-xl rounded-[2.5rem] shadow-xl shadow-slate-200/30 border border-white flex flex-col h-full min-h-[500px] sticky top-8">
+            <div className="p-8 border-b border-slate-100/50">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Lịch sử upload</h2>
+              </div>
+              <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-black">Activity Tracking</p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar min-h-[400px]">
+              {uploadHistory.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12 opacity-40">
+                  <div className="w-20 h-20 rounded-[2rem] bg-slate-50 flex items-center justify-center mb-6">
+                    <DocumentTextIcon className="w-10 h-10 text-slate-300" />
+                  </div>
+                  <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Chưa có dữ liệu</p>
+                </div>
+              ) : (
+                uploadHistory.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className={cx(
+                      "group p-5 rounded-[1.75rem] bg-white border border-slate-100/60 hover:border-indigo-200 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-indigo-100/20 hover:-translate-y-0.5",
+                      "animate-fade-in-up",
+                      index < 5 ? `stagger-${index + 1}` : 'stagger-5'
+                    )}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={cx(
+                        'w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border transition-colors',
+                        item.status === 'success' ? 'bg-emerald-50 text-emerald-500 border-emerald-100/50' :
+                          item.status === 'error' ? 'bg-rose-50 text-rose-500 border-rose-100/50' : 'bg-amber-50 text-amber-500 border-amber-100/50'
+                      )}>
+                        <DocumentTextIcon className="w-5.5 h-5.5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <p className="text-sm font-black text-slate-800 truncate leading-none">
+                            {item.filename}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={item.status} />
+                          <span className="w-1 h-1 rounded-full bg-slate-200" />
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                            {item.records} Dòng
+                          </p>
+                        </div>
+                        <p className="text-[9px] text-slate-300 font-black uppercase tracking-widest mt-2">
+                          {item.uploadedAt}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-8 border-t border-slate-100/50 bg-slate-50/30 rounded-b-[2.5rem]">
+              <div className="flex items-start gap-4 text-slate-400">
+                <InformationCircleIcon className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] font-bold leading-relaxed uppercase tracking-tight opacity-70">
+                  Hệ thống chỉ lưu trữ 10 phiên upload gần nhất để đảm bảo hiệu suất tối ưu.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ Detail View Modal ═══ */}
+      {showDetailView && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 animate-fade-in">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={handleBack}
+          />
+
+          {/* Panel */}
+          <div className="relative bg-white/95 backdrop-blur-3xl rounded-[3rem] shadow-2xl w-full max-w-full lg:max-w-7xl max-h-[94vh] overflow-hidden flex flex-col border border-white/60 animate-scale-up">
+            {/* Modal Header - Premium Breadcrumbs */}
+            <div className="flex items-center justify-between px-10 py-6 border-b border-slate-100/60 bg-white/50">
+              <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                <button
+                  onClick={handleBack}
+                  className="hover:text-indigo-600 transition-colors flex items-center gap-1.5"
+                >
+                  <HomeIcon className="w-3.5 h-3.5" />
+                  HOME
+                </button>
+                {viewMode === 'employee' && (
+                  <>
+                    <ChevronRightIcon className="w-3 h-3 opacity-30" />
+                    <button
+                      onClick={handleBackToDepartments}
+                      className="hover:text-indigo-600 transition-colors"
+                    >
+                      PHÒNG BAN
+                    </button>
+                  </>
+                )}
+                {selectedEmployee && (
+                  <>
+                    <ChevronRightIcon className="w-3 h-3 opacity-30" />
+                    <button
+                      onClick={handleBackToEmployees}
+                      className="hover:text-indigo-600 transition-colors"
+                    >
+                      NHÂN VIÊN
+                    </button>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={handleBack}
+                className="w-12 h-12 rounded-2xl bg-slate-50 hover:bg-rose-50 hover:text-rose-500 flex items-center justify-center text-slate-400 transition-all group/close"
+              >
+                <XMarkIcon className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+              </button>
+            </div>
+
+            {/* Modal body (scrollable) */}
+            <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-10 space-y-10 custom-scrollbar">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="space-y-1">
+                  <h3 className="text-3xl font-black text-slate-900 tracking-tight">
+                    {viewMode === 'department' && 'Danh mục Phòng ban'}
+                    {viewMode === 'employee' &&
+                      !selectedEmployee &&
+                      `${departments.find((d) => d.id === selectedDepartment)?.name}`}
+                    {selectedEmployee &&
+                      `${employees.find((e) => e.id === selectedEmployee)?.name}`}
+                  </h3>
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] opacity-80">
+                    {viewMode === 'department' && 'Quản lý nhân sự theo đơn vị'}
+                    {viewMode === 'employee' && !selectedEmployee && 'Danh sách nhân sự trực thuộc'}
+                    {selectedEmployee && 'Dữ liệu chấm công lịch sử chi tiết'}
+                  </p>
+                </div>
+
+                {(viewMode === 'employee' || selectedEmployee) && (
+                  <div className="relative min-w-[320px] group/search">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <MagnifyingGlassIcon className="w-5 h-5 text-slate-300 group-focus-within/search:text-indigo-500 transition-colors" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm nhanh..."
+                      className="w-full pl-12 pr-6 py-4 rounded-2xl bg-slate-50/50 border border-slate-100 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all shadow-sm"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Views */}
+              {viewMode === 'department' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {departments.map((dept, index) => (
+                    <button
+                      key={dept.id}
+                      onClick={() => handleSelectDepartment(dept.id)}
+                      className={cx(
+                        "text-left p-8 rounded-[2.5rem] bg-white border border-slate-100 hover:border-indigo-400 hover:shadow-2xl hover:shadow-indigo-100/40 hover:-translate-y-1.5 transition-all duration-500 group relative overflow-hidden",
+                        "animate-fade-in-up",
+                        index < 8 ? `stagger-${index + 1}` : 'stagger-8'
+                      )}
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/30 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-indigo-100/50 transition-colors" />
+                      <div className="relative">
+                        <div className="w-14 h-14 rounded-2xl bg-indigo-50/80 flex items-center justify-center mb-8 group-hover:bg-indigo-600 transition-all duration-500 group-hover:scale-110 shadow-lg shadow-transparent group-hover:shadow-indigo-200">
+                          <BuildingOfficeIcon className="w-7 h-7 text-indigo-500 group-hover:text-white transition-colors" />
+                        </div>
+                        <p className="text-xl font-black text-slate-800 mb-2 leading-tight pr-4">{dept.name}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {dept.employeeCount} Nhân sự
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {viewMode === 'employee' && !selectedEmployee && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {departmentEmployees.length === 0 ? (
+                    <div className="col-span-full py-24 text-center">
+                      <div className="w-20 h-20 rounded-[2rem] bg-slate-50 flex items-center justify-center mx-auto mb-6 opacity-40">
+                        <UserIcon className="w-10 h-10 text-slate-300" />
+                      </div>
+                      <p className="text-sm font-black text-slate-300 uppercase tracking-widest">Không tìm thấy dữ liệu</p>
+                    </div>
+                  ) : (
+                    departmentEmployees.map((emp, index) => (
+                      <button
+                        key={emp.id}
+                        onClick={() => handleSelectEmployee(emp.id)}
+                        className={cx(
+                          "text-left p-5 rounded-[2.25rem] bg-white border border-slate-100/80 hover:border-indigo-400 hover:shadow-2xl hover:shadow-indigo-100/30 transition-all duration-500 group flex items-center gap-5 relative overflow-hidden",
+                          "animate-fade-in-up",
+                          index < 12 ? `stagger-${(index % 8) + 1}` : 'stagger-8'
+                        )}
+                      >
+                        <div className="relative shrink-0">
+                          <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100 group-hover:bg-indigo-600 group-hover:border-indigo-500 transition-all duration-500 group-hover:rotate-6 shadow-sm">
+                            <UserIcon className="w-8 h-8 text-slate-300 group-hover:text-white transition-colors" />
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white" />
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest opacity-80">
+                            {emp.code}
+                          </p>
+                          <p className="text-lg font-black text-slate-800 truncate pr-2 tracking-tight group-hover:text-indigo-600 transition-colors">
+                            {emp.name}
+                          </p>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all">
+                          <ChevronRightIcon className="w-5 h-5 text-indigo-400" />
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {selectedEmployee && (
+                <div className="space-y-8 animate-fade-in">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard label="Ngày công" value={18} color="green" />
+                    <StatCard label="Đi muộn" value={3} color="yellow" />
+                    <StatCard label="Vắng mặt" value={1} color="red" />
+                    <StatCard label="Số ngày tính" value={22} color="blue" />
+                  </div>
+
+                  <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/40 border border-slate-100 p-8">
+                    <AttendanceCalendar
+                      onDateClick={handleDateClick}
+                      employeeId={selectedEmployee ? parseInt(selectedEmployee) : undefined}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer - Premium Actions */}
+            {selectedEmployee && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-10 py-8 border-t border-slate-100/60 bg-white/50 backdrop-blur-xl">
+                <button
+                  onClick={handleBackToEmployees}
+                  className="flex items-center gap-3 text-[10px] font-black text-slate-400 hover:text-indigo-600 transition-all uppercase tracking-[0.2em] group/back"
+                >
+                  <ArrowLeftIcon className="w-4 h-4 group-hover/back:-translate-x-1 transition-transform" />
+                  QUAY LẠI DANH SÁCH
+                </button>
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                  <button className="flex-1 sm:flex-none px-8 py-4 rounded-2xl border border-slate-200 text-xs font-black text-slate-600 hover:bg-white hover:border-slate-300 hover:shadow-xl transition-all uppercase tracking-widest">
+                    In báo cáo
+                  </button>
+                  <button className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-slate-900 text-white text-xs font-black shadow-2xl shadow-slate-200 hover:bg-black hover:scale-105 active:scale-95 transition-all uppercase tracking-widest">
+                    Xuất file Excel
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Detail View Modal with Calendar and Hierarchy */}
-      {showDetailView && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
-
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-primary-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <EyeIcon className="h-6 w-6 text-primary-600" />
-                  </div>
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-lg leading-6 font-medium text-gray-900">
-                        {viewMode === 'department' && 'Chọn phòng ban'}
-                        {viewMode === 'employee' && !selectedEmployee && `Nhân viên ${departments.find(d => d.id === selectedDepartment)?.name}`}
-                        {selectedEmployee && `Chấm công ${employees.find(e => e.id === selectedEmployee)?.name}`}
-                      </h3>
-                      <button
-                        onClick={handleBack}
-                        className="text-gray-400 hover:text-gray-500"
-                      >
-                        <XMarkIcon className="h-6 w-6" />
-                      </button>
-                    </div>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        {viewMode === 'department' && 'Chọn phòng ban để xem danh sách nhân viên'}
-                        {viewMode === 'employee' && !selectedEmployee && 'Chọn nhân viên để xem chi tiết chấm công'}
-                        {selectedEmployee && 'Xem chi tiết chấm công của nhân viên'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  {/* Breadcrumb Navigation */}
-                  <div className="flex items-center mb-6 text-sm">
-                    <button
-                      onClick={handleBack}
-                      className="text-primary-600 hover:text-primary-800"
-                    >
-                      Trang chính
-                    </button>
-                    {viewMode === 'employee' && (
-                      <>
-                        <span className="mx-2 text-gray-400">/</span>
-                        <button
-                          onClick={handleBackToDepartments}
-                          className="text-primary-600 hover:text-primary-800"
-                        >
-                          Phòng ban
-                        </button>
-                      </>
-                    )}
-                    {selectedEmployee && (
-                      <>
-                        <span className="mx-2 text-gray-400">/</span>
-                        <button
-                          onClick={handleBackToEmployees}
-                          className="text-primary-600 hover:text-primary-800"
-                        >
-                          Nhân viên
-                        </button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Search Bar (for employee list) */}
-                  {(viewMode === 'employee' || selectedEmployee) && (
-                    <div className="mb-6">
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Tìm kiếm theo tên hoặc mã nhân viên..."
-                          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Department List View */}
-                  {viewMode === 'department' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                      {departments.map((dept) => (
-                        <div
-                          key={dept.id}
-                          className="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-400 hover:shadow-md transition-all cursor-pointer"
-                          onClick={() => handleSelectDepartment(dept.id)}
-                        >
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                              <BuildingOfficeIcon className="h-8 w-8 text-gray-400" />
-                            </div>
-                            <div className="ml-4">
-                              <h4 className="text-sm font-medium text-gray-900">{dept.name}</h4>
-                              <p className="text-xs text-gray-500 mt-1">{dept.employeeCount} nhân viên</p>
-                            </div>
-                          </div>
-                          <div className="mt-3 flex justify-end">
-                            <span className="text-xs text-primary-600 font-medium">Xem nhân viên →</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Employee List View */}
-                  {viewMode === 'employee' && !selectedEmployee && (
-                    <div className="mb-6">
-                      <div className="bg-gray-50 p-3 rounded-lg mb-4">
-                        <div className="flex items-center">
-                          <BuildingOfficeIcon className="h-5 w-5 text-gray-500 mr-2" />
-                          <div>
-                            <h4 className="font-medium text-gray-900">Phòng ban: {departments.find(d => d.id === selectedDepartment)?.name}</h4>
-                            <p className="text-sm text-gray-600">Chọn nhân viên để xem chi tiết chấm công</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {loadingEmployees ? (
-                        <div className="text-center py-8">
-                          <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 3.75V21m-10.5-7.75V21m-4.5 0h.01" />
-                          </svg>
-                          <p className="text-gray-500">Đang tải danh sách nhân viên...</p>
-                        </div>
-                      ) : departmentEmployees.length === 0 ? (
-                        <div className="text-center py-8">
-                          <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 3.75V21m-10.5-7.75V21m-4.5 0h.01" />
-                          </svg>
-                          <p className="text-gray-500">Không tìm thấy nhân viên</p>
-                          <p className="text-gray-400 text-sm mt-1">Thử tìm kiếm với từ khóa khác</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {departmentEmployees.map((emp) => (
-                            <div
-                              key={emp.id}
-                              className="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-400 hover:shadow-md transition-all cursor-pointer"
-                              onClick={() => handleSelectEmployee(emp.id)}
-                            >
-                              <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                  <UserIcon className="h-8 w-8 text-gray-400" />
-                                </div>
-                                <div className="ml-4 flex-1">
-                                  <h4 className="text-sm font-medium text-gray-900">{emp.name}</h4>
-                                  <p className="text-xs text-gray-500 mt-1">Mã: {emp.code}</p>
-                                  <p className="text-xs text-gray-500">Phòng ban: {emp.department}</p>
-                                </div>
-                              </div>
-                              <div className="mt-3 flex justify-end">
-                                <span className="text-xs text-primary-600 font-medium">Xem chấm công →</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Employee Detail View with Calendar */}
-                  {selectedEmployee && (
-                    <div>
-                      {/* Employee Info */}
-                      <div className="bg-blue-50 p-4 rounded-lg mb-6">
-                        <div className="flex items-center">
-                          <UserIcon className="h-6 w-6 text-blue-500 mr-3" />
-                          <div>
-                            <h4 className="font-medium text-blue-900">
-                              {employees.find(e => e.id === selectedEmployee)?.name} ({employees.find(e => e.id === selectedEmployee)?.code})
-                            </h4>
-                          <p className="text-sm text-blue-700">
-                            Phòng ban: {employees.find(e => e.id === selectedEmployee)?.department}
-                          </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Calendar Section */}
-                      <div className="mb-6">
-                        <AttendanceCalendar 
-                          onDateClick={handleDateClick}
-                          employeeId={selectedEmployee ? parseInt(selectedEmployee) : undefined}
-                        />
-                      </div>
-
-                      {/* Selected Date Info */}
-                      {selectedDate && (
-                        <div className="bg-green-50 p-4 rounded-lg mb-4">
-                          <div className="flex items-center">
-                            <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <div>
-                              <h4 className="font-medium text-green-900">Ngày đã chọn</h4>
-                              <p className="text-sm text-green-700">
-                                {selectedDate.toLocaleDateString('vi-VN', { 
-                                  weekday: 'long', 
-                                  year: 'numeric', 
-                                  month: 'long', 
-                                  day: 'numeric' 
-                                })}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Summary */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-green-50 p-3 rounded-lg">
-                          <h4 className="font-medium text-green-900 text-sm">Ngày đủ công</h4>
-                          <p className="text-xl font-bold text-green-700 mt-1">18</p>
-                        </div>
-                        <div className="bg-yellow-50 p-3 rounded-lg">
-                          <h4 className="font-medium text-yellow-900 text-sm">Ngày đi muộn</h4>
-                          <p className="text-xl font-bold text-yellow-700 mt-1">3</p>
-                        </div>
-                        <div className="bg-red-50 p-3 rounded-lg">
-                          <h4 className="font-medium text-red-900 text-sm">Ngày vắng mặt</h4>
-                          <p className="text-xl font-bold text-red-700 mt-1">1</p>
-                        </div>
-                        <div className="bg-blue-50 p-3 rounded-lg">
-                          <h4 className="font-medium text-blue-900 text-sm">Tổng ngày</h4>
-                          <p className="text-xl font-bold text-blue-700 mt-1">22</p>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex justify-between items-center">
-                        <button
-                          onClick={handleBack}
-                          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                        >
-                          <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                          Trở về
-                        </button>
-                        <div className="flex space-x-3">
-                          <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                            Xuất báo cáo
-                          </button>
-                          <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                            In lịch
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
+
+      {/* Helper styles and keyframes */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+        
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(15px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scale-up-sm {
+          from { opacity: 0; transform: scale(0.98); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes slide-down {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes count-up {
+          from { opacity: 0; transform: scale(0.9); filter: blur(4px); }
+          to { opacity: 1; transform: scale(1); filter: blur(0); }
+        }
+
+        .animate-fade-in-up { animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .animate-scale-up-sm { animation: scale-up-sm 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .animate-slide-down { animation: slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+        .animate-count-up { animation: count-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+        .stagger-1 { animation-delay: 40ms; }
+        .stagger-2 { animation-delay: 80ms; }
+        .stagger-3 { animation-delay: 120ms; }
+        .stagger-4 { animation-delay: 160ms; }
+        .stagger-5 { animation-delay: 200ms; }
+
+        .glow-indigo { box-shadow: 0 0 40px -10px rgba(79, 70, 229, 0.1); }
+        .glow-emerald { box-shadow: 0 0 40px -10px rgba(16, 185, 129, 0.1); }
+        .glow-rose { box-shadow: 0 0 40px -10px rgba(244, 63, 94, 0.1); }
+        .glow-amber { box-shadow: 0 0 40px -10px rgba(245, 158, 11, 0.1); }
+      `}</style>
     </div>
   );
 };
