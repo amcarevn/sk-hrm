@@ -555,7 +555,7 @@ const AttendanceView: React.FC = () => {
                 </p>
               </div>
               <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg">
-                <h3 className="font-medium text-blue-900 text-xs">Tổng công</h3>
+                <h3 className="font-medium text-blue-900 text-xs">Tổng ngày công</h3>
                 <p className="text-2xl font-bold text-blue-700 mt-1">
                   {stats._summary.total_work_days || 0}
                 </p>
