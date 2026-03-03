@@ -72,97 +72,89 @@ export interface AttendanceStats {
 }
 
 export interface CalendarViewData {
-  calendar_data: Array<{
-    id: number;
-    date: string;
-    employee_id: number;
-    employee_name: string;
-    employee_code: string;
-    check_in: string;
-    check_out: string;
-    status: string;
-    status_display: string;
-    shift_type: string;
-    shift_type_display: string;
-    working_hours: number;
-    notes: string;
-    department_name: string;
-    // Thêm các field mới từ AttendanceSerializer
-    work_coefficient?: number;
-    late_minutes?: number;
-    early_leave_minutes?: number;
-    applied_rules?: Array<{
-      rule_id: number;
-      rule_code: string;
-      rule_name: string;
-      rule_type: string;
-      applied_at: string;
-      calculation_result: any;
-    }>;
-    rule_history?: Array<{
-      id: number;
-      attendance_id: number;
-      rule_id: number;
-      applied_configuration: any;
-      calculation_result: any;
-      applied_at: string;
-      applied_by: number | null;
-    }>;
-    // Thông tin đơn đã duyệt
-    approved_explanations?: Array<{
-      id: number;
-      request_code: string;
-      original_status: string;
-      expected_status: string;
-      status: string;
-      approved_at: string;
-      approved_by_name: string;
-    }>;
-    approved_registrations?: Array<{
-      id: number;
-      request_code: string;
-      explanation_type: string;
-      status: string;
-      approved_at: string;
-      approved_by_name: string;
-    }>;
-    approved_leave_requests?: Array<{
-      id: number;
-      request_code: string;
-      leave_type: string;
-      status: string;
-      approved_at: string;
-      approved_by_name: string;
-    }>;
-    approved_online_works?: Array<{
-      id: number;
-      request_code: string;
-      status: string;
-      work_date: string;
-      direct_manager_approved: boolean;
-      hr_approved: boolean;
-      approved_at: string;
-    }>;
-    day_status_summary?: {
-      has_approved_explanation: boolean;
-      has_approved_registration: boolean;
-      has_approved_leave: boolean;
-      has_approved_online_work: boolean;
-      has_pending_request: boolean;
-      summary_text: string;
-      display_color: string;
-    };
-  }>;
-  employees: Array<{
-    id: number;
-    full_name: string;
-    employee_id: string;
-    department_name: string;
-  }>;
   year: number;
   month: number;
-  start_date: string;
-  end_date: string;
+  employee: {
+    id: number;
+    employee_id: string;
+    full_name: string;
+  };
+  summary: {
+    total_work_days: number;
+    full_days: number;
+    half_days: number;
+    late_or_early_days: number;
+    absent_days: number;
+    forgot_checkin_days: number;
+    overtime_hours: number;
+    extra_hours: number;
+    night_shift_sessions: number;
+    live_sessions: number;
+    leave_days: number;
+    explanation_quota_max?: number;
+    online_work_quota_used?: number;
+    online_work_quota_max?: number;
+    online_work_quota_remaining?: number;
+    remaining_annual_leave?: number;
+  };
+  engine_summary: {
+    total_penalty_vnd: number;
+    total_parking_allowance: number;
+    total_live_allowance: number;
+    explanation_quota_used: number;
+    events_processed: number;
+  };
+  shift_configs: any[];
+  legend: Array<{
+    day_status: string;
+    label: string;
+    color: string;
+    description: string;
+  }>;
+  calendar: Array<{
+    date: string;
+    day: number;
+    weekday: number;
+    weekday_label: string;
+    is_weekend: boolean;
+    is_holiday: boolean;
+    holiday_name: string | null;
+    is_leave: boolean;
+    day_status: string;
+    status_badge: string | null;
+    engine_context: {
+      is_holiday: boolean;
+      is_leave_day: boolean;
+      is_absent: boolean;
+      is_incomplete: boolean;
+      work_credit: number;
+      penalty_amount: number;
+      overtime_hours: number;
+      extra_hours: number;
+      night_shift_sessions: number;
+      live_sessions: number;
+      late_minutes: number;
+      early_leave_minutes: number;
+      rules_applied: string[];
+    };
+    shifts: Array<{
+      shift_type: string;
+      shift_label: string;
+      shift_code?: string;
+      scheduled_start?: string;
+      scheduled_end?: string;
+      check_in: string | null;
+      check_out: string | null;
+      status: string;
+      status_color: string;
+    }>;
+    registrations: any[];
+    raw_checkin_checkout: Array<{
+      check_in: string | null;
+      check_out: string | null;
+    }>;
+  }>;
+  total_days_in_month: number;
 }
 
 export interface AttendanceParams {
