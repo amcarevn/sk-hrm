@@ -1404,8 +1404,7 @@ const AttendanceManagement: React.FC = () => {
             Tổng ngày công
           </h3>
           <p className="text-xl md:text-2xl font-bold text-blue-700 mt-1 md:mt-2">
-            {monthlyWorkCredits?.results?.[0]?.attendance_summary?.total_days ||
-              0}
+            {calendarSummary?.total_work_days ?? monthlyWorkCredits?.results?.[0]?.attendance_summary?.total_days ?? 0}
           </p>
           <p className="text-[10px] md:text-xs text-blue-600 mt-1">
             Tháng hiện tại
