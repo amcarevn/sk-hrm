@@ -186,7 +186,24 @@ const OnboardingDetail: React.FC = () => {
       showError(error.response?.data?.message || 'Không thể bắt đầu quy trình onboarding');
     }
   };
+  const handleApproveEmployeeInfo = async () => {
+    if (!id || !onboarding) return;
+    if (!confirm('Xác nhận duyệt thông tin nhân viên đã điền?')) return;
 
+    try {
+      const task4 = onboarding.tasks?.find(t => t.order === 4);
+      if (!task4) return;
+      
+      await onboardingService.completeTask(
+        task4.id,
+        'Quản lý trực tiếp đã xác nhận thông tin nhân viên'
+      );
+      showSuccess('Đã duyệt thông tin nhân viên');
+      await fetchOnboardingDetail();
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Không thể duyệt thông tin');
+    }
+  };
   const handleCompleteProcess = async () => {
     if (!id || !onboarding) return;
 
@@ -299,7 +316,29 @@ const OnboardingDetail: React.FC = () => {
             </button>
           </div>
         )}
-
+        {/* Duyệt thông tin nhân viên - hiển thị khi task 4 đang IN_PROGRESS */}
+        {(() => {
+          const task4 = onboarding.tasks?.find(t => t.order === 4);
+          if (!task4 || task4.status !== 'IN_PROGRESS') return null;
+          return (
+            <div className="bg-amber-50 rounded-lg border border-amber-200 p-6">
+              <h3 className="text-lg font-semibold mb-2 text-amber-900 flex items-center">
+                <span className="mr-2">⏳</span>
+                Chờ duyệt thông tin nhân viên
+              </h3>
+              <p className="text-amber-700 mb-4">
+                Nhân viên đã điền xong thông tin onboarding. Vui lòng kiểm tra và xác nhận.
+              </p>
+              <button
+                onClick={handleApproveEmployeeInfo}
+                className="flex items-center px-6 py-3 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
+              >
+                <CheckCircleIcon className="w-5 h-5 mr-2" />
+                Duyệt thông tin nhân viên
+              </button>
+            </div>
+          );
+        })()}
         {/* Notes */}
         {onboarding.notes && (
           <div className="bg-white rounded-lg border p-6">
