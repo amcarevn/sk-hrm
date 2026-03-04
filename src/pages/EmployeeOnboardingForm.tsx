@@ -5,7 +5,6 @@
 
 import React, { useState, useEffect, ChangeEvent, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { API_BASE_URL } from '../utils/api';
 import {
   TextField,
   Select,
@@ -65,7 +64,7 @@ const SUB_DEPARTMENT_OPTIONS = [
   'Mua hàng', 'Công nghệ thông tin', 'Tiktok 6', 'Tiktok 7',
   'Tiktok 8', 'Tiktok 9', 'Tiktok 10',
 ];
-const SECTION_OPTIONS = ['Phẫu thuật thẩm mỹ', 'Da liễu'];
+const SECTION_OPTIONS = ['Phẫu thuật thẩm mỹ'];
 const RANK_OPTIONS = ['Nhân viên', 'Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'];
 const WORK_FORM_OPTIONS = [
   { value: 'FULL_TIME', label: 'Full-time' },
@@ -125,6 +124,7 @@ interface FormValues {
   salary: string;
   allowance: string;
   probation_period_months: string;
+  probation_salary_percentage: string;
 }
 
 // ============================================
@@ -246,7 +246,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const [values, setValues] = useState<FormValues>({
     candidate_name: '', candidate_email: '', candidate_phone: '',
     date_of_birth: '', gender: 'M', education_level: '', facebook_link: '',
-    start_date: '', region: '', block: '', sub_department: '', section: '',
+    start_date: '', region: '', block: '', sub_department: '', section: 'Phẫu thuật thẩm mỹ',
     job_rank: '', doctor_team: '', work_form: '', work_location: '',
     citizen_id: '', citizen_id_issue_date: '', citizen_id_issue_place: '',
     old_id_number: '', permanent_address: '', current_address: '',
@@ -255,6 +255,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
     emergency_contact_phone: '', emergency_contact_dob: '',
     emergency_contact_occupation: '', emergency_contact_address: '',
     salary: '', allowance: '', probation_period_months: '2',
+    probation_salary_percentage: '',
   });
 
   const showToast = (type: 'success' | 'error' | 'warning', msg: string) => {
@@ -278,7 +279,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
       setLoading(true);
       try {
         const res = await fetch(
-          `${API_BASE_URL}/api-hrm/employee-onboarding-form/by-token/${token}/`,
+          `http://localhost:8000/api-hrm/employee-onboarding-form/by-token/${token}/`,
           { headers: { 'Content-Type': 'application/json' } }
         );
         const data = await res.json();
@@ -288,7 +289,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
           ...v,
           candidate_name: data.data.candidate_name,
           candidate_email: data.data.candidate_email,
-          candidate_phone: data.data.candidate_phone,
         }));
       } catch {
         setPageError('Không thể tải thông tin. Vui lòng kiểm tra lại link.');
@@ -301,14 +301,48 @@ export const EmployeeOnboardingForm: React.FC = () => {
 
   // ===== VALIDATION =====
   const validateStep = (step: number): boolean => {
+    // Bước 1: Thông tin cơ bản
     if (step === 1) {
       if (!values.candidate_name.trim()) { showToast('error', 'Vui lòng nhập họ và tên'); return false; }
       if (!values.date_of_birth) { showToast('error', 'Vui lòng chọn ngày sinh'); return false; }
+      if (!values.gender) { showToast('error', 'Vui lòng chọn giới tính'); return false; }
       if (!values.candidate_phone.trim()) { showToast('error', 'Vui lòng nhập số điện thoại'); return false; }
+      if (!/^\d{10}$/.test(values.candidate_phone.trim())) { showToast('error', 'Số điện thoại phải có đúng 10 chữ số'); return false; }
+      if (!values.start_date) { showToast('error', 'Vui lòng chọn ngày bắt đầu'); return false; }
+      if (!values.education_level) { showToast('error', 'Vui lòng chọn trình độ học vấn'); return false; }
+      if (!values.facebook_link.trim()) { showToast('error', 'Vui lòng nhập link Facebook'); return false; }
     }
+    // Bước 2: Thông tin công việc
+    if (step === 2) {
+      if (!values.region) { showToast('error', 'Vui lòng chọn vùng/miền'); return false; }
+      if (!values.block) { showToast('error', 'Vui lòng chọn khối'); return false; }
+      if (!values.sub_department) { showToast('error', 'Vui lòng chọn phòng/ban'); return false; }
+      if (!values.job_rank) { showToast('error', 'Vui lòng chọn cấp bậc'); return false; }
+      if (!values.work_form) { showToast('error', 'Vui lòng chọn hình thức làm việc'); return false; }
+      if (!values.work_location) { showToast('error', 'Vui lòng chọn địa điểm làm việc'); return false; }
+    }
+    // Bước 3: CCCD
     if (step === 3) {
       if (!values.citizen_id.trim()) { showToast('error', 'Vui lòng nhập số CCCD'); return false; }
       if (!citizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return false; }
+      if (!values.citizen_id_issue_date) { showToast('error', 'Vui lòng chọn ngày cấp CCCD'); return false; }
+      if (!values.citizen_id_issue_place.trim()) { showToast('error', 'Vui lòng nhập nơi cấp CCCD'); return false; }
+    }
+    // Bước 4: Địa chỉ
+    if (step === 4) {
+      if (!values.permanent_address.trim()) { showToast('error', 'Vui lòng nhập địa chỉ thường trú'); return false; }
+      if (!values.current_address.trim()) { showToast('error', 'Vui lòng nhập địa chỉ hiện tại'); return false; }
+      if (!values.marital_status) { showToast('error', 'Vui lòng chọn tình trạng hôn nhân'); return false; }
+    }
+    // Bước 5: Người liên hệ khẩn cấp
+    if (step === 5) {
+      if (!values.emergency_contact_name.trim()) { showToast('error', 'Vui lòng nhập tên người liên hệ khẩn cấp'); return false; }
+      if (!values.emergency_contact_relationship.trim()) { showToast('error', 'Vui lòng nhập mối quan hệ'); return false; }
+      if (!values.emergency_contact_phone.trim()) { showToast('error', 'Vui lòng nhập số điện thoại người liên hệ'); return false; }
+      if (!/^\d{10}$/.test(values.emergency_contact_phone.trim())) { showToast('error', 'Số điện thoại người liên hệ phải có đúng 10 chữ số'); return false; }
+      if (!values.emergency_contact_dob) { showToast('error', 'Vui lòng chọn ngày sinh người liên hệ'); return false; }
+      if (!values.emergency_contact_occupation.trim()) { showToast('error', 'Vui lòng nhập nghề nghiệp người liên hệ'); return false; }
+      if (!values.emergency_contact_address.trim()) { showToast('error', 'Vui lòng nhập địa chỉ người liên hệ'); return false; }
     }
     return true;
   };
@@ -333,7 +367,10 @@ export const EmployeeOnboardingForm: React.FC = () => {
 
   // ===== SUBMIT =====
   const handleSubmit = async () => {
-    if (!validateStep(1)) return;
+    // Validate tất cả các bước trước khi submit
+    for (let step = 1; step <= 5; step++) {
+      if (!validateStep(step)) return;
+    }
     if (!citizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return; }
     setSubmitting(true);
     try {
@@ -377,9 +414,10 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('salary', values.salary);
       ap('allowance', values.allowance);
       ap('probation_period_months', values.probation_period_months);
+      ap('probation_salary_percentage', values.probation_salary_percentage);
 
       const res = await fetch(
-        `${API_BASE_URL}/api-hrm/employee-onboarding-form/submit/${token}/`,
+        `http://localhost:8000/api-hrm/employee-onboarding-form/submit/${token}/`,
         { method: 'POST', body: payload }
       );
       if (!res.ok) {
@@ -423,9 +461,13 @@ export const EmployeeOnboardingForm: React.FC = () => {
   if (success) return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <div className="text-center max-w-md">
-        <CheckCircle sx={{ fontSize: 80, color: '#22c55e', mb: 2 }} />
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Hoàn thành!</h2>
-        <p className="text-gray-500 mb-6">Cảm ơn bạn đã điền thông tin. HR sẽ liên hệ với bạn sớm.</p>
+        <CheckCircle sx={{ fontSize: 80, color: '#f59e0b', mb: 2 }} />
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Đã gửi thông tin!</h2>
+        <p className="text-gray-500 mb-2">Cảm ơn bạn đã điền thông tin.</p>
+        <p className="text-gray-500 mb-6">
+          Thông tin của bạn đang chờ <strong>quản lý trực tiếp xác nhận</strong>. 
+          Bạn sẽ được thông báo sau khi được duyệt.
+        </p>
         <Button variant="contained" onClick={() => window.close()}>Đóng trang</Button>
       </div>
     </div>
@@ -461,13 +503,13 @@ export const EmployeeOnboardingForm: React.FC = () => {
             onChange={handleChange('candidate_email')} disabled />
 
           <TF label="Ngày bắt đầu" value={values.start_date}
-            onChange={handleChange('start_date')} type="date" />
+            onChange={handleChange('start_date')} type="date" required />
 
           <SF label="Trình độ học vấn" value={values.education_level}
-            onChange={handleSelect('education_level')} options={EDUCATION_LEVEL_OPTIONS} />
+            onChange={handleSelect('education_level')} options={EDUCATION_LEVEL_OPTIONS} required />
 
           <TF label="Link Facebook" value={values.facebook_link}
-            onChange={handleChange('facebook_link')} placeholder="https://facebook.com/..." />
+            onChange={handleChange('facebook_link')} placeholder="https://facebook.com/..." required />
         </div>
       );
 
@@ -484,13 +526,13 @@ export const EmployeeOnboardingForm: React.FC = () => {
           </div>
 
           <SF label="Phòng/Ban" value={values.sub_department}
-            onChange={handleSelect('sub_department')} options={SUB_DEPARTMENT_OPTIONS} />
+            onChange={handleSelect('sub_department')} options={SUB_DEPARTMENT_OPTIONS} required />
 
           <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
             <RF label="Bộ phận (Section)" value={values.section}
               onChange={handleSelect('section')} options={SECTION_OPTIONS} />
             <SF label="Cấp bậc" value={values.job_rank}
-              onChange={handleSelect('job_rank')} options={RANK_OPTIONS} />
+              onChange={handleSelect('job_rank')} options={RANK_OPTIONS} required />
           </div>
 
           <TF label="Team Bác sĩ" value={values.doctor_team}
@@ -506,7 +548,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
                 options={WORK_FORM_OPTIONS} />
             </div>
             <SF label="Địa điểm làm việc" value={values.work_location}
-              onChange={handleSelect('work_location')} options={WORK_LOCATION_OPTIONS} />
+              onChange={handleSelect('work_location')} options={WORK_LOCATION_OPTIONS} required />
           </div>
         </div>
       );
@@ -538,9 +580,9 @@ export const EmployeeOnboardingForm: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <TF label="Ngày cấp" value={values.citizen_id_issue_date}
-              onChange={handleChange('citizen_id_issue_date')} type="date" />
+              onChange={handleChange('citizen_id_issue_date')} type="date" required />
             <TF label="Nơi cấp" value={values.citizen_id_issue_place}
-              onChange={handleChange('citizen_id_issue_place')} placeholder="Cục Cảnh sát..." />
+              onChange={handleChange('citizen_id_issue_place')} placeholder="Cục Cảnh sát..." required />
           </div>
 
           <TF label="Số CMND cũ (nếu có)" value={values.old_id_number}
@@ -555,21 +597,41 @@ export const EmployeeOnboardingForm: React.FC = () => {
 
           <TF label="Địa chỉ thường trú" value={values.permanent_address}
             onChange={handleChange('permanent_address')} multiline rows={2}
-            placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
+            required placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
 
           <TF label="Địa chỉ hiện tại" value={values.current_address}
             onChange={handleChange('current_address')} multiline rows={2}
-            placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
+            required placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
 
           <div className="grid grid-cols-2 gap-4">
-            <TF label="Mã BHXH" value={values.social_insurance_number}
-              onChange={handleChange('social_insurance_number')} placeholder="1234567890" />
-            <TF label="Mã số thuế" value={values.tax_code}
-              onChange={handleChange('tax_code')} placeholder="0123456789" />
+            <div>
+              <TF label="Mã BHXH" value={values.social_insurance_number}
+                onChange={handleChange('social_insurance_number')} placeholder="1234567890" />
+              <p className="text-xs text-gray-500 mt-1">
+                (Vui lòng tra cứu mã số BHXH, Mã hộ tại link đính kèm{' '}
+                <a href="https://baohiemxahoi.gov.vn/tracuu/Pages/tra-cuu-ho-gia-dinh.aspx"
+                  target="_blank" rel="noreferrer"
+                  className="text-blue-500 underline break-all">
+                  https://baohiemxahoi.gov.vn/tracuu/Pages/tra-cuu-ho-gia-dinh.aspx
+                </a>)
+              </p>
+            </div>
+            <div>
+              <TF label="Mã số thuế" value={values.tax_code}
+                onChange={handleChange('tax_code')} placeholder="0123456789" />
+              <p className="text-xs text-gray-500 mt-1">
+                (Vui lòng tra cứu Mã số thuế tại trang web:{' '}
+                <a href="https://masothue.com/tra-cuu-ma-so-thue-ca-nhan"
+                  target="_blank" rel="noreferrer"
+                  className="text-blue-500 underline break-all">
+                  https://masothue.com/tra-cuu-ma-so-thue-ca-nhan
+                </a>)
+              </p>
+            </div>
           </div>
 
           <SF label="Tình trạng hôn nhân" value={values.marital_status}
-            onChange={handleSelect('marital_status')} options={[
+            onChange={handleSelect('marital_status')} required options={[
               { value: 'SINGLE', label: 'Độc thân' },
               { value: 'MARRIED', label: 'Đã kết hôn' },
               { value: 'DIVORCED', label: 'Ly hôn' },
@@ -585,23 +647,23 @@ export const EmployeeOnboardingForm: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <TF label="Họ và tên" value={values.emergency_contact_name}
-              onChange={handleChange('emergency_contact_name')} placeholder="Nguyễn Văn B" />
+              onChange={handleChange('emergency_contact_name')} required placeholder="Nguyễn Văn B" />
             <TF label="Mối quan hệ" value={values.emergency_contact_relationship}
-              onChange={handleChange('emergency_contact_relationship')} placeholder="Bố, mẹ, vợ, chồng..." />
+              onChange={handleChange('emergency_contact_relationship')} required placeholder="Bố, mẹ, vợ, chồng..." />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <TF label="Số điện thoại" value={values.emergency_contact_phone}
-              onChange={handleChange('emergency_contact_phone')} placeholder="0987654321" />
+              onChange={handleChange('emergency_contact_phone')} required placeholder="0987654321" />
             <TF label="Ngày sinh" value={values.emergency_contact_dob}
-              onChange={handleChange('emergency_contact_dob')} type="date" />
+              onChange={handleChange('emergency_contact_dob')} type="date" required />
           </div>
 
           <TF label="Nghề nghiệp" value={values.emergency_contact_occupation}
-            onChange={handleChange('emergency_contact_occupation')} placeholder="Giáo viên, Bác sĩ..." />
+            onChange={handleChange('emergency_contact_occupation')} required placeholder="Giáo viên, Bác sĩ..." />
 
           <TF label="Địa chỉ" value={values.emergency_contact_address}
-            onChange={handleChange('emergency_contact_address')} multiline rows={2}
+            onChange={handleChange('emergency_contact_address')} required multiline rows={2}
             placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
         </div>
       );
@@ -619,10 +681,19 @@ export const EmployeeOnboardingForm: React.FC = () => {
 
           <SF label="Số tháng thử việc" value={values.probation_period_months}
             onChange={handleSelect('probation_period_months')} options={[
+              { value: '0', label: 'Không thử việc' },
               { value: '1', label: '1 tháng' },
               { value: '2', label: '2 tháng' },
               { value: '3', label: '3 tháng' },
               { value: '6', label: '6 tháng' },
+            ]} />
+          <SF label="% lương thử việc" value={values.probation_salary_percentage}
+            onChange={handleSelect('probation_salary_percentage')} options={[
+              { value: '0', label: 'Không thử việc' },
+              { value: '85', label: '85%' },
+              { value: '90', label: '90%' },
+              { value: '95', label: '95%' },
+              { value: '100', label: '100%' },
             ]} />
 
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mt-2">
@@ -634,6 +705,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
                 ['CCCD', values.citizen_id],
                 ['File CCCD', citizenIdFile ? `✓ ${citizenIdFile.name}` : null],
                 ['Lương', values.salary ? `${parseInt(values.salary).toLocaleString()} VNĐ` : null],
+                ['Phụ cấp', values.allowance ? `${parseInt(values.allowance).toLocaleString()} VNĐ` : null],
               ].map(([label, val]) => (
                 <div key={label as string} className="flex gap-2 text-sm">
                   <span className="text-blue-500 w-20 shrink-0">{label}:</span>

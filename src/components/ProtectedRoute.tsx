@@ -43,19 +43,18 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
       const currentPath = window.location.pathname;
       
       // Define allowed paths for staff
+      const MANAGER_POSITIONS = ['Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'];
+      const userPosition = user.employee_profile?.position || user.hrm_user?.position || null;
+      const isManager = userPosition ? MANAGER_POSITIONS.includes(userPosition) : false;
+
       const isAllowedForStaff = 
-        // Home page
         currentPath === '/home' ||
-        // Me/profile page
         currentPath === '/dashboard/me' ||
-        // Attendance pages (but not upload for regular staff)
         (currentPath === '/dashboard/attendance' || currentPath === '/dashboard/attendance/view') ||
-        // Organization chart
         currentPath === '/dashboard/organization-chart' ||
-        // Approvals
         currentPath === '/dashboard/approvals' ||
-        // Attendance upload for HCNS department staff
-        (currentPath === '/dashboard/attendance/upload' && userDepartmentCode === 'HCNS');
+        (currentPath === '/dashboard/attendance/upload' && userDepartmentCode === 'HCNS') ||
+        (isManager && (currentPath === '/dashboard/onboarding' || currentPath.startsWith('/dashboard/onboarding/')));
       
       if (!isAllowedForStaff) {
         return <Navigate to="/home" replace />;
