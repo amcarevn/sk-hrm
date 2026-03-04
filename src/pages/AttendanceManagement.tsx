@@ -505,7 +505,7 @@ const AttendanceManagement: React.FC = () => {
   const [calendarSummary, setCalendarSummary] = useState<{
     total_work_days: number;
     full_days: number;
-    half_days: number;
+    violation_count: number;
     late_or_early_days: number;
     absent_days: number;
     forgot_checkin_days: number;

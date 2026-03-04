@@ -39,12 +39,18 @@ type OnboardingItem = {
   employee_info_completed?: boolean;
 };
 
-// Form HR điền — chỉ 4 trường cơ bản
+// ── Bỏ candidate_phone, thêm direct_manager_id ──
 type CreateOnboardingForm = {
   candidate_name: string;
   gender: 'M' | 'F' | 'O';
   candidate_email: string;
-  candidate_phone: string;
+  direct_manager_id: string;
+};
+
+type EmployeeOption = {
+  id: number;
+  full_name: string;
+  employee_id: string;
 };
 
 type ApiResponse<T> = { results?: T[]; count?: number } | T[];
@@ -104,7 +110,7 @@ const TokenBadge: React.FC<{ status?: TokenStatus | null; completed?: boolean }>
 };
 
 // ============================================
-// CREATE ONBOARDING MODAL — chỉ 4 trường
+// CREATE ONBOARDING MODAL
 // ============================================
 
 type CreateModalProps = {
@@ -114,21 +120,57 @@ type CreateModalProps = {
 
 const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess }) => {
   const [submitting, setSubmitting] = useState(false);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [loadingEmployees, setLoadingEmployees] = useState(true);
+
   const [form, setForm] = useState<CreateOnboardingForm>({
     candidate_name: '',
     gender: 'M',
     candidate_email: '',
-    candidate_phone: '',
+    direct_manager_id: '',
   });
-  const [errors, setErrors] = useState<Partial<CreateOnboardingForm>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof CreateOnboardingForm, string>>>({});
+
+  // Fetch danh sách nhân viên cho dropdown manager
+  useEffect(() => {
+    const fetchManagers = async () => {
+      setLoadingEmployees(true);
+      try {
+        // 1. Lấy danh sách vị trí, tìm id của vị trí Trưởng phòng
+        const posRes = await fetch(`${API_BASE_URL}/api-hrm/positions/?search=Trưởng phòng`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+        });
+        const posData = await posRes.json();
+        const truongPhong = (Array.isArray(posData.results) ? posData.results : posData).find((p: any) => p.title === 'Trưởng phòng');
+        if (!truongPhong) {
+          setEmployees([]);
+          setLoadingEmployees(false);
+          return;
+        }
+        // 2. Lấy danh sách nhân viên có position_id là Trưởng phòng
+        const empRes = await fetch(`${API_BASE_URL}/api-hrm/employees/?position=${truongPhong.id}&page_size=1000`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+        });
+        const empData = await empRes.json();
+        const list: EmployeeOption[] = (Array.isArray(empData) ? empData : empData.results ?? []).map(
+          (e: any) => ({ id: e.id, full_name: e.full_name, employee_id: e.employee_id })
+        );
+        setEmployees(list);
+      } catch (err) {
+        console.error('Failed to load managers:', err);
+      } finally {
+        setLoadingEmployees(false);
+      }
+    };
+    fetchManagers();
+  }, []);
 
   const validate = (): boolean => {
-    const errs: Partial<CreateOnboardingForm> = {};
+    const errs: Partial<Record<keyof CreateOnboardingForm, string>> = {};
     if (!form.candidate_name.trim()) errs.candidate_name = 'Vui lòng nhập họ và tên';
     if (!form.candidate_email.trim()) errs.candidate_email = 'Vui lòng nhập email';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.candidate_email))
       errs.candidate_email = 'Email không hợp lệ';
-    if (!form.candidate_phone.trim()) errs.candidate_phone = 'Vui lòng nhập số điện thoại';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -137,17 +179,19 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
     if (!validate()) return;
     setSubmitting(true);
     try {
-      const data = await onboardingService.create({
+      const payload: any = {
         candidate_name: form.candidate_name,
         full_name: form.candidate_name,
         gender: form.gender,
         candidate_email: form.candidate_email,
-        candidate_phone: form.candidate_phone,
-        // start_date mặc định hôm nay, nhân viên sẽ xác nhận lại trong form của họ
         start_date: new Date().toISOString().slice(0, 10),
-      });
+      };
+      if (form.direct_manager_id) {
+        payload.direct_manager_id = parseInt(form.direct_manager_id);
+      }
 
-      alert(`✅ Tạo quy trình thành công!\nMã: ${data.onboarding_code ?? data.id}`);
+      const data = await onboardingService.create(payload);
+      alert(`✅ Tạo quy trình thành công!\n`);
       onSuccess();
     } catch (e: any) {
       console.error(e);
@@ -172,14 +216,11 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {input}
-      {errors[key] && (
-        <p className="text-xs text-red-500 mt-1">{errors[key]}</p>
-      )}
+      {errors[key] && <p className="text-xs text-red-500 mt-1">{errors[key]}</p>}
     </div>
   );
 
   return (
-    /* Backdrop */
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-xl shadow-2xl flex flex-col">
 
@@ -243,14 +284,22 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
             />
           )}
 
-          {field('candidate_phone', 'Số điện thoại', true,
-            <input
-              type="tel"
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.candidate_phone ? 'border-red-400' : 'border-gray-300'}`}
-              placeholder="0912345678"
-              value={form.candidate_phone}
-              onChange={(e) => setForm({ ...form, candidate_phone: e.target.value })}
-            />
+          {field('direct_manager_id', 'Quản lý trực tiếp', false,
+            <select
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+              value={form.direct_manager_id}
+              onChange={(e) => setForm({ ...form, direct_manager_id: e.target.value })}
+              disabled={loadingEmployees}
+            >
+              <option value="">
+                {loadingEmployees ? 'Đang tải...' : '-- Không có quản lý --'}
+              </option>
+              {employees.map((e) => (
+                <option key={e.id} value={String(e.id)}>
+                  {e.full_name} ({e.employee_id})
+                </option>
+              ))}
+            </select>
           )}
         </div>
 
@@ -278,7 +327,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
 };
 
 // ============================================
-// MAIN COMPONENT
+// MAIN COMPONENT (giữ nguyên 100% từ file gốc)
 // ============================================
 
 const Onboarding: React.FC = () => {
@@ -288,10 +337,6 @@ const Onboarding: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  // ============================================
-  // FETCH
-  // ============================================
 
   const fetchOnboardings = async () => {
     setLoading(true);
@@ -319,10 +364,6 @@ const Onboarding: React.FC = () => {
     fetchOnboardings();
   }, []);
 
-  // ============================================
-  // HANDLERS — LUỒNG HR
-  // ============================================
-
   const handleDelete = async (id: number) => {
     if (!confirm('Bạn chắc chắn muốn xoá quy trình này?')) return;
     try {
@@ -334,10 +375,6 @@ const Onboarding: React.FC = () => {
       alert('Xoá thất bại. Vui lòng thử lại.');
     }
   };
-
-  // ============================================
-  // HANDLERS — LUỒNG NHÂN VIÊN (TOKEN / LINK)
-  // ============================================
 
   const handleGenerateToken = async (item: OnboardingItem) => {
     setTokenLoading(item.id);
@@ -381,10 +418,6 @@ const Onboarding: React.FC = () => {
     }
   };
 
-  // ============================================
-  // RENDER — TOKEN ACTIONS
-  // ============================================
-
   const renderTokenActions = (item: OnboardingItem) => {
     const isLoading = tokenLoading === item.id;
 
@@ -421,10 +454,6 @@ const Onboarding: React.FC = () => {
       </div>
     );
   };
-
-  // ============================================
-  // RENDER MAIN
-  // ============================================
 
   return (
     <div className="p-6">

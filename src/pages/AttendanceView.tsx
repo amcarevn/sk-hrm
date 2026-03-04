@@ -523,7 +523,7 @@ const AttendanceView: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Thống kê chấm công</h2>
           {/* New API summary format */}
           {stats._summary ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
               <div className="bg-green-50 border border-green-100 p-4 rounded-lg">
                 <h3 className="font-medium text-green-900 text-xs">Đủ công</h3>
                 <p className="text-2xl font-bold text-green-700 mt-1">
@@ -558,6 +558,18 @@ const AttendanceView: React.FC = () => {
                 <h3 className="font-medium text-blue-900 text-xs">Tổng ngày công</h3>
                 <p className="text-2xl font-bold text-blue-700 mt-1">
                   {stats._summary.total_work_days || 0}
+                </p>
+              </div>
+              <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-lg">
+                <h3 className="font-medium text-indigo-900 text-xs">Buổi trực</h3>
+                <p className="text-2xl font-bold text-indigo-700 mt-1">
+                  {stats._summary.live_sessions || 0}
+                </p>
+              </div>
+              <div className="bg-teal-50 border border-teal-100 p-4 rounded-lg">
+                <h3 className="font-medium text-teal-900 text-xs">Ngày nghỉ phép</h3>
+                <p className="text-2xl font-bold text-teal-700 mt-1">
+                  {stats._summary.leave_days || 0}
                 </p>
               </div>
             </div>
