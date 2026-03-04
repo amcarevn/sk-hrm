@@ -48,6 +48,8 @@ const AttendanceManagement: React.FC = () => {
   const [attendanceDetails, setAttendanceDetails] = useState<
     AttendanceRecord[]
   >([]);
+
+  console.log('attendanceDetails', attendanceDetails);
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -981,15 +983,18 @@ const AttendanceManagement: React.FC = () => {
       } else if (selectedContext === 'registration') {
         reasonLabel =
           registrationReasons.find((r) => r.id === selectedReason)?.label || '';
-      } else if (selectedContext === 'monthly_leave') {
-        reasonLabel = 'Nghỉ phép tháng';
       } else if (selectedContext === 'online_work') {
         reasonLabel = 'Làm việc online';
       }
 
-      const finalReason = formNote
-        ? `${reasonLabel}: ${formNote}`
+      let finalReason = formNote
+        ? (reasonLabel ? `${reasonLabel}: ${formNote}` : formNote)
         : reasonLabel;
+
+      // Đặc biệt cho nghỉ phép: Nếu không có note thì để trống, có note thì lấy note
+      if (selectedContext === 'monthly_leave') {
+        finalReason = formNote || '';
+      }
 
       // Map expected status
       let expectedStatus = 'PRESENT';
@@ -1096,7 +1101,12 @@ const AttendanceManagement: React.FC = () => {
           business_trip: 'BUSINESS_TRIP',
           first_day: 'FIRST_DAY',
         };
-        const explanationType = explanationTypeMap[selectedReason as string] || 'LATE';
+        let explanationType = explanationTypeMap[selectedReason as string] || 'LATE';
+
+        // Đảm bảo đơn nghỉ phép tháng có type là LEAVE
+        if (selectedContext === 'monthly_leave') {
+          explanationType = 'LEAVE';
+        }
 
         console.log('🔍 DEBUG explanation_type mapping:', {
           selectedContext,
@@ -1805,20 +1815,22 @@ const AttendanceManagement: React.FC = () => {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <span
-                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(record.status === 'INCOMPLETE_ATTENDANCE' ||
-                                      ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
-                                      ? 'bg-purple-100 text-purple-800'
-                                      : record.status === 'PRESENT'
-                                        ? 'bg-green-100 text-green-800'
-                                        : record.status === 'LATE'
-                                          ? 'bg-yellow-100 text-yellow-800'
-                                          : record.status === 'EARLY_LEAVE'
-                                            ? 'bg-orange-100 text-orange-800'
-                                            : record.status === 'ABSENT'
-                                              ? 'bg-red-100 text-red-800'
-                                              : record.status === 'HALF_DAY'
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-gray-100 text-gray-800'
+                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'LEAVE'
+                                      ? 'bg-indigo-100 text-indigo-800'
+                                      : (record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                        ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : record.status === 'PRESENT'
+                                          ? 'bg-green-100 text-green-800'
+                                          : record.status === 'LATE'
+                                            ? 'bg-yellow-100 text-yellow-800'
+                                            : record.status === 'EARLY_LEAVE'
+                                              ? 'bg-orange-100 text-orange-800'
+                                              : record.status === 'ABSENT'
+                                                ? 'bg-red-100 text-red-800'
+                                                : record.status === 'HALF_DAY'
+                                                  ? 'bg-blue-100 text-blue-800'
+                                                  : 'bg-gray-100 text-gray-800'
                                       }`}
                                   >
                                     {(record.status === 'INCOMPLETE_ATTENDANCE' ||
@@ -1921,20 +1933,22 @@ const AttendanceManagement: React.FC = () => {
                                     {record.shift_type_display || 'Cả ngày'}
                                   </span>
                                   <span
-                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${(record.status === 'INCOMPLETE_ATTENDANCE' ||
-                                      ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
-                                      ? 'bg-purple-100 text-purple-800'
-                                      : record.status === 'PRESENT'
-                                        ? 'bg-green-100 text-green-800'
-                                        : record.status === 'LATE'
-                                          ? 'bg-yellow-100 text-yellow-800'
-                                          : record.status === 'EARLY_LEAVE'
-                                            ? 'bg-orange-100 text-orange-800'
-                                            : record.status === 'ABSENT'
-                                              ? 'bg-red-100 text-red-800'
-                                              : record.status === 'HALF_DAY'
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-gray-100 text-gray-800'
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${record.status === 'LEAVE'
+                                      ? 'bg-indigo-100 text-indigo-800'
+                                      : (record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                        ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : record.status === 'PRESENT'
+                                          ? 'bg-green-100 text-green-800'
+                                          : record.status === 'LATE'
+                                            ? 'bg-yellow-100 text-yellow-800'
+                                            : record.status === 'EARLY_LEAVE'
+                                              ? 'bg-orange-100 text-orange-800'
+                                              : record.status === 'ABSENT'
+                                                ? 'bg-red-100 text-red-800'
+                                                : record.status === 'HALF_DAY'
+                                                  ? 'bg-blue-100 text-blue-800'
+                                                  : 'bg-gray-100 text-gray-800'
                                       }`}
                                   >
                                     {(record.status === 'INCOMPLETE_ATTENDANCE' ||
@@ -2009,8 +2023,8 @@ const AttendanceManagement: React.FC = () => {
 
                   {/* Events Timeline */}
                   {(() => {
-                    const allEvents: (AttendanceEvent & { recordStatus?: string })[] = attendanceDetails.flatMap(
-                      (r) => (r.events || []).map(ev => ({ ...ev, recordStatus: r.status }))
+                    const allEvents: (AttendanceEvent & { recordStatus?: string, recordStatusDisplay?: string })[] = attendanceDetails.flatMap(
+                      (r) => (r.events || []).map(ev => ({ ...ev, recordStatus: r.status, recordStatusDisplay: r.status_display }))
                     );
                     const sortedEvents = [...allEvents].sort(
                       (a, b) =>
@@ -2093,14 +2107,15 @@ const AttendanceManagement: React.FC = () => {
                                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${ev.event_type === 'attendance'
                                         ? 'bg-blue-100 text-blue-800'
                                         : ev.event_type === 'explanation'
-                                          ? 'bg-purple-100 text-purple-800'
+                                          ? ev.recordStatus === 'LEAVE' ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800'
                                           : ev.event_type === 'livestream'
                                             ? 'bg-pink-100 text-pink-800'
                                             : 'bg-indigo-100 text-indigo-800'
                                         }`}
                                     >
-                                      {eventTypeLabel[ev.event_type] ||
-                                        ev.event_type}
+                                      {ev.event_type === 'explanation' && ev.recordStatus === 'LEAVE'
+                                        ? (ev.recordStatusDisplay || 'Nghỉ phép tháng')
+                                        : (eventTypeLabel[ev.event_type] || ev.event_type)}
                                     </span>
                                     {approved && (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800">

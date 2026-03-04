@@ -584,7 +584,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     >
                       {day.date.getDate()}
                     </span>
-                    {hasData && day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
+                    {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
                       <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md shadow-sm">
                         {day.engine_context.work_credit} công
                       </span>
@@ -806,7 +806,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 </div>
 
                 {/* Work coefficient */}
-                {hasData && day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
+                {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
                   <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0 shadow-sm">
                     {day.engine_context.work_credit} công
                   </span>

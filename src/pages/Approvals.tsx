@@ -169,6 +169,7 @@ const Approvals: React.FC = () => {
     EXTRA_HOURS: 'Đăng ký làm thêm giờ',
     NIGHT_SHIFT: 'Đăng ký trực tối',
     LIVE: 'Đăng ký Live',
+    LEAVE: 'Đơn nghỉ phép tháng',
   };
 
   // Mapping trạng thái chấm công sang tiếng Việt
@@ -1324,7 +1325,7 @@ const Approvals: React.FC = () => {
                         <tr key={itemKey}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className={`flex-shrink-0 h-10 w-10 ${isRegistration ? 'bg-blue-100' : isOnlineWork ? 'bg-teal-100' : 'bg-yellow-100'} rounded-full flex items-center justify-center`}>
+                              <div className={`flex-shrink-0 h-10 w-10 ${isRegistration ? 'bg-blue-100' : isOnlineWork ? 'bg-teal-100' : item.explanation_type === 'LEAVE' ? 'bg-indigo-100' : 'bg-yellow-100'} rounded-full flex items-center justify-center`}>
                                 {isRegistration ? (
                                   <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1332,6 +1333,10 @@ const Approvals: React.FC = () => {
                                 ) : isOnlineWork ? (
                                   <svg className="h-5 w-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                  </svg>
+                                ) : item.explanation_type === 'LEAVE' ? (
+                                  <svg className="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                   </svg>
                                 ) : (
                                   <svg className="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
