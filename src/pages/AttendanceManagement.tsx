@@ -479,7 +479,7 @@ const AttendanceManagement: React.FC = () => {
   const [calendarSummary, setCalendarSummary] = useState<{
     total_work_days: number;
     full_days: number;
-    half_days: number;
+    violation_count: number;
     late_or_early_days: number;
     absent_days: number;
     forgot_checkin_days: number;
@@ -1422,10 +1422,10 @@ const AttendanceManagement: React.FC = () => {
 
         <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 flex flex-col justify-between">
           <h3 className="font-medium text-orange-900 text-xs md:text-sm">
-            Nửa ngày công
+            Số vi phạm
           </h3>
           <p className="text-xl md:text-2xl font-bold text-orange-700 mt-1 md:mt-2">
-            {calendarSummary?.half_days ?? 0}
+            {calendarSummary?.violation_count ?? 0}
           </p>
         </div>
 
