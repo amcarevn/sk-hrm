@@ -140,7 +140,7 @@ const EmployeeEdit: React.FC = () => {
           date_of_birth: formData.date_of_birth,
         }),
         ...(formData.phone_number && {
-          phone_number: formData.phone_number.trim() ,
+          phone_number: formData.phone_number.trim(),
         }),
         ...(formData.personal_email && {
           personal_email: formData.personal_email.trim(),
@@ -155,7 +155,7 @@ const EmployeeEdit: React.FC = () => {
         ...(formData.department_id && {
           department_id: formData.department_id,
         }),
-        ...(formData.manager_id && { manager_id: formData.manager_id }),
+        ...(formData.manager_id !== undefined && { manager_id: formData.manager_id }),
         is_hr: formData.is_hr,
       };
 
@@ -170,8 +170,8 @@ const EmployeeEdit: React.FC = () => {
       console.error('Failed to update employee:', err);
       setError(
         err.response?.data?.message ||
-          err.message ||
-          'Lỗi khi cập nhật nhân viên'
+        err.message ||
+        'Lỗi khi cập nhật nhân viên'
       );
     } finally {
       setLoading(false);
@@ -403,18 +403,28 @@ const EmployeeEdit: React.FC = () => {
                 }
               />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Quản lý trực tiếp
-                </label>
-
-                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700">
-                  {employees.find((emp) => emp.id === formData.manager_id)
-                    ? `${employees.find((emp) => emp.id === formData.manager_id)!.full_name} 
-         (${employees.find((emp) => emp.id === formData.manager_id)!.employee_id})`
-                    : 'Chưa có quản lý'}
-                </div>
-              </div>
+              <SelectBox
+                label="Quản lý trực tiếp"
+                value={formData.manager_id}
+                placeholder="Chọn quản lý trực tiếp"
+                options={[
+                  { label: 'Không có quản lý', value: null },
+                  ...employees
+                    .filter(
+                      (emp) =>
+                        emp.id !== parseInt(id!) &&
+                        positions.find((p) => p.id === emp.position?.id)
+                          ?.is_management === true
+                    )
+                    .map((emp) => ({
+                      label: `${emp.full_name} (${emp.employee_id}) - ${emp.department?.name ?? 'Chưa có phòng ban'}`,
+                      value: emp.id,
+                    })),
+                ]}
+                onChange={(value) =>
+                  setFormData((prev) => ({ ...prev, manager_id: value ?? undefined }))
+                }
+              />
             </div>
           </div>
 

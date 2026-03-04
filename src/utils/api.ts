@@ -1,8 +1,8 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
-export const API_BASE_URL = 'https://app-uat.amcare.vn';
+ export const API_BASE_URL = 'https://app-uat.amcare.vn';
 
-
+//export const API_BASE_URL = 'http://localhost:8000';
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -1682,11 +1682,13 @@ export interface Employee {
   cccd_issue_place?: string;
   birth_place?: string;
   permanent_residence?: string;
+  // Senior Manager & Cấp bậc quản lý
+  is_manager?: boolean;
+  management_level?: number;
+  is_senior_manager?: boolean;
   
   // HR employee flag
   is_hr?: boolean;
-  is_senior_manager?: boolean;
-  management_level?: number;
   manager_name: string;
   created_at: string;
   updated_at: string;

@@ -5,22 +5,49 @@ import { attendanceService } from '../services/attendance.service';
 // Types for attendance data
 export interface AttendanceDay {
   date: Date;
-  morning: AttendanceStatus;
-  afternoon: AttendanceStatus;
-  evening: AttendanceStatus;
-  firstCheckIn?: string; // Check-in đầu tiên của ngày
-  lastCheckOut?: string; // Check-out cuối cùng của ngày
-  notes?: string;
-  workCoefficient?: number;
-  appliedRules?: any[];
-  lateMinutes?: number; // Số phút đi muộn
-  earlyLeaveMinutes?: number; // Số phút về sớm
-  // Thông tin đơn đã duyệt
+  day: number;
+  weekday: number;
+  weekday_label: string;
+  is_weekend: boolean;
+  is_holiday: boolean;
+  holiday_name: string | null;
+  is_leave: boolean;
+  day_status: string;
+  status_badge: string | null;
+  engine_context: {
+    is_holiday: boolean;
+    is_leave_day: boolean;
+    is_absent: boolean;
+    is_incomplete: boolean;
+    work_credit: number;
+    penalty_amount: number;
+    overtime_hours: number;
+    extra_hours: number;
+    night_shift_sessions: number;
+    live_sessions: number;
+    late_minutes: number;
+    early_leave_minutes: number;
+    rules_applied: string[];
+  };
+  shifts: Array<{
+    shift_type: string;
+    shift_label: string;
+    check_in: string | null;
+    check_out: string | null;
+    status: string;
+    status_color: string;
+  }>;
+  registrations: any[];
+  raw_checkin_checkout?: Array<{
+    check_in: string | null;
+    check_out: string | null;
+  }>;
+  // Compatibility fields for AttendanceManagement.tsx
   approvedExplanations?: any[];
   approvedRegistrations?: any[];
   approvedLeaveRequests?: any[];
   approvedOnlineWorks?: any[];
-  penalty?: number;
+  // UI extended fields
   dayStatusSummary?: {
     has_approved_explanation: boolean;
     has_approved_registration: boolean;
@@ -30,6 +57,10 @@ export interface AttendanceDay {
     summary_text: string;
     display_color: string;
   };
+  // Fallback for old UI logic or specific convenience
+  morning: AttendanceStatus;
+  afternoon: AttendanceStatus;
+  evening: AttendanceStatus;
 }
 
 export type AttendanceStatus =
@@ -72,6 +103,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       case 'ABSENT': return 'absent';
       case 'HALF_DAY': return 'present';
       case 'INCOMPLETE_ATTENDANCE': return 'incomplete_attendance';
+      case 'FORGOT_CC': return 'incomplete_attendance';
       case 'LATE': return 'late';
       case 'EARLY_LEAVE': return 'late';
       case 'EMPTY': return 'no_data';
@@ -100,8 +132,15 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       case 'FULL': return 'Đủ công';
       case 'HALF': return 'Nửa công';
       case 'ABSENT': return 'Vắng';
-      case 'LATE_EARLY': return 'Muộn/Sớm';
-      case 'FORGOT_CC': return 'Quên CC';
+      case 'LATE_EARLY': {
+        const late = dayItem.engine_context?.late_minutes || 0;
+        const early = dayItem.engine_context?.early_leave_minutes || 0;
+        if (late > 0 && early > 0) return 'Muộn/Sớm';
+        if (late > 0) return 'Đi muộn';
+        if (early > 0) return 'Về sớm';
+        return 'Muộn/Sớm';
+      }
+      case 'FORGOT_CC': return 'Quên chấm công';
       case 'LEAVE': return 'Nghỉ phép';
       case 'HOLIDAY': return 'Lễ';
       default: return '';
@@ -138,88 +177,77 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         const afternoonShift = dayItem.shifts?.find((s: any) => s.shift_type === 'AFTERNOON');
         const eveningShift = dayItem.shifts?.find((s: any) => s.shift_type === 'EVENING');
 
-        let morning: AttendanceStatus;
-        let afternoon: AttendanceStatus;
-        let evening: AttendanceStatus;
+        // Map statuses for compatibility
+        let morning = dayItem.is_holiday ? 'holiday' : mapShiftStatus(morningShift);
+        let afternoon = dayItem.is_holiday ? 'holiday' : mapShiftStatus(afternoonShift);
+        let evening = dayItem.is_holiday ? 'holiday' : mapShiftStatus(eveningShift);
 
-        if (dayItem.is_holiday) {
-          morning = 'holiday';
-          afternoon = 'holiday';
-          evening = 'holiday';
-        } else {
-          morning = mapShiftStatus(morningShift);
-          afternoon = mapShiftStatus(afternoonShift);
-          evening = mapShiftStatus(eveningShift);
+        // If day is incomplete or has FORGOT_CC status, force absent shifts to incomplete_attendance (purple)
+        const isForgotCC = dayItem.day_status === 'FORGOT_CC' || dayItem.engine_context?.is_incomplete;
+        if (isForgotCC) {
+          if (morning === 'absent') morning = 'incomplete_attendance';
+          if (afternoon === 'absent') afternoon = 'incomplete_attendance';
+          if (evening === 'absent') evening = 'incomplete_attendance';
         }
 
-        // Extract check-in / check-out times from shifts
-        const allCheckIns: string[] = [];
-        const allCheckOuts: string[] = [];
-        (dayItem.shifts || []).forEach((shift: any) => {
-          if (shift.check_in) allCheckIns.push(shift.check_in.substring(0, 5));
-          if (shift.check_out) allCheckOuts.push(shift.check_out.substring(0, 5));
-        });
-
-        const firstCheckIn = allCheckIns.length > 0 ? allCheckIns.sort()[0] : undefined;
-        const lastCheckOut = allCheckOuts.length > 0 ? allCheckOuts.sort().reverse()[0] : undefined;
-
-        // Work coefficient based on day_status
-        let workCoefficient = 0;
-        switch (dayItem.day_status) {
-          case 'FULL': workCoefficient = 1.0; break;
-          case 'HALF': workCoefficient = 0.5; break;
-          case 'LATE_EARLY': workCoefficient = 1.0; break;
-          case 'FORGOT_CC': workCoefficient = 0; break;
-          default: workCoefficient = 0;
-        }
-
-        const isLeave = dayItem.is_leave || false;
-
-        // Process registrations to extract approved explanations
+        // Process registrations for summary and compatibility
         const registrations = dayItem.registrations || [];
-        const approvedExplanationItems = registrations
+        const approvedExplanations = registrations
           .filter((r: any) => r.event_type === 'explanation' && r.data?.status === 'APPROVED')
           .map((r: any) => ({
-            request_code: r.data?.request_code,
-            original_status: r.data?.original_status,
-            expected_status: r.data?.expected_status,
-            approved_by_name: r.data?.approved_by_name || r.data?.hr_approved_by_name,
-            approved_at: r.data?.approved_at || r.data?.hr_approved_at,
+            ...r.data,
             reason: r.explanation || r.data?.reason,
           }));
-        const hasApprovedExplanations = approvedExplanationItems.length > 0;
 
-        // For EMPTY days with approved registrations, use the registration reason as summary text
+        const approvedRegistrations = registrations
+          .filter((r: any) => ['overtime', 'extra_hours', 'night_shift', 'live'].includes(r.event_type) && r.data?.status === 'APPROVED')
+          .map((r: any) => r.data);
+
+        const onlineWorkRequests = registrations
+          .filter((r: any) => r.event_type === 'online_work' && r.data?.status === 'APPROVED')
+          .map((r: any) => r.data);
+
+        const hasApprovedExplanations = approvedExplanations.length > 0;
+        const hasApprovedRegistration = approvedRegistrations.length > 0;
+        const hasPendingRequest = registrations.some((r: any) => r.data?.status === 'PENDING');
+        const hasApprovedOnlineWork = onlineWorkRequests.length > 0;
+
         let summaryText = getDayStatusSummaryText(dayItem);
-        if (!summaryText && hasApprovedExplanations) {
-          summaryText = approvedExplanationItems[0].reason || 'Có đơn đã duyệt';
+        if (isForgotCC) {
+          summaryText = 'Quên chấm công';
+        } else if (!summaryText && hasApprovedExplanations) {
+          summaryText = approvedExplanations[0].reason || 'Có đơn đã duyệt';
+        }
+
+        // Determine display color: priority Green > Purple > others
+        let displayColor = getDayStatusDisplayColor(dayItem.day_status);
+        if (dayItem.engine_context?.work_credit >= 1.0) {
+          displayColor = 'green';
+        } else if (isForgotCC) {
+          displayColor = 'purple';
+        } else if (dayItem.status_badge === 'Nghỉ phép tháng') {
+          displayColor = 'green';
         }
 
         return {
+          ...dayItem, // Spread all fields from API
           date,
           morning,
           afternoon,
           evening,
-          firstCheckIn,
-          lastCheckOut,
-          notes: dayItem.status_badge || undefined,
-          workCoefficient,
-          appliedRules: [],
-          lateMinutes: 0,
-          earlyLeaveMinutes: 0,
-          approvedExplanations: approvedExplanationItems,
-          approvedRegistrations: [],
-          approvedLeaveRequests: isLeave ? [{ leave: true }] : [],
-          approvedOnlineWorks: [],
-          penalty: 0,
+          // Compatibility fields for AttendanceManagement.tsx
+          approvedExplanations,
+          approvedRegistrations,
+          approvedLeaveRequests: dayItem.is_leave ? [{ leave: true }] : [],
+          approvedOnlineWorks: onlineWorkRequests,
           dayStatusSummary: {
             has_approved_explanation: hasApprovedExplanations,
-            has_approved_registration: false,
-            has_approved_leave: isLeave,
-            has_approved_online_work: false,
-            has_pending_request: false,
+            has_approved_registration: hasApprovedRegistration,
+            has_approved_leave: dayItem.is_leave || false,
+            has_approved_online_work: hasApprovedOnlineWork,
+            has_pending_request: hasPendingRequest,
             summary_text: summaryText,
-            display_color: dayItem.status_badge === 'Nghỉ phép tháng' ? 'green' : getDayStatusDisplayColor(dayItem.day_status),
+            display_color: displayColor,
           },
         };
       });
@@ -227,73 +255,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       setAttendanceData(transformedData);
     } catch (error) {
       console.error('Error fetching calendar data:', error);
-      // Fallback to mock data if API fails
-      generateMockData();
+      setAttendanceData([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Generate mock data as fallback
-  const generateMockData = () => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-
-    // Get days in month
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-
-    // Generate mock data
-    const data: AttendanceDay[] = [];
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-
-      // Generate random attendance status for demo
-      const statuses: AttendanceStatus[] = [
-        'present',
-        'absent',
-        'late',
-        'incomplete_attendance',
-        'off',
-        'holiday',
-      ];
-      const randomStatus = () =>
-        statuses[Math.floor(Math.random() * statuses.length)];
-
-      // Generate random check-in/check-out times for demo (only for present/late/incomplete_attendance statuses)
-      let firstCheckIn: string | undefined = undefined;
-      let lastCheckOut: string | undefined = undefined;
-
-      const status = randomStatus();
-      if (
-        status === 'present' ||
-        status === 'late' ||
-        status === 'incomplete_attendance'
-      ) {
-        const randomHourIn = Math.floor(Math.random() * 3) + 7;
-        const randomMinuteIn = Math.floor(Math.random() * 60);
-        const randomHourOut = Math.floor(Math.random() * 3) + 16;
-        const randomMinuteOut = Math.floor(Math.random() * 60);
-
-        firstCheckIn = `${String(randomHourIn).padStart(2, '0')}:${String(randomMinuteIn).padStart(2, '0')}`;
-        lastCheckOut = `${String(randomHourOut).padStart(2, '0')}:${String(randomMinuteOut).padStart(2, '0')}`;
-      }
-
-      data.push({
-        date,
-        morning: randomStatus(),
-        afternoon: randomStatus(),
-        evening: randomStatus(),
-        firstCheckIn,
-        lastCheckOut,
-        penalty: 0,
-        notes:
-          day % 7 === 0 ? 'Chủ nhật' : day % 5 === 0 ? 'Nghỉ lễ' : undefined,
-      });
-    }
-
-    setAttendanceData(data);
   };
 
   useEffect(() => {
@@ -404,6 +369,17 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
   // Helper: Get badge style for a day
   const getDayBadgeStyle = (day: AttendanceDay): string => {
+    // Priority: Late/Early badge should be yellow even if border is green
+    const late = day.engine_context?.late_minutes || 0;
+    const early = day.engine_context?.early_leave_minutes || 0;
+    if (late > 0 || early > 0) {
+      return 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-300';
+    }
+
+    if (day.dayStatusSummary?.display_color === 'purple') {
+      return 'bg-purple-100 text-purple-700 ring-1 ring-purple-300';
+    }
+
     if (day.dayStatusSummary?.display_color === 'green') {
       if (day.dayStatusSummary?.has_approved_leave) {
         return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300';
@@ -416,18 +392,17 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration) {
       return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300';
     }
-    const hasIncomplete = day.morning === 'incomplete_attendance' || day.afternoon === 'incomplete_attendance' || day.evening === 'incomplete_attendance';
-    if (hasIncomplete) return 'bg-purple-100 text-purple-700';
-    const allNoData = day.morning === 'no_data' && day.afternoon === 'no_data' && day.evening === 'no_data';
+    const hasIncomplete = day.engine_context?.is_incomplete;
+    if (hasIncomplete) return 'bg-purple-100 text-purple-700 ring-1 ring-purple-300';
+    const allNoData = day.shifts?.every(s => s.status === 'EMPTY');
     if (allNoData) return 'bg-gray-100 text-gray-500';
-    const allAbsent = day.morning === 'absent' && day.afternoon === 'absent' && day.evening === 'absent';
+    const allAbsent = day.engine_context?.is_absent;
     if (allAbsent) return 'bg-red-100 text-red-700';
-    if ((day.lateMinutes && day.lateMinutes > 0) || (day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0)) {
-      return 'bg-yellow-100 text-yellow-700';
-    }
-    if (day.workCoefficient && day.workCoefficient >= 1.0) return 'bg-green-100 text-green-700';
-    if (day.workCoefficient && day.workCoefficient >= 0.5) return 'bg-orange-100 text-orange-700';
-    if (day.workCoefficient === 0 || day.morning === 'absent' || day.afternoon === 'absent' || day.evening === 'absent') {
+
+    if (day.engine_context?.work_credit >= 1.0) return 'bg-green-100 text-green-700';
+    if (day.engine_context?.work_credit >= 0.5) return 'bg-orange-100 text-orange-700';
+
+    if (day.engine_context?.work_credit === 0) {
       return 'bg-red-100 text-red-700';
     }
     return 'bg-gray-100 text-gray-500';
@@ -436,30 +411,33 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   // Helper: Get badge text for a day
   const getDayBadgeText = (day: AttendanceDay): string => {
     if (day.dayStatusSummary?.summary_text) return day.dayStatusSummary.summary_text;
-    const hasIncomplete = day.morning === 'incomplete_attendance' || day.afternoon === 'incomplete_attendance' || day.evening === 'incomplete_attendance';
+    const hasIncomplete = day.engine_context?.is_incomplete;
     if (hasIncomplete) return 'Quên chấm công';
-    const allNoData = day.morning === 'no_data' && day.afternoon === 'no_data' && day.evening === 'no_data';
+
+    const allNoData = day.shifts?.every(s => s.status === 'EMPTY');
     if (allNoData) return 'Chưa có dữ liệu';
-    const hasLate = day.lateMinutes && day.lateMinutes > 0;
-    const hasEarly = day.earlyLeaveMinutes && day.earlyLeaveMinutes > 0;
-    if (hasLate && hasEarly) return 'Đi muộn - Về sớm';
-    if (hasLate) return 'Đi muộn';
-    if (hasEarly) return 'Về sớm';
-    if (day.workCoefficient && day.workCoefficient >= 1.0) return 'Đủ công';
-    if (day.workCoefficient && day.workCoefficient >= 0.5) return 'Nửa công';
-    if (day.workCoefficient && day.workCoefficient > 0) return 'Thiếu công';
+
+    const late = day.engine_context?.late_minutes || 0;
+    const early = day.engine_context?.early_leave_minutes || 0;
+    if (late > 0 && early > 0) return 'Đi muộn - Về sớm';
+    if (late > 0) return 'Đi muộn';
+    if (early > 0) return 'Về sớm';
+
+    if (day.engine_context?.work_credit >= 1.0) return 'Đủ công';
+    if (day.engine_context?.work_credit >= 0.5) return 'Nửa công';
+    if (day.engine_context?.work_credit > 0) return 'Thiếu công';
     return 'Vắng mặt';
   };
 
   // Helper: Check if day has attendance data
   const dayHasData = (day: AttendanceDay): boolean => {
-    return !(day.morning === 'no_data' && day.afternoon === 'no_data' && day.evening === 'no_data');
+    return !day.shifts?.every(s => s.status === 'EMPTY');
   };
 
   // Helper: Get info box style based on penalty case
   const getInfoBoxStyle = (day: AttendanceDay): string => {
-    const hasLate = Number(day.lateMinutes) > 0;
-    const hasEarly = Number(day.earlyLeaveMinutes) > 0;
+    const hasLate = Number(day.engine_context?.late_minutes) > 0;
+    const hasEarly = Number(day.engine_context?.early_leave_minutes) > 0;
     if (hasLate && hasEarly) return 'bg-red-50 border-red-200';
     if (hasLate || hasEarly) return 'bg-orange-50 border-orange-200';
     return 'bg-slate-50 border-slate-200';
@@ -556,17 +534,24 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 <div
                   key={index}
                   onClick={() => onDateClick && onDateClick(day.date, day)}
-                  className={`group relative flex flex-col rounded-xl p-2 transition-all duration-200 cursor-pointer
+                  className={`group relative flex flex-col rounded-xl p-2 transition-all duration-200 cursor-pointer min-h-[120px]
                     hover:shadow-lg hover:-translate-y-0.5
                     ${isToday
                       ? 'ring-2 ring-primary-500 bg-primary-50/40 shadow-sm'
                       : day.dayStatusSummary?.display_color === 'green'
                         ? 'ring-2 ring-green-400 bg-green-50/30'
-                        : 'border border-gray-200 hover:border-gray-300'}
-                    ${isWeekend && !isToday && day.dayStatusSummary?.display_color !== 'green'
-                      ? 'bg-gray-50/80'
-                      : !isToday && day.dayStatusSummary?.display_color !== 'green'
-                        ? 'bg-white' : ''}`}
+                        : day.dayStatusSummary?.display_color === 'purple'
+                          ? 'ring-2 ring-purple-400 bg-purple-50/30'
+                          : day.dayStatusSummary?.display_color === 'orange'
+                            ? 'ring-2 ring-orange-300 bg-orange-50/30'
+                            : day.dayStatusSummary?.display_color === 'red'
+                              ? 'ring-2 ring-red-200 bg-red-50/30'
+                              : day.dayStatusSummary?.display_color === 'blue'
+                                ? 'ring-2 ring-blue-300 bg-blue-50/30'
+                                : day.dayStatusSummary?.display_color === 'yellow'
+                                  ? 'ring-2 ring-yellow-300 bg-yellow-50/30'
+                                  : 'border border-gray-200 bg-gray-50/50'}
+                  `}
                 >
                   {/* Date + work coefficient */}
                   <div className="flex items-center justify-between mb-1.5">
@@ -578,62 +563,94 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     >
                       {day.date.getDate()}
                     </span>
-                    {hasData && day.workCoefficient !== undefined && day.workCoefficient > 0 && (
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">
-                        {day.workCoefficient}
+                    {hasData && day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md shadow-sm">
+                        {day.engine_context.work_credit} công
                       </span>
                     )}
                   </div>
 
                   {hasData ? (
                     <>
-                      {/* Shift rows - vertical with check-in/out times */}
+                      {/* Shift rows - static Morning, Afternoon, Evening distributed by time */}
                       <div className="space-y-1 mb-1.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(day.morning)}`} />
-                            <span className="text-[10px] text-gray-500">Sáng</span>
-                          </div>
-                          {day.firstCheckIn && (
-                            <span className="text-[10px] font-medium text-gray-600 font-mono">{day.firstCheckIn}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(day.afternoon)}`} />
-                            <span className="text-[10px] text-gray-500">Chiều</span>
-                          </div>
-                          {day.lastCheckOut && (
-                            <span className="text-[10px] font-medium text-gray-600 font-mono">{day.lastCheckOut}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1">
-                            <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(day.evening)}`} />
-                            <span className="text-[10px] text-gray-500">Tối</span>
-                          </div>
-                        </div>
+                        {(() => {
+                          const morningInfo = { in: '--:--', out: '--:--', hasIn: false, hasOut: false };
+                          const afternoonInfo = { in: '--:--', out: '--:--', hasIn: false, hasOut: false };
+                          const eveningInfo = { in: '--:--', out: '--:--', hasIn: false, hasOut: false };
+
+                          day.raw_checkin_checkout?.forEach(raw => {
+                            if (raw.check_in) {
+                              const hour = parseInt(raw.check_in.split(':')[0]);
+                              if (hour < 12) {
+                                morningInfo.in = raw.check_in.substring(0, 5);
+                                morningInfo.hasIn = true;
+                              } else if (hour < 18) {
+                                afternoonInfo.in = raw.check_in.substring(0, 5);
+                                afternoonInfo.hasIn = true;
+                              } else {
+                                eveningInfo.in = raw.check_in.substring(0, 5);
+                                eveningInfo.hasIn = true;
+                              }
+                            }
+                            if (raw.check_out) {
+                              const hour = parseInt(raw.check_out.split(':')[0]);
+                              if (hour < 13) {
+                                morningInfo.out = raw.check_out.substring(0, 5);
+                                morningInfo.hasOut = true;
+                              } else if (hour < 19) {
+                                afternoonInfo.out = raw.check_out.substring(0, 5);
+                                afternoonInfo.hasOut = true;
+                              } else {
+                                eveningInfo.out = raw.check_out.substring(0, 5);
+                                eveningInfo.hasOut = true;
+                              }
+                            }
+                          });
+
+                          return [
+                            { key: 'MORNING', label: 'Sáng', status: day.morning, info: morningInfo },
+                            { key: 'AFTERNOON', label: 'Chiều', status: day.afternoon, info: afternoonInfo },
+                            { key: 'EVENING', label: 'Tối', status: day.evening, info: eveningInfo },
+                          ].map((shift) => (
+                            <div key={shift.key} className="flex items-center justify-between min-h-[16px]">
+                              <div className="flex items-center gap-1 overflow-hidden">
+                                <div className={`w-2 h-2 shrink-0 rounded-full ${getStatusColor(shift.status)}`} />
+                                <span className="text-[10px] text-gray-500 truncate">{shift.label}</span>
+                              </div>
+                              <div className="flex gap-1 shrink-0 items-center">
+                                {shift.info.hasIn && (
+                                  <span className="text-[10px] font-mono text-gray-700 font-bold">
+                                    {shift.info.in}
+                                  </span>
+                                )}
+                                {shift.info.hasIn && shift.info.hasOut && (
+                                  <span className="text-[9px] text-gray-300">|</span>
+                                )}
+                                {shift.info.hasOut && (
+                                  <span className="text-[10px] font-mono text-gray-700 font-bold">
+                                    {shift.info.out}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ));
+                        })()}
                       </div>
 
                       {/* Penalty info - only show when has issues */}
-                      {(Number(day.lateMinutes) > 0 || Number(day.earlyLeaveMinutes) > 0) && (
+                      {(Number(day.engine_context?.late_minutes) > 0 || Number(day.engine_context?.early_leave_minutes) > 0) && (
                         <div className={`p-1.5 rounded-lg border text-[9px] space-y-0.5 ${getInfoBoxStyle(day)}`}>
-                          {Number(day.lateMinutes) > 0 && (
+                          {Number(day.engine_context.late_minutes) > 0 && (
                             <div className="flex justify-between">
-                              <span className="text-orange-600">Muộn</span>
-                              <span className="font-bold text-orange-700">{day.lateMinutes} phút</span>
+                              <span className="text-orange-600">Đi muộn</span>
+                              <span className="font-bold text-orange-700">{day.engine_context.late_minutes} phút</span>
                             </div>
                           )}
-                          {Number(day.earlyLeaveMinutes) > 0 && (
+                          {Number(day.engine_context.early_leave_minutes) > 0 && (
                             <div className="flex justify-between">
-                              <span className="text-orange-600">Sớm</span>
-                              <span className="font-bold text-orange-700">{day.earlyLeaveMinutes} phút</span>
-                            </div>
-                          )}
-                          {Number(day.penalty) > 0 && (
-                            <div className="flex justify-between border-t border-red-200/50 pt-0.5">
-                              <span className="text-red-600 font-medium">Phạt</span>
-                              <span className="font-bold text-red-700">{(day.penalty || 0).toLocaleString('vi-VN')}đ</span>
+                              <span className="text-orange-600">Về sớm</span>
+                              <span className="font-bold text-orange-700">{day.engine_context.early_leave_minutes} phút</span>
                             </div>
                           )}
                         </div>
@@ -669,7 +686,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     ? 'ring-2 ring-primary-500 bg-primary-50/50 shadow-sm'
                     : day.dayStatusSummary?.display_color === 'green'
                       ? 'ring-1 ring-green-300 bg-green-50/30'
-                      : 'border border-gray-100 hover:bg-gray-50 active:bg-gray-100'}`}
+                      : day.dayStatusSummary?.display_color === 'purple'
+                        ? 'ring-1 ring-purple-300 bg-purple-50/30'
+                        : 'border border-gray-100 bg-gray-50/50 hover:bg-gray-50 active:bg-gray-100'}`}
               >
                 {/* Date block */}
                 <div
@@ -689,36 +708,86 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 {/* Main info */}
                 <div className="flex-1 min-w-0">
                   {hasData ? (
-                    <>
-                      {(day.firstCheckIn || day.lastCheckOut) && (
-                        <div className="text-xs text-gray-700 font-mono font-medium">
-                          {day.firstCheckIn || '--:--'} &rarr; {day.lastCheckOut || '--:--'}
-                        </div>
-                      )}
-                      {(Number(day.lateMinutes) > 0 || Number(day.earlyLeaveMinutes) > 0) && (
+                    <div className="space-y-1">
+                      {(() => {
+                        const morningInfo = { in: '--:--', out: '--:--', hasIn: false, hasOut: false };
+                        const afternoonInfo = { in: '--:--', out: '--:--', hasIn: false, hasOut: false };
+                        const eveningInfo = { in: '--:--', out: '--:--', hasIn: false, hasOut: false };
+
+                        day.raw_checkin_checkout?.forEach(raw => {
+                          if (raw.check_in) {
+                            const hour = parseInt(raw.check_in.split(':')[0]);
+                            if (hour < 12) {
+                              morningInfo.in = raw.check_in.substring(0, 5);
+                              morningInfo.hasIn = true;
+                            } else if (hour < 18) {
+                              afternoonInfo.in = raw.check_in.substring(0, 5);
+                              afternoonInfo.hasIn = true;
+                            } else {
+                              eveningInfo.in = raw.check_in.substring(0, 5);
+                              eveningInfo.hasIn = true;
+                            }
+                          }
+                          if (raw.check_out) {
+                            const hour = parseInt(raw.check_out.split(':')[0]);
+                            if (hour < 13) {
+                              morningInfo.out = raw.check_out.substring(0, 5);
+                              morningInfo.hasOut = true;
+                            } else if (hour < 19) {
+                              afternoonInfo.out = raw.check_out.substring(0, 5);
+                              afternoonInfo.hasOut = true;
+                            } else {
+                              eveningInfo.out = raw.check_out.substring(0, 5);
+                              eveningInfo.hasOut = true;
+                            }
+                          }
+                        });
+
+                        return [
+                          { key: 'MORNING', label: 'Sáng', status: day.morning, info: morningInfo },
+                          { key: 'AFTERNOON', label: 'Chiều', status: day.afternoon, info: afternoonInfo },
+                          { key: 'EVENING', label: 'Tối', status: day.evening, info: eveningInfo },
+                        ].map((shift) => (
+                          <div key={shift.key} className="flex items-center gap-2 min-h-[18px]">
+                            <div className={`w-2 h-2 rounded-full shrink-0 ${getStatusColor(shift.status)}`} />
+                            <span className="text-xs text-gray-500 w-12">{shift.label}:</span>
+                            <div className="flex items-center gap-1.5 min-w-[70px]">
+                              {shift.info.hasIn && (
+                                <span className="text-xs font-mono font-bold text-gray-700">
+                                  {shift.info.in}
+                                </span>
+                              )}
+                              {shift.info.hasIn && shift.info.hasOut && (
+                                <span className="text-xs text-gray-300">-</span>
+                              )}
+                              {shift.info.hasOut && (
+                                <span className="text-xs font-mono font-bold text-gray-700">
+                                  {shift.info.out}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                      {(Number(day.engine_context?.late_minutes) > 0 || Number(day.engine_context?.early_leave_minutes) > 0) && (
                         <div className="text-[10px] text-orange-600 mt-0.5">
-                          {Number(day.lateMinutes) > 0 && `Muộn ${day.lateMinutes}p`}
-                          {Number(day.lateMinutes) > 0 && Number(day.earlyLeaveMinutes) > 0 && ' · '}
-                          {Number(day.earlyLeaveMinutes) > 0 && `Sớm ${day.earlyLeaveMinutes}p`}
-                          {Number(day.penalty) > 0 && (
-                            <span className="text-red-600 font-medium"> · -{(day.penalty || 0).toLocaleString('vi-VN')}đ</span>
-                          )}
+                          {Number(day.engine_context.late_minutes) > 0 && `Đi muộn ${day.engine_context.late_minutes} phút`}
+                          {Number(day.engine_context.late_minutes) > 0 && Number(day.engine_context.early_leave_minutes) > 0 && ' · '}
+                          {Number(day.engine_context.early_leave_minutes) > 0 && `Về sớm ${day.engine_context.early_leave_minutes} phút`}
                         </div>
                       )}
-                    </>
+                    </div>
                   ) : (
                     <span className={`text-[11px] ${day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration ? 'text-blue-600' : 'text-gray-400'}`}>
-                      {day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration
-                        ? day.approvedExplanations?.[0]?.reason || 'Có đơn đã duyệt'
-                        : 'Chưa có dữ liệu'}
+                      {day.dayStatusSummary?.summary_text || 'Chưa có dữ liệu'}
                     </span>
                   )}
                 </div>
 
                 {/* Work coefficient */}
-                {hasData && day.workCoefficient !== undefined && day.workCoefficient > 0 && (
-                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0">
-                    {day.workCoefficient}
+                {hasData && day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0 shadow-sm">
+                    {day.engine_context.work_credit} công
                   </span>
                 )}
 
