@@ -129,10 +129,11 @@ const AttendanceManagement: React.FC = () => {
     INCOMPLETE_ATTENDANCE: 'Giải trình quên chấm công',
     BUSINESS_TRIP: 'Giải trình đi công tác',
     FIRST_DAY: 'Giải trình ngày đầu đi làm',
-    OVERTIME: 'Đăng ký tăng ca',
-    EXTRA_HOURS: 'Đăng ký làm thêm giờ',
-    NIGHT_SHIFT: 'Đăng ký trực tối',
-    LIVE: 'Đăng ký Live',
+    OVERTIME: 'Đơn đăng ký tăng ca',
+    EXTRA_HOURS: 'Đơn đăng ký làm thêm giờ',
+    NIGHT_SHIFT: 'Đơn đăng ký trực tối',
+    LIVE: 'Đơn đăng ký Live',
+    LEAVE: 'Đơn nghỉ phép tháng',
   };
 
   const getExplanationTypeLabel = (type: string): string =>
@@ -1141,7 +1142,10 @@ const AttendanceManagement: React.FC = () => {
         result = await attendanceService.createAttendanceExplanation(explanationData);
 
         await refreshAllData();
-        showNotify('success', 'Thành công', 'Đơn bổ sung công đã được gửi thành công!');
+        const successMsg = selectedContext === 'monthly_leave'
+          ? 'Đơn nghỉ phép tháng đã được gửi thành công!'
+          : 'Đơn bổ sung công đã được gửi thành công!';
+        showNotify('success', 'Thành công', successMsg);
       }
 
       handleCloseSupplementaryRequest();
@@ -2023,18 +2027,64 @@ const AttendanceManagement: React.FC = () => {
 
                   {/* Events Timeline */}
                   {(() => {
-                    const allEvents: (AttendanceEvent & { recordStatus?: string, recordStatusDisplay?: string })[] = attendanceDetails.flatMap(
-                      (r) => (r.events || []).map(ev => ({ ...ev, recordStatus: r.status, recordStatusDisplay: r.status_display }))
-                    );
+                    // Extract all events and expand registration approvals into virtual events for the timeline
+                    const allEvents: any[] = [];
+                    attendanceDetails.forEach((r) => {
+                      (r.events || []).forEach((ev) => {
+                        allEvents.push({
+                          ...ev,
+                          recordStatus: r.status,
+                          recordStatusDisplay: r.status_display,
+                        });
+
+                        // Expand registrations into separate approval steps if they exist
+                        if (
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(
+                            ev.event_type
+                          )
+                        ) {
+                          if (ev.data?.direct_manager_approved_by_name) {
+                            allEvents.push({
+                              id: `v-dm-${ev.id}`,
+                              event_type: 'registration_approval',
+                              created_at: new Date(new Date(ev.created_at).getTime() + 1000).toISOString(),
+                              data: {
+                                approval_level: 'DIRECT_MANAGER',
+                                approved_by_name: ev.data.direct_manager_approved_by_name,
+                                status: 'APPROVED',
+                                registration_type: ev.data.registration_type,
+                              },
+                            });
+                          }
+                          if (ev.data?.hr_approved_by_name) {
+                            allEvents.push({
+                              id: `v-hr-${ev.id}`,
+                              event_type: 'registration_approval',
+                              created_at: new Date(new Date(ev.created_at).getTime() + 2000).toISOString(),
+                              data: {
+                                approval_level: 'HR',
+                                approved_by_name: ev.data.hr_approved_by_name,
+                                status: 'APPROVED',
+                                registration_type: ev.data.registration_type,
+                              },
+                            });
+                          }
+                        }
+                      });
+                    });
+
                     const sortedEvents = [...allEvents].sort(
                       (a, b) =>
                         new Date(a.created_at).getTime() -
                         new Date(b.created_at).getTime()
                     );
 
-                    const hasAnyPunch = attendanceDetails.some((r) => r.check_in || r.check_out);
+                    const hasAnyPunch = attendanceDetails.some(
+                      (r) => r.check_in || r.check_out
+                    );
                     const filteredEvents = sortedEvents.filter((ev) => {
-                      if (ev.event_type === 'attendance' && !hasAnyPunch) return false;
+                      if (ev.event_type === 'attendance' && !hasAnyPunch)
+                        return false;
                       return true;
                     });
 
@@ -2043,6 +2093,7 @@ const AttendanceManagement: React.FC = () => {
                       attendance: 'Chấm công',
                       explanation: 'Giải trình',
                       explanation_approval: 'Phê duyệt giải trình',
+                      registration_approval: 'Phê duyệt đăng ký',
                       overtime: 'Tăng ca',
                       livestream: 'Livestream',
                     };
@@ -2058,23 +2109,15 @@ const AttendanceManagement: React.FC = () => {
                     };
                     const isApproved = (ev: AttendanceEvent) => {
                       if (
-                        ev.event_type === 'explanation' &&
+                        (ev.event_type === 'explanation' ||
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(ev.event_type) ||
+                          ev.event_type === 'registration_approval') &&
                         ev.data?.status === 'APPROVED'
                       )
                         return true;
                       if (
                         ev.event_type === 'explanation_approval' &&
                         ev.data?.action === 'APPROVE'
-                      )
-                        return true;
-                      if (
-                        ev.event_type === 'overtime' &&
-                        ev.data?.status === 'APPROVED'
-                      )
-                        return true;
-                      if (
-                        ev.event_type === 'livestream' &&
-                        ev.data?.status === 'APPROVED'
                       )
                         return true;
                       return false;
@@ -2088,6 +2131,25 @@ const AttendanceManagement: React.FC = () => {
                         <ol className="relative border-l border-gray-200 ml-3 space-y-4">
                           {filteredEvents.map((ev) => {
                             const approved = isApproved(ev);
+
+                            // Clean redundant prefixes from reason (e.g., "Tăng ca: abc" -> "abc")
+                            const rawReason = ev.explanation || ev.data?.reason || ev.notes || '';
+                            let cleanedReason = rawReason;
+                            const prefixes = [
+                              ...Object.values(EXPLANATION_TYPE_MAP),
+                              'Tăng ca', 'Làm thêm giờ', 'Trực tối', 'Live', 'Livestream',
+                              'Giải trình đi muộn', 'Giải trình về sớm', 'Giải trình quên chấm công', 'Giải trình đi công tác', 'Giải trình ngày đầu đi làm',
+                              'Đi muộn', 'Về sớm', 'Quên chấm công', 'Làm online', 'Nghỉ phép'
+                            ].filter(Boolean);
+                            prefixes.sort((a, b) => b.length - a.length);
+
+                            for (const p of prefixes) {
+                              if (cleanedReason.toLowerCase().startsWith(p.toLowerCase())) {
+                                cleanedReason = cleanedReason.substring(p.length).replace(/^[\:\-\s]+/, '').trim();
+                                break;
+                              }
+                            }
+
                             return (
                               <li key={ev.id} className="ml-4">
                                 <div
@@ -2106,19 +2168,25 @@ const AttendanceManagement: React.FC = () => {
                                     <span
                                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${ev.event_type === 'attendance'
                                         ? 'bg-blue-100 text-blue-800'
-                                        : ev.event_type === 'explanation'
-                                          ? ev.recordStatus === 'LEAVE' ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800'
-                                          : ev.event_type === 'livestream'
-                                            ? 'bg-pink-100 text-pink-800'
-                                            : 'bg-indigo-100 text-indigo-800'
+                                        : ev.event_type === 'explanation' || (ev.event_type === 'explanation_approval' && (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE'))
+                                          ? (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE') ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800'
+                                          : (ev.event_type === 'explanation_approval' || ev.event_type === 'registration_approval')
+                                            ? 'bg-indigo-100 text-indigo-800'
+                                            : (['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(ev.event_type))
+                                              ? 'bg-amber-100 text-amber-800'
+                                              : 'bg-indigo-100 text-indigo-800'
                                         }`}
                                     >
-                                      {ev.event_type === 'explanation' && ev.recordStatus === 'LEAVE'
-                                        ? (ev.recordStatusDisplay || 'Nghỉ phép tháng')
-                                        : (eventTypeLabel[ev.event_type] || ev.event_type)}
+                                      {ev.event_type === 'explanation'
+                                        ? (getExplanationTypeLabel(ev.data?.explanation_type) || 'Giải trình')
+                                        : (ev.event_type === 'livestream' || ['overtime', 'extra_hours', 'night_shift', 'live'].includes(ev.event_type))
+                                          ? (getExplanationTypeLabel(ev.data?.registration_type) || (ev.event_type === 'livestream' ? 'Đơn đăng ký Livestream' : 'Đơn đăng ký'))
+                                          : ev.event_type === 'registration_approval' && ev.data?.registration_type
+                                            ? `Phê duyệt ${getExplanationTypeLabel(ev.data.registration_type)}`
+                                            : (eventTypeLabel[ev.event_type] || ev.event_type)}
                                     </span>
                                     {approved && (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 whitespace-nowrap">
                                         ✓ Đã duyệt
                                       </span>
                                     )}
@@ -2128,11 +2196,6 @@ const AttendanceManagement: React.FC = () => {
                                       )}
                                     </time>
                                   </div>
-                                  {ev.explanation && (
-                                    <p className="text-sm text-gray-700 mb-1">
-                                      {ev.explanation}
-                                    </p>
-                                  )}
                                   {ev.event_type === 'attendance' && (
                                     <p className="text-xs text-gray-600">
                                       Trạng thái:{' '}
@@ -2148,10 +2211,10 @@ const AttendanceManagement: React.FC = () => {
                                   )}
                                   {ev.event_type === 'explanation' && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {ev.data?.reason && (
-                                        <p>Lý do: {ev.data.reason}</p>
+                                      {cleanedReason && (
+                                        <p>Lý do: {cleanedReason}</p>
                                       )}
-                                      {ev.data?.status && (
+                                      {ev.data?.status && ev.data.status !== 'APPROVED' && (
                                         <p>
                                           Trạng thái:{' '}
                                           {statusLabel[ev.data.status] ??
@@ -2176,91 +2239,51 @@ const AttendanceManagement: React.FC = () => {
                                         :{' '}
                                         {ev.data?.approved_by_name}
                                       </p>
-                                      {ev.data?.note && (
+                                      {ev.data?.note && ev.data.note !== 'Đã duyệt' && (
                                         <p className="italic text-gray-500">
                                           "{ev.data.note}"
                                         </p>
                                       )}
                                     </div>
                                   )}
-                                  {ev.event_type === 'overtime' && (
+                                  {ev.event_type === 'registration_approval' && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {ev.data?.registration_type && (
-                                        <p>
-                                          Loại:{' '}
-                                          {getExplanationTypeLabel(
-                                            ev.data.registration_type
-                                          )}
-                                        </p>
-                                      )}
-                                      {(ev.check_in || ev.check_out) && (
-                                        <p>
-                                          Thời gian: {ev.check_in ?? '--'} —{' '}
-                                          {ev.check_out ?? '--'}
-                                        </p>
-                                      )}
-                                      {(ev.notes || ev.data?.reason) && (
-                                        <p>
-                                          Lý do: {ev.notes || ev.data?.reason}
-                                        </p>
-                                      )}
-                                      {ev.data?.status && (
+                                      <p>
+                                        {approvalLevelLabel[
+                                          ev.data?.approval_level
+                                        ] ??
+                                          ev.data?.approval_level ??
+                                          'Unknown'}
+                                        :{' '}
+                                        {ev.data?.approved_by_name}
+                                      </p>
+                                      {ev.data?.status && ev.data.status !== 'APPROVED' && (
                                         <p>
                                           Trạng thái:{' '}
                                           {statusLabel[ev.data.status] ??
                                             ev.data.status}
-                                        </p>
-                                      )}
-                                      {ev.data?.direct_manager_approved_by_name && (
-                                        <p>
-                                          Quản lý trực tiếp:{' '}
-                                          {ev.data.direct_manager_approved_by_name}
-                                        </p>
-                                      )}
-                                      {ev.data?.hr_approved_by_name && (
-                                        <p>
-                                          HR: {ev.data.hr_approved_by_name}
                                         </p>
                                       )}
                                     </div>
                                   )}
-                                  {ev.event_type === 'livestream' && (
+                                  {['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(ev.event_type) && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {ev.data?.registration_type && (
-                                        <p>
-                                          Loại:{' '}
-                                          {getExplanationTypeLabel(
-                                            ev.data.registration_type
-                                          )}
-                                        </p>
-                                      )}
                                       {(ev.check_in || ev.check_out) && (
                                         <p>
                                           Thời gian: {ev.check_in ?? '--'} —{' '}
                                           {ev.check_out ?? '--'}
                                         </p>
                                       )}
-                                      {(ev.notes || ev.data?.reason) && (
+                                      {cleanedReason && (
                                         <p>
-                                          Lý do: {ev.notes || ev.data?.reason}
+                                          Lý do: {cleanedReason}
                                         </p>
                                       )}
-                                      {ev.data?.status && (
+                                      {ev.data?.status && ev.data.status !== 'APPROVED' && (
                                         <p>
                                           Trạng thái:{' '}
                                           {statusLabel[ev.data.status] ??
                                             ev.data.status}
-                                        </p>
-                                      )}
-                                      {ev.data?.direct_manager_approved_by_name && (
-                                        <p>
-                                          Quản lý trực tiếp:{' '}
-                                          {ev.data.direct_manager_approved_by_name}
-                                        </p>
-                                      )}
-                                      {ev.data?.hr_approved_by_name && (
-                                        <p>
-                                          HR: {ev.data.hr_approved_by_name}
                                         </p>
                                       )}
                                     </div>
@@ -3082,6 +3105,24 @@ const AttendanceManagement: React.FC = () => {
                               )}
                             </div>
                           )}
+
+                          {/* Note input for Overtime */}
+                          <div className="mt-4 space-y-2">
+                            <label
+                              htmlFor="overtime-note"
+                              className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                            >
+                              Ghi chú tăng ca
+                            </label>
+                            <textarea
+                              id="overtime-note"
+                              rows={3}
+                              value={formNote}
+                              onChange={(e) => setFormNote(e.target.value)}
+                              placeholder="Nhập ghi chú, lý do tăng ca chi tiết..."
+                              className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
@@ -3214,6 +3255,24 @@ const AttendanceManagement: React.FC = () => {
                                 )}
                             </div>
                           )}
+
+                          {/* Note input for Extra Hours */}
+                          <div className="mt-4 space-y-2">
+                            <label
+                              htmlFor="extra-hours-note"
+                              className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                            >
+                              Ghi chú làm thêm giờ
+                            </label>
+                            <textarea
+                              id="extra-hours-note"
+                              rows={3}
+                              value={formNote}
+                              onChange={(e) => setFormNote(e.target.value)}
+                              placeholder="Nhập ghi chú, lý do làm thêm giờ..."
+                              className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
@@ -3340,6 +3399,24 @@ const AttendanceManagement: React.FC = () => {
                           </div>
                         )}
 
+                        {/* Note input for Night Shift */}
+                        <div className="mt-2 space-y-2">
+                          <label
+                            htmlFor="night-shift-note"
+                            className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                          >
+                            Ghi chú trực tối
+                          </label>
+                          <textarea
+                            id="night-shift-note"
+                            rows={3}
+                            value={formNote}
+                            onChange={(e) => setFormNote(e.target.value)}
+                            placeholder="Nhập ghi chú, ca trực cụ thể..."
+                            className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                          />
+                        </div>
+
                         {/* Validation error */}
                         {selectedReason === 'night_shift' && registrationTimeError && (
                           <div className="bg-red-50 rounded-lg p-3 border border-red-200">
@@ -3452,6 +3529,24 @@ const AttendanceManagement: React.FC = () => {
                                 >
                                   {liveDuration.toFixed(1)} giờ
                                 </span>
+                              </div>
+
+                              {/* Note input for Live */}
+                              <div className="mt-4 space-y-2">
+                                <label
+                                  htmlFor="live-note"
+                                  className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                                >
+                                  Ghi chú live
+                                </label>
+                                <textarea
+                                  id="live-note"
+                                  rows={3}
+                                  value={formNote}
+                                  onChange={(e) => setFormNote(e.target.value)}
+                                  placeholder="Nhập ghi chú, phiên live cụ thể..."
+                                  className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                                />
                               </div>
 
                               {/* Validation error */}
@@ -3931,7 +4026,7 @@ const AttendanceManagement: React.FC = () => {
                         : selectedContext === 'registration'
                           ? 'Đăng ký'
                           : selectedContext === 'monthly_leave'
-                            ? 'Nghỉ phép'
+                            ? 'Nghỉ phép tháng'
                             : 'Làm online'}
                     </span>
                   </div>
@@ -3973,6 +4068,7 @@ const AttendanceManagement: React.FC = () => {
                     (selectedReason === 'incomplete_attendance' ||
                       selectedReason === 'business_trip' ||
                       selectedReason === 'first_day' ||
+                      selectedContext === 'registration' ||
                       selectedContext === 'online_work') && (
                       <div className="flex flex-col space-y-1.5 pt-1">
                         <div className="flex items-center text-gray-500">
@@ -4255,11 +4351,16 @@ const AttendanceManagement: React.FC = () => {
                             CANCELLED: { label: 'Đã huỷ', cls: 'bg-gray-50 text-gray-500 ring-1 ring-gray-500/20' },
                           } as Record<string, { label: string; cls: string }>)[item.status] || { label: item.status, cls: 'bg-gray-50 text-gray-600 ring-1 ring-gray-500/20' };
 
-                          const typeConfig = ({
-                            explanation: { label: 'Giải trình', bg: 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' },
-                            registration: { label: 'Đăng ký', bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
-                            online_work: { label: 'Làm việc online', bg: 'bg-teal-50 text-teal-700 ring-1 ring-teal-600/20' },
-                          } as Record<string, { label: string; bg: string }>)[item._type] || { label: item._type, bg: 'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20' };
+                          const typeConfig = (() => {
+                            if (item._type === 'explanation' && item.explanation_type === 'LEAVE') {
+                              return { label: 'Nghỉ phép tháng', bg: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20' };
+                            }
+                            return ({
+                              explanation: { label: 'Giải trình', bg: 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' },
+                              registration: { label: 'Đăng ký', bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
+                              online_work: { label: 'Làm việc online', bg: 'bg-teal-50 text-teal-700 ring-1 ring-teal-600/20' },
+                            } as Record<string, { label: string; bg: string }>)[item._type] || { label: item._type, bg: 'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20' };
+                          })();
 
                           const dateStr = item.attendance_date || item.work_date || item.created_at;
                           const displayDate = dateStr
@@ -4273,8 +4374,8 @@ const AttendanceManagement: React.FC = () => {
                             requestName = item.registration_type ? (EXPLANATION_TYPE_MAP[item.registration_type] || item.registration_type) : 'Đơn đăng ký';
                           } else if (item._type === 'online_work') {
                             requestName = 'Đơn làm việc online';
-                          } else if (item._type === 'leave') {
-                            requestName = 'Đơn nghỉ phép';
+                          } else if (item._type === 'explanation' && item.explanation_type === 'LEAVE') {
+                            requestName = 'Đơn nghỉ phép tháng';
                           }
 
                           return (

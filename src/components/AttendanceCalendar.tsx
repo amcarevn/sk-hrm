@@ -200,7 +200,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           }));
 
         const approvedRegistrations = registrations
-          .filter((r: any) => ['overtime', 'extra_hours', 'night_shift', 'live'].includes(r.event_type) && r.data?.status === 'APPROVED')
+          .filter((r: any) => ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(r.event_type) && r.data?.status === 'APPROVED')
           .map((r: any) => r.data);
 
         const onlineWorkRequests = registrations
@@ -210,7 +210,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         const hasApprovedExplanations = approvedExplanations.length > 0;
         const hasApprovedRegistration = approvedRegistrations.length > 0;
         const hasPendingRequest = registrations.some((r: any) =>
-          ['explanation', 'overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'leave'].includes(r.event_type) &&
+          ['explanation', 'overtime', 'extra_hours', 'night_shift', 'live', 'livestream', 'online_work', 'leave'].includes(r.event_type) &&
           r.data?.status === 'PENDING'
         );
         const hasApprovedOnlineWork = onlineWorkRequests.length > 0;
