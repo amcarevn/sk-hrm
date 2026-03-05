@@ -54,12 +54,35 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         currentPath === '/dashboard/organization-chart' ||
         currentPath === '/dashboard/approvals' ||
         (currentPath === '/dashboard/attendance/upload' && userDepartmentCode === 'HCNS') ||
+        currentPath === '/dashboard/onboarding' ||
+        currentPath.startsWith('/dashboard/onboarding/') ||
         (isManager && (currentPath === '/dashboard/onboarding' || currentPath.startsWith('/dashboard/onboarding/')));
       
       if (!isAllowedForStaff) {
         return <Navigate to="/home" replace />;
       }
     }
+    if (!isSuperAdmin && userRole === 'CUSTOMER') {
+      const currentPath = window.location.pathname;
+      
+      const MANAGER_POSITIONS = ['Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'];
+      const userPosition = user.employee_profile?.position || user.hrm_user?.position || null;
+      const isManager = userPosition ? MANAGER_POSITIONS.includes(userPosition) : false;
+
+      const isAllowedForCustomer = 
+        currentPath === '/home' ||
+        currentPath === '/dashboard/me' ||
+        currentPath === '/dashboard/attendance' ||
+        currentPath === '/dashboard/attendance/view' ||
+        currentPath === '/dashboard/organization-chart' ||
+        currentPath === '/dashboard/approvals' ||
+        currentPath === '/dashboard/onboarding' ||  
+        currentPath.startsWith('/dashboard/onboarding/');
+
+      if (!isAllowedForCustomer) {
+        return <Navigate to="/home" replace />;
+      }
+}
   }
 
   // Check role-based access if allowedRoles is provided
