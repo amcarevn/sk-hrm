@@ -109,12 +109,13 @@ const navigationItems: NavigationItem[] = [
     icon: CheckCircleIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
   },
-  {
-    name: 'Sơ đồ tổ chức',
-    href: '/dashboard/organization-chart',
-    icon: EyeIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
-  },
+  // TODO: sẽ thêm lại sơ đồ tổ chức vào sau
+  // {
+  //   name: 'Sơ đồ tổ chức',
+  //   href: '/dashboard/organization-chart',
+  //   icon: EyeIcon,
+  //   roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
+  // },
   {
     name: 'Onboard nhân sự',
     href: '/dashboard/onboarding',
