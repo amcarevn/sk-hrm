@@ -37,6 +37,15 @@ const Approvals: React.FC = () => {
     total_rejected: 0,
   });
 
+  const isAdmin = currentEmployee?.user?.is_staff || currentEmployee?.user?.is_superuser;
+  const isHR = currentEmployee?.is_hr ||
+    currentEmployee?.position?.title?.includes('HR') ||
+    currentEmployee?.position?.title?.includes('Nhân sự') ||
+    currentEmployee?.department?.name?.includes('HR') ||
+    currentEmployee?.department?.name?.includes('Nhân sự');
+
+  const isManagement = currentEmployee?.position?.is_management || false;
+
   useEffect(() => {
     fetchCurrentEmployee();
     fetchAllData();
@@ -160,6 +169,7 @@ const Approvals: React.FC = () => {
     EXTRA_HOURS: 'Đăng ký làm thêm giờ',
     NIGHT_SHIFT: 'Đăng ký trực tối',
     LIVE: 'Đăng ký Live',
+    LEAVE: 'Đơn nghỉ phép tháng',
   };
 
   // Mapping trạng thái chấm công sang tiếng Việt
@@ -1160,40 +1170,47 @@ const Approvals: React.FC = () => {
 
         {/* Bộ lọc */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 space-y-3">
-          {/* Tìm kiếm theo tên và phòng ban */}
+          {/* Tìm kiếm theo tên và phòng ban - PHÂN QUYỀN HIỂN THỊ */}
           <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Tên nhân viên</label>
-              <div className="relative">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-                </svg>
-                <input
-                  type="text"
-                  value={filterName}
-                  onChange={e => setFilterName(e.target.value)}
-                  placeholder="Tìm theo tên..."
-                  aria-label="Tìm kiếm theo tên nhân viên"
-                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
-                />
+            {/* Tên nhân viên - Hiện cho HR, Admin, và QUẢN LÝ */}
+            {(isAdmin || isHR || isManagement) && (
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Tên nhân viên</label>
+                <div className="relative">
+                  <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={filterName}
+                    onChange={e => setFilterName(e.target.value)}
+                    placeholder="Tìm theo tên..."
+                    aria-label="Tìm kiếm theo tên nhân viên"
+                    className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Phòng ban</label>
-              <div className="relative">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                <input
-                  type="text"
-                  value={filterDepartment}
-                  onChange={e => setFilterDepartment(e.target.value)}
-                  placeholder="Tìm theo phòng ban..."
-                  aria-label="Tìm kiếm theo phòng ban"
-                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
-                />
+            )}
+
+            {/* Phòng ban - CHỈ Hiện cho HR, Admin (Quản lý bị ẩn theo yêu cầu) */}
+            {(isAdmin || isHR) && (
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Phòng ban</label>
+                <div className="relative">
+                  <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={filterDepartment}
+                    onChange={e => setFilterDepartment(e.target.value)}
+                    placeholder="Tìm theo phòng ban..."
+                    aria-label="Tìm kiếm theo phòng ban"
+                    className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Lọc theo loại đơn */}
@@ -1210,11 +1227,10 @@ const Approvals: React.FC = () => {
                 key={opt.value}
                 onClick={() => toggleFilter(opt.value)}
                 aria-pressed={filterTypes.includes(opt.value)}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                  filterTypes.includes(opt.value)
-                    ? 'bg-primary-600 text-white ring-2 ring-primary-300'
-                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
-                }`}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filterTypes.includes(opt.value)
+                  ? 'bg-primary-600 text-white ring-2 ring-primary-300'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                  }`}
               >
                 {opt.label}
               </button>
@@ -1309,7 +1325,7 @@ const Approvals: React.FC = () => {
                         <tr key={itemKey}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className={`flex-shrink-0 h-10 w-10 ${isRegistration ? 'bg-blue-100' : isOnlineWork ? 'bg-teal-100' : 'bg-yellow-100'} rounded-full flex items-center justify-center`}>
+                              <div className={`flex-shrink-0 h-10 w-10 ${isRegistration ? 'bg-blue-100' : isOnlineWork ? 'bg-teal-100' : item.explanation_type === 'LEAVE' ? 'bg-indigo-100' : 'bg-yellow-100'} rounded-full flex items-center justify-center`}>
                                 {isRegistration ? (
                                   <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1317,6 +1333,10 @@ const Approvals: React.FC = () => {
                                 ) : isOnlineWork ? (
                                   <svg className="h-5 w-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                  </svg>
+                                ) : item.explanation_type === 'LEAVE' ? (
+                                  <svg className="h-5 w-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                   </svg>
                                 ) : (
                                   <svg className="h-5 w-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -41,7 +41,7 @@ const WorkFinalization: React.FC = () => {
     departmentsAPI
       .list({ page_size: 200 })
       .then((res) => setDepartments(res.results))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Load employees when dept filter changes
@@ -75,7 +75,7 @@ const WorkFinalization: React.FC = () => {
     } catch (err: any) {
       setError(
         err?.response?.data?.error ||
-          'Không thể tải dữ liệu chốt công. Vui lòng thử lại.'
+        'Không thể tải dữ liệu chốt công. Vui lòng thử lại.'
       );
       setRecords([]);
     } finally {
@@ -108,7 +108,7 @@ const WorkFinalization: React.FC = () => {
     } catch (err: any) {
       setError(
         err?.response?.data?.error ||
-          `Lỗi khi chốt công cho ${emp.employee_id}`
+        `Lỗi khi chốt công cho ${emp.employee_id}`
       );
     } finally {
       setFinalizing(null);
@@ -159,6 +159,7 @@ const WorkFinalization: React.FC = () => {
         { header: 'Có Lễ', key: 'co_le', width: 10 },
         { header: 'Công Thực Tế', key: 'cong_thuc_te', width: 14 },
         { header: 'Tổng Công', key: 'tong_cong', width: 12 },
+        { header: 'Nghỉ Phép', key: 'nghi_phep', width: 12 },
         { header: 'Tổng Phạt', key: 'tong_phat', width: 14 },
         { header: 'Tăng Ca', key: 'tang_ca', width: 10 },
         { header: 'Làm Tối', key: 'lam_toi', width: 10 },
@@ -203,6 +204,7 @@ const WorkFinalization: React.FC = () => {
           co_le: rec.co_le ?? '',
           cong_thuc_te: rec.cong_thuc_te,
           tong_cong: rec.tong_cong,
+          nghi_phep: rec.nghi_phep,
           tong_phat: rec.tong_phat,
           tang_ca: rec.tang_ca,
           lam_toi: rec.lam_toi ?? '',
@@ -407,9 +409,8 @@ const WorkFinalization: React.FC = () => {
                   <li
                     key={emp.id}
                     onClick={() => setSelectedEmployee(emp)}
-                    className={`px-3 py-3 cursor-pointer hover:bg-indigo-50 transition-colors ${
-                      isSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''
-                    }`}
+                    className={`px-3 py-3 cursor-pointer hover:bg-indigo-50 transition-colors ${isSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''
+                      }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
@@ -558,6 +559,7 @@ const WorkFinalization: React.FC = () => {
                       { label: 'Công chính thức', value: String(finalizedRec.cong_chinh_thuc), cardCls: 'bg-indigo-50', labelCls: 'text-indigo-700', valCls: 'text-indigo-800 font-bold' },
                       { label: 'Công thực tế', value: String(finalizedRec.cong_thuc_te), cardCls: 'bg-green-50', labelCls: 'text-green-700', valCls: 'text-green-800 font-bold' },
                       { label: 'Tổng công', value: String(finalizedRec.tong_cong), cardCls: 'bg-emerald-50', labelCls: 'text-emerald-700', valCls: 'text-emerald-800 font-extrabold' },
+                      { label: 'Nghỉ phép tháng', value: String(finalizedRec.nghi_phep), cardCls: 'bg-indigo-50/50', labelCls: 'text-indigo-700', valCls: 'text-indigo-800 font-bold' },
                       { label: 'Tổng phạt', value: `${formatNumber(finalizedRec.tong_phat)}đ`, cardCls: 'bg-red-50', labelCls: 'text-red-700', valCls: 'text-red-800 font-bold' },
                       { label: 'Tăng ca', value: String(finalizedRec.tang_ca), cardCls: 'bg-orange-50', labelCls: 'text-orange-700', valCls: 'text-orange-800 font-bold' },
                       { label: 'Trực tối', value: String(finalizedRec.truc_toi), cardCls: 'bg-purple-50', labelCls: 'text-purple-700', valCls: 'text-purple-800 font-bold' },

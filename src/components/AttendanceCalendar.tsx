@@ -200,7 +200,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           }));
 
         const approvedRegistrations = registrations
-          .filter((r: any) => ['overtime', 'extra_hours', 'night_shift', 'live'].includes(r.event_type) && r.data?.status === 'APPROVED')
+          .filter((r: any) => ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(r.event_type) && r.data?.status === 'APPROVED')
           .map((r: any) => r.data);
 
         const onlineWorkRequests = registrations
@@ -209,7 +209,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
         const hasApprovedExplanations = approvedExplanations.length > 0;
         const hasApprovedRegistration = approvedRegistrations.length > 0;
-        const hasPendingRequest = registrations.some((r: any) => r.data?.status === 'PENDING');
+        const hasPendingRequest = registrations.some((r: any) =>
+          ['explanation', 'overtime', 'extra_hours', 'night_shift', 'live', 'livestream', 'online_work', 'leave'].includes(r.event_type) &&
+          r.data?.status === 'PENDING'
+        );
         const hasApprovedOnlineWork = onlineWorkRequests.length > 0;
 
         let summaryText = getDayStatusSummaryText(dayItem);
@@ -369,7 +372,17 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
   // Helper: Get badge style for a day
   const getDayBadgeStyle = (day: AttendanceDay): string => {
-    // Priority: Late/Early badge should be yellow even if border is green
+    // Priority 1: Pending requests should be highly visible
+    if (day.dayStatusSummary?.has_pending_request) {
+      return 'bg-blue-50 text-blue-600 ring-1 ring-blue-200 animate-pulse font-medium';
+    }
+
+    // Priority 2: Approved requests
+    if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration) {
+      return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300 font-medium';
+    }
+
+    // Priority 3: Late/Early badge
     const late = day.engine_context?.late_minutes || 0;
     const early = day.engine_context?.early_leave_minutes || 0;
     if (late > 0 || early > 0) {
@@ -410,6 +423,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
   // Helper: Get badge text for a day
   const getDayBadgeText = (day: AttendanceDay): string => {
+    if (day.dayStatusSummary?.has_pending_request) return 'Chờ duyệt';
+    if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration) return 'Đã duyệt';
     if (day.dayStatusSummary?.summary_text) return day.dayStatusSummary.summary_text;
     const hasIncomplete = day.engine_context?.is_incomplete;
     if (hasIncomplete) return 'Quên chấm công';
@@ -445,9 +460,15 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+        <div className="flex justify-between items-center mb-6">
+          <div className="h-8 w-48 bg-gray-100 rounded-lg"></div>
+          <div className="h-8 w-24 bg-gray-100 rounded-lg"></div>
+        </div>
+        <div className="grid grid-cols-7 gap-2">
+          {Array.from({ length: 35 }).map((_, i) => (
+            <div key={i} className="h-24 bg-gray-50 rounded-lg border border-gray-100"></div>
+          ))}
         </div>
       </div>
     );
@@ -563,7 +584,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     >
                       {day.date.getDate()}
                     </span>
-                    {hasData && day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
+                    {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
                       <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md shadow-sm">
                         {day.engine_context.work_credit} công
                       </span>
@@ -785,7 +806,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 </div>
 
                 {/* Work coefficient */}
-                {hasData && day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
+                {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
                   <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded shrink-0 shadow-sm">
                     {day.engine_context.work_credit} công
                   </span>

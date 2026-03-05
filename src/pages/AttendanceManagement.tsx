@@ -16,6 +16,15 @@ import {
   CheckCircleIcon,
   NoSymbolIcon,
   ClipboardDocumentListIcon,
+  ExclamationCircleIcon,
+  BoltIcon,
+  BriefcaseIcon,
+  MoonIcon,
+  VideoCameraIcon,
+  HeartIcon,
+  ComputerDesktopIcon,
+  ChatBubbleBottomCenterTextIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 
 const AttendanceManagement: React.FC = () => {
@@ -31,7 +40,6 @@ const AttendanceManagement: React.FC = () => {
   const [showSupplementaryRequestModal, setShowSupplementaryRequestModal] =
     useState(false);
   const [attendanceStats, setAttendanceStats] = useState<any>(null);
-  console.log('attendanceStats', attendanceStats);
   const [attendanceRecords, setAttendanceRecords] = useState<
     AttendanceRecord[]
   >([]);
@@ -40,12 +48,12 @@ const AttendanceManagement: React.FC = () => {
   const [attendanceDetails, setAttendanceDetails] = useState<
     AttendanceRecord[]
   >([]);
+
+  console.log('attendanceDetails', attendanceDetails);
   const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
-  const [selectedDayData, setSelectedDayData] = useState<any>(null);
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [approvedExplanations, setApprovedExplanations] = useState<any[]>([]);
-  console.log('approvedExplanations', approvedExplanations);
   const [approvedRegistrations, setApprovedRegistrations] = useState<any[]>([]);
   const [approvedLeaveRequests, setApprovedLeaveRequests] = useState<any[]>([]);
   const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
@@ -53,6 +61,7 @@ const AttendanceManagement: React.FC = () => {
   const [workCreditsLoading, setWorkCreditsLoading] = useState(false);
   const [refreshDataTrigger, setRefreshDataTrigger] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // === Lịch sử đơn tháng ===
   const [showRequestHistoryDrawer, setShowRequestHistoryDrawer] = useState(false);
@@ -120,14 +129,24 @@ const AttendanceManagement: React.FC = () => {
     INCOMPLETE_ATTENDANCE: 'Giải trình quên chấm công',
     BUSINESS_TRIP: 'Giải trình đi công tác',
     FIRST_DAY: 'Giải trình ngày đầu đi làm',
-    OVERTIME: 'Đăng ký tăng ca',
-    EXTRA_HOURS: 'Đăng ký làm thêm giờ',
-    NIGHT_SHIFT: 'Đăng ký trực tối',
-    LIVE: 'Đăng ký Live',
+    OVERTIME: 'Đơn đăng ký tăng ca',
+    EXTRA_HOURS: 'Đơn đăng ký làm thêm giờ',
+    NIGHT_SHIFT: 'Đơn đăng ký trực tối',
+    LIVE: 'Đơn đăng ký Live',
+    LEAVE: 'Đơn nghỉ phép tháng',
   };
 
   const getExplanationTypeLabel = (type: string): string =>
     EXPLANATION_TYPE_MAP[type] || type;
+
+  // Mapping nguồn dữ liệu chấm công sang tiếng Việt
+  const IMPORT_SOURCE_MAP: Record<string, string> = {
+    attendance_upload: 'Tải tệp lên',
+    manual_checkin: 'Chấm công thủ công',
+    face_id: 'Face ID',
+    fingerprint: 'Vân tay',
+    system: 'Hệ thống',
+  };
 
   // ===================== STEP-BASED FORM STATE =====================
   type ContextType =
@@ -165,6 +184,11 @@ const AttendanceManagement: React.FC = () => {
   // Live state - for TikTok department
   const [liveStartTime, setLiveStartTime] = useState('');
   const [liveEndTime, setLiveEndTime] = useState('');
+
+  // Incomplete Attendance (Quên chấm công) state
+  const [forgotPunchType, setForgotPunchType] = useState<'checkin' | 'checkout' | 'both'>('checkin');
+  const [forgotCheckinTime, setForgotCheckinTime] = useState<string | null>(null);
+  const [forgotCheckoutTime, setForgotCheckoutTime] = useState<string | null>(null);
 
   // Confirmation modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -352,6 +376,9 @@ const AttendanceManagement: React.FC = () => {
     setNightShiftEndTime('');
     setLiveStartTime('');
     setLiveEndTime('');
+    setForgotPunchType('checkin');
+    setForgotCheckinTime(null);
+    setForgotCheckoutTime(null);
   };
 
   // Icon render helper
@@ -488,52 +515,53 @@ const AttendanceManagement: React.FC = () => {
     night_shift_sessions: number;
     live_sessions: number;
     leave_days: number;
+    total_late_minutes?: number;
+    total_early_leave_minutes?: number;
   } | null>(null);
 
   // Check if user has permission to upload attendance files
   // For now, only ADMIN role can upload
   const canUploadAttendance = user?.role === 'ADMIN';
 
+  // Effect 1: Fetch employee only on mount
   useEffect(() => {
-    const fetchData = async () => {
-      // Fetch current employee trước
-      const employee = await fetchCurrentEmployee();
+    fetchCurrentEmployee();
+  }, []);
 
-      if (employee) {
-        // Fetch tất cả data song song sau khi có employee
+  // Effect 2: Fetch all data when employee or date changes
+  useEffect(() => {
+    if (!currentEmployee) return;
+
+    const fetchAllData = async () => {
+      // Set loading only for the first time or when specifically needed
+      if (initialLoading) {
+        setLoading(true);
+      }
+
+      try {
         await Promise.all([
-          fetchAttendanceStats(employee),
-          fetchAttendanceRecords(employee),
-          fetchMonthlyWorkCredits(undefined, undefined, employee.id),
-          fetchCalendarData(undefined, undefined, employee.id),
-          fetchMonthlyRequestHistory(employee), // truyền employee thẳng, không chờ setState
+          fetchAttendanceStats(currentEmployee),
+          fetchAttendanceRecords(currentEmployee),
+          fetchMonthlyWorkCredits(
+            currentDate.getMonth() + 1,
+            currentDate.getFullYear(),
+            currentEmployee.id
+          ),
+          fetchCalendarData(
+            currentDate.getMonth() + 1,
+            currentDate.getFullYear(),
+            currentEmployee.id
+          ),
+          fetchMonthlyRequestHistory(currentEmployee, currentDate),
         ]);
+      } finally {
+        setLoading(false);
+        setInitialLoading(false);
       }
     };
 
-    fetchData();
-  }, []);
-
-  // Add effect to refetch stats when calendar month changes
-  useEffect(() => {
-    if (currentEmployee) {
-      fetchAttendanceStats(currentEmployee);
-      fetchAttendanceRecords(currentEmployee);
-      // Also refetch monthly work credits and calendar data when month changes
-      fetchMonthlyWorkCredits(
-        currentDate.getMonth() + 1,
-        currentDate.getFullYear(),
-        currentEmployee.id
-      );
-      fetchCalendarData(
-        currentDate.getMonth() + 1,
-        currentDate.getFullYear(),
-        currentEmployee.id
-      );
-      // Refetch monthly request history khi đổi tháng — truyền currentDate explicit tránh stale closure
-      fetchMonthlyRequestHistory(currentEmployee, currentDate);
-    }
-  }, [currentDate.getMonth(), currentDate.getFullYear()]);
+    fetchAllData();
+  }, [currentEmployee?.id, currentDate.getMonth(), currentDate.getFullYear()]);
 
   const fetchCurrentEmployee = async (): Promise<Employee | null> => {
     try {
@@ -608,23 +636,11 @@ const AttendanceManagement: React.FC = () => {
         }
       }
 
-      console.log('🔵 [STATS] Base stats:', stats.statistics);
-      console.log(
-        '🔵 [STATS] Explanation stats:',
-        explanationStats?.statistics
-      );
-
       // Combine stats - merge all fields from both APIs
       const mergedStats = {
         ...stats.statistics,
         ...(explanationStats?.statistics || {}),
       };
-
-      console.log('✅ [STATS] Merged stats:', mergedStats);
-      console.log(
-        '✅ [STATS] Final remaining_online_work:',
-        mergedStats.remaining_online_work
-      );
 
       setAttendanceStats(mergedStats);
     } catch (error) {
@@ -719,9 +735,17 @@ const AttendanceManagement: React.FC = () => {
       setCalendarData(calendarArray);
 
       // Extract summary from new API format
-      const summary = (response as any)?.data?.summary;
+      let summary = (response as any)?.data?.summary;
       if (summary) {
-        setCalendarSummary(summary);
+        // Calculate total late and early minutes manually from calendar data
+        const totalLate = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.late_minutes || 0), 0);
+        const totalEarly = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.early_leave_minutes || 0), 0);
+
+        setCalendarSummary({
+          ...summary,
+          total_late_minutes: totalLate,
+          total_early_leave_minutes: totalEarly,
+        });
       }
     } catch (error) {
       console.error('Error fetching calendar data:', error);
@@ -807,11 +831,7 @@ const AttendanceManagement: React.FC = () => {
   };
 
   const handleDateClick = async (date: Date, dayData?: any) => {
-    console.log('Date clicked in AttendanceManagement:', date);
-    console.log('Day data:', dayData);
-
     setSelectedDate(date);
-    setSelectedDayData(dayData || null);
     setShowAttendanceModal(true);
     setFetchingDetails(true);
 
@@ -838,11 +858,6 @@ const AttendanceManagement: React.FC = () => {
       });
 
       setAttendanceDetails(response.results);
-
-      // Log dayData for debugging (approved requests đã được set ở trên)
-      if (dayData) {
-        console.log('Using dayData for approved requests:', dayData);
-      }
 
       // Calculate summary
       if (response.results.length > 0) {
@@ -872,10 +887,7 @@ const AttendanceManagement: React.FC = () => {
               record.status === 'INCOMPLETE_ATTENDANCE'
           ).length,
           totalShifts: response.results.length,
-          workCoefficient:
-            dayData?.workCoefficient ??
-            (response.results[0] as any)?.work_coefficient ??
-            0,
+          workCoefficient: dayData?.engine_context?.work_credit ?? 0,
           totalLateMinutes:
             dayData?.lateMinutes ??
             response.results.reduce(
@@ -888,7 +900,6 @@ const AttendanceManagement: React.FC = () => {
               (sum: number, r: any) => sum + (r.early_leave_minutes || 0),
               0
             ),
-          totalPenalty: dayData?.penalty ?? 0,
         };
         setAttendanceSummary(summary);
       } else {
@@ -905,7 +916,6 @@ const AttendanceManagement: React.FC = () => {
           workCoefficient: 0,
           totalLateMinutes: 0,
           totalEarlyLeaveMinutes: 0,
-          totalPenalty: 0,
         });
       }
     } catch (error) {
@@ -920,7 +930,6 @@ const AttendanceManagement: React.FC = () => {
   const handleCloseModal = () => {
     setShowAttendanceModal(false);
     setSelectedDate(null);
-    setSelectedDayData(null);
     setApprovedExplanations([]);
     setApprovedLeaveRequests([]);
   };
@@ -975,15 +984,18 @@ const AttendanceManagement: React.FC = () => {
       } else if (selectedContext === 'registration') {
         reasonLabel =
           registrationReasons.find((r) => r.id === selectedReason)?.label || '';
-      } else if (selectedContext === 'monthly_leave') {
-        reasonLabel = 'Nghỉ phép tháng';
       } else if (selectedContext === 'online_work') {
         reasonLabel = 'Làm việc online';
       }
 
-      const finalReason = formNote
-        ? `${reasonLabel}: ${formNote}`
+      let finalReason = formNote
+        ? (reasonLabel ? `${reasonLabel}: ${formNote}` : formNote)
         : reasonLabel;
+
+      // Đặc biệt cho nghỉ phép: Nếu không có note thì để trống, có note thì lấy note
+      if (selectedContext === 'monthly_leave') {
+        finalReason = formNote || '';
+      }
 
       // Map expected status
       let expectedStatus = 'PRESENT';
@@ -993,13 +1005,6 @@ const AttendanceManagement: React.FC = () => {
 
       let result;
       if (selectedContext === 'online_work') {
-        console.log('🔵 [ONLINE WORK] Bắt đầu tạo đơn làm việc online');
-        console.log('🔵 [ONLINE WORK] Selected Date:', selectedDate);
-        console.log('🔵 [ONLINE WORK] Date String:', dateStr);
-        console.log('🔵 [ONLINE WORK] Current Employee:', currentEmployee);
-        console.log('🔵 [ONLINE WORK] Form Note:', formNote);
-        console.log('🔵 [ONLINE WORK] Final Reason:', finalReason);
-
         const onlineWorkData = {
           employee_id: currentEmployee.id,
           work_date: dateStr, // Sử dụng work_date thay vì attendance_date
@@ -1084,9 +1089,7 @@ const AttendanceManagement: React.FC = () => {
           status: 'PENDING' as const,
         };
 
-        console.log('🟢 [REGISTRATION] Data gửi lên API:', JSON.stringify(registrationData, null, 2));
         result = await attendanceService.createRegistrationRequest(registrationData);
-        console.log('✅ [REGISTRATION] API Response:', result);
 
         await refreshAllData();
         showNotify('success', 'Thành công', 'Đơn đăng ký công đã được gửi thành công!');
@@ -1099,7 +1102,12 @@ const AttendanceManagement: React.FC = () => {
           business_trip: 'BUSINESS_TRIP',
           first_day: 'FIRST_DAY',
         };
-        const explanationType = explanationTypeMap[selectedReason as string] || 'LATE';
+        let explanationType = explanationTypeMap[selectedReason as string] || 'LATE';
+
+        // Đảm bảo đơn nghỉ phép tháng có type là LEAVE
+        if (selectedContext === 'monthly_leave') {
+          explanationType = 'LEAVE';
+        }
 
         console.log('🔍 DEBUG explanation_type mapping:', {
           selectedContext,
@@ -1118,11 +1126,26 @@ const AttendanceManagement: React.FC = () => {
           status: 'PENDING',
         };
 
+        // Thêm thông tin loại quên chấm công kèm giờ cụ thể
+        if (selectedReason === 'incomplete_attendance') {
+          const checkinPart = forgotCheckinTime ? ` lúc ${forgotCheckinTime}` : '';
+          const checkoutPart = forgotCheckoutTime ? ` lúc ${forgotCheckoutTime}` : '';
+          const typeLabel =
+            forgotPunchType === 'checkin'
+              ? `Quên check-in${checkinPart}`
+              : forgotPunchType === 'checkout'
+                ? `Quên check-out${checkoutPart}`
+                : `Quên cả vào${checkinPart ? ` (${forgotCheckinTime})` : ''} và ra${checkoutPart ? ` (${forgotCheckoutTime})` : ''}`;
+          explanationData.reason = `[${typeLabel}] ${finalReason}`;
+        }
+
         result = await attendanceService.createAttendanceExplanation(explanationData);
-        console.log('Attendance explanation created:', result);
 
         await refreshAllData();
-        showNotify('success', 'Thành công', 'Đơn bổ sung công đã được gửi thành công!');
+        const successMsg = selectedContext === 'monthly_leave'
+          ? 'Đơn nghỉ phép tháng đã được gửi thành công!'
+          : 'Đơn bổ sung công đã được gửi thành công!';
+        showNotify('success', 'Thành công', successMsg);
       }
 
       handleCloseSupplementaryRequest();
@@ -1396,167 +1419,231 @@ const AttendanceManagement: React.FC = () => {
         </div>
       )}
 
+      {/* Skeleton Loading for Stats */}
+      {loading && initialLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="bg-gray-50 h-32 rounded-2xl animate-pulse border border-gray-100"></div>
+          ))}
+        </div>
+      )}
+
       {/* Summary Statistics - Responsive Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4 mb-6">
-        {/* === KPIs chính === */}
-        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col justify-between">
-          <h3 className="font-medium text-blue-900 text-xs md:text-sm">
-            Tổng ngày công
-          </h3>
-          <p className="text-xl md:text-2xl font-bold text-blue-700 mt-1 md:mt-2">
-            {calendarSummary?.total_work_days ?? monthlyWorkCredits?.results?.[0]?.attendance_summary?.total_days ?? 0}
-          </p>
-          <p className="text-[10px] md:text-xs text-blue-600 mt-1">
-            Tháng hiện tại
-          </p>
-        </div>
+      {!initialLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+          {/* === KPIs chính === */}
+          <div className="group bg-white p-4 rounded-2xl shadow-sm border border-blue-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <CalendarIcon className="h-6 w-6 text-blue-600" />
+              </div>
+              <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Tháng này</span>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-600">Tổng ngày công</h3>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-3xl font-bold text-gray-900">
+                {calendarSummary?.total_work_days ?? monthlyWorkCredits?.results?.[0]?.attendance_summary?.total_days ?? 0}
+              </span>
+              <span className="text-sm text-gray-500">ngày</span>
+            </div>
+          </div>
 
-        <div className="bg-green-50 p-3 rounded-lg border border-green-100 flex flex-col justify-between">
-          <h3 className="font-medium text-green-900 text-xs md:text-sm">
-            Ngày đủ công
-          </h3>
-          <p className="text-xl md:text-2xl font-bold text-green-700 mt-1 md:mt-2">
-            {calendarSummary?.full_days ?? 0}
-          </p>
-        </div>
+          <div className="group bg-white p-4 rounded-2xl shadow-sm border border-green-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-green-500"></div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <CheckCircleIcon className="h-6 w-6 text-green-600" />
+              </div>
+              <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Ổn định</span>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-600">Ngày đủ công</h3>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-3xl font-bold text-gray-900">
+                {calendarSummary?.full_days ?? 0}
+              </span>
+              <span className="text-sm text-gray-500">ngày</span>
+            </div>
+          </div>
 
-        <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 flex flex-col justify-between">
-          <h3 className="font-medium text-orange-900 text-xs md:text-sm">
-            Số vi phạm
-          </h3>
-          <p className="text-xl md:text-2xl font-bold text-orange-700 mt-1 md:mt-2">
-            {calendarSummary?.violation_count ?? 0}
-          </p>
-        </div>
+          <div className="group bg-white p-4 rounded-2xl shadow-sm border border-yellow-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-yellow-500"></div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-yellow-50 rounded-lg">
+                <ClockIcon className="h-6 w-6 text-yellow-600" />
+              </div>
+              <span className="text-[10px] font-bold text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Cần chú ý</span>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-600">Số phút Muộn/Sớm</h3>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-3xl font-bold text-gray-900">
+                {(calendarSummary?.total_late_minutes || 0) + (calendarSummary?.total_early_leave_minutes || 0)}
+              </span>
+              <span className="text-sm text-gray-500">phút</span>
+            </div>
+          </div>
 
-        {/* === Cảnh báo / Vấn đề === */}
-        <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100 flex flex-col justify-between">
-          <h3 className="font-medium text-yellow-900 text-xs md:text-sm">
-            Đi muộn/sớm
-          </h3>
-          <p className="text-xl md:text-2xl font-bold text-yellow-700 mt-1 md:mt-2">
-            {calendarSummary?.late_or_early_days ?? 0}
-          </p>
-        </div>
+          <div className="group bg-white p-4 rounded-2xl shadow-sm border border-red-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-red-50 rounded-lg">
+                <NoSymbolIcon className="h-6 w-6 text-red-600" />
+              </div>
+              <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Cảnh báo</span>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-600">Số ngày Vắng mặt</h3>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-3xl font-bold text-gray-900">
+                {calendarSummary?.absent_days ?? 0}
+              </span>
+              <span className="text-sm text-gray-500">ngày</span>
+            </div>
+          </div>
 
-        <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex flex-col justify-between">
-          <h3 className="font-medium text-red-900 text-xs md:text-sm">
-            Vắng mặt
-          </h3>
-          <p className="text-xl md:text-2xl font-bold text-red-700 mt-1 md:mt-2">
-            {calendarSummary?.absent_days ?? 0}
-          </p>
+          <div className="group bg-white p-4 rounded-2xl shadow-sm border border-purple-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <ExclamationTriangleIcon className="h-6 w-6 text-purple-600" />
+              </div>
+              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Chưa hoàn thành</span>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-600">Quên chấm công</h3>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-3xl font-bold text-gray-900">
+                {calendarSummary?.forgot_checkin_days ?? 0}
+              </span>
+              <span className="text-sm text-gray-500">ngày</span>
+            </div>
+          </div>
         </div>
+      )}
 
-        <div className="bg-purple-50 p-3 rounded-lg border border-purple-100 flex flex-col justify-between">
-          <h3 className="font-medium text-purple-900 text-xs md:text-sm">
-            Quên chấm công
-          </h3>
-          <p className="text-xl md:text-2xl font-bold text-purple-700 mt-1 md:mt-2">
-            {calendarSummary?.forgot_checkin_days ?? 0}
-          </p>
+      {/* Skeleton Loading for Secondary Stats */}
+      {loading && initialLoading && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4 mb-10">
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <div key={i} className="bg-gray-50 h-24 rounded-xl animate-pulse border border-gray-100"></div>
+          ))}
         </div>
-      </div>
+      )}
 
       {/* Công việc bổ sung & Hạn mức */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 md:gap-4 mb-6">
-        {/* === Công việc bổ sung === */}
-        <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 flex flex-col justify-between">
-          <h3 className="font-medium text-amber-900 text-xs md:text-sm">
-            Tăng ca
-          </h3>
-          <div>
-            <p className="text-xl md:text-2xl font-bold text-amber-700 mt-1 md:mt-2">
-              0
-            </p>
-            <p className="text-[10px] md:text-xs text-amber-600 mt-1">Số giờ</p>
+      {!initialLoading && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-4 mb-10">
+          {/* === Công việc bổ sung / Loại hình làm việc === */}
+          <div className="group bg-white p-4 rounded-xl border border-amber-100 hover:shadow-md transition-all duration-300">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-amber-50 rounded-lg">
+                <BoltIcon className="h-5 w-5 text-amber-600" />
+              </div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Tăng ca</h3>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-amber-600">
+                {calendarSummary?.overtime_hours ?? 0}
+              </span>
+              <span className="text-[10px] text-amber-500 font-medium">giờ</span>
+            </div>
           </div>
-        </div>
 
-        <div className="bg-violet-50 p-3 rounded-lg border border-violet-100 flex flex-col justify-between">
-          <h3 className="font-medium text-violet-900 text-xs md:text-sm">
-            Làm thêm giờ
-          </h3>
-          <div>
-            <p className="text-xl md:text-2xl font-bold text-violet-700 mt-1 md:mt-2">
-              0
-            </p>
-            <p className="text-[10px] md:text-xs text-violet-600 mt-1">
-              Số giờ
-            </p>
+          <div className="group bg-white p-4 rounded-xl border border-violet-100 hover:shadow-md transition-all duration-300">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-violet-50 rounded-lg">
+                <BriefcaseIcon className="h-5 w-5 text-violet-600" />
+              </div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Làm thêm</h3>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-violet-600">
+                {calendarSummary?.extra_hours ?? 0}
+              </span>
+              <span className="text-[10px] text-violet-500 font-medium">giờ</span>
+            </div>
           </div>
-        </div>
 
-        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col justify-between">
-          <h3 className="font-medium text-slate-900 text-xs md:text-sm">
-            Trực tối
-          </h3>
-          <div>
-            <p className="text-xl md:text-2xl font-bold text-slate-700 mt-1 md:mt-2">
-              0
-            </p>
-            <p className="text-[10px] md:text-xs text-slate-600 mt-1">Số ca</p>
+          <div className="group bg-white p-4 rounded-xl border border-slate-100 hover:shadow-md transition-all duration-300">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-slate-50 rounded-lg">
+                <MoonIcon className="h-5 w-5 text-slate-600" />
+              </div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Trực tối</h3>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-slate-600">
+                {calendarSummary?.night_shift_sessions ?? 0}
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium">ca</span>
+            </div>
           </div>
-        </div>
 
-        <div className="bg-rose-50 p-3 rounded-lg border border-rose-100 flex flex-col justify-between">
-          <h3 className="font-medium text-rose-900 text-xs md:text-sm">Live</h3>
-          <div>
-            <p className="text-xl md:text-2xl font-bold text-rose-700 mt-1 md:mt-2">
-              0
-            </p>
-            <p className="text-[10px] md:text-xs text-rose-600 mt-1">Số ca</p>
+          <div className="group bg-white p-4 rounded-xl border border-rose-100 hover:shadow-md transition-all duration-300">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-rose-50 rounded-lg">
+                <VideoCameraIcon className="h-5 w-5 text-rose-600" />
+              </div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Live</h3>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-rose-600">
+                {calendarSummary?.live_sessions ?? 0}
+              </span>
+              <span className="text-[10px] text-rose-500 font-medium">ca</span>
+            </div>
           </div>
-        </div>
 
-        {/* === Hạn mức còn lại === */}
-        <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex flex-col justify-between">
-          <h3 className="font-medium text-indigo-900 text-xs md:text-sm">
-            Nghỉ phép
-          </h3>
-          <div>
-            <p className="text-xl md:text-2xl font-bold text-indigo-700 mt-1 md:mt-2">
-              0
-            </p>
-            <p className="text-[10px] md:text-xs text-indigo-600 mt-1">
-              Tháng hiện tại
-            </p>
+          {/* === Hạn mức còn lại === */}
+          <div className="group bg-white p-4 rounded-xl border border-indigo-100 hover:shadow-md transition-all duration-300">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-indigo-50 rounded-lg">
+                <HeartIcon className="h-5 w-5 text-indigo-600" />
+              </div>
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Nghỉ phép</h3>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-indigo-600">
+                {calendarSummary?.leave_days ?? 0}
+              </span>
+              <span className="text-[10px] text-indigo-500 font-medium">ngày</span>
+            </div>
           </div>
-        </div>
 
-        {currentEmployee?.position?.is_management &&
-          attendanceStats?.max_online_work_per_month > 0 && (
-            <div className="bg-teal-50 p-3 rounded-lg border border-teal-100 flex flex-col justify-between">
-              <h3 className="font-medium text-teal-900 text-xs md:text-sm">
-                Làm việc online
-              </h3>
-              <div>
-                <p className="text-xl md:text-2xl font-bold text-teal-700 mt-1 md:mt-2">
-                  {attendanceStats?.remaining_online_work || 0}
-                </p>
-                <p className="text-[10px] md:text-xs text-teal-600 mt-1">
-                  Tháng hiện tại
-                </p>
+          {currentEmployee?.position?.is_management &&
+            (
+              <div className="group bg-white p-4 rounded-xl border border-teal-100 hover:shadow-md transition-all duration-300">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-teal-50 rounded-lg">
+                    <ComputerDesktopIcon className="h-5 w-5 text-teal-600" />
+                  </div>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Online</h3>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-teal-600">
+                    {attendanceStats?.remaining_online_work || 0}
+                  </span>
+                  <span className="text-[10px] text-teal-500 font-medium">còn</span>
+                </div>
+              </div>
+            )}
+
+          {attendanceStats?.max_explanations_per_month > 0 && (
+            <div className="group bg-white p-4 rounded-xl border border-cyan-100 hover:shadow-md transition-all duration-300">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-cyan-50 rounded-lg">
+                  <ChatBubbleBottomCenterTextIcon className="h-5 w-5 text-cyan-600" />
+                </div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Giải trình</h3>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold text-cyan-600">
+                  {attendanceStats?.remaining_explanations || 0}
+                </span>
+                <span className="text-[10px] text-cyan-500 font-medium">lần</span>
               </div>
             </div>
           )}
-
-        {attendanceStats?.max_explanations_per_month > 0 && (
-          <div className="bg-cyan-50 p-3 rounded-lg border border-cyan-100 flex flex-col justify-between">
-            <h3 className="font-medium text-cyan-900 text-xs md:text-sm">
-              Giải trình chấm công
-            </h3>
-            <div>
-              <p className="text-xl md:text-2xl font-bold text-cyan-700 mt-1 md:mt-2">
-                {attendanceStats?.remaining_explanations || 0}
-              </p>
-              <p className="text-[10px] md:text-xs text-cyan-600 mt-1">
-                Tháng hiện tại
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Calendar Section */}
       <div className="mb-6">
@@ -1628,238 +1715,7 @@ const AttendanceManagement: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Requests Section */}
-                  <div className="mb-4">
-                    <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                      <DocumentPlusIcon className="h-5 w-5 mr-2 text-primary-600" />
-                      Lịch sử đơn đã gửi
-                    </h4>
 
-                    {/* All Requests Combined */}
-                    {[
-                      ...approvedExplanations.map((e) => ({
-                        ...e,
-                        type: 'explanation',
-                      })),
-                      ...approvedRegistrations.map((r) => ({
-                        ...r,
-                        type: 'registration',
-                      })),
-                      ...onlineWorkRequests.map((ow) => ({
-                        ...ow,
-                        type: 'online_work',
-                      })),
-                      ...approvedLeaveRequests.map((l) => ({
-                        ...l,
-                        type: 'leave',
-                      })),
-                    ].length > 0 ? (
-                      <div className="space-y-4">
-                        {[
-                          ...approvedExplanations.map((e) => ({
-                            ...e,
-                            type: 'explanation',
-                          })),
-                          ...approvedRegistrations.map((r) => ({
-                            ...r,
-                            type: 'registration',
-                          })),
-                          ...onlineWorkRequests.map((ow) => ({
-                            ...ow,
-                            type: 'online_work',
-                          })),
-                          ...approvedLeaveRequests.map((l) => ({
-                            ...l,
-                            type: 'leave',
-                          })),
-                        ].map((request, reqIdx) => (
-                          <div
-                            key={reqIdx}
-                            className={`rounded-lg p-3 border-l-4 ${request.status === 'APPROVED'
-                              ? 'bg-green-50 border-green-500'
-                              : request.status === 'REJECTED'
-                                ? 'bg-red-50 border-red-500'
-                                : 'bg-yellow-50 border-yellow-500'
-                              }`}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                                  <p className="font-bold text-gray-900 text-sm">
-                                    {request.request_code}
-                                  </p>
-                                  <span
-                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${request.type === 'explanation'
-                                      ? 'bg-purple-100 text-purple-800'
-                                      : request.type === 'registration'
-                                        ? 'bg-indigo-100 text-indigo-800'
-                                        : request.type === 'online_work'
-                                          ? 'bg-blue-100 text-blue-800'
-                                          : 'bg-orange-100 text-orange-800'
-                                      }`}
-                                  >
-                                    {request.type === 'explanation' ||
-                                      request.type === 'registration'
-                                      ? getExplanationTypeLabel(
-                                        request.explanation_type
-                                      )
-                                      : request.type === 'online_work'
-                                        ? 'Làm việc online'
-                                        : 'Nghỉ phép'}
-                                  </span>
-                                  {request.status === 'PENDING' && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-800 animate-pulse">
-                                      Chờ duyệt
-                                    </span>
-                                  )}
-                                </div>
-
-                                {request.type === 'explanation' &&
-                                  ![
-                                    'OVERTIME',
-                                    'EXTRA_HOURS',
-                                    'NIGHT_SHIFT',
-                                    'LIVE',
-                                  ].includes(request.explanation_type) && (
-                                    <p className="text-xs text-gray-600 mt-1">
-                                      Thay đổi:{' '}
-                                      {getOriginalStatusText(
-                                        request.original_status
-                                      )}{' '}
-                                      →{' '}
-                                      {getExpectedStatusText(
-                                        request.expected_status
-                                      )}
-                                    </p>
-                                  )}
-                                {request.type === 'online_work' &&
-                                  request.reason && (
-                                    <p className="text-xs text-gray-600 mt-1">
-                                      Lý do: {request.reason}
-                                    </p>
-                                  )}
-                                {request.type === 'leave' && (
-                                  <p className="text-xs text-gray-600 mt-1">
-                                    Loại nghỉ: {request.leave_type}
-                                  </p>
-                                )}
-
-                                {/* Sequential Approval Steps */}
-                                {(request.type === 'explanation' ||
-                                  request.type === 'registration' ||
-                                  request.type === 'online_work') && (
-                                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-                                      {/* Step 1: Manager */}
-                                      <div className="flex items-center space-x-2 p-1.5 bg-white bg-opacity-50 rounded border border-gray-100">
-                                        {request.direct_manager_approved ||
-                                          request.status === 'APPROVED' ? (
-                                          <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                                        ) : request.status === 'REJECTED' &&
-                                          !request.direct_manager_approved ? (
-                                          <NoSymbolIcon className="h-4 w-4 text-red-500" />
-                                        ) : (
-                                          <ClockIcon className="h-4 w-4 text-gray-400" />
-                                        )}
-                                        <div className="flex flex-col">
-                                          <span className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">
-                                            Quản lý trực tiếp
-                                          </span>
-                                          <span className="text-xs text-gray-900">
-                                            {request.direct_manager_approved_by_name ||
-                                              (request.status === 'APPROVED'
-                                                ? 'Tự động duyệt'
-                                                : request.status === 'REJECTED' &&
-                                                  !request.direct_manager_approved
-                                                  ? 'Từ chối'
-                                                  : 'Chờ duyệt')}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      {/* Step 2: HR - ẩn khi người làm đơn là HR (chỉ cần QL trực tiếp duyệt) */}
-                                      {!request.employee_is_hr && (
-                                        <div className="flex items-center space-x-2 p-1.5 bg-white bg-opacity-50 rounded border border-gray-100">
-                                          {request.hr_approved ||
-                                            request.status === 'APPROVED' ? (
-                                            <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                                          ) : request.status === 'REJECTED' &&
-                                            request.direct_manager_approved ? (
-                                            <NoSymbolIcon className="h-4 w-4 text-red-500" />
-                                          ) : (
-                                            <ClockIcon className="h-4 w-4 text-gray-400" />
-                                          )}
-                                          <div className="flex flex-col">
-                                            <span className="text-[10px] font-medium text-gray-500 uppercase tracking-tight">
-                                              Nhân sự (HR)
-                                            </span>
-                                            <span className="text-xs text-gray-900">
-                                              {request.hr_approved_by_name ||
-                                                (request.status === 'APPROVED' &&
-                                                  !request.hr_approved
-                                                  ? 'Không cần duyệt'
-                                                  : request.status === 'APPROVED'
-                                                    ? 'Đã duyệt'
-                                                    : request.status ===
-                                                      'REJECTED' &&
-                                                      request.direct_manager_approved
-                                                      ? 'Từ chối'
-                                                      : 'Chờ duyệt')}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-                                {request.type === 'leave' && (
-                                  <div className="mt-2 flex items-center space-x-2">
-                                    <span className="text-xs text-gray-600">
-                                      Duyệt bởi:{' '}
-                                      {request.approved_by_name || '...'}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex flex-col items-end">
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${request.status === 'APPROVED'
-                                    ? 'bg-green-100 text-green-800'
-                                    : request.status === 'REJECTED'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-yellow-100 text-yellow-800'
-                                    }`}
-                                >
-                                  {request.status === 'APPROVED'
-                                    ? 'Đã duyệt'
-                                    : request.status === 'REJECTED'
-                                      ? 'Từ chối'
-                                      : 'Chờ duyệt'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="bg-gray-50 rounded-lg p-6 text-center border-2 border-dashed border-gray-200">
-                        <p className="text-gray-500 text-sm">
-                          Không có đơn bổ sung công hoặc làm việc online
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Summary */}
-                    <div className="mt-4 p-3 bg-primary-50 rounded-lg flex justify-between items-center">
-                      <p className="text-xs text-primary-700">
-                        <span className="font-bold">Tổng cộng:</span>{' '}
-                        {approvedExplanations.length} giải trình,{' '}
-                        {approvedRegistrations.length} đăng ký,{' '}
-                        {onlineWorkRequests.length} làm online,{' '}
-                        {approvedLeaveRequests.length} nghỉ phép.
-                      </p>
-                    </div>
-                  </div>
 
                   {/* Attendance Details Table */}
                   <div className="border rounded-lg overflow-hidden">
@@ -1905,8 +1761,9 @@ const AttendanceManagement: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                   {(() => {
                                     if (
-                                      record.status ===
-                                      'INCOMPLETE_ATTENDANCE' &&
+                                      (record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                        record.status === 'ABSENT' ||
+                                        record.status === 'HALF_DAY') &&
                                       record.check_in &&
                                       !record.check_out
                                     ) {
@@ -1928,8 +1785,9 @@ const AttendanceManagement: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                   {(() => {
                                     if (
-                                      record.status ===
-                                      'INCOMPLETE_ATTENDANCE' &&
+                                      (record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                        record.status === 'ABSENT' ||
+                                        record.status === 'HALF_DAY') &&
                                       record.check_in &&
                                       !record.check_out
                                     ) {
@@ -1961,20 +1819,28 @@ const AttendanceManagement: React.FC = () => {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <span
-                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'PRESENT'
-                                      ? 'bg-green-100 text-green-800'
-                                      : record.status === 'LATE'
-                                        ? 'bg-yellow-100 text-yellow-800'
-                                        : record.status === 'EARLY_LEAVE'
-                                          ? 'bg-orange-100 text-orange-800'
-                                          : record.status === 'ABSENT'
-                                            ? 'bg-red-100 text-red-800'
-                                            : record.status === 'HALF_DAY'
-                                              ? 'bg-blue-100 text-blue-800'
-                                              : 'bg-gray-100 text-gray-800'
+                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'LEAVE'
+                                      ? 'bg-indigo-100 text-indigo-800'
+                                      : (record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                        ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : record.status === 'PRESENT'
+                                          ? 'bg-green-100 text-green-800'
+                                          : record.status === 'LATE'
+                                            ? 'bg-yellow-100 text-yellow-800'
+                                            : record.status === 'EARLY_LEAVE'
+                                              ? 'bg-orange-100 text-orange-800'
+                                              : record.status === 'ABSENT'
+                                                ? 'bg-red-100 text-red-800'
+                                                : record.status === 'HALF_DAY'
+                                                  ? 'bg-blue-100 text-blue-800'
+                                                  : 'bg-gray-100 text-gray-800'
                                       }`}
                                   >
-                                    {record.status_display || record.status}
+                                    {(record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                      ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
+                                      ? 'Quên chấm công'
+                                      : record.status_display || record.status}
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -2013,7 +1879,9 @@ const AttendanceManagement: React.FC = () => {
                           {attendanceDetails.map((record, index) => {
                             const checkIn = (() => {
                               if (
-                                record.status === 'INCOMPLETE_ATTENDANCE' &&
+                                (record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                  record.status === 'ABSENT' ||
+                                  record.status === 'HALF_DAY') &&
                                 record.check_in &&
                                 !record.check_out
                               ) {
@@ -2031,7 +1899,9 @@ const AttendanceManagement: React.FC = () => {
                             })();
                             const checkOut = (() => {
                               if (
-                                record.status === 'INCOMPLETE_ATTENDANCE' &&
+                                (record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                  record.status === 'ABSENT' ||
+                                  record.status === 'HALF_DAY') &&
                                 record.check_in &&
                                 !record.check_out
                               ) {
@@ -2067,20 +1937,28 @@ const AttendanceManagement: React.FC = () => {
                                     {record.shift_type_display || 'Cả ngày'}
                                   </span>
                                   <span
-                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${record.status === 'PRESENT'
-                                      ? 'bg-green-100 text-green-800'
-                                      : record.status === 'LATE'
-                                        ? 'bg-yellow-100 text-yellow-800'
-                                        : record.status === 'EARLY_LEAVE'
-                                          ? 'bg-orange-100 text-orange-800'
-                                          : record.status === 'ABSENT'
-                                            ? 'bg-red-100 text-red-800'
-                                            : record.status === 'HALF_DAY'
-                                              ? 'bg-blue-100 text-blue-800'
-                                              : 'bg-gray-100 text-gray-800'
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${record.status === 'LEAVE'
+                                      ? 'bg-indigo-100 text-indigo-800'
+                                      : (record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                        ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : record.status === 'PRESENT'
+                                          ? 'bg-green-100 text-green-800'
+                                          : record.status === 'LATE'
+                                            ? 'bg-yellow-100 text-yellow-800'
+                                            : record.status === 'EARLY_LEAVE'
+                                              ? 'bg-orange-100 text-orange-800'
+                                              : record.status === 'ABSENT'
+                                                ? 'bg-red-100 text-red-800'
+                                                : record.status === 'HALF_DAY'
+                                                  ? 'bg-blue-100 text-blue-800'
+                                                  : 'bg-gray-100 text-gray-800'
                                       }`}
                                   >
-                                    {record.status_display || record.status}
+                                    {(record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                      ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
+                                      ? 'Quên chấm công'
+                                      : record.status_display || record.status}
                                   </span>
                                 </div>
                                 {/* Row 2: Times + Hours */}
@@ -2149,23 +2027,78 @@ const AttendanceManagement: React.FC = () => {
 
                   {/* Events Timeline */}
                   {(() => {
-                    const allEvents: AttendanceEvent[] = attendanceDetails.flatMap(
-                      (r) => r.events || []
-                    );
+                    // Extract all events and expand registration approvals into virtual events for the timeline
+                    const allEvents: any[] = [];
+                    attendanceDetails.forEach((r) => {
+                      (r.events || []).forEach((ev) => {
+                        allEvents.push({
+                          ...ev,
+                          recordStatus: r.status,
+                          recordStatusDisplay: r.status_display,
+                        });
+
+                        // Expand registrations into separate approval steps if they exist
+                        if (
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(
+                            ev.event_type
+                          )
+                        ) {
+                          if (ev.data?.direct_manager_approved_by_name) {
+                            allEvents.push({
+                              id: `v-dm-${ev.id}`,
+                              event_type: 'registration_approval',
+                              created_at: new Date(new Date(ev.created_at).getTime() + 1000).toISOString(),
+                              data: {
+                                approval_level: 'DIRECT_MANAGER',
+                                approved_by_name: ev.data.direct_manager_approved_by_name,
+                                status: 'APPROVED',
+                                registration_type: ev.data.registration_type,
+                              },
+                            });
+                          }
+                          if (ev.data?.hr_approved_by_name) {
+                            allEvents.push({
+                              id: `v-hr-${ev.id}`,
+                              event_type: 'registration_approval',
+                              created_at: new Date(new Date(ev.created_at).getTime() + 2000).toISOString(),
+                              data: {
+                                approval_level: 'HR',
+                                approved_by_name: ev.data.hr_approved_by_name,
+                                status: 'APPROVED',
+                                registration_type: ev.data.registration_type,
+                              },
+                            });
+                          }
+                        }
+                      });
+                    });
+
                     const sortedEvents = [...allEvents].sort(
                       (a, b) =>
                         new Date(a.created_at).getTime() -
                         new Date(b.created_at).getTime()
                     );
-                    if (sortedEvents.length === 0) return null;
+
+                    const hasAnyPunch = attendanceDetails.some(
+                      (r) => r.check_in || r.check_out
+                    );
+                    const filteredEvents = sortedEvents.filter((ev) => {
+                      if (ev.event_type === 'attendance' && !hasAnyPunch)
+                        return false;
+                      return true;
+                    });
+
+                    if (filteredEvents.length === 0) return null;
                     const eventTypeLabel: Record<string, string> = {
                       attendance: 'Chấm công',
                       explanation: 'Giải trình',
                       explanation_approval: 'Phê duyệt giải trình',
+                      registration_approval: 'Phê duyệt đăng ký',
                       overtime: 'Tăng ca',
                       livestream: 'Livestream',
                     };
                     const statusLabel: Record<string, string> = {
+                      ...ATTENDANCE_STATUS_MAP,
                       APPROVED: 'Đã duyệt',
                       REJECTED: 'Từ chối',
                       PENDING: 'Chờ duyệt',
@@ -2176,23 +2109,15 @@ const AttendanceManagement: React.FC = () => {
                     };
                     const isApproved = (ev: AttendanceEvent) => {
                       if (
-                        ev.event_type === 'explanation' &&
+                        (ev.event_type === 'explanation' ||
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(ev.event_type) ||
+                          ev.event_type === 'registration_approval') &&
                         ev.data?.status === 'APPROVED'
                       )
                         return true;
                       if (
                         ev.event_type === 'explanation_approval' &&
                         ev.data?.action === 'APPROVE'
-                      )
-                        return true;
-                      if (
-                        ev.event_type === 'overtime' &&
-                        ev.data?.status === 'APPROVED'
-                      )
-                        return true;
-                      if (
-                        ev.event_type === 'livestream' &&
-                        ev.data?.status === 'APPROVED'
                       )
                         return true;
                       return false;
@@ -2204,8 +2129,27 @@ const AttendanceManagement: React.FC = () => {
                           Lịch sử sự kiện
                         </h4>
                         <ol className="relative border-l border-gray-200 ml-3 space-y-4">
-                          {sortedEvents.map((ev) => {
+                          {filteredEvents.map((ev) => {
                             const approved = isApproved(ev);
+
+                            // Clean redundant prefixes from reason (e.g., "Tăng ca: abc" -> "abc")
+                            const rawReason = ev.explanation || ev.data?.reason || ev.notes || '';
+                            let cleanedReason = rawReason;
+                            const prefixes = [
+                              ...Object.values(EXPLANATION_TYPE_MAP),
+                              'Tăng ca', 'Làm thêm giờ', 'Trực tối', 'Live', 'Livestream',
+                              'Giải trình đi muộn', 'Giải trình về sớm', 'Giải trình quên chấm công', 'Giải trình đi công tác', 'Giải trình ngày đầu đi làm',
+                              'Đi muộn', 'Về sớm', 'Quên chấm công', 'Làm online', 'Nghỉ phép'
+                            ].filter(Boolean);
+                            prefixes.sort((a, b) => b.length - a.length);
+
+                            for (const p of prefixes) {
+                              if (cleanedReason.toLowerCase().startsWith(p.toLowerCase())) {
+                                cleanedReason = cleanedReason.substring(p.length).replace(/^[\:\-\s]+/, '').trim();
+                                break;
+                              }
+                            }
+
                             return (
                               <li key={ev.id} className="ml-4">
                                 <div
@@ -2224,18 +2168,25 @@ const AttendanceManagement: React.FC = () => {
                                     <span
                                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${ev.event_type === 'attendance'
                                         ? 'bg-blue-100 text-blue-800'
-                                        : ev.event_type === 'explanation'
-                                          ? 'bg-purple-100 text-purple-800'
-                                          : ev.event_type === 'livestream'
-                                            ? 'bg-pink-100 text-pink-800'
-                                            : 'bg-indigo-100 text-indigo-800'
+                                        : ev.event_type === 'explanation' || (ev.event_type === 'explanation_approval' && (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE'))
+                                          ? (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE') ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800'
+                                          : (ev.event_type === 'explanation_approval' || ev.event_type === 'registration_approval')
+                                            ? 'bg-indigo-100 text-indigo-800'
+                                            : (['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(ev.event_type))
+                                              ? 'bg-amber-100 text-amber-800'
+                                              : 'bg-indigo-100 text-indigo-800'
                                         }`}
                                     >
-                                      {eventTypeLabel[ev.event_type] ||
-                                        ev.event_type}
+                                      {ev.event_type === 'explanation'
+                                        ? (getExplanationTypeLabel(ev.data?.explanation_type) || 'Giải trình')
+                                        : (ev.event_type === 'livestream' || ['overtime', 'extra_hours', 'night_shift', 'live'].includes(ev.event_type))
+                                          ? (getExplanationTypeLabel(ev.data?.registration_type) || (ev.event_type === 'livestream' ? 'Đơn đăng ký Livestream' : 'Đơn đăng ký'))
+                                          : ev.event_type === 'registration_approval' && ev.data?.registration_type
+                                            ? `Phê duyệt ${getExplanationTypeLabel(ev.data.registration_type)}`
+                                            : (eventTypeLabel[ev.event_type] || ev.event_type)}
                                     </span>
                                     {approved && (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 whitespace-nowrap">
                                         ✓ Đã duyệt
                                       </span>
                                     )}
@@ -2245,29 +2196,25 @@ const AttendanceManagement: React.FC = () => {
                                       )}
                                     </time>
                                   </div>
-                                  {ev.explanation && (
-                                    <p className="text-sm text-gray-700 mb-1">
-                                      {ev.explanation}
-                                    </p>
-                                  )}
                                   {ev.event_type === 'attendance' && (
                                     <p className="text-xs text-gray-600">
                                       Trạng thái:{' '}
-                                      {statusLabel[ev.data?.status] ??
-                                        ev.data?.status}
+                                      {ev.event_type === 'attendance' && ev.data?.status
+                                        ? 'Có mặt'
+                                        : (statusLabel[ev.data?.status] ?? ev.data?.status)}
                                       {ev.data?.import_source && (
                                         <span className="ml-2 text-gray-400">
-                                          ({ev.data.import_source})
+                                          ({IMPORT_SOURCE_MAP[ev.data.import_source] || ev.data.import_source})
                                         </span>
                                       )}
                                     </p>
                                   )}
                                   {ev.event_type === 'explanation' && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {ev.data?.reason && (
-                                        <p>Lý do: {ev.data.reason}</p>
+                                      {cleanedReason && (
+                                        <p>Lý do: {cleanedReason}</p>
                                       )}
-                                      {ev.data?.status && (
+                                      {ev.data?.status && ev.data.status !== 'APPROVED' && (
                                         <p>
                                           Trạng thái:{' '}
                                           {statusLabel[ev.data.status] ??
@@ -2292,91 +2239,51 @@ const AttendanceManagement: React.FC = () => {
                                         :{' '}
                                         {ev.data?.approved_by_name}
                                       </p>
-                                      {ev.data?.note && (
+                                      {ev.data?.note && ev.data.note !== 'Đã duyệt' && (
                                         <p className="italic text-gray-500">
                                           "{ev.data.note}"
                                         </p>
                                       )}
                                     </div>
                                   )}
-                                  {ev.event_type === 'overtime' && (
+                                  {ev.event_type === 'registration_approval' && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {ev.data?.registration_type && (
-                                        <p>
-                                          Loại:{' '}
-                                          {getExplanationTypeLabel(
-                                            ev.data.registration_type
-                                          )}
-                                        </p>
-                                      )}
-                                      {(ev.check_in || ev.check_out) && (
-                                        <p>
-                                          Thời gian: {ev.check_in ?? '--'} —{' '}
-                                          {ev.check_out ?? '--'}
-                                        </p>
-                                      )}
-                                      {(ev.notes || ev.data?.reason) && (
-                                        <p>
-                                          Lý do: {ev.notes || ev.data?.reason}
-                                        </p>
-                                      )}
-                                      {ev.data?.status && (
+                                      <p>
+                                        {approvalLevelLabel[
+                                          ev.data?.approval_level
+                                        ] ??
+                                          ev.data?.approval_level ??
+                                          'Unknown'}
+                                        :{' '}
+                                        {ev.data?.approved_by_name}
+                                      </p>
+                                      {ev.data?.status && ev.data.status !== 'APPROVED' && (
                                         <p>
                                           Trạng thái:{' '}
                                           {statusLabel[ev.data.status] ??
                                             ev.data.status}
-                                        </p>
-                                      )}
-                                      {ev.data?.direct_manager_approved_by_name && (
-                                        <p>
-                                          Quản lý trực tiếp:{' '}
-                                          {ev.data.direct_manager_approved_by_name}
-                                        </p>
-                                      )}
-                                      {ev.data?.hr_approved_by_name && (
-                                        <p>
-                                          HR: {ev.data.hr_approved_by_name}
                                         </p>
                                       )}
                                     </div>
                                   )}
-                                  {ev.event_type === 'livestream' && (
+                                  {['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(ev.event_type) && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {ev.data?.registration_type && (
-                                        <p>
-                                          Loại:{' '}
-                                          {getExplanationTypeLabel(
-                                            ev.data.registration_type
-                                          )}
-                                        </p>
-                                      )}
                                       {(ev.check_in || ev.check_out) && (
                                         <p>
                                           Thời gian: {ev.check_in ?? '--'} —{' '}
                                           {ev.check_out ?? '--'}
                                         </p>
                                       )}
-                                      {(ev.notes || ev.data?.reason) && (
+                                      {cleanedReason && (
                                         <p>
-                                          Lý do: {ev.notes || ev.data?.reason}
+                                          Lý do: {cleanedReason}
                                         </p>
                                       )}
-                                      {ev.data?.status && (
+                                      {ev.data?.status && ev.data.status !== 'APPROVED' && (
                                         <p>
                                           Trạng thái:{' '}
                                           {statusLabel[ev.data.status] ??
                                             ev.data.status}
-                                        </p>
-                                      )}
-                                      {ev.data?.direct_manager_approved_by_name && (
-                                        <p>
-                                          Quản lý trực tiếp:{' '}
-                                          {ev.data.direct_manager_approved_by_name}
-                                        </p>
-                                      )}
-                                      {ev.data?.hr_approved_by_name && (
-                                        <p>
-                                          HR: {ev.data.hr_approved_by_name}
                                         </p>
                                       )}
                                     </div>
@@ -2395,60 +2302,6 @@ const AttendanceManagement: React.FC = () => {
                     );
                   })()}
 
-                  {/* Summary */}
-                  {attendanceSummary && (
-                    <div
-                      className={`mt-6 flex items-center justify-between p-4 rounded-xl border-2 ${attendanceSummary.workCoefficient >= 1
-                        ? 'border-green-200 bg-green-50/50'
-                        : attendanceSummary.workCoefficient >= 0.5
-                          ? 'border-orange-200 bg-orange-50/50'
-                          : attendanceSummary.workCoefficient > 0
-                            ? 'border-yellow-200 bg-yellow-50/50'
-                            : 'border-gray-200 bg-gray-50/50'
-                        }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">
-                            Hệ số công
-                          </p>
-                          <p
-                            className={`text-3xl font-bold ${attendanceSummary.workCoefficient >= 1
-                              ? 'text-green-700'
-                              : attendanceSummary.workCoefficient >= 0.5
-                                ? 'text-orange-700'
-                                : 'text-gray-700'
-                              }`}
-                          >
-                            {attendanceSummary.workCoefficient || 0}
-                          </p>
-                        </div>
-                        <div className="w-px h-10 bg-gray-200" />
-                        <div>
-                          <p className="text-xs text-gray-500 font-medium">
-                            Tổng giờ làm
-                          </p>
-                          <p className="text-lg font-bold text-blue-700">
-                            {Number(attendanceSummary.totalHours).toFixed(1)}h
-                          </p>
-                        </div>
-                      </div>
-                      {attendanceSummary.totalPenalty > 0 && (
-                        <div className="text-right">
-                          <p className="text-xs text-gray-500 font-medium">
-                            Tiền phạt
-                          </p>
-                          <p className="text-lg font-bold text-red-600">
-                            -
-                            {attendanceSummary.totalPenalty.toLocaleString(
-                              'vi-VN'
-                            )}
-                            đ
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Action Buttons */}
                   <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3">
@@ -3033,36 +2886,6 @@ const AttendanceManagement: React.FC = () => {
                                       </div>
                                     </div>
 
-                                    {/* Penalty Amount for Late */}
-                                    <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-2">
-                                          <svg
-                                            className="w-5 h-5 text-red-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth={2}
-                                              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                            />
-                                          </svg>
-                                          <span className="text-sm font-medium text-red-800">
-                                            Số tiền phạt
-                                          </span>
-                                        </div>
-                                        <span className="text-lg font-bold text-red-700">
-                                          {(
-                                            attendanceDetails[0].late_minutes *
-                                            5000
-                                          ).toLocaleString('vi-VN')}{' '}
-                                          đ
-                                        </span>
-                                      </div>
-                                    </div>
                                   </>
                                 )}
 
@@ -3100,36 +2923,6 @@ const AttendanceManagement: React.FC = () => {
                                       </div>
                                     </div>
 
-                                    {/* Penalty Amount for Early Leave */}
-                                    <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-2">
-                                          <svg
-                                            className="w-5 h-5 text-red-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth={2}
-                                              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                            />
-                                          </svg>
-                                          <span className="text-sm font-medium text-red-800">
-                                            Số tiền phạt
-                                          </span>
-                                        </div>
-                                        <span className="text-lg font-bold text-red-700">
-                                          {(
-                                            attendanceDetails[0]
-                                              .early_leave_minutes * 5000
-                                          ).toLocaleString('vi-VN')}{' '}
-                                          đ
-                                        </span>
-                                      </div>
-                                    </div>
                                   </>
                                 )}
                             </div>
@@ -3312,6 +3105,24 @@ const AttendanceManagement: React.FC = () => {
                               )}
                             </div>
                           )}
+
+                          {/* Note input for Overtime */}
+                          <div className="mt-4 space-y-2">
+                            <label
+                              htmlFor="overtime-note"
+                              className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                            >
+                              Ghi chú tăng ca
+                            </label>
+                            <textarea
+                              id="overtime-note"
+                              rows={3}
+                              value={formNote}
+                              onChange={(e) => setFormNote(e.target.value)}
+                              placeholder="Nhập ghi chú, lý do tăng ca chi tiết..."
+                              className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
@@ -3444,6 +3255,24 @@ const AttendanceManagement: React.FC = () => {
                                 )}
                             </div>
                           )}
+
+                          {/* Note input for Extra Hours */}
+                          <div className="mt-4 space-y-2">
+                            <label
+                              htmlFor="extra-hours-note"
+                              className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                            >
+                              Ghi chú làm thêm giờ
+                            </label>
+                            <textarea
+                              id="extra-hours-note"
+                              rows={3}
+                              value={formNote}
+                              onChange={(e) => setFormNote(e.target.value)}
+                              placeholder="Nhập ghi chú, lý do làm thêm giờ..."
+                              className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
@@ -3483,98 +3312,123 @@ const AttendanceManagement: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                          <div className="grid grid-cols-2 gap-4">
-                            {/* Giờ bắt đầu */}
-                            <div>
-                              <label
-                                htmlFor="night-shift-start"
-                                className="block text-xs font-medium text-gray-500 uppercase mb-2"
-                              >
-                                Giờ bắt đầu
-                              </label>
-                              <input
-                                type="time"
-                                id="night-shift-start"
-                                value={nightShiftStartTime}
-                                onChange={(e) =>
-                                  setNightShiftStartTime(e.target.value)
-                                }
-                                className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
-                              />
-                            </div>
-
-                            {/* Giờ kết thúc */}
-                            <div>
-                              <label
-                                htmlFor="night-shift-end"
-                                className="block text-xs font-medium text-gray-500 uppercase mb-2"
-                              >
-                                Giờ kết thúc
-                              </label>
-                              <input
-                                type="time"
-                                id="night-shift-end"
-                                value={nightShiftEndTime}
-                                onChange={(e) =>
-                                  setNightShiftEndTime(e.target.value)
-                                }
-                                className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Duration display */}
-                          {nightShiftStartTime && nightShiftEndTime && (
-                            <div className="mt-4">
-                              <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${nightShiftDuration <= 0 ||
-                                  nightShiftDuration < 2
-                                  ? 'border-red-300'
-                                  : 'border-gray-100'
-                                  }`}
-                              >
-                                <span className="text-sm text-gray-600">
-                                  Tổng thời gian trực tại nhà:
-                                </span>
-                                <span
-                                  className={`text-lg font-bold ${nightShiftDuration <= 0 ||
-                                    nightShiftDuration < 2
-                                    ? 'text-red-600'
-                                    : 'text-purple-700'
-                                    }`}
+                        {/* Preset Ca */}
+                        <div>
+                          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                            Chọn nhanh ca trực
+                          </h4>
+                          <div className="grid grid-cols-1 gap-2">
+                            {[
+                              {
+                                label: 'Ca chiều tối',
+                                time: '13h → 21h',
+                                start: '13:00',
+                                end: '21:00',
+                                color: 'indigo',
+                                icon: '🏢',
+                              },
+                              {
+                                label: 'Ca gãy',
+                                time: '8h30→12h + 17h30→23h',
+                                start: '08:30',
+                                end: '23:00',
+                                color: 'purple',
+                                icon: '🔀',
+                              },
+                            ].map((preset) => {
+                              const isSelected =
+                                nightShiftStartTime === preset.start &&
+                                nightShiftEndTime === preset.end;
+                              const colorMap: Record<string, { card: string; badge: string; dot: string }> = {
+                                blue: {
+                                  card: isSelected
+                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                    : 'bg-white border-blue-200 text-gray-700 hover:border-blue-400 hover:bg-blue-50',
+                                  badge: isSelected ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-700',
+                                  dot: 'bg-blue-400',
+                                },
+                                indigo: {
+                                  card: isSelected
+                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                                    : 'bg-white border-indigo-200 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50',
+                                  badge: isSelected ? 'bg-indigo-500 text-white' : 'bg-indigo-50 text-indigo-700',
+                                  dot: 'bg-indigo-400',
+                                },
+                                purple: {
+                                  card: isSelected
+                                    ? 'bg-purple-600 border-purple-600 text-white shadow-md'
+                                    : 'bg-white border-purple-200 text-gray-700 hover:border-purple-400 hover:bg-purple-50',
+                                  badge: isSelected ? 'bg-purple-500 text-white' : 'bg-purple-50 text-purple-700',
+                                  dot: 'bg-purple-400',
+                                },
+                              };
+                              const c = colorMap[preset.color];
+                              return (
+                                <button
+                                  key={preset.start}
+                                  type="button"
+                                  onClick={() => {
+                                    setNightShiftStartTime(preset.start);
+                                    setNightShiftEndTime(preset.end);
+                                  }}
+                                  className={`flex items-center justify-between w-full px-4 py-3 rounded-xl border-2 transition-all font-medium ${c.card} ${isSelected ? 'scale-[1.01]' : ''}`}
                                 >
-                                  {nightShiftDuration.toFixed(1)} giờ
-                                </span>
-                              </div>
-
-                              {/* Validation error */}
-                              {selectedReason === 'night_shift' &&
-                                registrationTimeError && (
-                                  <div className="mt-2 bg-red-50 rounded-lg p-3 border border-red-200">
-                                    <div className="flex items-center space-x-2">
-                                      <svg
-                                        className="w-5 h-5 text-red-500"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                      </svg>
-                                      <span className="text-sm font-medium text-red-700">
-                                        {registrationTimeError}
-                                      </span>
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="text-lg">{preset.icon}</span>
+                                    <div className="text-left">
+                                      <div className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-gray-800'}`}>{preset.label}</div>
                                     </div>
                                   </div>
-                                )}
-                            </div>
-                          )}
+                                  <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${c.badge}`}>
+                                    {preset.time}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
+
+
+                        {/* Duration display */}
+                        {nightShiftStartTime && nightShiftEndTime && (
+                          <div className={`flex items-center justify-between bg-white rounded-xl border px-4 py-3 ${nightShiftDuration <= 0 || nightShiftDuration < 2 ? 'border-red-300' : 'border-gray-200'}`}>
+                            <span className="text-sm text-gray-600">Tổng thời gian trực:</span>
+                            <span className={`text-lg font-bold ${nightShiftDuration <= 0 || nightShiftDuration < 2 ? 'text-red-600' : 'text-purple-700'}`}>
+                              {nightShiftDuration.toFixed(1)} giờ
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Note input for Night Shift */}
+                        <div className="mt-2 space-y-2">
+                          <label
+                            htmlFor="night-shift-note"
+                            className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                          >
+                            Ghi chú trực tối
+                          </label>
+                          <textarea
+                            id="night-shift-note"
+                            rows={3}
+                            value={formNote}
+                            onChange={(e) => setFormNote(e.target.value)}
+                            placeholder="Nhập ghi chú, ca trực cụ thể..."
+                            className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                          />
+                        </div>
+
+                        {/* Validation error */}
+                        {selectedReason === 'night_shift' && registrationTimeError && (
+                          <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                            <div className="flex items-center space-x-2">
+                              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="text-sm font-medium text-red-700">{registrationTimeError}</span>
+                            </div>
+                          </div>
+                        )}
+
                       </div>
                     )}
 
@@ -3675,6 +3529,24 @@ const AttendanceManagement: React.FC = () => {
                                 >
                                   {liveDuration.toFixed(1)} giờ
                                 </span>
+                              </div>
+
+                              {/* Note input for Live */}
+                              <div className="mt-4 space-y-2">
+                                <label
+                                  htmlFor="live-note"
+                                  className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                                >
+                                  Ghi chú live
+                                </label>
+                                <textarea
+                                  id="live-note"
+                                  rows={3}
+                                  value={formNote}
+                                  onChange={(e) => setFormNote(e.target.value)}
+                                  placeholder="Nhập ghi chú, phiên live cụ thể..."
+                                  className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                                />
                               </div>
 
                               {/* Validation error */}
@@ -3782,28 +3654,150 @@ const AttendanceManagement: React.FC = () => {
                       </div>
                     )}
 
-                  {/* === Note Input for Incomplete Attendance === */}
+                  {/* === Detailed Options for Incomplete Attendance === */}
                   {selectedContext === 'explanation' &&
                     selectedReason === 'incomplete_attendance' && (
-                      <div className="space-y-3 mb-6 animate-fadeIn">
-                        <label
-                          htmlFor="incomplete-attendance-note"
-                          className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
-                        >
-                          Ghi chú
-                        </label>
-                        <textarea
-                          id="incomplete-attendance-note"
-                          rows={4}
-                          value={formNote}
-                          onChange={(e) => setFormNote(e.target.value)}
-                          placeholder="Nhập lý do quên chấm công, giờ vào/ra thực tế..."
-                          className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
-                        />
-                        <p className="text-xs text-gray-500">
-                          Vui lòng mô tả chi tiết lý do quên chấm công và thời
-                          gian làm việc thực tế
-                        </p>
+                      <div className="space-y-4 mb-6 animate-fadeIn">
+
+                        {/* Tiêu đề */}
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-1 h-5 bg-purple-500 rounded-full"></div>
+                          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                            Bạn quên chấm công lúc nào?
+                          </h3>
+                        </div>
+
+                        {/* Bước 1: 3 card lựa chọn */}
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            {
+                              id: 'checkin',
+                              label: 'Quên\nCheck-in',
+                              icon: (
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5-4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                </svg>
+                              ),
+                              activeColor: 'bg-purple-600 border-purple-600 text-white shadow-lg',
+                              inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50',
+                              dotColor: 'bg-purple-500',
+                            },
+                            {
+                              id: 'checkout',
+                              label: 'Quên\nCheck-out',
+                              icon: (
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                              ),
+                              activeColor: 'bg-orange-500 border-orange-500 text-white shadow-lg',
+                              inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-orange-300 hover:bg-orange-50',
+                              dotColor: 'bg-orange-500',
+                            },
+                            {
+                              id: 'both',
+                              label: 'Cả\nhai',
+                              icon: (
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                              ),
+                              activeColor: 'bg-gradient-to-br from-purple-600 to-orange-500 border-transparent text-white shadow-lg',
+                              inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50',
+                              dotColor: 'bg-purple-500',
+                            },
+                          ].map((type) => {
+                            const isActive = forgotPunchType === type.id;
+                            return (
+                              <button
+                                key={type.id}
+                                type="button"
+                                onClick={() => {
+                                  setForgotPunchType(type.id as any);
+                                  setForgotCheckinTime(null);
+                                  setForgotCheckoutTime(null);
+                                }}
+                                className={`relative flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl border-2 transition-all duration-200 font-semibold ${isActive ? type.activeColor : type.inactiveColor} ${isActive ? 'scale-[1.03]' : ''}`}
+                              >
+                                {isActive && (
+                                  <span className="absolute top-2 right-2 w-4 h-4 bg-white bg-opacity-30 rounded-full flex items-center justify-center">
+                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  </span>
+                                )}
+                                <span className={`${isActive ? 'text-white opacity-90' : 'text-gray-400'}`}>{type.icon}</span>
+                                <span className={`text-xs font-bold text-center leading-tight whitespace-pre-line ${isActive ? 'text-white' : 'text-gray-700'}`}>
+                                  {type.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Bước 2a: Chọn giờ check-in */}
+                        {(forgotPunchType === 'checkin' || forgotPunchType === 'both') && (
+                          <div className="rounded-2xl border border-purple-100 overflow-hidden">
+                            <div className="bg-purple-600 px-4 py-2.5 flex items-center gap-2">
+                              <svg className="w-4 h-4 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5-4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                              </svg>
+                              <span className="text-xs font-bold text-white tracking-wide uppercase">Giờ check-in bị quên</span>
+                            </div>
+                            <div className="bg-purple-50 p-3 flex gap-2">
+                              {[
+                                { value: '08:30', label: '8h30', desc: 'Sáng' },
+                                { value: '13:00', label: '13h00', desc: 'Chiều' },
+                                { value: '17:30', label: '17h30', desc: 'Tối' },
+                              ].map((opt) => {
+                                const sel = forgotCheckinTime === opt.value;
+                                return (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setForgotCheckinTime(sel ? null : opt.value)}
+                                    className={`flex-1 flex flex-col items-center py-2.5 rounded-xl border-2 transition-all duration-150 ${sel ? 'bg-purple-600 border-purple-600 shadow-md scale-[1.04]' : 'bg-white border-purple-200 hover:border-purple-400 hover:bg-purple-50'}`}
+                                  >
+                                    <span className={`text-sm font-extrabold ${sel ? 'text-white' : 'text-purple-700'}`}>{opt.label}</span>
+                                    <span className={`text-[10px] mt-0.5 font-medium ${sel ? 'text-purple-200' : 'text-gray-400'}`}>{opt.desc}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Bước 2b: Chọn giờ check-out */}
+                        {(forgotPunchType === 'checkout' || forgotPunchType === 'both') && (
+                          <div className="rounded-2xl border border-orange-100 overflow-hidden">
+                            <div className="bg-orange-500 px-4 py-2.5 flex items-center gap-2">
+                              <svg className="w-4 h-4 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                              </svg>
+                              <span className="text-xs font-bold text-white tracking-wide uppercase">Giờ check-out bị quên</span>
+                            </div>
+                            <div className="bg-orange-50 p-3 flex gap-2">
+                              {[
+                                { value: '12:00', label: '12h00', desc: 'Trưa' },
+                                { value: '17:30', label: '17h30', desc: 'Chiều' },
+                              ].map((opt) => {
+                                const sel = forgotCheckoutTime === opt.value;
+                                return (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setForgotCheckoutTime(sel ? null : opt.value)}
+                                    className={`flex-1 flex flex-col items-center py-2.5 rounded-xl border-2 transition-all duration-150 ${sel ? 'bg-orange-500 border-orange-500 shadow-md scale-[1.04]' : 'bg-white border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
+                                  >
+                                    <span className={`text-sm font-extrabold ${sel ? 'text-white' : 'text-orange-600'}`}>{opt.label}</span>
+                                    <span className={`text-[10px] mt-0.5 font-medium ${sel ? 'text-orange-200' : 'text-gray-400'}`}>{opt.desc}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                       </div>
                     )}
 
@@ -4032,7 +4026,7 @@ const AttendanceManagement: React.FC = () => {
                         : selectedContext === 'registration'
                           ? 'Đăng ký'
                           : selectedContext === 'monthly_leave'
-                            ? 'Nghỉ phép'
+                            ? 'Nghỉ phép tháng'
                             : 'Làm online'}
                     </span>
                   </div>
@@ -4074,6 +4068,7 @@ const AttendanceManagement: React.FC = () => {
                     (selectedReason === 'incomplete_attendance' ||
                       selectedReason === 'business_trip' ||
                       selectedReason === 'first_day' ||
+                      selectedContext === 'registration' ||
                       selectedContext === 'online_work') && (
                       <div className="flex flex-col space-y-1.5 pt-1">
                         <div className="flex items-center text-gray-500">
@@ -4155,47 +4150,6 @@ const AttendanceManagement: React.FC = () => {
                         <span className="text-sm font-black text-purple-800">
                           {overtimeStartTime} — {overtimeEndTime}
                         </span>
-                      </div>
-                    )}
-
-                  {/* Penalty/Fine Section */}
-                  {(selectedReason === 'late_minutes' ||
-                    selectedReason === 'early_leave_minutes') &&
-                    attendanceDetails[0] && (
-                      <div className="mt-4 pt-4 border-t border-dashed border-gray-200">
-                        <div className="bg-red-50 rounded-2xl p-4 border border-red-100 flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] uppercase font-black text-red-500 tracking-tighter">
-                              {selectedReason === 'late_minutes'
-                                ? 'Số phút muộn'
-                                : 'Số phút về sớm'}
-                            </span>
-                            <span className="text-xl font-black text-red-700">
-                              {selectedReason === 'late_minutes'
-                                ? attendanceDetails[0].late_minutes
-                                : attendanceDetails[0].early_leave_minutes}{' '}
-                              phút
-                            </span>
-                          </div>
-                          <div className="flex flex-col items-end">
-                            <span className="text-[10px] uppercase font-black text-red-500 tracking-tighter">
-                              Tiền phạt dự kiến
-                            </span>
-                            <span className="text-xl font-black text-red-700">
-                              {(
-                                (selectedReason === 'late_minutes'
-                                  ? attendanceDetails[0].late_minutes
-                                  : attendanceDetails[0].early_leave_minutes) *
-                                5000
-                              ).toLocaleString('vi-VN')}{' '}
-                              đ
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-red-400 mt-2 text-center italic">
-                          * Lưu ý: Số tiền phạt có thể thay đổi tùy theo phê
-                          duyệt cuối cùng.
-                        </p>
                       </div>
                     )}
 
@@ -4397,11 +4351,16 @@ const AttendanceManagement: React.FC = () => {
                             CANCELLED: { label: 'Đã huỷ', cls: 'bg-gray-50 text-gray-500 ring-1 ring-gray-500/20' },
                           } as Record<string, { label: string; cls: string }>)[item.status] || { label: item.status, cls: 'bg-gray-50 text-gray-600 ring-1 ring-gray-500/20' };
 
-                          const typeConfig = ({
-                            explanation: { label: 'Giải trình', bg: 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' },
-                            registration: { label: 'Đăng ký', bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
-                            online_work: { label: 'Làm việc online', bg: 'bg-teal-50 text-teal-700 ring-1 ring-teal-600/20' },
-                          } as Record<string, { label: string; bg: string }>)[item._type] || { label: item._type, bg: 'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20' };
+                          const typeConfig = (() => {
+                            if (item._type === 'explanation' && item.explanation_type === 'LEAVE') {
+                              return { label: 'Nghỉ phép tháng', bg: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20' };
+                            }
+                            return ({
+                              explanation: { label: 'Giải trình', bg: 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' },
+                              registration: { label: 'Đăng ký', bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
+                              online_work: { label: 'Làm việc online', bg: 'bg-teal-50 text-teal-700 ring-1 ring-teal-600/20' },
+                            } as Record<string, { label: string; bg: string }>)[item._type] || { label: item._type, bg: 'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20' };
+                          })();
 
                           const dateStr = item.attendance_date || item.work_date || item.created_at;
                           const displayDate = dateStr
@@ -4415,8 +4374,8 @@ const AttendanceManagement: React.FC = () => {
                             requestName = item.registration_type ? (EXPLANATION_TYPE_MAP[item.registration_type] || item.registration_type) : 'Đơn đăng ký';
                           } else if (item._type === 'online_work') {
                             requestName = 'Đơn làm việc online';
-                          } else if (item._type === 'leave') {
-                            requestName = 'Đơn nghỉ phép';
+                          } else if (item._type === 'explanation' && item.explanation_type === 'LEAVE') {
+                            requestName = 'Đơn nghỉ phép tháng';
                           }
 
                           return (
