@@ -37,6 +37,7 @@ type OnboardingItem = {
   token_expires_at?: string | null;
   employee_form_url?: string | null;
   employee_info_completed?: boolean;
+  task1_status?: string; // PENDING, IN_PROGRESS, COMPLETED
 };
 
 // ── Bỏ candidate_phone, thêm direct_manager_id ──
@@ -421,8 +422,18 @@ const Onboarding: React.FC = () => {
   const renderTokenActions = (item: OnboardingItem) => {
     const isLoading = tokenLoading === item.id;
 
-    if (item.employee_info_completed || item.token_status === 'completed') {
+    // Task 1 đã được duyệt → Đã điền thông tin
+    if (item.task1_status === 'COMPLETED') {
       return <TokenBadge status="completed" completed />;
+    }
+
+    // Nhân viên đã điền nhưng chờ quản lý duyệt
+    if (item.employee_info_completed && item.task1_status === 'IN_PROGRESS') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+          <ClockIcon className="w-3 h-3" /> Chờ duyệt thông tin
+        </span>
+      );
     }
 
     return (
@@ -441,15 +452,13 @@ const Onboarding: React.FC = () => {
         )}
 
         {item.token_status === 'active' && (
-          <>
-            <button
-              onClick={() => handleCopyLink(item)}
-              disabled={isLoading}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 disabled:opacity-50"
-            >
-              <ClipboardDocumentIcon className="w-3 h-3" /> Copy link
-            </button>
-          </>
+          <button
+            onClick={() => handleCopyLink(item)}
+            disabled={isLoading}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 disabled:opacity-50"
+          >
+            <ClipboardDocumentIcon className="w-3 h-3" /> Copy link
+          </button>
         )}
       </div>
     );

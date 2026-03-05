@@ -122,7 +122,7 @@ interface FormValues {
   emergency_contact_occupation: string;
   emergency_contact_address: string;
   salary: string;
-  allowance: string;
+  allowance_notes: string;
   probation_period_months: string;
   probation_salary_percentage: string;
 }
@@ -254,7 +254,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
     emergency_contact_name: '', emergency_contact_relationship: '',
     emergency_contact_phone: '', emergency_contact_dob: '',
     emergency_contact_occupation: '', emergency_contact_address: '',
-    salary: '', allowance: '', probation_period_months: '2',
+    salary: '', allowance_notes: '', probation_period_months: '2',
     probation_salary_percentage: '',
   });
 
@@ -412,7 +412,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('emergency_contact_occupation', values.emergency_contact_occupation);
       ap('emergency_contact_address', values.emergency_contact_address);
       ap('salary', values.salary);
-      ap('allowance', values.allowance);
+      ap('allowance_notes', values.allowance_notes);
       ap('probation_period_months', values.probation_period_months);
       ap('probation_salary_percentage', values.probation_salary_percentage);
 
@@ -676,8 +676,8 @@ export const EmployeeOnboardingForm: React.FC = () => {
           <TF label="Mức lương cơ bản (VNĐ)" value={values.salary}
             onChange={handleChange('salary')} type="number" placeholder="10000000" />
 
-          <TF label="Phụ cấp (VNĐ)" value={values.allowance}
-            onChange={handleChange('allowance')} type="number" placeholder="2000000" />
+          <TF label="Phụ cấp (VNĐ)" value={values.allowance_notes}
+            onChange={handleChange('allowance_notes')} type="number" placeholder="2000000" />
 
           <SF label="Số tháng thử việc" value={values.probation_period_months}
             onChange={handleSelect('probation_period_months')} options={[
@@ -705,7 +705,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
                 ['CCCD', values.citizen_id],
                 ['File CCCD', citizenIdFile ? `✓ ${citizenIdFile.name}` : null],
                 ['Lương', values.salary ? `${parseInt(values.salary).toLocaleString()} VNĐ` : null],
-                ['Phụ cấp', values.allowance ? `${parseInt(values.allowance).toLocaleString()} VNĐ` : null],
+                ['Phụ cấp', values.allowance_notes ? `${parseInt(values.allowance_notes).toLocaleString()} VNĐ` : null],
               ].map(([label, val]) => (
                 <div key={label as string} className="flex gap-2 text-sm">
                   <span className="text-blue-500 w-20 shrink-0">{label}:</span>
