@@ -1,16 +1,18 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
-// API Configuration
-const API_BASE_URL = "https://beautycare.amcare.vn"
-// const API_BASE_URL = 'http://localhost:8000';
+ export const API_BASE_URL = 'https://app-uat.amcare.vn';
+
+//export const API_BASE_URL = 'http://localhost:8000';
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 300000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// ... rest of the file
 
 // Request interceptor for Management API
 managementApi.interceptors.request.use(
@@ -1641,6 +1643,7 @@ export interface Employee {
     id: number;
     title: string;
     code: string;
+    is_management: boolean;
   };
   department?: {
     id: number;
@@ -1679,10 +1682,14 @@ export interface Employee {
   cccd_issue_place?: string;
   birth_place?: string;
   permanent_residence?: string;
+  // Senior Manager & Cấp bậc quản lý
+  is_manager?: boolean;
+  management_level?: number;
+  is_senior_manager?: boolean;
   
   // HR employee flag
   is_hr?: boolean;
-  
+  manager_name: string;
   created_at: string;
   updated_at: string;
 }
@@ -1735,6 +1742,7 @@ export interface EmployeeCreateData {
   position_id?: number;
   department_id?: number;
   manager_id?: number;
+  is_hr?: boolean;
 }
 
 export interface EmployeeUpdateData {
@@ -1753,6 +1761,7 @@ export interface EmployeeUpdateData {
   position_id?: number;
   department_id?: number;
   manager_id?: number;
+  is_hr?: boolean;
 }
 
 // Employees API

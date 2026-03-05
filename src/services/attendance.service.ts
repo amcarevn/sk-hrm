@@ -1,5 +1,19 @@
 import { managementApi } from '../utils/api';
 
+export interface AttendanceEvent {
+  id: number;
+  event_type: string;
+  event_date: string;
+  check_in: string | null;
+  check_out: string | null;
+  overtime_hours: number | null;
+  explanation: string | null;
+  notes: string;
+  data: Record<string, any>;
+  created_at: string;
+  created_by: string | null;
+}
+
 export interface AttendanceRecord {
   id: number;
   attendance_date: string;
@@ -17,6 +31,7 @@ export interface AttendanceRecord {
   employee_name: string;
   employee_code: string;
   department_name: string;
+  events?: AttendanceEvent[];
 }
 
 export interface AttendanceStats {
@@ -57,78 +72,89 @@ export interface AttendanceStats {
 }
 
 export interface CalendarViewData {
-  calendar_data: Array<{
-    id: number;
-    date: string;
-    employee_id: number;
-    employee_name: string;
-    employee_code: string;
-    check_in: string;
-    check_out: string;
-    status: string;
-    status_display: string;
-    shift_type: string;
-    shift_type_display: string;
-    working_hours: number;
-    notes: string;
-    department_name: string;
-    // Thêm các field mới từ AttendanceSerializer
-    work_coefficient?: number;
-    late_minutes?: number;
-    early_leave_minutes?: number;
-    applied_rules?: Array<{
-      rule_id: number;
-      rule_code: string;
-      rule_name: string;
-      rule_type: string;
-      applied_at: string;
-      calculation_result: any;
-    }>;
-    rule_history?: Array<{
-      id: number;
-      attendance_id: number;
-      rule_id: number;
-      applied_configuration: any;
-      calculation_result: any;
-      applied_at: string;
-      applied_by: number | null;
-    }>;
-    // Thông tin đơn đã duyệt
-    approved_explanations?: Array<{
-      id: number;
-      request_code: string;
-      original_status: string;
-      expected_status: string;
-      status: string;
-      approved_at: string;
-      approved_by_name: string;
-    }>;
-    approved_leave_requests?: Array<{
-      id: number;
-      request_code: string;
-      leave_type: string;
-      status: string;
-      approved_at: string;
-      approved_by_name: string;
-    }>;
-    day_status_summary?: {
-      has_approved_explanation: boolean;
-      has_approved_leave: boolean;
-      has_pending_request: boolean;
-      summary_text: string;
-      display_color: string;
-    };
-  }>;
-  employees: Array<{
-    id: number;
-    full_name: string;
-    employee_id: string;
-    department_name: string;
-  }>;
   year: number;
   month: number;
-  start_date: string;
-  end_date: string;
+  employee: {
+    id: number;
+    employee_id: string;
+    full_name: string;
+  };
+  summary: {
+    total_work_days: number;
+    full_days: number;
+    half_days: number;
+    late_or_early_days: number;
+    absent_days: number;
+    forgot_checkin_days: number;
+    overtime_hours: number;
+    extra_hours: number;
+    night_shift_sessions: number;
+    live_sessions: number;
+    leave_days: number;
+    explanation_quota_max?: number;
+    online_work_quota_used?: number;
+    online_work_quota_max?: number;
+    online_work_quota_remaining?: number;
+    remaining_annual_leave?: number;
+  };
+  engine_summary: {
+    total_penalty_vnd: number;
+    total_parking_allowance: number;
+    total_live_allowance: number;
+    explanation_quota_used: number;
+    events_processed: number;
+  };
+  shift_configs: any[];
+  legend: Array<{
+    day_status: string;
+    label: string;
+    color: string;
+    description: string;
+  }>;
+  calendar: Array<{
+    date: string;
+    day: number;
+    weekday: number;
+    weekday_label: string;
+    is_weekend: boolean;
+    is_holiday: boolean;
+    holiday_name: string | null;
+    is_leave: boolean;
+    day_status: string;
+    status_badge: string | null;
+    engine_context: {
+      is_holiday: boolean;
+      is_leave_day: boolean;
+      is_absent: boolean;
+      is_incomplete: boolean;
+      work_credit: number;
+      penalty_amount: number;
+      overtime_hours: number;
+      extra_hours: number;
+      night_shift_sessions: number;
+      live_sessions: number;
+      late_minutes: number;
+      early_leave_minutes: number;
+      rules_applied: string[];
+    };
+    shifts: Array<{
+      shift_type: string;
+      shift_label: string;
+      shift_code?: string;
+      scheduled_start?: string;
+      scheduled_end?: string;
+      check_in: string | null;
+      check_out: string | null;
+      status: string;
+      status_color: string;
+    }>;
+    registrations: any[];
+    raw_checkin_checkout: Array<{
+      check_in: string | null;
+      check_out: string | null;
+    }>;
+  }>;
+  total_days_in_month: number;
 }
 
 export interface AttendanceParams {
@@ -502,6 +528,12 @@ class AttendanceService {
       rejected_explanations: number;
       remaining_explanations: number;
       max_explanations_per_month: number;
+      // THÊM MỚI (optional để tương thích ngược)
+      non_quota_explanations?: number;
+      quota_consuming_explanations?: number;
+      // ONLINE WORK STATS
+      max_online_work_per_month?: number;
+      remaining_online_work?: number;
     };
   }> {
     try {
@@ -557,14 +589,19 @@ class AttendanceService {
   }): Promise<any> {
     try {
       const formData = new FormData();
-      
+
       // Add all fields to formData
       formData.append('employee_id', data.employee_id.toString());
       formData.append('attendance_date', data.attendance_date);
       formData.append('original_status', data.original_status);
       formData.append('expected_status', data.expected_status);
       formData.append('reason', data.reason);
-      
+
+      // CRITICAL: Add explanation_type to FormData
+      if ((data as any).explanation_type) {
+        formData.append('explanation_type', (data as any).explanation_type);
+      }
+
       if (data.actual_check_in) {
         formData.append('actual_check_in', data.actual_check_in);
       }
@@ -577,15 +614,15 @@ class AttendanceService {
       if (data.expected_check_out) {
         formData.append('expected_check_out', data.expected_check_out);
       }
-      
+
       if (data.status) {
         formData.append('status', data.status);
       }
-      
+
       if (data.evidence) {
         formData.append('evidence', data.evidence);
       }
-      
+
       const response = await managementApi.post('/api-hrm/attendance-explanations/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -612,6 +649,42 @@ class AttendanceService {
   }
 
   /**
+   * Xóa giải trình chấm công
+   */
+  async deleteAttendanceExplanation(explanationId: number): Promise<any> {
+    try {
+      const response = await managementApi.delete(`/api-hrm/attendance-explanations/${explanationId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting attendance explanation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách giải trình chấm công
+   */
+  async getAttendanceExplanations(params?: {
+    employee_id?: number;
+    start_date?: string;
+    end_date?: string;
+    month?: number;
+    year?: number;
+    status?: string;
+    page_size?: number;
+    ordering?: string;
+  }): Promise<{ count: number; results: any[] }> {
+    try {
+      const response = await managementApi.get('/api-hrm/attendance-explanations/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attendance explanations:', error);
+      throw error;
+    }
+  }
+
+
+  /**
    * Lấy điểm công hàng tháng cho nhân viên
    */
   async getMonthlyWorkCredits(params?: MonthlyWorkCreditsParams): Promise<MonthlyWorkCreditsResponse> {
@@ -623,7 +696,119 @@ class AttendanceService {
       throw error;
     }
   }
+
+  /**
+   * ==================== ONLINE WORK REQUESTS ====================
+   */
+
+  /**
+   * Tạo đơn làm việc online mới
+   */
+  async createOnlineWorkRequest(data: {
+    employee_id: number;
+    work_date: string;
+    reason: string;
+    work_plan?: string;
+  }): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/online-work-requests/', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating online work request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách đơn làm việc online
+   */
+  async getOnlineWorkRequests(params?: {
+    status?: string;
+    work_date?: string;
+    employee_id?: number;
+    start_date?: string;
+    end_date?: string;
+    page_size?: number;
+    ordering?: string;
+  }): Promise<any> {
+    try {
+      const response = await managementApi.get('/api-hrm/online-work-requests/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching online work requests:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách đơn đăng ký công (tăng ca, làm thêm giờ, trực tối, live)
+   */
+  async getRegistrationRequests(params?: {
+    employee_id?: number;
+    month?: number;
+    year?: number;
+    registration_type?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+    page_size?: number;
+    ordering?: string;
+  }): Promise<{ count: number; results: RegistrationRequest[] }> {
+    try {
+      const response = await managementApi.get('/api-hrm/registration-requests/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching registration requests:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Tạo đơn đăng ký công mới
+   */
+  async createRegistrationRequest(data: {
+    employee_id: number;
+    attendance_date: string;
+    registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE';
+    start_time?: string;
+    end_time?: string;
+    reason: string;
+    status?: string;
+  }): Promise<RegistrationRequest> {
+    try {
+      const response = await managementApi.post('/api-hrm/registration-requests/', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating registration request:', error);
+      throw error;
+    }
+  }
 }
 
 export const attendanceService = new AttendanceService();
 export default attendanceService;
+
+// RegistrationRequest interface
+export interface RegistrationRequest {
+  id: number;
+  request_code: string;
+  employee: number;
+  employee_name: string;
+  employee_id_code?: string;
+  department_name?: string;
+  registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE';
+  registration_type_display: string;
+  attendance_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  total_hours: number;
+  reason: string;
+  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  status_display: string;
+  direct_manager_approved: boolean;
+  hr_approved: boolean;
+  direct_manager_approved_at: string | null;
+  hr_approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

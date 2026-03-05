@@ -54,6 +54,7 @@ import AttendanceUpload from './pages/AttendanceUpload';
 import AttendanceView from './pages/AttendanceView';
 import Approvals from './pages/Approvals';
 import Onboarding from './pages/Onboarding';
+import OnboardingDetail from './pages/OnboardingDetail'; // ← THÊM IMPORT NÀY
 import Offboarding from './pages/Offboarding';
 import AssetList from './pages/asset/AssetList';
 import OrganizationChart from './pages/OrganizationChart';
@@ -70,6 +71,8 @@ import AttendanceRuleList from './pages/AttendanceRuleList';
 import AttendanceRuleCreate from './pages/AttendanceRuleCreate';
 import LeavePolicyList from './pages/LeavePolicyList';
 import LeavePolicyCreate from './pages/LeavePolicyCreate';
+import { EmployeeOnboardingForm } from "./pages/EmployeeOnboardingForm";
+import WorkFinalization from './pages/WorkFinalization';
 
 function App() {
   return (
@@ -547,6 +550,10 @@ function App() {
               </ProtectedRoute>
             }
           />
+          
+          {/* ============================================ */}
+          {/* ONBOARDING ROUTES - THÊM MỚI */}
+          {/* ============================================ */}
           <Route
             path="/dashboard/onboarding"
             element={
@@ -557,6 +564,19 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* ⭐ ROUTE MỚI - Detail page */}
+          <Route
+            path="/dashboard/onboarding/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <OnboardingDetail />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* ============================================ */}
+          
           <Route
             path="/dashboard/offboarding"
             element={
@@ -704,6 +724,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* Work Finalization Route */}
+          <Route
+            path="/dashboard/work-finalization"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <WorkFinalization />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           {/* Company Information Routes */}
           <Route
             path="/company/training"
@@ -744,6 +775,12 @@ function App() {
                 </Layout>
               </ProtectedRoute>
             }
+          />
+          <Route 
+            path="/onboarding/employee-form/:token" 
+            element={
+              <EmployeeOnboardingForm />
+            } 
           />
         </Routes>
       </AuthProvider>

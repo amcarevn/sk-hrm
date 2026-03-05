@@ -22,6 +22,7 @@ import {
   EyeIcon,
   UserGroupIcon,
   ShieldCheckIcon,
+  TableCellsIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -39,19 +40,19 @@ const navigationItems: NavigationItem[] = [
     name: 'Trang chủ',
     href: '/home',
     icon: Squares2X2Icon,
-    roles: ['ADMIN', 'USER'],
+    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
   },
   {
     name: 'Dashboard',
     href: '/dashboard',
     icon: ChartBarIcon,
-    roles: ['ADMIN', 'USER'],
+    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
   },
   {
     name: 'Me',
     href: '/dashboard/me',
     icon: UserCircleIcon,
-    roles: ['ADMIN', 'USER'],
+    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
   },
   {
     name: 'Quản lý nhân viên',
@@ -81,7 +82,7 @@ const navigationItems: NavigationItem[] = [
     name: 'Chấm công',
     href: '/dashboard/attendance',
     icon: ClockIcon,
-    roles: ['ADMIN', 'USER'],
+    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
   },
   {
     name: 'Quản lý chấm công',
@@ -106,25 +107,32 @@ const navigationItems: NavigationItem[] = [
     name: 'Phê duyệt',
     href: '/dashboard/approvals',
     icon: CheckCircleIcon,
-    roles: ['ADMIN', 'USER'],
+    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
   },
   {
     name: 'Sơ đồ tổ chức',
     href: '/dashboard/organization-chart',
     icon: EyeIcon,
-    roles: ['ADMIN', 'USER'],
+    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
   },
   {
     name: 'Onboard nhân sự',
     href: '/dashboard/onboarding',
     icon: UserPlusIcon,
-    roles: ['ADMIN'],
+    roles: ['ADMIN', 'HR'],
+    // Trưởng phòng (is_management=true) được thêm qua isManager check bên dưới
   },
   {
     name: 'Offboard nhân sự',
     href: '/dashboard/offboarding',
     icon: UserMinusIcon,
     roles: ['ADMIN'],
+  },
+  {
+    name: 'Chốt công',
+    href: '/dashboard/work-finalization',
+    icon: TableCellsIcon,
+    roles: ['ADMIN', 'HR'],
   },
 ];
 
@@ -161,11 +169,16 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   // Convert user role to uppercase to match navigation item roles
   const userRole = user?.role ? user.role.toUpperCase() : 'USER';
   const isSuperAdmin = user?.is_super_admin || false;
+
+  const MANAGER_POSITIONS = ['Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'];
+  const userPosition = user?.employee_profile?.position || user?.hrm_user?.position || null;
+  const isManager = userPosition ? MANAGER_POSITIONS.includes(userPosition) : false;
   
   // Debug: Log user object to check department_code
   console.log('Sidebar - User object:', user);
   console.log('Sidebar - Employee profile:', user?.employee_profile);
   console.log('Sidebar - HRM user:', user?.hrm_user);
+  console.log('Sidebar - Is manager:', isManager);
   
   // Get user's department code from various possible locations in user object
   const userDepartmentCode = (
@@ -190,6 +203,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           if (hasDepartmentAccess) {
             return true;
           }
+        }
+
+        // ← MỚI: Trưởng phòng (is_management) được xem Onboarding
+        if (isManager && item.name === 'Onboard nhân sự') {
+          return true;
         }
         
         // Check if user has access based on role
@@ -222,11 +240,31 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           console.log('Sidebar - Adding item with department access:', item.name, 'departments:', item.departments);
           staffNavigation.push(item);
         }
+        // ← MỚI: Trưởng phòng trong STAFF cũng xem được Onboarding
+        if (isManager && item.name === 'Onboard nhân sự') {
+          staffNavigation.push(item);
+        }
       }
     });
     
     console.log('Sidebar - Final staff navigation:', staffNavigation.map(item => item.name));
     navigation = staffNavigation;
+  }
+
+  // ← MỚI: Special handling for CUSTOMER role (nhân viên thường có role=CUSTOMER)
+  if (userRole === 'CUSTOMER') {
+    const allowedCustomerItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt'];
+    let customerNavigation = navigationItems.filter((item) =>
+      allowedCustomerItems.includes(item.name)
+    );
+    // Trưởng phòng trong CUSTOMER cũng xem được Onboarding
+    if (isManager) {
+      const onboardingItem = navigationItems.find(item => item.name === 'Onboard nhân sự');
+      if (onboardingItem && !customerNavigation.some(n => n.name === 'Onboard nhân sự')) {
+        customerNavigation.push(onboardingItem);
+      }
+    }
+    navigation = customerNavigation;
   }
   
   // Special handling for HR role - HR should see all STAFF items plus HR-specific items

@@ -123,89 +123,12 @@ const AttendanceView: React.FC = () => {
       const endDay = String(endDate.getDate()).padStart(2, '0');
       params.end_date = `${endYear}-${endMonth}-${endDay}`;
 
-      // Fetch attendance records
+      // Fetch attendance records only — stats come from calendar-view API summary
       const attendanceResponse = await attendanceService.getAttendanceRecords(params);
       setAttendanceRecords(attendanceResponse.results);
-
-      // Fetch statistics
-      const statsResponse = await attendanceService.getAttendanceStats(params);
-      setStats(statsResponse);
     } catch (error) {
       console.error('Error fetching attendance data:', error);
-      // Fallback to mock data if API is not available
-      const mockAttendanceRecords: AttendanceRecord[] = [
-        {
-          id: 1,
-          attendance_date: '2026-01-09',
-          check_in: '08:00',
-          check_out: '17:30',
-          status: 'PRESENT',
-          status_display: 'Đủ công',
-          shift_type: 'FULL_DAY',
-          shift_type_display: 'Cả ngày',
-          working_hours: 8.5,
-          overtime_hours: 0,
-          late_minutes: 0,
-          early_leave_minutes: 0,
-          notes: '',
-          employee_name: 'Nguyễn Văn A',
-          employee_code: 'NV001',
-          department_name: 'IT - Công nghệ thông tin'
-        },
-        {
-          id: 2,
-          attendance_date: '2026-01-08',
-          check_in: '08:15',
-          check_out: '17:45',
-          status: 'LATE',
-          status_display: 'Đi muộn',
-          shift_type: 'FULL_DAY',
-          shift_type_display: 'Cả ngày',
-          working_hours: 8.5,
-          overtime_hours: 0,
-          late_minutes: 15,
-          early_leave_minutes: 0,
-          notes: 'Vào muộn 15 phút',
-          employee_name: 'Nguyễn Văn A',
-          employee_code: 'NV001',
-          department_name: 'IT - Công nghệ thông tin'
-        },
-        {
-          id: 3,
-          attendance_date: '2026-01-07',
-          check_in: '08:00',
-          check_out: '17:00',
-          status: 'PRESENT',
-          status_display: 'Đủ công',
-          shift_type: 'FULL_DAY',
-          shift_type_display: 'Cả ngày',
-          working_hours: 8.0,
-          overtime_hours: 0,
-          late_minutes: 0,
-          early_leave_minutes: 0,
-          notes: '',
-          employee_name: 'Nguyễn Văn A',
-          employee_code: 'NV001',
-          department_name: 'IT - Công nghệ thông tin'
-        }
-      ];
-      
-      setAttendanceRecords(mockAttendanceRecords);
-
-      // Mock statistics
-      const mockStats = {
-        statistics: {
-          status_summary: {
-            PRESENT: 2,
-            LATE: 1,
-            ABSENT: 0,
-            EARLY_LEAVE: 0,
-            HALF_DAY: 0
-          },
-          total_working_hours: 25.0
-        }
-      };
-      setStats(mockStats);
+      setAttendanceRecords([]);
     } finally {
       setLoading(false);
     }
@@ -221,33 +144,40 @@ const AttendanceView: React.FC = () => {
       params.month = today.getMonth() + 1;
 
       console.log('Fetching calendar data with params:', params);
-      console.log('Selected employee:', selectedEmployee);
-      console.log('Selected department:', selectedDepartment);
 
       const response = await attendanceService.getCalendarView(params);
       console.log('Calendar API response:', response);
-      setCalendarData(response.calendar_data || []);
+
+      // Support new API format: { success: true, data: { calendar: [...], summary: {...} } }
+      // and old format: { calendar_data: [...] }
+      const calendarArray =
+        (response as any)?.data?.calendar ||
+        (response as any)?.calendar_data ||
+        [];
+      setCalendarData(calendarArray);
+
+      // If new API format, also update stats from summary
+      const summary = (response as any)?.data?.summary;
+      if (summary) {
+        setStats({
+          statistics: {
+            status_summary: {
+              PRESENT: summary.full_days || 0,
+              LATE: summary.late_or_early_days || 0,
+              ABSENT: summary.absent_days || 0,
+              HALF_DAY: summary.half_days || 0,
+              FORGOT_CC: summary.forgot_checkin_days || 0,
+            },
+            total_working_hours: summary.extra_hours || 0,
+            total_work_days: summary.total_work_days || 0,
+            leave_days: summary.leave_days || 0,
+          },
+          _summary: summary,
+        });
+      }
     } catch (error) {
       console.error('Error fetching calendar data:', error);
-      // Fallback to mock data
-      const mockCalendarData = [
-        {
-          date: '2026-01-09',
-          status: 'PRESENT',
-          status_display: 'Đủ công'
-        },
-        {
-          date: '2026-01-08',
-          status: 'LATE',
-          status_display: 'Đi muộn'
-        },
-        {
-          date: '2026-01-07',
-          status: 'PRESENT',
-          status_display: 'Đủ công'
-        }
-      ];
-      setCalendarData(mockCalendarData);
+      setCalendarData([]);
     }
   };
 
@@ -591,32 +521,86 @@ const AttendanceView: React.FC = () => {
       {stats && !loading && (
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Thống kê chấm công</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-medium text-green-900 text-sm">Ngày có mặt</h3>
-              <p className="text-2xl font-bold text-green-700 mt-1">
-                {stats.statistics.status_summary?.PRESENT || 0}
-              </p>
+          {/* New API summary format */}
+          {stats._summary ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+              <div className="bg-green-50 border border-green-100 p-4 rounded-lg">
+                <h3 className="font-medium text-green-900 text-xs">Đủ công</h3>
+                <p className="text-2xl font-bold text-green-700 mt-1">
+                  {stats._summary.full_days || 0}
+                </p>
+              </div>
+              <div className="bg-orange-50 border border-orange-100 p-4 rounded-lg">
+                <h3 className="font-medium text-orange-900 text-xs">Nửa công</h3>
+                <p className="text-2xl font-bold text-orange-700 mt-1">
+                  {stats._summary.half_days || 0}
+                </p>
+              </div>
+              <div className="bg-red-50 border border-red-100 p-4 rounded-lg">
+                <h3 className="font-medium text-red-900 text-xs">Vắng mặt</h3>
+                <p className="text-2xl font-bold text-red-700 mt-1">
+                  {stats._summary.absent_days || 0}
+                </p>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-lg">
+                <h3 className="font-medium text-yellow-900 text-xs">Muộn/Sớm</h3>
+                <p className="text-2xl font-bold text-yellow-700 mt-1">
+                  {stats._summary.late_or_early_days || 0}
+                </p>
+              </div>
+              <div className="bg-purple-50 border border-purple-100 p-4 rounded-lg">
+                <h3 className="font-medium text-purple-900 text-xs">Quên CC</h3>
+                <p className="text-2xl font-bold text-purple-700 mt-1">
+                  {stats._summary.forgot_checkin_days || 0}
+                </p>
+              </div>
+              <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg">
+                <h3 className="font-medium text-blue-900 text-xs">Tổng ngày công</h3>
+                <p className="text-2xl font-bold text-blue-700 mt-1">
+                  {stats._summary.total_work_days || 0}
+                </p>
+              </div>
+              <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-lg">
+                <h3 className="font-medium text-indigo-900 text-xs">Buổi trực</h3>
+                <p className="text-2xl font-bold text-indigo-700 mt-1">
+                  {stats._summary.live_sessions || 0}
+                </p>
+              </div>
+              <div className="bg-teal-50 border border-teal-100 p-4 rounded-lg">
+                <h3 className="font-medium text-teal-900 text-xs">Ngày nghỉ phép</h3>
+                <p className="text-2xl font-bold text-teal-700 mt-1">
+                  {stats._summary.leave_days || 0}
+                </p>
+              </div>
             </div>
-            <div className="bg-yellow-50 p-4 rounded-lg">
-              <h3 className="font-medium text-yellow-900 text-sm">Ngày đi muộn</h3>
-              <p className="text-2xl font-bold text-yellow-700 mt-1">
-                {stats.statistics.status_summary?.LATE || 0}
-              </p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h3 className="font-medium text-green-900 text-sm">Ngày có mặt</h3>
+                <p className="text-2xl font-bold text-green-700 mt-1">
+                  {stats.statistics.status_summary?.PRESENT || 0}
+                </p>
+              </div>
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <h3 className="font-medium text-yellow-900 text-sm">Ngày đi muộn</h3>
+                <p className="text-2xl font-bold text-yellow-700 mt-1">
+                  {stats.statistics.status_summary?.LATE || 0}
+                </p>
+              </div>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <h3 className="font-medium text-red-900 text-sm">Ngày vắng mặt</h3>
+                <p className="text-2xl font-bold text-red-700 mt-1">
+                  {stats.statistics.status_summary?.ABSENT || 0}
+                </p>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-medium text-blue-900 text-sm">Tổng giờ làm</h3>
+                <p className="text-2xl font-bold text-blue-700 mt-1">
+                  {stats.statistics.total_working_hours?.toFixed(1) || 0}
+                </p>
+              </div>
             </div>
-            <div className="bg-red-50 p-4 rounded-lg">
-              <h3 className="font-medium text-red-900 text-sm">Ngày vắng mặt</h3>
-              <p className="text-2xl font-bold text-red-700 mt-1">
-                {stats.statistics.status_summary?.ABSENT || 0}
-              </p>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-medium text-blue-900 text-sm">Tổng giờ làm</h3>
-              <p className="text-2xl font-bold text-blue-700 mt-1">
-                {stats.statistics.total_working_hours?.toFixed(1) || 0}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -1018,12 +1002,87 @@ const AttendanceView: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12">
-                  <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Không có dữ liệu chấm công</h3>
-                  <p className="text-gray-600">
-                    Không tìm thấy bản ghi chấm công nào cho ngày {selectedDateDetail && formatDate(selectedDateDetail)}
-                  </p>
+                <div className="py-4">
+                  {(approvedExplanations.length > 0 || approvedLeaveRequests.length > 0) ? (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Đơn đã duyệt</h3>
+                      {approvedExplanations.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className="font-medium text-gray-900 mb-2">Đơn giải trình chấm công đã duyệt:</h4>
+                          <div className="bg-green-50 rounded-lg p-4">
+                            <div className="space-y-3">
+                              {approvedExplanations.map((explanation, index) => (
+                                <div key={index} className="border-l-4 border-green-500 pl-4 py-2">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="font-medium text-gray-900">
+                                        Mã đơn: {explanation.request_code}
+                                      </p>
+                                      {explanation.reason && (
+                                        <p className="text-sm text-gray-600">Lý do: {explanation.reason}</p>
+                                      )}
+                                      <p className="text-sm text-gray-600">
+                                        Từ: {explanation.original_status} → {explanation.expected_status}
+                                      </p>
+                                      <p className="text-sm text-gray-600">
+                                        Duyệt bởi: {explanation.approved_by_name}
+                                      </p>
+                                      <p className="text-sm text-gray-600">
+                                        Thời gian duyệt: {new Date(explanation.approved_at).toLocaleDateString('vi-VN')} {new Date(explanation.approved_at).toLocaleTimeString('vi-VN')}
+                                      </p>
+                                    </div>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      Đã duyệt
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {approvedLeaveRequests.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className="font-medium text-gray-900 mb-2">Đơn nghỉ phép đã duyệt:</h4>
+                          <div className="bg-blue-50 rounded-lg p-4">
+                            <div className="space-y-3">
+                              {approvedLeaveRequests.map((leave, index) => (
+                                <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                                  <div className="flex justify-between items-start">
+                                    <div>
+                                      <p className="font-medium text-gray-900">
+                                        Mã đơn: {leave.request_code}
+                                      </p>
+                                      <p className="text-sm text-gray-600">
+                                        Loại nghỉ phép: {leave.leave_type}
+                                      </p>
+                                      <p className="text-sm text-gray-600">
+                                        Duyệt bởi: {leave.approved_by_name}
+                                      </p>
+                                      <p className="text-sm text-gray-600">
+                                        Thời gian duyệt: {new Date(leave.approved_at).toLocaleDateString('vi-VN')} {new Date(leave.approved_at).toLocaleTimeString('vi-VN')}
+                                      </p>
+                                    </div>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      Đã duyệt
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Không có dữ liệu chấm công</h3>
+                      <p className="text-gray-600">
+                        Không tìm thấy bản ghi chấm công nào cho ngày {selectedDateDetail && formatDate(selectedDateDetail)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
