@@ -106,6 +106,7 @@ const AttendanceManagement: React.FC = () => {
     PRESENT: 'Có mặt',
     LATE: 'Đi muộn',
     EARLY_LEAVE: 'Về sớm',
+    LATE_EARLY: 'Đi muộn/Về sớm',
     ABSENT: 'Vắng mặt',
     HALF_DAY: 'Nửa ngày',
     INCOMPLETE_ATTENDANCE: 'Quên chấm công',
@@ -1821,26 +1822,30 @@ const AttendanceManagement: React.FC = () => {
                                   <span
                                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${record.status === 'LEAVE'
                                       ? 'bg-indigo-100 text-indigo-800'
-                                      : (record.status === 'INCOMPLETE_ATTENDANCE' ||
-                                        ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
+                                      : record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                        ((record.check_in || record.check_out) &&
+                                          (!record.check_in || !record.check_out))
                                         ? 'bg-purple-100 text-purple-800'
                                         : record.status === 'PRESENT'
                                           ? 'bg-green-100 text-green-800'
-                                          : record.status === 'LATE'
-                                            ? 'bg-yellow-100 text-yellow-800'
-                                            : record.status === 'EARLY_LEAVE'
-                                              ? 'bg-orange-100 text-orange-800'
-                                              : record.status === 'ABSENT'
-                                                ? 'bg-red-100 text-red-800'
-                                                : record.status === 'HALF_DAY'
-                                                  ? 'bg-blue-100 text-blue-800'
-                                                  : 'bg-gray-100 text-gray-800'
+                                          : record.status === 'LATE' ||
+                                            record.status === 'EARLY_LEAVE' ||
+                                            record.status === 'LATE_EARLY'
+                                            ? 'bg-amber-100 text-amber-800'
+                                            : record.status === 'ABSENT'
+                                              ? 'bg-red-100 text-red-800'
+                                              : record.status === 'HALF_DAY'
+                                                ? 'bg-orange-100 text-orange-800'
+                                                : 'bg-gray-100 text-gray-800'
                                       }`}
                                   >
-                                    {(record.status === 'INCOMPLETE_ATTENDANCE' ||
-                                      ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
+                                    {record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                      ((record.check_in || record.check_out) &&
+                                        (!record.check_in || !record.check_out))
                                       ? 'Quên chấm công'
-                                      : record.status_display || record.status}
+                                      : record.status_display ||
+                                      ATTENDANCE_STATUS_MAP[record.status] ||
+                                      (record.status === 'PRESENT' ? 'Đủ công' : record.status)}
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -1939,26 +1944,30 @@ const AttendanceManagement: React.FC = () => {
                                   <span
                                     className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${record.status === 'LEAVE'
                                       ? 'bg-indigo-100 text-indigo-800'
-                                      : (record.status === 'INCOMPLETE_ATTENDANCE' ||
-                                        ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
+                                      : record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                        ((record.check_in || record.check_out) &&
+                                          (!record.check_in || !record.check_out))
                                         ? 'bg-purple-100 text-purple-800'
                                         : record.status === 'PRESENT'
                                           ? 'bg-green-100 text-green-800'
-                                          : record.status === 'LATE'
-                                            ? 'bg-yellow-100 text-yellow-800'
-                                            : record.status === 'EARLY_LEAVE'
-                                              ? 'bg-orange-100 text-orange-800'
-                                              : record.status === 'ABSENT'
-                                                ? 'bg-red-100 text-red-800'
-                                                : record.status === 'HALF_DAY'
-                                                  ? 'bg-blue-100 text-blue-800'
-                                                  : 'bg-gray-100 text-gray-800'
+                                          : record.status === 'LATE' ||
+                                            record.status === 'EARLY_LEAVE' ||
+                                            record.status === 'LATE_EARLY'
+                                            ? 'bg-amber-100 text-amber-800'
+                                            : record.status === 'ABSENT'
+                                              ? 'bg-red-100 text-red-800'
+                                              : record.status === 'HALF_DAY'
+                                                ? 'bg-orange-100 text-orange-800'
+                                                : 'bg-gray-100 text-gray-800'
                                       }`}
                                   >
-                                    {(record.status === 'INCOMPLETE_ATTENDANCE' ||
-                                      ((record.check_in || record.check_out) && (!record.check_in || !record.check_out)))
+                                    {record.status === 'INCOMPLETE_ATTENDANCE' ||
+                                      ((record.check_in || record.check_out) &&
+                                        (!record.check_in || !record.check_out))
                                       ? 'Quên chấm công'
-                                      : record.status_display || record.status}
+                                      : record.status_display ||
+                                      ATTENDANCE_STATUS_MAP[record.status] ||
+                                      (record.status === 'PRESENT' ? 'Đủ công' : record.status)}
                                   </span>
                                 </div>
                                 {/* Row 2: Times + Hours */}

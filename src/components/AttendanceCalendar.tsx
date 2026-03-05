@@ -98,7 +98,20 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   // Map API shift status string to AttendanceStatus
   const mapShiftStatus = (shift: any): AttendanceStatus => {
     if (!shift) return 'no_data';
-    switch ((shift.status || '').toUpperCase()) {
+    const status = (shift.status || '').toUpperCase();
+
+    // Logic override: If shift has both check-in and check-out, it's present (green)
+    // even if backend returns ABSENT/EMPTY (common on weekends or during processing)
+    if (shift.check_in && shift.check_out && (status === 'ABSENT' || status === 'EMPTY')) {
+      return 'present';
+    }
+
+    // If shift has only one log but marked as ABSENT, show as incomplete (purple)
+    if ((shift.check_in || shift.check_out) && (status === 'ABSENT' || status === 'EMPTY')) {
+      return 'incomplete_attendance';
+    }
+
+    switch (status) {
       case 'PRESENT': return 'present';
       case 'ABSENT': return 'absent';
       case 'HALF_DAY': return 'present';
@@ -125,27 +138,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     }
   };
 
-  // Map day_status to summary badge text
-  const getDayStatusSummaryText = (dayItem: any): string => {
-    if (dayItem.status_badge) return dayItem.status_badge;
-    switch (dayItem.day_status) {
-      case 'FULL': return 'Đủ công';
-      case 'HALF': return 'Nửa công';
-      case 'ABSENT': return 'Vắng';
-      case 'LATE_EARLY': {
-        const late = dayItem.engine_context?.late_minutes || 0;
-        const early = dayItem.engine_context?.early_leave_minutes || 0;
-        if (late > 0 && early > 0) return 'Muộn/Sớm';
-        if (late > 0) return 'Đi muộn';
-        if (early > 0) return 'Về sớm';
-        return 'Muộn/Sớm';
-      }
-      case 'FORGOT_CC': return 'Quên chấm công';
-      case 'LEAVE': return 'Nghỉ phép';
-      case 'HOLIDAY': return 'Lễ';
-      default: return '';
-    }
-  };
+
 
   // Fetch calendar data from API
   const fetchCalendarData = async () => {
@@ -215,8 +208,11 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         );
         const hasApprovedOnlineWork = onlineWorkRequests.length > 0;
 
-        let summaryText = getDayStatusSummaryText(dayItem);
-        if (isForgotCC) {
+        const late = dayItem.engine_context?.late_minutes || 0;
+        const early = dayItem.engine_context?.early_leave_minutes || 0;
+
+        let summaryText = dayItem.status_badge;
+        if (isForgotCC && !summaryText) {
           summaryText = 'Quên chấm công';
         } else if (!summaryText && hasApprovedExplanations) {
           summaryText = approvedExplanations[0].reason || 'Có đơn đã duyệt';
@@ -382,22 +378,28 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300 font-medium';
     }
 
-    // Priority 3: Late/Early badge
-    const late = day.engine_context?.late_minutes || 0;
-    const early = day.engine_context?.early_leave_minutes || 0;
-    if (late > 0 || early > 0) {
-      return 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-300';
-    }
-
-    if (day.dayStatusSummary?.display_color === 'purple') {
+    // Priority 3: Incomplete/Forgot CC (Purple) - More critical than just being late
+    if (day.dayStatusSummary?.display_color === 'purple' || day.engine_context?.is_incomplete) {
       return 'bg-purple-100 text-purple-700 ring-1 ring-purple-300';
     }
+
+    // Priority 4: Late/Early badge (Yellow) - Only if not enough credit to be Green/Orange
+    const late = day.engine_context?.late_minutes || 0;
+    const early = day.engine_context?.early_leave_minutes || 0;
+    const credit = day.engine_context?.work_credit || 0;
 
     if (day.dayStatusSummary?.display_color === 'green') {
       if (day.dayStatusSummary?.has_approved_leave) {
         return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300';
       }
       return 'bg-green-100 text-green-700 ring-1 ring-green-300';
+    }
+    if (day.dayStatusSummary?.display_color === 'orange' || credit >= 0.5) {
+      return 'bg-orange-100 text-orange-700 ring-1 ring-orange-300';
+    }
+
+    if (late > 0 || early > 0) {
+      return 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-300';
     }
     if (day.dayStatusSummary?.display_color === 'yellow') {
       return 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-300 animate-pulse';
@@ -438,7 +440,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     if (late > 0) return 'Đi muộn';
     if (early > 0) return 'Về sớm';
 
-    if (day.engine_context?.work_credit >= 1.0) return 'Đủ công';
+    if (day.engine_context?.work_credit >= 1.0) return 'Có mặt';
     if (day.engine_context?.work_credit >= 0.5) return 'Nửa công';
     if (day.engine_context?.work_credit > 0) return 'Thiếu công';
     return 'Vắng mặt';
@@ -453,8 +455,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   const getInfoBoxStyle = (day: AttendanceDay): string => {
     const hasLate = Number(day.engine_context?.late_minutes) > 0;
     const hasEarly = Number(day.engine_context?.early_leave_minutes) > 0;
-    if (hasLate && hasEarly) return 'bg-red-50 border-red-200';
-    if (hasLate || hasEarly) return 'bg-orange-50 border-orange-200';
+    if (hasLate || hasEarly) return 'bg-yellow-50 border-yellow-200';
     return 'bg-slate-50 border-slate-200';
   };
 
@@ -511,7 +512,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           { color: 'bg-green-500', label: 'Đủ công' },
           { color: 'bg-orange-500', label: 'Nửa công' },
           { color: 'bg-red-500', label: 'Vắng' },
-          { color: 'bg-yellow-500', label: 'Muộn/Sớm' },
+          { color: 'bg-yellow-500', label: 'Đi muộn/Về sớm' },
           { color: 'bg-purple-500', label: 'Quên CC' },
           { color: 'bg-gray-300', label: 'Nghỉ' },
           { color: 'bg-blue-300', label: 'Lễ' },
@@ -559,19 +560,21 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     hover:shadow-lg hover:-translate-y-0.5
                     ${isToday
                       ? 'ring-2 ring-primary-500 bg-primary-50/40 shadow-sm'
-                      : day.dayStatusSummary?.display_color === 'green'
-                        ? 'ring-2 ring-green-400 bg-green-50/30'
-                        : day.dayStatusSummary?.display_color === 'purple'
-                          ? 'ring-2 ring-purple-400 bg-purple-50/30'
-                          : day.dayStatusSummary?.display_color === 'orange'
-                            ? 'ring-2 ring-orange-300 bg-orange-50/30'
-                            : day.dayStatusSummary?.display_color === 'red'
-                              ? 'ring-2 ring-red-200 bg-red-50/30'
-                              : day.dayStatusSummary?.display_color === 'blue'
-                                ? 'ring-2 ring-blue-300 bg-blue-50/30'
-                                : day.dayStatusSummary?.display_color === 'yellow'
-                                  ? 'ring-2 ring-yellow-300 bg-yellow-50/30'
-                                  : 'border border-gray-200 bg-gray-50/50'}
+                      : (day.dayStatusSummary?.display_color === 'purple' || day.engine_context?.is_incomplete)
+                        ? 'ring-2 ring-purple-400 bg-purple-50/30'
+                        : (Number(day.engine_context?.late_minutes) > 0 || Number(day.engine_context?.early_leave_minutes) > 0)
+                          ? 'ring-2 ring-yellow-300 bg-yellow-50/30'
+                          : day.dayStatusSummary?.display_color === 'green'
+                            ? 'ring-2 ring-green-400 bg-green-50/30'
+                            : day.dayStatusSummary?.display_color === 'orange'
+                              ? 'ring-2 ring-orange-300 bg-orange-50/30'
+                              : day.dayStatusSummary?.display_color === 'red'
+                                ? 'ring-2 ring-red-200 bg-red-50/30'
+                                : day.dayStatusSummary?.display_color === 'blue'
+                                  ? 'ring-2 ring-blue-300 bg-blue-50/30'
+                                  : day.dayStatusSummary?.display_color === 'yellow'
+                                    ? 'ring-2 ring-yellow-300 bg-yellow-50/30'
+                                    : 'border border-gray-200 bg-gray-50/50'}
                   `}
                 >
                   {/* Date + work coefficient */}
@@ -664,14 +667,14 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                         <div className={`p-1.5 rounded-lg border text-[9px] space-y-0.5 ${getInfoBoxStyle(day)}`}>
                           {Number(day.engine_context.late_minutes) > 0 && (
                             <div className="flex justify-between">
-                              <span className="text-orange-600">Đi muộn</span>
-                              <span className="font-bold text-orange-700">{day.engine_context.late_minutes} phút</span>
+                              <span className="text-yellow-700">Đi muộn</span>
+                              <span className="font-bold text-yellow-800">{day.engine_context.late_minutes} phút</span>
                             </div>
                           )}
                           {Number(day.engine_context.early_leave_minutes) > 0 && (
                             <div className="flex justify-between">
-                              <span className="text-orange-600">Về sớm</span>
-                              <span className="font-bold text-orange-700">{day.engine_context.early_leave_minutes} phút</span>
+                              <span className="text-yellow-700">Về sớm</span>
+                              <span className="font-bold text-yellow-800">{day.engine_context.early_leave_minutes} phút</span>
                             </div>
                           )}
                         </div>
@@ -705,11 +708,13 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 className={`flex items-center gap-2.5 p-2.5 rounded-xl cursor-pointer transition-all
                   ${isToday
                     ? 'ring-2 ring-primary-500 bg-primary-50/50 shadow-sm'
-                    : day.dayStatusSummary?.display_color === 'green'
-                      ? 'ring-1 ring-green-300 bg-green-50/30'
-                      : day.dayStatusSummary?.display_color === 'purple'
-                        ? 'ring-1 ring-purple-300 bg-purple-50/30'
-                        : 'border border-gray-100 bg-gray-50/50 hover:bg-gray-50 active:bg-gray-100'}`}
+                    : (day.dayStatusSummary?.display_color === 'purple' || day.engine_context?.is_incomplete)
+                      ? 'ring-1 ring-purple-300 bg-purple-50/30'
+                      : (Number(day.engine_context?.late_minutes) > 0 || Number(day.engine_context?.early_leave_minutes) > 0)
+                        ? 'ring-1 ring-yellow-300 bg-yellow-50/30'
+                        : day.dayStatusSummary?.display_color === 'green'
+                          ? 'ring-1 ring-green-300 bg-green-50/30'
+                          : 'border border-gray-100 bg-gray-50/50 hover:bg-gray-50 active:bg-gray-100'}`}
               >
                 {/* Date block */}
                 <div
@@ -791,7 +796,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                         ));
                       })()}
                       {(Number(day.engine_context?.late_minutes) > 0 || Number(day.engine_context?.early_leave_minutes) > 0) && (
-                        <div className="text-[10px] text-orange-600 mt-0.5">
+                        <div className="text-[10px] text-yellow-700 mt-0.5 font-medium">
                           {Number(day.engine_context.late_minutes) > 0 && `Đi muộn ${day.engine_context.late_minutes} phút`}
                           {Number(day.engine_context.late_minutes) > 0 && Number(day.engine_context.early_leave_minutes) > 0 && ' · '}
                           {Number(day.engine_context.early_leave_minutes) > 0 && `Về sớm ${day.engine_context.early_leave_minutes} phút`}
