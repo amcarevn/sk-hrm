@@ -171,9 +171,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const userRole = user?.role ? user.role.toUpperCase() : 'USER';
   const isSuperAdmin = user?.is_super_admin || false;
 
-  const MANAGER_POSITIONS = ['Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'];
-  const userPosition = user?.employee_profile?.position || user?.hrm_user?.position || null;
-  const isManager = userPosition ? MANAGER_POSITIONS.includes(userPosition) : false;
+  const isManager = user?.is_manager || false
   
   // Debug: Log user object to check department_code
   console.log('Sidebar - User object:', user);

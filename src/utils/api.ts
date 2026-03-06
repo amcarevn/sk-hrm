@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
  export const API_BASE_URL = 'https://app-uat.amcare.vn';
 
-//export const API_BASE_URL = 'http://localhost:8000';
+// export const API_BASE_URL = 'http://localhost:8000';
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -254,11 +254,11 @@ export const authAPI = {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       is_super_admin: backendUser.is_super_admin || false,
-      // Preserve additional fields from backend
+      // Spread TRƯỚC
+      ...backendUser,
+      // Set SAU để không bị backendUser ghi đè
       employee_profile: employeeProfile,
       hrm_user: hrmUser,
-      // Copy all other properties from backend user
-      ...backendUser,
     };
     
     console.log('authAPI.login - Processed user:', user);
@@ -350,11 +350,11 @@ export const authAPI = {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       is_super_admin: userData.is_super_admin || false,
-      // Preserve additional fields from backend
+      // Spread TRƯỚC
+      ...userData,
+      // Set SAU để không bị userData ghi đè
       employee_profile: employeeProfile,
       hrm_user: hrmUser,
-      // Copy all other properties from backend user
-      ...userData,
     };
     
     console.log('authAPI.getProfile - Processed user:', user);
