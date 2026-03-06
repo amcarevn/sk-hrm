@@ -57,6 +57,7 @@ type DocumentsSectionProps = {
   documents: OnboardingDocument[];
   onboardingId: number;
   onUpdate: () => void;
+  isReadOnly?: boolean;
 };
 
 // ============================================
@@ -113,6 +114,7 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
   documents,
   onboardingId,
   onUpdate,
+  isReadOnly = false,
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'template' | 'upload'>('template');
@@ -322,16 +324,18 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
             Quản lý tài liệu từ thư viện template chung
           </p>
         </div>
-        <button
-          onClick={() => {
-            setShowModal(true);
-            setModalMode('template');
-          }}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md font-medium"
-        >
-          <SparklesIcon className="w-5 h-5" />
-          Thêm từ Template
-        </button>
+        {!isReadOnly && (  // THÊM điều kiện
+          <button
+            onClick={() => {
+              setShowModal(true);
+              setModalMode('template');
+            }}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm hover:shadow-md font-medium"
+          >
+            <SparklesIcon className="w-5 h-5" />
+            Thêm từ Template
+          </button>
+        )}
       </div>
 
       {/* Documents List */}
@@ -473,16 +477,18 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
           <p className="text-gray-600 mb-6">
             Bắt đầu bằng cách thêm tài liệu từ thư viện template
           </p>
-          <button
-            onClick={() => {
-              setShowModal(true);
-              setModalMode('template');
-            }}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-          >
-            <SparklesIcon className="w-5 h-5" />
-            Thêm từ Template
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={() => {
+                setShowModal(true);
+                setModalMode('template');
+              }}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+            >
+              <SparklesIcon className="w-5 h-5" />
+              Thêm từ Template
+            </button>
+          )}
         </div>
       )}
 

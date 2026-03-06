@@ -15,6 +15,7 @@ import {
   ChartBarIcon,
   UserIcon,
   ClockIcon,
+  CakeIcon,
 } from '@heroicons/react/24/outline';
 
 const Home: React.FC = () => {
@@ -23,10 +24,26 @@ const Home: React.FC = () => {
   const [employee, setEmployee] = useState<any>(null);
   const [department, setDepartment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [birthdayEmployees, setBirthdayEmployees] = useState<Array<{
+    employee_id: number;
+    full_name: string;
+    date_of_birth: string;
+    department: { id: number; name: string; code: string } | null;
+  }>>([]);
 
   useEffect(() => {
     fetchEmployeeData();
+    fetchBirthdaysToday();
   }, []);
+
+  const fetchBirthdaysToday = async () => {
+    try {
+      const data = await employeesAPI.birthdays_today();
+      setBirthdayEmployees(data);
+    } catch (err) {
+      console.error('Error fetching birthdays:', err);
+    }
+  };
 
   const fetchEmployeeData = async () => {
     try {
@@ -287,6 +304,40 @@ const Home: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+      {/* Birthday Section */}
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="h-10 w-10 bg-pink-100 rounded-lg flex items-center justify-center">
+            <CakeIcon className="h-6 w-6 text-pink-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900">🎂 Chúc mừng sinh nhật</h2>
+        </div>
+        {birthdayEmployees.length === 0 ? (
+          <p className="text-sm text-gray-500">Hôm nay không có nhân viên nào có sinh nhật.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {birthdayEmployees.map((emp) => (
+              <div key={emp.employee_id} className="flex items-center space-x-4 p-4 bg-pink-50 border border-pink-200 rounded-xl">
+                <div className="h-12 w-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl">🎉</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">{emp.full_name}</p>
+                  {emp.department && (
+                    <p className="text-sm text-gray-500">{emp.department.name}</p>
+                  )}
+                  <p className="text-xs text-pink-600 mt-1">
+                    {(() => {
+                      const parts = emp.date_of_birth.split('-');
+                      return parts.length === 3 ? `${parts[2]}/${parts[1]}` : emp.date_of_birth;
+                    })()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

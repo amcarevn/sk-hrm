@@ -109,12 +109,13 @@ const navigationItems: NavigationItem[] = [
     icon: CheckCircleIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
   },
-  {
-    name: 'Sơ đồ tổ chức',
-    href: '/dashboard/organization-chart',
-    icon: EyeIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
-  },
+  // TODO: sẽ thêm lại sơ đồ tổ chức vào sau
+  // {
+  //   name: 'Sơ đồ tổ chức',
+  //   href: '/dashboard/organization-chart',
+  //   icon: EyeIcon,
+  //   roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
+  // },
   {
     name: 'Onboard nhân sự',
     href: '/dashboard/onboarding',
@@ -218,7 +219,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   if (userRole === 'STAFF') {
     // Staff should see specific USER items: Home, Me, Attendance, Organization Chart, Approvals
     // PLUS any items they have department access to (e.g., "Quản lý chấm công" for HCNS)
-    const allowedStaffItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt'];
+    const allowedStaffItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt', 'Onboard nhân sự']; // ← thêm Onboard nhân sự cho STAFF nếu là trưởng phòng
     
     // Debug: Log staff handling
     console.log('Sidebar - STAFF role handling:');
@@ -253,7 +254,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
 
   // ← MỚI: Special handling for CUSTOMER role (nhân viên thường có role=CUSTOMER)
   if (userRole === 'CUSTOMER') {
-    const allowedCustomerItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt'];
+    const allowedCustomerItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt', 'Onboard nhân sự'];
     let customerNavigation = navigationItems.filter((item) =>
       allowedCustomerItems.includes(item.name)
     );
