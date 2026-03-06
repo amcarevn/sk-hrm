@@ -58,6 +58,32 @@ export interface FinalizeResponse {
   data: WorkFinalizationRecord;
 }
 
+export interface FinalizeAllRequest {
+  year: number;
+  month: number;
+}
+
+export interface FinalizeAllResultItem {
+  employee_code: string;
+  ho_va_ten: string;
+  created: boolean;
+}
+
+export interface FinalizeAllErrorItem {
+  employee_code: string;
+  ho_va_ten: string;
+  error: string;
+}
+
+export interface FinalizeAllResponse {
+  year: number;
+  month: number;
+  total_processed: number;
+  total_errors: number;
+  results: FinalizeAllResultItem[];
+  errors: FinalizeAllErrorItem[];
+}
+
 class WorkFinalizationService {
   async list(params: WorkFinalizationParams): Promise<WorkFinalizationListResponse> {
     const response = await managementApi.get('/api-hrm/work-finalization/', { params });
@@ -66,6 +92,11 @@ class WorkFinalizationService {
 
   async finalize(data: FinalizeRequest): Promise<FinalizeResponse> {
     const response = await managementApi.post('/api-hrm/work-finalization/finalize/', data);
+    return response.data;
+  }
+
+  async finalizeAll(data: FinalizeAllRequest): Promise<FinalizeAllResponse> {
+    const response = await managementApi.post('/api-hrm/work-finalization/finalize-all/', data);
     return response.data;
   }
 
