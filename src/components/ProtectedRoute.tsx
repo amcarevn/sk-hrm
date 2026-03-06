@@ -43,9 +43,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
       const currentPath = window.location.pathname;
       
       // Define allowed paths for staff
-      const MANAGER_POSITIONS = ['Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'];
-      const userPosition = user.employee_profile?.position || user.hrm_user?.position || null;
-      const isManager = userPosition ? MANAGER_POSITIONS.includes(userPosition) : false;
+      const isManager = user?.is_manager || false
 
       const isAllowedForStaff = 
         currentPath === '/home' ||
@@ -65,9 +63,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     if (!isSuperAdmin && userRole === 'CUSTOMER') {
       const currentPath = window.location.pathname;
       
-      const MANAGER_POSITIONS = ['Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'];
-      const userPosition = user.employee_profile?.position || user.hrm_user?.position || null;
-      const isManager = userPosition ? MANAGER_POSITIONS.includes(userPosition) : false;
+      const isManager = user?.is_manager || false
 
       const isAllowedForCustomer = 
         currentPath === '/home' ||

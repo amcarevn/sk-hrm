@@ -13,6 +13,7 @@ import {
   UserPlusIcon,
 } from '@heroicons/react/24/outline';
 import onboardingService from '../services/onboarding.service';
+import { useAuth } from '../contexts/AuthContext';
 
 // ============================================
 // TYPES
@@ -333,7 +334,8 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
 
 const Onboarding: React.FC = () => {
   const navigate = useNavigate();
-
+  const { user } = useAuth();
+  const isHR = user?.employee_profile?.is_hr || false;
   const [onboardings, setOnboardings] = useState<OnboardingItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState<number | null>(null);
@@ -509,13 +511,15 @@ const Onboarding: React.FC = () => {
               Có {onboardings.length} ứng viên đang trong quá trình onboarding
             </p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
-          >
-            <UserPlusIcon className="w-4 h-4" />
-            Tạo quy trình mới
-          </button>
+          {isHR && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
+            >
+              <UserPlusIcon className="w-4 h-4" />
+              Tạo quy trình mới
+            </button>
+          )}
         </div>
 
         {/* Table */}
