@@ -12,7 +12,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { departmentsAPI, employeesAPI, Department, Employee } from '../utils/api';
 import { workFinalizationService, WorkFinalizationRecord } from '../services/workFinalization.service';
-import type { FinalizeAllResponse } from '../services/workFinalization.service';
+import type { FinalizeAllResponse, FinalizeDepartmentResponse } from '../services/workFinalization.service';
 import AttendanceCalendar from '../components/AttendanceCalendar';
 
 const WorkFinalization: React.FC = () => {
@@ -33,7 +33,9 @@ const WorkFinalization: React.FC = () => {
   const [exporting, setExporting] = useState(false);
   const [finalizing, setFinalizing] = useState<string | null>(null);
   const [finalizingAll, setFinalizingAll] = useState(false);
+  const [finalizingDepartment, setFinalizingDepartment] = useState(false);
   const [finalizeAllResult, setFinalizeAllResult] = useState<FinalizeAllResponse | null>(null);
+  const [finalizeDepartmentResult, setFinalizeDepartmentResult] = useState<FinalizeDepartmentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -145,6 +147,39 @@ const WorkFinalization: React.FC = () => {
       );
     } finally {
       setFinalizingAll(false);
+    }
+  };
+
+  const handleFinalizeDepartment = async () => {
+    if (!selectedDepartment) return;
+    const dept = departments.find((d) => d.id === Number(selectedDepartment));
+    const deptName = dept ? dept.name : `Phòng ban #${selectedDepartment}`;
+    if (!window.confirm(`Bạn có chắc muốn chốt công cho phòng ban "${deptName}" tháng ${selectedMonth}/${selectedYear}?`)) {
+      return;
+    }
+    setFinalizingDepartment(true);
+    setError(null);
+    setSuccessMsg(null);
+    setFinalizeDepartmentResult(null);
+    try {
+      const res = await workFinalizationService.finalizeDepartment({
+        year: selectedYear,
+        month: selectedMonth,
+        department_id: Number(selectedDepartment),
+      });
+      setFinalizeDepartmentResult(res);
+      setSuccessMsg(
+        `Đã chốt công ${res.total_processed} nhân viên phòng ban "${deptName}" tháng ${selectedMonth}/${selectedYear}` +
+        (res.total_errors > 0 ? ` (${res.total_errors} lỗi)` : '')
+      );
+      await loadRecords();
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.error ||
+        'Lỗi khi chốt công phòng ban. Vui lòng thử lại.'
+      );
+    } finally {
+      setFinalizingDepartment(false);
     }
   };
 
@@ -325,12 +360,24 @@ const WorkFinalization: React.FC = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={handleFinalizeAll}
-            disabled={finalizingAll || finalizing !== null || exporting}
+            disabled={finalizingAll || finalizingDepartment || finalizing !== null || exporting}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <BoltIcon className="w-4 h-4 mr-2" />
             {finalizingAll ? 'Đang chốt...' : `Chốt tất cả (Tháng ${selectedMonth}/${selectedYear})`}
           </button>
+          {selectedDepartment && (
+            <button
+              onClick={handleFinalizeDepartment}
+              disabled={finalizingDepartment || finalizingAll || finalizing !== null || exporting}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <BoltIcon className="w-4 h-4 mr-2" />
+              {finalizingDepartment
+                ? 'Đang chốt...'
+                : `Chốt phòng ban (Tháng ${selectedMonth}/${selectedYear})`}
+            </button>
+          )}
           <button
             onClick={handleExport}
             disabled={exporting || records.length === 0}
@@ -382,6 +429,42 @@ const WorkFinalization: React.FC = () => {
               <p className="text-xs font-medium text-red-700 mb-1">Chi tiết lỗi:</p>
               <ul className="space-y-1">
                 {finalizeAllResult.errors.map((e) => (
+                  <li key={e.employee_code} className="text-xs text-red-600 bg-red-50 rounded px-2 py-1">
+                    <span className="font-mono">{e.employee_code}</span> — {e.ho_va_ten}: {e.error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Finalize-department result summary */}
+      {finalizeDepartmentResult && (
+        <div className="bg-white shadow rounded-lg p-4 border border-purple-100">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <BoltIcon className="w-4 h-4 text-purple-500" />
+              Kết quả chốt công phòng ban — Tháng {finalizeDepartmentResult.month}/{finalizeDepartmentResult.year}
+            </span>
+            <button
+              onClick={() => setFinalizeDepartmentResult(null)}
+              className="text-xs text-gray-400 hover:text-gray-600"
+            >
+              Đóng
+            </button>
+          </div>
+          <div className="flex gap-4 text-sm mb-3">
+            <span className="text-green-700 font-medium">✓ Đã xử lý: {finalizeDepartmentResult.total_processed}</span>
+            {finalizeDepartmentResult.total_errors > 0 && (
+              <span className="text-red-600 font-medium">✗ Lỗi: {finalizeDepartmentResult.total_errors}</span>
+            )}
+          </div>
+          {finalizeDepartmentResult.errors.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-red-700 mb-1">Chi tiết lỗi:</p>
+              <ul className="space-y-1">
+                {finalizeDepartmentResult.errors.map((e) => (
                   <li key={e.employee_code} className="text-xs text-red-600 bg-red-50 rounded px-2 py-1">
                     <span className="font-mono">{e.employee_code}</span> — {e.ho_va_ten}: {e.error}
                   </li>
