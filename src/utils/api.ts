@@ -1898,7 +1898,8 @@ export const employeesAPI = {
     } | null;
   }>> => {
     const response = await managementApi.get('/api-hrm/employees/birthdays_today/');
-    return response.data;
+    const data = response.data;
+    return Array.isArray(data) ? data : (data?.results ?? []);
   },
 };
 
