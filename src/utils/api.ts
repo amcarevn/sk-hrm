@@ -1886,6 +1886,20 @@ export const employeesAPI = {
     const response: AxiosResponse<Employee> = await managementApi.post(`/api-hrm/employees/${id}/deactivate/`);
     return response.data;
   },
+
+  birthdays_today: async (): Promise<Array<{
+    employee_id: number;
+    full_name: string;
+    date_of_birth: string;
+    department: {
+      id: number;
+      name: string;
+      code: string;
+    } | null;
+  }>> => {
+    const response = await managementApi.get('/api-hrm/employees/birthdays_today/');
+    return response.data;
+  },
 };
 
 // Departments API
