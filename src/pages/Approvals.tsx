@@ -269,9 +269,9 @@ const Approvals: React.FC = () => {
     const employeeIsHR = explanation.employee_is_hr || false;
 
     // Kiểm tra quyền dựa trên vai trò và cấp bậc
-    const isAdmin =
+    const isAdminUser =
       currentEmployee.user?.is_staff || currentEmployee.user?.is_superuser;
-    const isHR =
+    const isHRUser =
       currentEmployee.is_hr ||
       currentEmployee.position?.title?.includes('HR') ||
       currentEmployee.position?.title?.includes('Nhân sự') ||
@@ -285,7 +285,7 @@ const Approvals: React.FC = () => {
     // Nếu người làm đơn là HR
     if (employeeIsHR) {
       // Admin vẫn có thể duyệt
-      if (isAdmin) {
+      if (isAdminUser) {
         return true;
       }
 
@@ -309,7 +309,7 @@ const Approvals: React.FC = () => {
     }
 
     // Admin, HR, và người có quyền can_approve_attendance có quyền duyệt
-    if (isAdmin || isHR || hasApprovalPermission) {
+    if (isAdminUser || isHRUser || hasApprovalPermission) {
       // NẾU LÀ HR (hoặc có quyền tương đương) nhưng KHÔNG PHẢI QLTT
       // THÌ CHỈ ĐƯỢC DUYỆT KHI:
       // 1. Quản lý trực tiếp đã duyệt rồi (direct_manager_approved === true)
@@ -341,26 +341,30 @@ const Approvals: React.FC = () => {
   };
 
   /**
-   * Kiểm tra xem có thể xóa đơn giải trình không
-   * - CHỈ người tạo đơn mới thấy nút xóa (Admin/HR/QL chỉ có duyệt/từ chối)
-   * - Chỉ được xóa khi status là DRAFT hoặc PENDING
-   * - Không được xóa khi quản lý trực tiếp đã duyệt
-   * - Không được xóa khi có situation đã được xử lý
+   * Kiểm tra xem có thể xóa đơn không (Giải trình, Đăng ký, Online)
+   * - Người tạo đơn mới có quyền xóa khi đơn ở trạng thái PENDING/DRAFT
+   * - Admin/HR có quyền xóa đơn bất kỳ khi chưa được xử lý xong
    */
-  const canDeleteExplanation = (explanation: any): boolean => {
+  const canDeleteRequest = (req: any): boolean => {
     if (!currentEmployee) return false;
 
-    // Chỉ người tạo đơn mới thấy nút xóa
-    if (explanation.employee_id !== currentEmployee.id) return false;
+    const requesterId = req.employee_id ||
+      (typeof req.employee === 'object' ? req.employee.id : req.employee);
+
+    const isOwner = requesterId === currentEmployee.id;
+    const isAdminOrHR = isAdmin || isHR;
+
+    // Chỉ người tạo đơn hoặc Admin/HR mới thấy nút xóa
+    if (!isOwner && !isAdminOrHR) return false;
 
     // Chỉ xóa được khi DRAFT hoặc PENDING
-    if (!['DRAFT', 'PENDING'].includes(explanation.status)) return false;
+    if (!['DRAFT', 'PENDING'].includes(req.status)) return false;
 
-    // Không xóa được khi quản lý trực tiếp đã duyệt
-    if (explanation.direct_manager_approved) return false;
+    // Không xóa được khi quản lý trực tiếp đã duyệt (trừ khi là Admin)
+    if (req.direct_manager_approved && !isAdmin) return false;
 
-    // Không xóa được khi có situation đã xử lý
-    const situationDetails = explanation.situation_details;
+    // Không xóa được khi có situation đã xử lý (chỉ áp dụng cho đơn giải trình)
+    const situationDetails = req.situation_details;
     if (situationDetails && typeof situationDetails === 'object') {
       for (const key of Object.keys(situationDetails)) {
         const situation = situationDetails[key];
@@ -384,9 +388,9 @@ const Approvals: React.FC = () => {
     }
 
     // Check user roles
-    const isAdmin =
+    const isAdminUser =
       currentEmployee.user?.is_staff || currentEmployee.user?.is_superuser;
-    const isHR =
+    const isHRUser =
       currentEmployee.is_hr ||
       currentEmployee.position?.title?.includes('HR') ||
       currentEmployee.position?.title?.includes('Nhân sự') ||
@@ -407,7 +411,7 @@ const Approvals: React.FC = () => {
 
       // Nếu người làm đơn là HR: chỉ 1 bước (QLTT duyệt là xong)
       if (employeeIsHR) {
-        if (isAdmin) return true;
+        if (isAdminUser) return true;
         if (isDirectManager) return !request.direct_manager_approved;
         return false; // HR khác không được duyệt đơn của HR
       }
@@ -420,7 +424,7 @@ const Approvals: React.FC = () => {
 
       // Bước 2: HR/Admin chỉ được duyệt SAU KHI QLTT đã duyệt
       // KHÔNG có ngoại lệ senior manager ở đây (khác với Explanation)
-      if (isAdmin || isHR || hasApprovalPermission) {
+      if (isAdminUser || isHRUser || hasApprovalPermission) {
         if (request.direct_manager_approved === true) {
           return !request.hr_approved; // HR chỉ duyệt 1 lần
         }
@@ -449,7 +453,7 @@ const Approvals: React.FC = () => {
     }
 
     // HR approves second (only if manager already approved)
-    if (isHR && request.direct_manager_approved) {
+    if (isHRUser && request.direct_manager_approved) {
       return !request.hr_approved;
     }
 
@@ -1455,7 +1459,7 @@ const Approvals: React.FC = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                   </svg>
                                 </button>
-                              )}
+                              )}                              )}
                             </div>
                           </td>
                         </tr>
