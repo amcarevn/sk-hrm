@@ -63,6 +63,24 @@ export interface FinalizeAllRequest {
   month: number;
 }
 
+export interface FinalizeDepartmentRequest {
+  year: number;
+  month: number;
+  department_id?: number;
+  department_code?: string;
+}
+
+export interface FinalizeDepartmentResponse {
+  year: number;
+  month: number;
+  department_id: number | null;
+  department_code: string | null;
+  total_processed: number;
+  total_errors: number;
+  results: FinalizeAllResultItem[];
+  errors: FinalizeAllErrorItem[];
+}
+
 export interface FinalizeAllResultItem {
   employee_code: string;
   ho_va_ten: string;
@@ -97,6 +115,11 @@ class WorkFinalizationService {
 
   async finalizeAll(data: FinalizeAllRequest): Promise<FinalizeAllResponse> {
     const response = await managementApi.post('/api-hrm/work-finalization/finalize-all/', data);
+    return response.data;
+  }
+
+  async finalizeDepartment(data: FinalizeDepartmentRequest): Promise<FinalizeDepartmentResponse> {
+    const response = await managementApi.post('/api-hrm/work-finalization/finalize-department/', data);
     return response.data;
   }
 

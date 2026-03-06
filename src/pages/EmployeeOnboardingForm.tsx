@@ -66,7 +66,17 @@ const SUB_DEPARTMENT_OPTIONS = [
   'Tiktok 8', 'Tiktok 9', 'Tiktok 10',
 ];
 const SECTION_OPTIONS = ['Phẫu thuật thẩm mỹ'];
-const RANK_OPTIONS = ['Nhân viên', 'Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'];
+const RANK_OPTIONS = [
+  'Nhân viên',
+  'TP AI', 
+  'Leader',
+  'Trưởng phòng tập sự',
+  'Phó phòng',
+  'Trưởng phòng',
+  'Phó Giám đốc',
+  'Giám đốc',
+  'Chủ tịch',
+];
 const WORK_FORM_OPTIONS = [
   { value: 'FULL_TIME', label: 'Full-time' },
   { value: 'PART_TIME', label: 'Part-time' },

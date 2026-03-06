@@ -133,9 +133,7 @@
     const navigate = useNavigate();
     const { user } = useAuth();
     const userRole = user?.role?.toUpperCase() || 'USER';
-    const MANAGER_POSITIONS = ['Trưởng phòng', 'Leader', 'Phó giám đốc', 'Giám đốc', 'Phó phòng'];
-    const userPosition = user?.employee_profile?.position || user?.hrm_user?.position || null;
-    const isManager = userPosition ? MANAGER_POSITIONS.includes(userPosition) : false;
+    const isManager = user?.employee_profile?.is_manager || user?.hrm_user?.is_manager || false
     const isEmployee = (userRole === 'STAFF' || userRole === 'CUSTOMER') && !isManager;
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
