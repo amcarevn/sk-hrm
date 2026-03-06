@@ -4,6 +4,7 @@
 // ==========================================
 
 import React, { useState, useEffect, ChangeEvent, useCallback } from 'react';
+import { API_BASE_URL } from '../utils/api';
 import { useParams } from 'react-router-dom';
 import {
   TextField,
@@ -279,7 +280,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
       setLoading(true);
       try {
         const res = await fetch(
-          `http://localhost:8000/api-hrm/employee-onboarding-form/by-token/${token}/`,
+          `${API_BASE_URL}/api-hrm/employee-onboarding-form/by-token/${token}/`,
           { headers: { 'Content-Type': 'application/json' } }
         );
         const data = await res.json();
@@ -417,7 +418,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('probation_salary_percentage', values.probation_salary_percentage);
 
       const res = await fetch(
-        `http://localhost:8000/api-hrm/employee-onboarding-form/submit/${token}/`,
+        `${API_BASE_URL}/api-hrm/employee-onboarding-form/submit/${token}/`,
         { method: 'POST', body: payload }
       );
       if (!res.ok) {

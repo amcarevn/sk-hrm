@@ -7,10 +7,12 @@ import {
   ExclamationCircleIcon,
   UserIcon,
   CalendarIcon,
+  BoltIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { departmentsAPI, employeesAPI, Department, Employee } from '../utils/api';
 import { workFinalizationService, WorkFinalizationRecord } from '../services/workFinalization.service';
+import type { FinalizeAllResponse } from '../services/workFinalization.service';
 import AttendanceCalendar from '../components/AttendanceCalendar';
 
 const WorkFinalization: React.FC = () => {
@@ -30,6 +32,8 @@ const WorkFinalization: React.FC = () => {
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [finalizing, setFinalizing] = useState<string | null>(null);
+  const [finalizingAll, setFinalizingAll] = useState(false);
+  const [finalizeAllResult, setFinalizeAllResult] = useState<FinalizeAllResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -112,6 +116,35 @@ const WorkFinalization: React.FC = () => {
       );
     } finally {
       setFinalizing(null);
+    }
+  };
+
+  const handleFinalizeAll = async () => {
+    if (!window.confirm(`Bạn có chắc muốn chốt công cho toàn bộ nhân viên tháng ${selectedMonth}/${selectedYear}?`)) {
+      return;
+    }
+    setFinalizingAll(true);
+    setError(null);
+    setSuccessMsg(null);
+    setFinalizeAllResult(null);
+    try {
+      const res = await workFinalizationService.finalizeAll({
+        year: selectedYear,
+        month: selectedMonth,
+      });
+      setFinalizeAllResult(res);
+      setSuccessMsg(
+        `Đã chốt công ${res.total_processed} nhân viên tháng ${selectedMonth}/${selectedYear}` +
+        (res.total_errors > 0 ? ` (${res.total_errors} lỗi)` : '')
+      );
+      await loadRecords();
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.error ||
+        'Lỗi khi chốt công toàn bộ. Vui lòng thử lại.'
+      );
+    } finally {
+      setFinalizingAll(false);
     }
   };
 
@@ -289,14 +322,24 @@ const WorkFinalization: React.FC = () => {
             Quản lý bảng tính công hàng tháng và xuất báo cáo tính lương
           </p>
         </div>
-        <button
-          onClick={handleExport}
-          disabled={exporting || records.length === 0}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
-          {exporting ? 'Đang xuất...' : `Xuất Excel (${records.length} đã chốt)`}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleFinalizeAll}
+            disabled={finalizingAll || finalizing !== null || exporting}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <BoltIcon className="w-4 h-4 mr-2" />
+            {finalizingAll ? 'Đang chốt...' : `Chốt tất cả (Tháng ${selectedMonth}/${selectedYear})`}
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={exporting || records.length === 0}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+            {exporting ? 'Đang xuất...' : `Xuất Excel (${records.length} đã chốt)`}
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}
@@ -310,6 +353,42 @@ const WorkFinalization: React.FC = () => {
         <div className="flex items-center p-4 text-sm text-green-800 bg-green-50 rounded-lg border border-green-200">
           <CheckCircleIcon className="w-5 h-5 mr-2 flex-shrink-0" />
           {successMsg}
+        </div>
+      )}
+
+      {/* Finalize-all result summary */}
+      {finalizeAllResult && (
+        <div className="bg-white shadow rounded-lg p-4 border border-indigo-100">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <BoltIcon className="w-4 h-4 text-indigo-500" />
+              Kết quả chốt công toàn công ty — Tháng {finalizeAllResult.month}/{finalizeAllResult.year}
+            </span>
+            <button
+              onClick={() => setFinalizeAllResult(null)}
+              className="text-xs text-gray-400 hover:text-gray-600"
+            >
+              Đóng
+            </button>
+          </div>
+          <div className="flex gap-4 text-sm mb-3">
+            <span className="text-green-700 font-medium">✓ Đã xử lý: {finalizeAllResult.total_processed}</span>
+            {finalizeAllResult.total_errors > 0 && (
+              <span className="text-red-600 font-medium">✗ Lỗi: {finalizeAllResult.total_errors}</span>
+            )}
+          </div>
+          {finalizeAllResult.errors.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs font-medium text-red-700 mb-1">Chi tiết lỗi:</p>
+              <ul className="space-y-1">
+                {finalizeAllResult.errors.map((e) => (
+                  <li key={e.employee_code} className="text-xs text-red-600 bg-red-50 rounded px-2 py-1">
+                    <span className="font-mono">{e.employee_code}</span> — {e.ho_va_ten}: {e.error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
