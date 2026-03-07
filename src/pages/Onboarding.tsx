@@ -335,7 +335,8 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
 const Onboarding: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isHR = user?.employee_profile?.is_hr || false;
+  const isHR = user?.employee_profile?.is_hr === true || (user as any)?.is_super_admin === true ||(user as any)?.role === 'admin' ||
+  false;
   const [onboardings, setOnboardings] = useState<OnboardingItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState<number | null>(null);

@@ -3131,7 +3131,45 @@ export const attendanceRuleAPI = {
     return response.data;
   },
 };
-
+// Send Account Emails API
+export const sendAccountEmailsAPI = {
+  sendEmails: async (data: {
+    send_all?: boolean;
+    employee_ids?: number[];
+  }): Promise<{
+    success: boolean;
+    message: string;
+    total?: number;
+    passwords_reset?: number;
+    batch_id?: string;
+    estimated_time?: string;
+  }> => {
+    const response: AxiosResponse<{
+      success: boolean;
+      message: string;
+      total?: number;
+      passwords_reset?: number;  // ✅ THÊM
+      batch_id?: string;
+      estimated_time?: string;
+    }> = await managementApi.post('/api-hrm/employees/send-account-emails/', data);
+    return response.data;
+  },
+  checkBatchStatus: async (batchId: string): Promise<{
+    success: boolean;
+    batch_id: string;
+    status: string;
+    total: number;
+    sent: number;
+    failed: number;
+    pending: number;
+    progress_percentage: number;
+    created_at?: string;
+    completed_at?: string;
+  }> => {
+    const response = await managementApi.get(`/api-hrm/email-batch/${batchId}/status/`);
+    return response.data;
+  },
+};
 // Update default export to include attendance rule APIs
 export default {
   auth: authAPI,
