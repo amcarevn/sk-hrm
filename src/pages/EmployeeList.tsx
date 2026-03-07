@@ -24,7 +24,12 @@ const EmployeeList: React.FC = () => {
   const [departments, setDepartments] = useState<any[]>([]);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<number[]>([]);
+  const [isSendingEmails, setIsSendingEmails] = useState(false);
+  const [emailCooldownRemaining, setEmailCooldownRemaining] = useState<number>(0);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
+
+  const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
+  const COOLDOWN_DURATION = 120; // 2 phút (giây)
   const fetchEmployees = async (search = '', status = 'all', department = 'all') => {
     try {
       setLoading(true);
@@ -75,6 +80,33 @@ const EmployeeList: React.FC = () => {
     fetchStats();
     fetchDepartments();
   }, []);
+
+  // Khởi tạo cooldown từ localStorage và đếm ngược
+  useEffect(() => {
+    const stored = localStorage.getItem(SEND_EMAIL_COOLDOWN_KEY);
+    if (stored) {
+      const cooldownUntil = parseInt(stored, 10);
+      const remaining = Math.ceil((cooldownUntil - Date.now()) / 1000);
+      if (remaining > 0) {
+        setEmailCooldownRemaining(remaining);
+      } else {
+        localStorage.removeItem(SEND_EMAIL_COOLDOWN_KEY);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (emailCooldownRemaining <= 0) return;
+    const timer = setInterval(() => {
+      setEmailCooldownRemaining((prev) => {
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [emailCooldownRemaining]);
 
   // Effect for real-time search with debouncing
   useEffect(() => {
@@ -139,6 +171,8 @@ const EmployeeList: React.FC = () => {
     }
   };
   const handleSendAllEmails = async () => {
+    if (isSendingEmails || emailCooldownRemaining > 0) return;
+
     if (!window.confirm(
       '⚠️ BẠN CÓ CHẮC CHẮN?\n\n' +
       'Hành động này sẽ:\n' +
@@ -149,10 +183,16 @@ const EmployeeList: React.FC = () => {
       return;
     }
 
+    setIsSendingEmails(true);
     try {
       const response = await sendAccountEmailsAPI.sendEmails({ send_all: true });
       
       if (response.success) {
+        // Lưu thời điểm hết cooldown vào localStorage
+        const cooldownUntil = Date.now() + COOLDOWN_DURATION * 1000;
+        localStorage.setItem(SEND_EMAIL_COOLDOWN_KEY, cooldownUntil.toString());
+        setEmailCooldownRemaining(COOLDOWN_DURATION);
+
         // Hiển thị thông báo chi tiết
         alert(
           `✅ THÀNH CÔNG!\n\n` +
@@ -174,6 +214,8 @@ const EmployeeList: React.FC = () => {
       }
     } catch (error: any) {
       alert(`❌ Lỗi: ${error.message || 'Không thể gửi email'}`);
+    } finally {
+      setIsSendingEmails(false);
     }
   };
 
@@ -364,13 +406,37 @@ const EmployeeList: React.FC = () => {
             <div className="flex space-x-2">
               {isAdmin &&(
                 <button 
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center"
+                  className={`px-4 py-2 rounded-md transition-colors flex items-center ${
+                    isSendingEmails || emailCooldownRemaining > 0
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
                   onClick={handleSendAllEmails}
+                  disabled={isSendingEmails || emailCooldownRemaining > 0}
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  📧 Gửi email cho tất cả
+                  {isSendingEmails ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                      </svg>
+                      Đang gửi...
+                    </>
+                  ) : emailCooldownRemaining > 0 ? (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Gửi lại sau {emailCooldownRemaining}s
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      📧 Gửi email cho tất cả
+                    </>
+                  )}
                 </button>
               )}
               <button 
