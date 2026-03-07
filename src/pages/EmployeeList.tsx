@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { employeesAPI, departmentsAPI, Employee } from '../utils/api';
+import { employeesAPI, departmentsAPI, Employee, sendAccountEmailsAPI } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const EmployeeList: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,8 @@ const EmployeeList: React.FC = () => {
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [departments, setDepartments] = useState<any[]>([]);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-
+  const [selectedEmployees, setSelectedEmployees] = useState<number[]>([]);
+  const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
   const fetchEmployees = async (search = '', status = 'all', department = 'all') => {
     try {
       setLoading(true);
@@ -135,7 +138,86 @@ const EmployeeList: React.FC = () => {
       alert('Vô hiệu hóa thất bại: ' + (err.message || 'Lỗi không xác định'));
     }
   };
+  const handleSendAllEmails = async () => {
+    if (!window.confirm(
+      '⚠️ BẠN CÓ CHẮC CHẮN?\n\n' +
+      'Hành động này sẽ:\n' +
+      '✓ Reset password TẤT CẢ nhân viên đang làm việc\n' +
+      '✓ Gửi email thông tin đăng nhập mới cho họ\n\n' +
+      'Bạn có muốn tiếp tục?'
+    )) {
+      return;
+    }
 
+    try {
+      const response = await sendAccountEmailsAPI.sendEmails({ send_all: true });
+      
+      if (response.success) {
+        // Hiển thị thông báo chi tiết
+        alert(
+          `✅ THÀNH CÔNG!\n\n` +
+          `${response.message}\n\n` +
+          `📊 Thống kê:\n` +
+          `- Tổng số email: ${response.total}\n` +
+          `- Số password đã reset: ${response.passwords_reset}\n` +
+          `- Thời gian ước tính: ${response.estimated_time}\n` +
+          // `- Batch ID: ${response.batch_id}\n\n` +
+          `💡 Email sẽ được gửi tự động trong background.`
+        );
+        
+        // Optional: Poll status để hiển thị progress
+        if (response.batch_id) {
+          pollBatchStatus(response.batch_id);
+        }
+      } else {
+        alert(`❌ ${response.message}`);
+      }
+    } catch (error: any) {
+      alert(`❌ Lỗi: ${error.message || 'Không thể gửi email'}`);
+    }
+  };
+
+  // ✅ THÊM function poll status (optional)
+  const pollBatchStatus = async (batchId: string) => {
+    let pollCount = 0;
+    const maxPolls = 30; // Poll tối đa 30 lần (5 phút nếu 10s/lần)
+    
+    const checkStatus = async () => {
+      try {
+        const status = await sendAccountEmailsAPI.checkBatchStatus(batchId);
+        
+        console.log(
+          `📧 Email Progress [${status.status}]: ` +
+          `${status.sent}/${status.total} sent ` +
+          `(${status.progress_percentage}%) | ` +
+          `Failed: ${status.failed} | Pending: ${status.pending}`
+        );
+        
+        pollCount++;
+        
+        // Nếu chưa hoàn thành và chưa poll quá nhiều lần
+        if (status.status !== 'COMPLETED' && pollCount < maxPolls) {
+          setTimeout(checkStatus, 10000); // Check lại sau 10 giây
+        } else if (status.status === 'COMPLETED') {
+          console.log('✅ All emails sent successfully!');
+          // Optional: Hiển thị notification
+          if (status.sent > 0) {
+            alert(
+              `🎉 ĐÃ GỬI XONG TẤT CẢ EMAIL!\n\n` +
+              `✓ Đã gửi: ${status.sent}/${status.total}\n` +
+              `✗ Thất bại: ${status.failed}\n` +
+              `📅 Hoàn thành lúc: ${new Date(status.completed_at || '').toLocaleString('vi-VN')}`
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Error checking batch status:', error);
+      }
+    };
+    
+    // Bắt đầu check sau 10 giây
+    setTimeout(checkStatus, 10000);
+  };
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ACTIVE':
@@ -279,23 +361,34 @@ const EmployeeList: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900">Danh sách nhân viên</h2>
             <p className="text-gray-500 text-sm">Tổng số: {employees.length} nhân viên</p>
           </div>
-          <div className="flex space-x-2">
-            <button 
-              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center"
-              onClick={() => navigate('/dashboard/organization-chart')}
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              Sơ đồ tổ chức
-            </button>
-            <button 
-              className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
-              onClick={() => navigate('/dashboard/employees/create')}
-            >
-              + Thêm nhân viên
-            </button>
-          </div>
+            <div className="flex space-x-2">
+              {isAdmin &&(
+                <button 
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors flex items-center"
+                  onClick={handleSendAllEmails}
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  📧 Gửi email cho tất cả
+                </button>
+              )}
+              <button 
+                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center"
+                onClick={() => navigate('/dashboard/organization-chart')}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Sơ đồ tổ chức
+              </button>
+              <button 
+                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
+                onClick={() => navigate('/dashboard/employees/create')}
+              >
+                + Thêm nhân viên
+              </button>
+            </div>
         </div>
 
         {loading ? (
