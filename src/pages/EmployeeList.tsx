@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { employeesAPI, departmentsAPI, Employee, sendAccountEmailsAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import Pagination from '../components/Pagination';
 
 const EmployeeList: React.FC = () => {
   const navigate = useNavigate();
@@ -26,20 +27,24 @@ const EmployeeList: React.FC = () => {
   const [selectedEmployees, setSelectedEmployees] = useState<number[]>([]);
   const [isSendingEmails, setIsSendingEmails] = useState(false);
   const [emailCooldownRemaining, setEmailCooldownRemaining] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [totalCount, setTotalCount] = useState(0);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
 
   const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
   const COOLDOWN_DURATION = 120; // 2 phút (giây)
-  const fetchEmployees = async (search = '', status = 'all', department = 'all') => {
+  const fetchEmployees = async (search = '', status = 'all', department = 'all', page = 1, pageSize = 20) => {
     try {
       setLoading(true);
-      const params: any = {};
+      const params: any = { page, page_size: pageSize };
       if (search) params.search = search;
       if (status !== 'all') params.employment_status = status;
       if (department !== 'all') params.department = department;
       
       const response = await employeesAPI.list(params);
       setEmployees(response.results);
+      setTotalCount(response.count);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách nhân viên');
@@ -76,7 +81,6 @@ const EmployeeList: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchEmployees();
     fetchStats();
     fetchDepartments();
   }, []);
@@ -115,7 +119,7 @@ const EmployeeList: React.FC = () => {
     }
 
     const timeout = setTimeout(() => {
-      fetchEmployees(searchTerm, statusFilter, departmentFilter);
+      fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage);
     }, 300); // 300ms debounce delay
 
     setSearchTimeout(timeout);
@@ -125,7 +129,7 @@ const EmployeeList: React.FC = () => {
         clearTimeout(searchTimeout);
       }
     };
-  }, [searchTerm, statusFilter, departmentFilter]);
+  }, [searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,6 +140,7 @@ const EmployeeList: React.FC = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setDepartmentFilter('all');
+    setCurrentPage(1);
     // Don't call fetchEmployees here, the useEffect will handle it
   };
 
@@ -143,7 +148,7 @@ const EmployeeList: React.FC = () => {
     if (window.confirm('Bạn có chắc chắn muốn xóa nhân viên này?')) {
       try {
         await employeesAPI.delete(id);
-        fetchEmployees(); // Refresh the list
+        fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage);
         fetchStats(); // Refresh stats
       } catch (err: any) {
         alert('Xóa thất bại: ' + (err.message || 'Lỗi không xác định'));
@@ -154,7 +159,7 @@ const EmployeeList: React.FC = () => {
   const handleActivate = async (id: number) => {
     try {
       await employeesAPI.activate(id);
-      fetchEmployees(); // Refresh the list
+      fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage);
       fetchStats(); // Refresh stats
     } catch (err: any) {
       alert('Kích hoạt thất bại: ' + (err.message || 'Lỗi không xác định'));
@@ -164,10 +169,99 @@ const EmployeeList: React.FC = () => {
   const handleDeactivate = async (id: number) => {
     try {
       await employeesAPI.deactivate(id);
-      fetchEmployees(); // Refresh the list
+      fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage);
       fetchStats(); // Refresh stats
     } catch (err: any) {
       alert('Vô hiệu hóa thất bại: ' + (err.message || 'Lỗi không xác định'));
+    }
+  };
+  const handleExport = async () => {
+    try {
+      const exportPageSize = Math.max(totalCount, 1000);
+      const params: any = { page: 1, page_size: exportPageSize };
+      if (searchTerm) params.search = searchTerm;
+      if (statusFilter !== 'all') params.employment_status = statusFilter;
+      if (departmentFilter !== 'all') params.department = departmentFilter;
+
+      const response = await employeesAPI.list(params);
+      const allEmployees = response.results;
+
+      const getStatusLabel = (status: string) => {
+        switch (status) {
+          case 'ACTIVE': return 'Đang làm việc';
+          case 'INACTIVE': return 'Đã nghỉ';
+          case 'PROBATION': return 'Thử việc';
+          default: return status;
+        }
+      };
+
+      const getGenderLabel = (gender: string) => {
+        switch (gender) {
+          case 'M': return 'Nam';
+          case 'F': return 'Nữ';
+          case 'O': return 'Khác';
+          default: return gender;
+        }
+      };
+
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Danh sách nhân viên');
+
+      const HEADER_FILL = {
+        type: 'pattern' as const,
+        pattern: 'solid' as const,
+        fgColor: { argb: 'FF4472C4' },
+      };
+
+      const columns = [
+        { header: 'Mã NV', key: 'employee_id', width: 12 },
+        { header: 'Họ tên', key: 'full_name', width: 25 },
+        { header: 'Giới tính', key: 'gender', width: 10 },
+        { header: 'Số điện thoại', key: 'phone_number', width: 15 },
+        { header: 'Email', key: 'personal_email', width: 28 },
+        { header: 'Phòng ban', key: 'department', width: 20 },
+        { header: 'Chức vụ', key: 'position', width: 20 },
+        { header: 'Trạng thái', key: 'employment_status', width: 16 },
+        { header: 'Ngày vào làm', key: 'start_date', width: 14 },
+      ];
+      sheet.columns = columns;
+
+      // Style header row
+      const headerRow = sheet.getRow(1);
+      headerRow.eachCell((cell) => {
+        cell.fill = HEADER_FILL;
+        cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      });
+
+      // Add data rows
+      allEmployees.forEach((emp) => {
+        sheet.addRow({
+          employee_id: emp.employee_id,
+          full_name: emp.full_name,
+          gender: getGenderLabel(emp.gender),
+          phone_number: emp.phone_number || '',
+          personal_email: emp.personal_email || '',
+          department: emp.department?.name || '',
+          position: emp.position?.title || '',
+          employment_status: getStatusLabel(emp.employment_status),
+          start_date: emp.start_date || '',
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `danh-sach-nhan-vien-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert('Xuất file thất bại: ' + (err.message || 'Lỗi không xác định'));
     }
   };
   const handleSendAllEmails = async () => {
@@ -347,7 +441,7 @@ const EmployeeList: React.FC = () => {
                 <input
                   type="text"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Nhập mã NV, tên hoặc số điện thoại..."
                 />
@@ -359,7 +453,7 @@ const EmployeeList: React.FC = () => {
                 </label>
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">Tất cả trạng thái</option>
@@ -374,7 +468,7 @@ const EmployeeList: React.FC = () => {
                 </label>
                 <select
                   value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  onChange={(e) => { setDepartmentFilter(e.target.value); setCurrentPage(1); }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">Tất cả phòng ban</option>
@@ -401,7 +495,7 @@ const EmployeeList: React.FC = () => {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Danh sách nhân viên</h2>
-            <p className="text-gray-500 text-sm">Tổng số: {employees.length} nhân viên</p>
+            <p className="text-gray-500 text-sm">Tổng số: {totalCount} nhân viên</p>
           </div>
             <div className="flex space-x-2">
               {isAdmin &&(
@@ -439,6 +533,15 @@ const EmployeeList: React.FC = () => {
                   )}
                 </button>
               )}
+              <button 
+                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors flex items-center"
+                onClick={handleExport}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Xuất danh sách
+              </button>
               <button 
                 className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center"
                 onClick={() => navigate('/dashboard/organization-chart')}
@@ -610,6 +713,16 @@ const EmployeeList: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="mt-4">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(totalCount / itemsPerPage)}
+                totalItems={totalCount}
+                itemsPerPage={itemsPerPage}
+                onPageChange={(page) => setCurrentPage(page)}
+                onItemsPerPageChange={(size) => { setItemsPerPage(size); setCurrentPage(1); }}
+              />
             </div>
           </>
         )}
