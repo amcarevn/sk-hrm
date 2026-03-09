@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { employeesAPI, departmentsAPI, Employee, sendAccountEmailsAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
+import {
+  EyeIcon,
+  PencilIcon,
+  NoSymbolIcon,
+  CheckCircleIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline';
 
 const EmployeeList: React.FC = () => {
   const navigate = useNavigate();
@@ -673,39 +680,49 @@ const EmployeeList: React.FC = () => {
                         {getStatusBadge(employee.employment_status)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                        <div className="flex items-center space-x-3">
                           <button
                             onClick={() => navigate(`/dashboard/employees/${employee.id}`)}
-                            className="px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-100 hover:border-indigo-300 transition-colors"
+                            title="Xem"
+                            aria-label="Xem"
+                            className="text-indigo-600 hover:text-indigo-900 transition-colors"
                           >
-                            Xem
+                            <EyeIcon className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => navigate(`/dashboard/employees/${employee.id}/edit`)}
-                            className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 transition-colors"
+                            title="Sửa"
+                            aria-label="Sửa"
+                            className="text-blue-600 hover:text-blue-900 transition-colors"
                           >
-                            Sửa
+                            <PencilIcon className="h-5 w-5" />
                           </button>
                           {employee.employment_status === 'ACTIVE' ? (
                             <button
                               onClick={() => handleDeactivate(employee.id)}
-                              className="px-3 py-1.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-md hover:bg-amber-100 hover:border-amber-300 transition-colors"
+                              title="Vô hiệu hóa"
+                              aria-label="Vô hiệu hóa"
+                              className="text-amber-600 hover:text-amber-900 transition-colors"
                             >
-                              Vô hiệu hóa
+                              <NoSymbolIcon className="h-5 w-5" />
                             </button>
                           ) : (
                             <button
                               onClick={() => handleActivate(employee.id)}
-                              className="px-3 py-1.5 bg-green-50 text-green-600 border border-green-200 rounded-md hover:bg-green-100 hover:border-green-300 transition-colors"
+                              title="Kích hoạt"
+                              aria-label="Kích hoạt"
+                              className="text-green-600 hover:text-green-900 transition-colors"
                             >
-                              Kích hoạt
+                              <CheckCircleIcon className="h-5 w-5" />
                             </button>
                           )}
                           <button
                             onClick={() => handleDelete(employee.id)}
-                            className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 transition-colors"
+                            title="Xóa"
+                            aria-label="Xóa"
+                            className="text-red-600 hover:text-red-900 transition-colors"
                           >
-                            Xóa
+                            <TrashIcon className="h-5 w-5" />
                           </button>
                         </div>
                       </td>
