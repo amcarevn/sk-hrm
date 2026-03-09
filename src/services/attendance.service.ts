@@ -27,6 +27,8 @@ export interface AttendanceRecord {
   overtime_hours: number;
   late_minutes: number;
   early_leave_minutes: number;
+  late_penalty?: number;
+  early_leave_penalty?: number;
   notes: string;
   employee_name: string;
   employee_code: string;
@@ -135,6 +137,8 @@ export interface CalendarViewData {
       live_sessions: number;
       late_minutes: number;
       early_leave_minutes: number;
+      late_penalty?: number;
+      early_leave_penalty?: number;
       rules_applied: string[];
     };
     shifts: Array<{
