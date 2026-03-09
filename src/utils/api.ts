@@ -1775,6 +1775,8 @@ export const employeesAPI = {
     position?: number;
     gender?: string;
     ordering?: string;
+    contract_type?: string;
+    is_active?: boolean;
   }): Promise<{
     count: number;
     next: string | null;

@@ -29,6 +29,7 @@ const EmployeeList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [contractTypeFilter, setContractTypeFilter] = useState<string>('all');
   const [departments, setDepartments] = useState<any[]>([]);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<number[]>([]);
@@ -41,13 +42,14 @@ const EmployeeList: React.FC = () => {
 
   const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
   const COOLDOWN_DURATION = 120; // 2 phút (giây)
-  const fetchEmployees = async (search = '', status = 'all', department = 'all', page = 1, pageSize = 20) => {
+  const fetchEmployees = async (search = '', status = 'all', department = 'all', page = 1, pageSize = 20, contractType = 'all') => {
     try {
       setLoading(true);
       const params: any = { page, page_size: pageSize };
       if (search) params.search = search;
       if (status !== 'all') params.employment_status = status;
       if (department !== 'all') params.department = department;
+      if (contractType !== 'all') params.contract_type = contractType;
       
       const response = await employeesAPI.list(params);
       setEmployees(response.results);
@@ -126,7 +128,7 @@ const EmployeeList: React.FC = () => {
     }
 
     const timeout = setTimeout(() => {
-      fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage);
+      fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage, contractTypeFilter);
     }, 300); // 300ms debounce delay
 
     setSearchTimeout(timeout);
@@ -136,17 +138,18 @@ const EmployeeList: React.FC = () => {
         clearTimeout(searchTimeout);
       }
     };
-  }, [searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage]);
+  }, [searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage, contractTypeFilter]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchEmployees(searchTerm, statusFilter, departmentFilter);
+    fetchEmployees(searchTerm, statusFilter, departmentFilter, 1, itemsPerPage, contractTypeFilter);
   };
 
   const handleReset = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setDepartmentFilter('all');
+    setContractTypeFilter('all');
     setCurrentPage(1);
     // Don't call fetchEmployees here, the useEffect will handle it
   };
@@ -155,7 +158,7 @@ const EmployeeList: React.FC = () => {
     if (window.confirm('Bạn có chắc chắn muốn xóa nhân viên này?')) {
       try {
         await employeesAPI.delete(id);
-        fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage);
+        fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage, contractTypeFilter);
         fetchStats(); // Refresh stats
       } catch (err: any) {
         alert('Xóa thất bại: ' + (err.message || 'Lỗi không xác định'));
@@ -166,7 +169,7 @@ const EmployeeList: React.FC = () => {
   const handleActivate = async (id: number) => {
     try {
       await employeesAPI.activate(id);
-      fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage);
+      fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage, contractTypeFilter);
       fetchStats(); // Refresh stats
     } catch (err: any) {
       alert('Kích hoạt thất bại: ' + (err.message || 'Lỗi không xác định'));
@@ -176,7 +179,7 @@ const EmployeeList: React.FC = () => {
   const handleDeactivate = async (id: number) => {
     try {
       await employeesAPI.deactivate(id);
-      fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage);
+      fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage, contractTypeFilter);
       fetchStats(); // Refresh stats
     } catch (err: any) {
       alert('Vô hiệu hóa thất bại: ' + (err.message || 'Lỗi không xác định'));
@@ -189,6 +192,7 @@ const EmployeeList: React.FC = () => {
       if (searchTerm) params.search = searchTerm;
       if (statusFilter !== 'all') params.employment_status = statusFilter;
       if (departmentFilter !== 'all') params.department = departmentFilter;
+      if (contractTypeFilter !== 'all') params.contract_type = contractTypeFilter;
 
       const response = await employeesAPI.list(params);
       const allEmployees = response.results;
@@ -484,6 +488,25 @@ const EmployeeList: React.FC = () => {
                       {dept.name}
                     </option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Loại hợp đồng
+                </label>
+                <select
+                  value={contractTypeFilter}
+                  onChange={(e) => { setContractTypeFilter(e.target.value); setCurrentPage(1); }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Tất cả loại hợp đồng</option>
+                  <option value="PROBATION">Hợp đồng thử việc</option>
+                  <option value="INTERN">Hợp đồng thực tập sinh</option>
+                  <option value="COLLABORATOR">Hợp đồng cộng tác viên</option>
+                  <option value="ONE_YEAR">Hợp đồng lao động 1 năm</option>
+                  <option value="THREE_YEAR">Hợp đồng lao động 3 năm</option>
+                  <option value="INDEFINITE">Hợp đồng vô thời hạn</option>
+                  <option value="SERVICE">Hợp đồng dịch vụ</option>
                 </select>
               </div>
             </div>
