@@ -173,6 +173,68 @@ const Home: React.FC = () => {
         ))}
       </div>
 
+      {/* Birthday Section */}
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="h-10 w-10 bg-pink-100 rounded-lg flex items-center justify-center">
+            <CakeIcon className="h-6 w-6 text-pink-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900">🎂 Chúc mừng sinh nhật</h2>
+        </div>
+        {birthdayEmployees.length === 0 ? (
+          <p className="text-sm text-gray-500">Hôm nay không có nhân viên nào có sinh nhật.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {birthdayEmployees.map((emp) => (
+              <div key={emp.employee_id} className="flex items-center space-x-4 p-4 bg-pink-50 border border-pink-200 rounded-xl">
+                <div className="h-12 w-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl">🎉</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">{emp.full_name}</p>
+                  {emp.department && (
+                    <p className="text-sm text-gray-500">{emp.department.name}</p>
+                  )}
+                  <p className="text-xs text-pink-600 mt-1">
+                    {formatBirthDate(emp.date_of_birth)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Tomorrow's Birthdays */}
+        <div className="mt-6 pt-6 border-t border-gray-100">
+          <div className="flex items-center space-x-2 mb-4">
+            <CakeIcon className="h-5 w-5 text-gray-400" />
+            <h3 className="text-base font-semibold text-gray-500">Sinh nhật ngày mai</h3>
+          </div>
+          {tomorrowBirthdayEmployees.length === 0 ? (
+            <p className="text-sm text-gray-400">Ngày mai không có nhân viên nào có sinh nhật.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {tomorrowBirthdayEmployees.map((emp) => (
+                <div key={emp.employee_id} className="flex items-center space-x-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                  <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl">🎂</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-500">{emp.full_name}</p>
+                    {emp.department && (
+                      <p className="text-sm text-gray-400">{emp.department.name}</p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">
+                      {formatBirthDate(emp.date_of_birth)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Quick Actions */}
       <div className="bg-white rounded-xl shadow p-6">
         <div className="flex items-center justify-between mb-6">
@@ -330,67 +392,6 @@ const Home: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-      {/* Birthday Section */}
-      <div className="bg-white rounded-xl shadow p-6">
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="h-10 w-10 bg-pink-100 rounded-lg flex items-center justify-center">
-            <CakeIcon className="h-6 w-6 text-pink-600" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900">🎂 Chúc mừng sinh nhật</h2>
-        </div>
-        {birthdayEmployees.length === 0 ? (
-          <p className="text-sm text-gray-500">Hôm nay không có nhân viên nào có sinh nhật.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {birthdayEmployees.map((emp) => (
-              <div key={emp.employee_id} className="flex items-center space-x-4 p-4 bg-pink-50 border border-pink-200 rounded-xl">
-                <div className="h-12 w-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">🎉</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{emp.full_name}</p>
-                  {emp.department && (
-                    <p className="text-sm text-gray-500">{emp.department.name}</p>
-                  )}
-                  <p className="text-xs text-pink-600 mt-1">
-                    {formatBirthDate(emp.date_of_birth)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Tomorrow's Birthdays */}
-        <div className="mt-6 pt-6 border-t border-gray-100">
-          <div className="flex items-center space-x-2 mb-4">
-            <CakeIcon className="h-5 w-5 text-gray-400" />
-            <h3 className="text-base font-semibold text-gray-500">Sinh nhật ngày mai</h3>
-          </div>
-          {tomorrowBirthdayEmployees.length === 0 ? (
-            <p className="text-sm text-gray-400">Ngày mai không có nhân viên nào có sinh nhật.</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {tomorrowBirthdayEmployees.map((emp) => (
-                <div key={emp.employee_id} className="flex items-center space-x-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                  <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">🎂</span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-500">{emp.full_name}</p>
-                    {emp.department && (
-                      <p className="text-sm text-gray-400">{emp.department.name}</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-1">
-                      {formatBirthDate(emp.date_of_birth)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>
