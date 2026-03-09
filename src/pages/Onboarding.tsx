@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../utils/api';
+import { positionsAPI, employeesAPI } from '../utils/api';
 import {
   ArrowPathIcon,
   LinkIcon,
@@ -138,25 +138,29 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
     const fetchManagers = async () => {
       setLoadingEmployees(true);
       try {
-        // 1. Lấy danh sách vị trí, tìm id của vị trí Trưởng phòng
-        const posRes = await fetch(`${API_BASE_URL}/api-hrm/positions/?search=Trưởng phòng`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-        });
-        const posData = await posRes.json();
-        const truongPhong = (Array.isArray(posData.results) ? posData.results : posData).find((p: any) => p.title === 'Trưởng phòng');
-        if (!truongPhong) {
+        // 1. Lấy danh sách tất cả vị trí quản lý
+        const posData = await positionsAPI.list({ is_management: true, page_size: 100 });
+        const managementPositions = posData.results ?? [];
+        if (managementPositions.length === 0) {
           setEmployees([]);
           setLoadingEmployees(false);
           return;
         }
-        // 2. Lấy danh sách nhân viên có position_id là Trưởng phòng
-        const empRes = await fetch(`${API_BASE_URL}/api-hrm/employees/?position=${truongPhong.id}&page_size=1000`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
-        });
-        const empData = await empRes.json();
-        const list: EmployeeOption[] = (Array.isArray(empData) ? empData : empData.results ?? []).map(
-          (e: any) => ({ id: e.id, full_name: e.full_name, employee_id: e.employee_id })
+        // 2. Lấy danh sách nhân viên có vị trí quản lý
+        const empRequests = managementPositions.map((pos) =>
+          employeesAPI.list({ position: pos.id, page_size: 1000 })
         );
+        const empResults = await Promise.all(empRequests);
+        const seenIds = new Set<number>();
+        const list: EmployeeOption[] = [];
+        for (const result of empResults) {
+          for (const e of result.results ?? []) {
+            if (!seenIds.has(e.id)) {
+              seenIds.add(e.id);
+              list.push({ id: e.id, full_name: e.full_name, employee_id: e.employee_id });
+            }
+          }
+        }
         setEmployees(list);
       } catch (err) {
         console.error('Failed to load managers:', err);
