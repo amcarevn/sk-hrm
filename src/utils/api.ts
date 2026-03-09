@@ -1889,7 +1889,7 @@ export const employeesAPI = {
     return response.data;
   },
 
-  birthdays_today: async (): Promise<Array<{
+  birthdays_today: async (date?: string): Promise<Array<{
     employee_id: number;
     full_name: string;
     date_of_birth: string;
@@ -1899,7 +1899,8 @@ export const employeesAPI = {
       code: string;
     } | null;
   }>> => {
-    const response = await managementApi.get('/api-hrm/employees/birthdays_today/');
+    const params = date ? { date } : undefined;
+    const response = await managementApi.get('/api-hrm/employees/birthdays_today/', { params });
     const data = response.data;
     return Array.isArray(data) ? data : (data?.results ?? []);
   },
