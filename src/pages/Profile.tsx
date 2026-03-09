@@ -30,7 +30,6 @@ import {
   AcademicCapIcon,
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
-import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 interface TeamMember {
   id: number;
@@ -50,6 +49,7 @@ const Profile: React.FC = () => {
   console.log('Fetched manager:', manager);
   console.log('Fetched employee:', employee);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [showTeamModal, setShowTeamModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -63,6 +63,15 @@ const Profile: React.FC = () => {
   useEffect(() => {
     fetchProfileData();
   }, []);
+
+  useEffect(() => {
+    if (!showTeamModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowTeamModal(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showTeamModal]);
 
   const fetchProfileData = async () => {
     try {
@@ -745,9 +754,12 @@ const Profile: React.FC = () => {
 
                 {teamMembers.length > 5 && (
                   <div className="text-center pt-4 border-t border-gray-200">
-                    <p className="text-sm text-gray-500">
-                      Và {teamMembers.length - 5} thành viên khác
-                    </p>
+                    <button
+                      onClick={() => setShowTeamModal(true)}
+                      className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                    >
+                      Xem thêm ({teamMembers.length - 5} thành viên khác)
+                    </button>
                   </div>
                 )}
               </div>
@@ -1038,6 +1050,75 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Team Members Modal */}
+      {showTeamModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="team-modal-title"
+        >
+          <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div>
+                <h2
+                  id="team-modal-title"
+                  className="text-lg font-bold text-gray-900"
+                >
+                  Thành viên trong team
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {teamMembers.length} thành viên
+                </p>
+              </div>
+              <button
+                onClick={() => setShowTeamModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Đóng modal"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto px-6 py-4 space-y-4">
+              {teamMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium text-gray-900">
+                        {member.full_name}
+                      </h4>
+                      <p className="text-sm text-gray-500">
+                        {member.position_title}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Mã NV: {member.employee_id}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    {member.phone_number && (
+                      <div className="flex items-center text-gray-600">
+                        <PhoneIcon className="h-4 w-4 mr-1" />
+                        <span>{member.phone_number}</span>
+                      </div>
+                    )}
+                    {member.personal_email && (
+                      <div className="flex items-center text-gray-600">
+                        <EnvelopeIcon className="h-4 w-4 mr-1" />
+                        <span className="truncate">{member.personal_email}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
