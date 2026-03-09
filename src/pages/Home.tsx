@@ -18,6 +18,11 @@ import {
   CakeIcon,
 } from '@heroicons/react/24/outline';
 
+const formatBirthDate = (dateOfBirth: string): string => {
+  const parts = dateOfBirth.split('-');
+  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : dateOfBirth;
+};
+
 const Home: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -30,10 +35,17 @@ const Home: React.FC = () => {
     date_of_birth: string;
     department: { id: number; name: string; code: string } | null;
   }>>([]);
+  const [tomorrowBirthdayEmployees, setTomorrowBirthdayEmployees] = useState<Array<{
+    employee_id: number;
+    full_name: string;
+    date_of_birth: string;
+    department: { id: number; name: string; code: string } | null;
+  }>>([]);
 
   useEffect(() => {
     fetchEmployeeData();
     fetchBirthdaysToday();
+    fetchBirthdaysTomorrow();
   }, []);
 
   const fetchBirthdaysToday = async () => {
@@ -42,6 +54,21 @@ const Home: React.FC = () => {
       setBirthdayEmployees(data);
     } catch (err) {
       console.error('Error fetching birthdays:', err);
+    }
+  };
+
+  const fetchBirthdaysTomorrow = async () => {
+    try {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const year = tomorrow.getFullYear();
+      const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+      const day = String(tomorrow.getDate()).padStart(2, '0');
+      const tomorrowStr = `${year}-${month}-${day}`;
+      const data = await employeesAPI.birthdays_today(tomorrowStr);
+      setTomorrowBirthdayEmployees(data);
+    } catch (err) {
+      console.error('Error fetching tomorrow birthdays:', err);
     }
   };
 
@@ -328,16 +355,43 @@ const Home: React.FC = () => {
                     <p className="text-sm text-gray-500">{emp.department.name}</p>
                   )}
                   <p className="text-xs text-pink-600 mt-1">
-                    {(() => {
-                      const parts = emp.date_of_birth.split('-');
-                      return parts.length === 3 ? `${parts[2]}/${parts[1]}` : emp.date_of_birth;
-                    })()}
+                    {formatBirthDate(emp.date_of_birth)}
                   </p>
                 </div>
               </div>
             ))}
           </div>
         )}
+
+        {/* Tomorrow's Birthdays */}
+        <div className="mt-6 pt-6 border-t border-gray-100">
+          <div className="flex items-center space-x-2 mb-4">
+            <CakeIcon className="h-5 w-5 text-gray-400" />
+            <h3 className="text-base font-semibold text-gray-500">Sinh nhật ngày mai</h3>
+          </div>
+          {tomorrowBirthdayEmployees.length === 0 ? (
+            <p className="text-sm text-gray-400">Ngày mai không có nhân viên nào có sinh nhật.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {tomorrowBirthdayEmployees.map((emp) => (
+                <div key={emp.employee_id} className="flex items-center space-x-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                  <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl">🎂</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-500">{emp.full_name}</p>
+                    {emp.department && (
+                      <p className="text-sm text-gray-400">{emp.department.name}</p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">
+                      {formatBirthDate(emp.date_of_birth)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
