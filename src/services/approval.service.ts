@@ -307,20 +307,22 @@ class ApprovalService {
     total_pending: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, overtimeRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
+      const [allAttendanceExplanations, onlineWorkRequests, registrationRequests] = await Promise.all([
         this.getPendingAttendanceExplanations(),
-        this.getPendingLeaveRequests(),
-        this.getPendingOvertimeRequests(),
         this.getPendingOnlineWorkRequests(),
         this.getPendingRegistrationRequests()
       ]);
 
-      const total_pending = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length + onlineWorkRequests.length + registrationRequests.length;
+      // Tách đơn nghỉ phép (LEAVE) ra khỏi danh sách giải trình
+      const attendanceExplanations = allAttendanceExplanations.filter(e => e.explanation_type !== 'LEAVE');
+      const leaveRequests = allAttendanceExplanations.filter(e => e.explanation_type === 'LEAVE');
+
+      const total_pending = attendanceExplanations.length + leaveRequests.length + onlineWorkRequests.length + registrationRequests.length;
 
       return {
         attendance_explanations: attendanceExplanations,
         leave_requests: leaveRequests,
-        overtime_requests: overtimeRequests,
+        overtime_requests: [], // TODO: Cần API cho overtime requests (chờ đăng ký types khác)
         online_work_requests: onlineWorkRequests,
         registration_requests: registrationRequests,
         total_pending
@@ -341,20 +343,21 @@ class ApprovalService {
     total_approved: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, overtimeRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
+      const [allAttendanceExplanations, onlineWorkRequests, registrationRequests] = await Promise.all([
         this.getApprovedAttendanceExplanations(),
-        this.getPendingLeaveRequests(), // TODO: Cần API cho leave requests đã duyệt
-        this.getPendingOvertimeRequests(), // TODO: Cần API cho overtime requests đã duyệt
         this.getApprovedOnlineWorkRequests(),
         this.getApprovedRegistrationRequests()
       ]);
 
-      const total_approved = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length + onlineWorkRequests.length + registrationRequests.length;
+      const attendanceExplanations = allAttendanceExplanations.filter(e => e.explanation_type !== 'LEAVE');
+      const leaveRequests = allAttendanceExplanations.filter(e => e.explanation_type === 'LEAVE');
+
+      const total_approved = attendanceExplanations.length + leaveRequests.length + onlineWorkRequests.length + registrationRequests.length;
 
       return {
         attendance_explanations: attendanceExplanations,
         leave_requests: leaveRequests,
-        overtime_requests: overtimeRequests,
+        overtime_requests: [],
         online_work_requests: onlineWorkRequests,
         registration_requests: registrationRequests,
         total_approved
@@ -375,20 +378,21 @@ class ApprovalService {
     total_rejected: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, overtimeRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
+      const [allAttendanceExplanations, onlineWorkRequests, registrationRequests] = await Promise.all([
         this.getRejectedAttendanceExplanations(),
-        this.getPendingLeaveRequests(), // TODO: Cần API cho leave requests đã từ chối
-        this.getPendingOvertimeRequests(), // TODO: Cần API cho overtime requests đã từ chối
         this.getRejectedOnlineWorkRequests(),
         this.getRejectedRegistrationRequests()
       ]);
 
-      const total_rejected = attendanceExplanations.length + leaveRequests.length + overtimeRequests.length + onlineWorkRequests.length + registrationRequests.length;
+      const attendanceExplanations = allAttendanceExplanations.filter(e => e.explanation_type !== 'LEAVE');
+      const leaveRequests = allAttendanceExplanations.filter(e => e.explanation_type === 'LEAVE');
+
+      const total_rejected = attendanceExplanations.length + leaveRequests.length + onlineWorkRequests.length + registrationRequests.length;
 
       return {
         attendance_explanations: attendanceExplanations,
         leave_requests: leaveRequests,
-        overtime_requests: overtimeRequests,
+        overtime_requests: [],
         online_work_requests: onlineWorkRequests,
         registration_requests: registrationRequests,
         total_rejected

@@ -30,6 +30,8 @@ import {
 const AttendanceManagement: React.FC = () => {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
+
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadMessage, setUploadMessage] = useState<{
     type: 'success' | 'error';
@@ -45,6 +47,7 @@ const AttendanceManagement: React.FC = () => {
   >([]);
   const [loading, setLoading] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
+  const isManagementUser = !!(currentEmployee?.position?.is_management || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'HR');
   const [attendanceDetails, setAttendanceDetails] = useState<
     AttendanceRecord[]
   >([]);
@@ -54,10 +57,12 @@ const AttendanceManagement: React.FC = () => {
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [approvedExplanations, setApprovedExplanations] = useState<any[]>([]);
+  const [allExplanations, setAllExplanations] = useState<any[]>([]);
   const [approvedRegistrations, setApprovedRegistrations] = useState<any[]>([]);
   const [approvedLeaveRequests, setApprovedLeaveRequests] = useState<any[]>([]);
   const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
   const [monthlyWorkCredits, setMonthlyWorkCredits] = useState<any>(null);
+  const [penaltyAmount, setPenaltyAmount] = useState<number>(0);
   const [workCreditsLoading, setWorkCreditsLoading] = useState(false);
   const [refreshDataTrigger, setRefreshDataTrigger] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -134,7 +139,7 @@ const AttendanceManagement: React.FC = () => {
     EXTRA_HOURS: 'Đơn đăng ký làm thêm giờ',
     NIGHT_SHIFT: 'Đơn đăng ký trực tối',
     LIVE: 'Đơn đăng ký Live',
-    LEAVE: 'Đơn nghỉ phép tháng',
+    LEAVE: 'Nghỉ phép tháng',
   };
 
   const getExplanationTypeLabel = (type: string): string =>
@@ -163,7 +168,8 @@ const AttendanceManagement: React.FC = () => {
     | 'business_trip'
     | 'incomplete_attendance';
   type RegistrationReason = 'overtime' | 'extra_hours' | 'night_shift' | 'live';
-  type ReasonType = ExplanationReason | RegistrationReason | null;
+  type OnlineWorkReason = 'online_work';
+  type ReasonType = ExplanationReason | RegistrationReason | OnlineWorkReason | null;
 
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [selectedContext, setSelectedContext] = useState<ContextType>(null);
@@ -246,11 +252,18 @@ const AttendanceManagement: React.FC = () => {
   // Validate registration time fields
   // - Must have start and end time
   // - Duration must be positive (end > start)
-  // - Minimum 2 hours
-  const isRegistrationTimeValid = (): boolean => {
-    if (selectedContext !== 'registration') return true;
+  // - Minimum hours based on type
+  const isRegistrationTimeValid = () => {
+    // Explanation requests don't need time validation here
+    if (selectedContext === 'explanation') return true;
+    // Monthly leave doesn't need time validation
+    if (selectedContext === 'monthly_leave') return true;
+    // Online work form note is validated later or is optional
+    if (selectedContext === 'online_work') return true;
 
-    const MIN_HOURS = 2;
+    if (!selectedReason) return false;
+
+    const MIN_HOURS = 2; // Default minimum for most registrations
 
     switch (selectedReason) {
       case 'overtime':
@@ -336,12 +349,20 @@ const AttendanceManagement: React.FC = () => {
       { id: 'live', label: 'Live', icon: 'video' },
     ];
 
+  const onlineWorkReasons: {
+    id: OnlineWorkReason;
+    label: string;
+    icon: string;
+  }[] = [
+      { id: 'online_work', label: 'Làm việc online', icon: 'desktop' },
+    ];
+
   // Handle context selection
   const handleContextSelect = (context: ContextType) => {
     setSelectedContext(context);
     setSelectedReason(null); // Reset reason when context changes
     // Only move to step 2 for contexts that have sub-reasons
-    if (context && (context === 'explanation' || context === 'registration')) {
+    if (context && (context === 'explanation' || context === 'registration' || context === 'online_work')) {
       setCurrentStep(2);
     }
   };
@@ -498,6 +519,22 @@ const AttendanceManagement: React.FC = () => {
             />
           </svg>
         );
+      case 'desktop':
+        return (
+          <svg
+            className={iconClass}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+            />
+          </svg>
+        );
       default:
         return null;
     }
@@ -516,6 +553,7 @@ const AttendanceManagement: React.FC = () => {
     night_shift_sessions: number;
     live_sessions: number;
     leave_days: number;
+    remaining_annual_leave?: number;
     total_late_minutes?: number;
     total_early_leave_minutes?: number;
   } | null>(null);
@@ -790,7 +828,9 @@ const AttendanceManagement: React.FC = () => {
         }),
       ]);
 
-      const explanations: any[] = explanationsRes.results || [];
+      const allExplanations: any[] = explanationsRes.results || [];
+      const explanations = allExplanations.filter(e => e.explanation_type !== 'LEAVE');
+      const leaveRequests = allExplanations.filter(e => e.explanation_type === 'LEAVE');
       const registrations: any[] = registrationsRes?.results || [];
       const onlineWorks = Array.isArray(onlineWorksRes)
         ? onlineWorksRes
@@ -800,7 +840,7 @@ const AttendanceManagement: React.FC = () => {
         explanations,
         registrations,
         onlineWorks,
-        leaveRequests: [],
+        leaveRequests,
       });
     } catch (error) {
       console.error('Error fetching monthly request history:', error);
@@ -826,6 +866,7 @@ const AttendanceManagement: React.FC = () => {
           currentDate.getFullYear(),
           currentEmployee.id
         ),
+        fetchMonthlyRequestHistory(currentEmployee, currentDate),
       ]);
       setRefreshDataTrigger((prev) => prev + 1);
     }
@@ -838,9 +879,11 @@ const AttendanceManagement: React.FC = () => {
 
     // Set approved requests từ dayData ngay lập tức (không reset về mảng rỗng)
     setApprovedExplanations(dayData?.approvedExplanations || []);
+    setAllExplanations(dayData?.allExplanations || []);
     setApprovedRegistrations(dayData?.approvedRegistrations || []);
     setApprovedLeaveRequests(dayData?.approvedLeaveRequests || []);
     setOnlineWorkRequests(dayData?.approvedOnlineWorks || []);
+    setPenaltyAmount(dayData?.engine_context?.penalty_amount || 0);
 
     try {
       // Format date to YYYY-MM-DD in local timezone
@@ -932,6 +975,7 @@ const AttendanceManagement: React.FC = () => {
     setShowAttendanceModal(false);
     setSelectedDate(null);
     setApprovedExplanations([]);
+    setAllExplanations([]);
     setApprovedLeaveRequests([]);
   };
 
@@ -1236,7 +1280,7 @@ const AttendanceManagement: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-2.5 md:p-6">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Quản lý chấm công</h1>
@@ -1594,38 +1638,52 @@ const AttendanceManagement: React.FC = () => {
           </div>
 
           {/* === Hạn mức còn lại === */}
-          <div className="group bg-white p-4 rounded-xl border border-indigo-100 hover:shadow-md transition-all duration-300">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-indigo-50 rounded-lg">
-                <HeartIcon className="h-5 w-5 text-indigo-600" />
-              </div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Nghỉ phép</h3>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-indigo-600">
-                {calendarSummary?.leave_days ?? 0}
-              </span>
-              <span className="text-[10px] text-indigo-500 font-medium">ngày</span>
-            </div>
-          </div>
+          {(() => {
+            const maxMonthlyLeave = 1;
+            const usedMonthlyLeave = monthlyRequestHistory?.leaveRequests?.length || 0;
+            const remainingMonthlyLeave = Math.max(0, maxMonthlyLeave - usedMonthlyLeave);
 
-          {currentEmployee?.position?.is_management &&
-            (
-              <div className="group bg-white p-4 rounded-xl border border-teal-100 hover:shadow-md transition-all duration-300">
+            return (
+              <div className="group bg-white p-4 rounded-xl border border-indigo-100 hover:shadow-md transition-all duration-300">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-teal-50 rounded-lg">
-                    <ComputerDesktopIcon className="h-5 w-5 text-teal-600" />
+                  <div className="p-2 bg-indigo-50 rounded-lg">
+                    <HeartIcon className="h-5 w-5 text-indigo-600" />
                   </div>
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Online</h3>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Nghỉ phép tháng</h3>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-teal-600">
-                    {attendanceStats?.remaining_online_work || 0}
+                  <span className="text-2xl font-bold text-indigo-600">
+                    {remainingMonthlyLeave}
                   </span>
-                  <span className="text-[10px] text-teal-500 font-medium">còn</span>
+                  <span className="text-[10px] text-indigo-500 font-medium">/{maxMonthlyLeave} lần</span>
                 </div>
               </div>
-            )}
+            );
+          })()}
+
+          {isManagementUser &&
+            (() => {
+              const maxOnline = attendanceStats?.max_online_work_per_month || 2;
+              const usedOnline = (attendanceStats?.max_online_work_per_month || 0) - (attendanceStats?.remaining_online_work || 0);
+              const remainingOnline = Math.max(0, maxOnline - usedOnline);
+
+              return (
+                <div className="group bg-white p-4 rounded-xl border border-teal-100 hover:shadow-md transition-all duration-300">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-teal-50 rounded-lg">
+                      <ComputerDesktopIcon className="h-5 w-5 text-teal-600" />
+                    </div>
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Online</h3>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-teal-600">
+                      {remainingOnline}
+                    </span>
+                    <span className="text-[10px] text-teal-500 font-medium">/{maxOnline} lần</span>
+                  </div>
+                </div>
+              );
+            })()}
 
           {attendanceStats?.max_explanations_per_month > 0 && (
             <div className="group bg-white p-4 rounded-xl border border-cyan-100 hover:shadow-md transition-all duration-300">
@@ -1633,13 +1691,13 @@ const AttendanceManagement: React.FC = () => {
                 <div className="p-2 bg-cyan-50 rounded-lg">
                   <ChatBubbleBottomCenterTextIcon className="h-5 w-5 text-cyan-600" />
                 </div>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Giải trình</h3>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Giải trình công</h3>
               </div>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-cyan-600">
                   {attendanceStats?.remaining_explanations || 0}
                 </span>
-                <span className="text-[10px] text-cyan-500 font-medium">lần</span>
+                <span className="text-[10px] text-cyan-500 font-medium">/{attendanceStats?.max_explanations_per_month || 0} lần</span>
               </div>
             </div>
           )}
@@ -1690,31 +1748,39 @@ const AttendanceManagement: React.FC = () => {
 
                 <div className="mt-6">
                   {/* Employee Info */}
-                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                  <div className="bg-gray-50 p-4 rounded-xl mb-4 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center">
-                      <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
+                      <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 mr-3 shrink-0">
+                        <UserIcon className="h-6 w-6" />
+                      </div>
                       <div>
-                        <h4 className="font-medium text-gray-900">
-                          Thông tin nhân viên
+                        <h4 className="font-bold text-gray-900 leading-tight">
+                          {currentEmployee?.full_name || 'Nhân viên'}
                         </h4>
-                        <p className="text-sm text-gray-600">
-                          {currentEmployee
-                            ? `${currentEmployee.full_name} - ${currentEmployee.employee_id}`
-                            : 'Đang tải thông tin...'}
+                        <p className="text-xs text-gray-500 font-medium">
+                          Mã NV: {currentEmployee?.employee_id || '---'} • {currentEmployee?.position?.title || 'Chức vụ'}
                         </p>
-                        {currentEmployee?.department && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Phòng ban: {currentEmployee.department.name}
-                          </p>
-                        )}
-                        {currentEmployee?.position && (
-                          <p className="text-xs text-gray-500">
-                            Vị trí: {currentEmployee.position.title}
-                          </p>
-                        )}
                       </div>
                     </div>
+                    {penaltyAmount > 0 && (
+                      <div className="flex items-center gap-3 bg-red-600 text-white px-4 py-2 rounded-xl shadow-md border border-red-700 animate-pulse">
+                        <div className="bg-white/20 p-1.5 rounded-lg">
+                          <ExclamationTriangleIcon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase font-black tracking-widest opacity-80 leading-none mb-1">Cần thanh toán Phạt</p>
+                          <p className="text-lg font-black leading-none">{penaltyAmount.toLocaleString('vi-VN')} VNĐ</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {penaltyAmount > 0 && (
+                    <div className="mb-6 p-3 bg-red-50/50 border border-red-100 rounded-xl flex items-center gap-2 text-xs text-red-700 italic">
+                      <ExclamationCircleIcon className="h-4 w-4 shrink-0" />
+                      Lưu ý: Số tiền phạt được hệ thống tự động tính dựa trên quy định đi muộn/về sớm của công ty.
+                    </div>
+                  )}
 
 
 
@@ -1749,7 +1815,7 @@ const AttendanceManagement: React.FC = () => {
                                 Trạng thái
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Ghi chú
+                                Ghi chú / Vi phạm
                               </th>
                             </tr>
                           </thead>
@@ -2190,9 +2256,11 @@ const AttendanceManagement: React.FC = () => {
                                         ? (getExplanationTypeLabel(ev.data?.explanation_type) || 'Giải trình')
                                         : (ev.event_type === 'livestream' || ['overtime', 'extra_hours', 'night_shift', 'live'].includes(ev.event_type))
                                           ? (getExplanationTypeLabel(ev.data?.registration_type) || (ev.event_type === 'livestream' ? 'Đơn đăng ký Livestream' : 'Đơn đăng ký'))
-                                          : ev.event_type === 'registration_approval' && ev.data?.registration_type
-                                            ? `Phê duyệt ${getExplanationTypeLabel(ev.data.registration_type)}`
-                                            : (eventTypeLabel[ev.event_type] || ev.event_type)}
+                                          : ev.event_type === 'explanation_approval' && ev.data?.explanation_type
+                                            ? `Phê duyệt ${getExplanationTypeLabel(ev.data.explanation_type)}`
+                                            : ev.event_type === 'registration_approval' && ev.data?.registration_type
+                                              ? `Phê duyệt ${getExplanationTypeLabel(ev.data.registration_type)}`
+                                              : (eventTypeLabel[ev.event_type] || ev.event_type)}
                                     </span>
                                     {approved && (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 whitespace-nowrap">
@@ -2315,16 +2383,36 @@ const AttendanceManagement: React.FC = () => {
                   {/* Action Buttons */}
                   <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3">
                     {/* Ẩn nút làm đơn bổ sung công nếu đã có đơn được duyệt */}
-                    {approvedExplanations.length === 0 &&
-                      approvedLeaveRequests.length === 0 && (
-                        <button
-                          onClick={handleOpenSupplementaryRequest}
-                          className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                        >
-                          <DocumentPlusIcon className="h-5 w-5 mr-2" />
-                          Làm đơn bổ sung
-                        </button>
-                      )}
+                    {/* Hiện nút nếu còn vi phạm chưa giải trình hoặc còn lượt nghỉ phép */}
+                    {(() => {
+                      const detail = attendanceDetails[0];
+                      const pendingOrApprovedTypes = (allExplanations || []).map(e => e.explanation_type);
+
+                      const hasUnresolvedLate = (detail?.late_minutes || 0) > 0 && !pendingOrApprovedTypes.includes('LATE');
+                      const hasUnresolvedEarly = (detail?.early_leave_minutes || 0) > 0 && !pendingOrApprovedTypes.includes('EARLY_LEAVE');
+                      const hasUnresolvedIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE' && !pendingOrApprovedTypes.includes('INCOMPLETE_ATTENDANCE');
+
+                      // Còn vi phạm chưa đơn từ?
+                      const hasWorkViolationToDo = hasUnresolvedLate || hasUnresolvedEarly || hasUnresolvedIncomplete;
+
+                      // Còn lượt nghỉ tháng?
+                      const usedMonthlyLeave = monthlyRequestHistory?.leaveRequests?.length || 0;
+                      const hasMonthlyLeaveRemaining = usedMonthlyLeave < 1;
+
+                      // Vẫn hiện nút nếu còn việc để làm (giải trình hoặc đăng ký khác)
+                      if (hasWorkViolationToDo || hasMonthlyLeaveRemaining || approvedRegistrations.length === 0) {
+                        return (
+                          <button
+                            onClick={handleOpenSupplementaryRequest}
+                            className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                          >
+                            <DocumentPlusIcon className="h-5 w-5 mr-2" />
+                            Làm đơn bổ sung
+                          </button>
+                        );
+                      }
+                      return null;
+                    })()}
                     <button
                       onClick={handleCloseModal}
                       className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
@@ -2337,250 +2425,100 @@ const AttendanceManagement: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      )
+      }
 
       {/* Supplementary Request Modal */}
-      {showSupplementaryRequestModal && selectedDate && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+      {
+        showSupplementaryRequestModal && selectedDate && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
 
-            <div className="inline-block align-bottom bg-white rounded-t-lg sm:rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl w-full">
-              <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
-                <div className="sm:flex sm:items-start">
-                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-10 w-10 md:h-12 md:w-12 rounded-full bg-purple-100 sm:mx-0">
-                    <DocumentPlusIcon className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
-                  </div>
-                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                    <div className="flex justify-between items-start">
-                      <h3 className="text-base md:text-lg leading-6 font-bold text-gray-900">
-                        Đơn bổ sung
-                      </h3>
-                      <button
-                        onClick={handleCloseSupplementaryRequest}
-                        className="text-gray-400 hover:text-gray-500 p-1"
-                      >
-                        <XMarkIcon className="h-6 w-6" />
-                      </button>
+              <div className="inline-block align-bottom bg-white rounded-t-lg sm:rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-10 w-10 md:h-12 md:w-12 rounded-full bg-purple-100 sm:mx-0">
+                      <DocumentPlusIcon className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
                     </div>
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        Gửi đơn bổ sung cho ngày{' '}
-                        {selectedDate.toLocaleDateString('vi-VN')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 space-y-4">
-                  {/* ===================== STEP-BASED FORM UI ===================== */}
-
-                  {/* === StepIndicator === */}
-                  <div className="flex items-center justify-center mb-8">
-                    <div className="flex items-center">
-                      {/* Step 1 */}
-                      <div className="flex items-center">
-                        <div
-                          className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${currentStep >= 1
-                            ? 'bg-purple-600 text-white shadow-lg'
-                            : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
-                            }`}
+                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-base md:text-lg leading-6 font-bold text-gray-900">
+                          Đơn bổ sung
+                        </h3>
+                        <button
+                          onClick={handleCloseSupplementaryRequest}
+                          className="text-gray-400 hover:text-gray-500 p-1"
                         >
-                          {selectedContext ? (
-                            <svg
-                              className="w-5 h-5"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          ) : (
-                            '1'
-                          )}
-                        </div>
-                        <span
-                          className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${currentStep >= 1 ? 'text-gray-900' : 'text-gray-400'
-                            }`}
-                        >
-                          Chọn loại yêu cầu
-                        </span>
+                          <XMarkIcon className="h-6 w-6" />
+                        </button>
                       </div>
-
-                      {/* Connector Line */}
-                      <div
-                        className={`w-12 sm:w-24 h-1 mx-4 rounded-full transition-all duration-500 ${currentStep >= 2
-                          ? 'bg-gradient-to-r from-purple-600 to-purple-600'
-                          : 'bg-gradient-to-r from-purple-600 to-gray-300'
-                          }`}
-                      />
-
-                      {/* Step 2 */}
-                      <div className="flex items-center">
-                        <div
-                          className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${currentStep >= 2
-                            ? 'bg-purple-600 text-white shadow-lg'
-                            : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
-                            }`}
-                        >
-                          {selectedReason ? (
-                            <svg
-                              className="w-5 h-5"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          ) : (
-                            '2'
-                          )}
-                        </div>
-                        <span
-                          className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${currentStep >= 2 ? 'text-gray-900' : 'text-gray-400'
-                            }`}
-                        >
-                          Chọn lý do
-                        </span>
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-500">
+                          Gửi đơn bổ sung cho ngày{' '}
+                          {selectedDate.toLocaleDateString('vi-VN')}
+                        </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* === ContextSelector (Step 1) === */}
-                  <div className="space-y-4 mb-6">
-                    <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                      Chọn loại yêu cầu
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Card 1: Giải trình đơn */}
-                      <button
-                        type="button"
-                        disabled={!hasAttendanceData}
-                        onClick={() =>
-                          hasAttendanceData &&
-                          handleContextSelect('explanation')
-                        }
-                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${!hasAttendanceData
-                          ? 'opacity-50 cursor-not-allowed border-gray-200'
-                          : selectedContext === 'explanation'
-                            ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
-                            : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
-                          }`}
-                      >
-                        <div className="flex items-start space-x-4">
+                  <div className="mt-6 space-y-4">
+                    {/* ===================== STEP-BASED FORM UI ===================== */}
+
+                    {/* === StepIndicator === */}
+                    <div className="flex items-center justify-center mb-8">
+                      <div className="flex items-center">
+                        {/* Step 1 */}
+                        <div className="flex items-center">
                           <div
-                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'explanation'
-                              ? 'bg-purple-100 group-hover:bg-purple-200'
-                              : 'bg-gray-100 group-hover:bg-purple-50'
+                            className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${currentStep >= 1
+                              ? 'bg-purple-600 text-white shadow-lg'
+                              : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
                               }`}
                           >
-                            <svg
-                              className={`w-6 h-6 ${selectedContext === 'explanation' ? 'text-purple-600' : 'text-gray-500 group-hover:text-purple-500'}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                              />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
-                              Đơn giải trình
-                            </h4>
-                            <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                              Đi muộn, về sớm, ngày đầu đi làm, quên chấm công
-                            </p>
-                            {!hasAttendanceData ? (
-                              <p className="mt-1 text-xs text-red-500">
-                                Cần có dữ liệu chấm công để giải trình
-                              </p>
+                            {selectedContext ? (
+                              <svg
+                                className="w-5 h-5"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
                             ) : (
-                              attendanceStats?.remaining_explanations <= 0 && (
-                                <p className="mt-1 text-xs text-amber-600 font-medium">
-                                  Cảnh báo: Đã hết lượt giải trình miễn phí (quá
-                                  3 lần/tháng)
-                                </p>
-                              )
+                              '1'
                             )}
                           </div>
-                        </div>
-                        {/* Selected indicator */}
-                        {selectedContext === 'explanation' &&
-                          hasAttendanceData && (
-                            <div className="absolute top-3 right-3">
-                              <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
-                                <svg
-                                  className="w-3 h-3 text-white"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                              </div>
-                            </div>
-                          )}
-                      </button>
-
-                      {/* Card 2: Đơn đăng ký */}
-                      <button
-                        type="button"
-                        onClick={() => handleContextSelect('registration')}
-                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left ${selectedContext === 'registration'
-                          ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
-                          : 'border-gray-200 hover:border-purple-400'
-                          }`}
-                      >
-                        <div className="flex items-start space-x-4">
-                          <div
-                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'registration'
-                              ? 'bg-purple-100 group-hover:bg-purple-200'
-                              : 'bg-blue-50 group-hover:bg-blue-100'
+                          <span
+                            className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${currentStep >= 1 ? 'text-gray-900' : 'text-gray-400'
                               }`}
                           >
-                            <svg
-                              className={`w-6 h-6 ${selectedContext === 'registration' ? 'text-purple-600' : 'text-blue-600'}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                              />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
-                              Đơn đăng ký
-                            </h4>
-                            <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                              Tăng ca, làm thêm giờ, trực tối, làm tối, live
-                            </p>
-                          </div>
+                            Chọn loại yêu cầu
+                          </span>
                         </div>
-                        {/* Selected indicator */}
-                        {selectedContext === 'registration' && (
-                          <div className="absolute top-3 right-3">
-                            <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
+
+                        {/* Connector Line */}
+                        <div
+                          className={`w-12 sm:w-24 h-1 mx-4 rounded-full transition-all duration-500 ${currentStep >= 2
+                            ? 'bg-gradient-to-r from-purple-600 to-purple-600'
+                            : 'bg-gradient-to-r from-purple-600 to-gray-300'
+                            }`}
+                        />
+
+                        {/* Step 2 */}
+                        <div className="flex items-center">
+                          <div
+                            className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-sm transition-all duration-300 ${currentStep >= 2
+                              ? 'bg-purple-600 text-white shadow-lg'
+                              : 'bg-gray-200 text-gray-500 border-2 border-gray-300'
+                              }`}
+                          >
+                            {selectedReason ? (
                               <svg
-                                className="w-3 h-3 text-white"
+                                className="w-5 h-5"
                                 fill="currentColor"
                                 viewBox="0 0 20 20"
                               >
@@ -2590,133 +2528,85 @@ const AttendanceManagement: React.FC = () => {
                                   clipRule="evenodd"
                                 />
                               </svg>
-                            </div>
+                            ) : (
+                              '2'
+                            )}
                           </div>
-                        )}
-                      </button>
+                          <span
+                            className={`ml-3 text-sm font-medium hidden sm:block transition-colors ${currentStep >= 2 ? 'text-gray-900' : 'text-gray-400'
+                              }`}
+                          >
+                            Chọn lý do
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-                      {/* Card 3: Nghỉ phép tháng */}
-                      <button
-                        type="button"
-                        onClick={() => handleContextSelect('monthly_leave')}
-                        className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left
-    ${selectedContext === 'monthly_leave'
-                            ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
-                            : 'border-gray-200 hover:border-purple-400'
+                    {/* === ContextSelector (Step 1) === */}
+                    <div className="space-y-4 mb-6">
+                      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                        Chọn loại yêu cầu
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Card 1: Giải trình đơn */}
+                        <button
+                          type="button"
+                          disabled={!hasAttendanceData}
+                          onClick={() =>
+                            hasAttendanceData &&
+                            handleContextSelect('explanation')
                           }
-    ${!(currentEmployee?.position?.is_management && attendanceStats?.max_online_work_per_month > 0) ? 'sm:col-span-2' : ''}
-  `}
-                      >
-                        <div className="flex items-start space-x-4">
-                          <div
-                            className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'monthly_leave'
-                              ? 'bg-purple-100 group-hover:bg-purple-200'
-                              : 'bg-indigo-50 group-hover:bg-indigo-100'
-                              }`}
-                          >
-                            <svg
-                              className={`w-6 h-6 ${selectedContext === 'monthly_leave' ? 'text-purple-600' : 'text-indigo-600'}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                          className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${!hasAttendanceData
+                            ? 'opacity-50 cursor-not-allowed border-gray-200'
+                            : selectedContext === 'explanation'
+                              ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
+                              : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
+                            }`}
+                        >
+                          <div className="flex items-start space-x-4">
+                            <div
+                              className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'explanation'
+                                ? 'bg-purple-100 group-hover:bg-purple-200'
+                                : 'bg-gray-100 group-hover:bg-purple-50'
+                                }`}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                              />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
-                              Nghỉ phép tháng
-                            </h4>
-                            <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                              Đăng ký nghỉ phép trong tháng
-                            </p>
-                          </div>
-                        </div>
-                        {/* Selected indicator */}
-                        {selectedContext === 'monthly_leave' && (
-                          <div className="absolute top-3 right-3">
-                            <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
                               <svg
-                                className="w-3 h-3 text-white"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
+                                className={`w-6 h-6 ${selectedContext === 'explanation' ? 'text-purple-600' : 'text-gray-500 group-hover:text-purple-500'}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
                               >
                                 <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                                 />
                               </svg>
                             </div>
-                          </div>
-                        )}
-                      </button>
-
-                      {/* Card 4: Làm việc online */}
-                      {currentEmployee?.position?.is_management &&
-                        attendanceStats?.max_online_work_per_month > 0 && (
-                          <button
-                            type="button"
-                            disabled={
-                              attendanceStats?.remaining_online_work <= 0
-                            }
-                            onClick={() =>
-                              attendanceStats?.remaining_online_work > 0 &&
-                              handleContextSelect('online_work')
-                            }
-                            className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${attendanceStats?.remaining_online_work <= 0
-                              ? 'opacity-50 cursor-not-allowed border-gray-200'
-                              : selectedContext === 'online_work'
-                                ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
-                                : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
-                              }`}
-                          >
-                            <div className="flex items-start space-x-4">
-                              <div
-                                className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'online_work'
-                                  ? 'bg-purple-100 group-hover:bg-purple-200'
-                                  : 'bg-teal-50 group-hover:bg-teal-100'
-                                  }`}
-                              >
-                                <svg
-                                  className={`w-6 h-6 ${selectedContext === 'online_work'
-                                    ? 'text-purple-600'
-                                    : 'text-teal-600'
-                                    }`}
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                                  />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
-                                  Làm việc online
-                                </h4>
-                                <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                                  Đăng ký làm việc từ xa
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
+                                Đơn giải trình
+                              </h4>
+                              <p className="mt-1 text-sm text-gray-500 leading-relaxed">
+                                Giải trình các vi phạm hoặc lý do công việc (Còn {attendanceStats?.remaining_explanations || 0}/{attendanceStats?.max_explanations_per_month || 3} lần)
+                              </p>
+                              {!hasAttendanceData ? (
+                                <p className="mt-1 text-xs text-red-500">
+                                  Cần có dữ liệu chấm công để giải trình
                                 </p>
-                                {attendanceStats?.remaining_online_work <=
-                                  0 && (
-                                    <p className="mt-1 text-xs text-red-500">
-                                      Hết lượt đăng ký trong tháng
-                                    </p>
-                                  )}
-                              </div>
+                              ) : (
+                                (attendanceStats?.remaining_explanations || 0) <= 0 && (
+                                  <p className="mt-1 text-xs text-amber-600 font-medium italic">
+                                    Hết lượt giải trình vi phạm. (Công tác/Ngày đầu vẫn được duyệt)
+                                  </p>
+                                )
+                              )}
                             </div>
-                            {/* Selected indicator */}
-                            {selectedContext === 'online_work' && (
+                          </div>
+                          {/* Selected indicator */}
+                          {selectedContext === 'explanation' &&
+                            hasAttendanceData && (
                               <div className="absolute top-3 right-3">
                                 <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
                                   <svg
@@ -2733,212 +2623,26 @@ const AttendanceManagement: React.FC = () => {
                                 </div>
                               </div>
                             )}
-                          </button>
-                        )}
-                    </div>
-                  </div>
+                        </button>
 
-                  {/* === ReasonSelector (Step 2) === */}
-                  {selectedContext &&
-                    (selectedContext === 'explanation' ||
-                      selectedContext === 'registration') && (
-                      <div className="space-y-4 mb-6 animate-fadeIn">
-                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                          Chọn lý do cụ thể
-                        </h3>
-
-                        {/* Chip buttons - Render based on selected context */}
-                        <div className="flex flex-wrap gap-3">
-                          {(selectedContext === 'explanation'
-                            ? explanationReasons
-                            : registrationReasons
-                          ).map((reason) => {
-                            const isSelected = selectedReason === reason.id;
-                            return (
-                              <button
-                                key={reason.id}
-                                type="button"
-                                onClick={() => handleReasonSelect(reason.id)}
-                                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border-2 transition-all duration-150 ${isSelected
-                                  ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm'
-                                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                                  }`}
-                              >
-                                {renderIcon(reason.icon, isSelected)}
-                                {reason.label}
-                                {isSelected && (
-                                  <svg
-                                    className="w-4 h-4 ml-2 text-purple-500"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                  {/* === Time Info for Late/Early Leave === */}
-                  {selectedContext === 'explanation' &&
-                    (selectedReason === 'late_minutes' ||
-                      selectedReason === 'early_leave_minutes') && (
-                      <div className="space-y-4 mb-6 animate-fadeIn">
-                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                          Thông tin chấm công
-                        </h3>
-                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                          {attendanceDetails.length > 0 ? (
-                            <div className="space-y-3">
-                              {/* Time Info Grid - Responsive */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {/* Giờ đi */}
-                                <div className="bg-white rounded-lg p-3 border border-gray-100">
-                                  <div className="flex items-center space-x-2 mb-1">
-                                    <svg
-                                      className="w-4 h-4 text-green-500"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
-                                      />
-                                    </svg>
-                                    <span className="text-xs font-medium text-gray-500 uppercase">
-                                      Giờ đi
-                                    </span>
-                                  </div>
-                                  <p className="text-xl font-bold text-gray-900">
-                                    {attendanceDetails[0]?.check_in
-                                      ? new Date(
-                                        `2000-01-01T${attendanceDetails[0].check_in}`
-                                      ).toLocaleTimeString('vi-VN', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })
-                                      : '--:--'}
-                                  </p>
-                                </div>
-
-                                {/* Giờ về */}
-                                <div className="bg-white rounded-lg p-3 border border-gray-100">
-                                  <div className="flex items-center space-x-2 mb-1">
-                                    <svg
-                                      className="w-4 h-4 text-red-500"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                                      />
-                                    </svg>
-                                    <span className="text-xs font-medium text-gray-500 uppercase">
-                                      Giờ về
-                                    </span>
-                                  </div>
-                                  <p className="text-xl font-bold text-gray-900">
-                                    {attendanceDetails[0]?.check_out
-                                      ? new Date(
-                                        `2000-01-01T${attendanceDetails[0].check_out}`
-                                      ).toLocaleTimeString('vi-VN', {
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                      })
-                                      : '--:--'}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* Late/Early Minutes Info */}
-                              {selectedReason === 'late_minutes' &&
-                                attendanceDetails[0]?.late_minutes > 0 && (
-                                  <>
-                                    <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-2">
-                                          <svg
-                                            className="w-5 h-5 text-yellow-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth={2}
-                                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                            />
-                                          </svg>
-                                          <span className="text-sm font-medium text-yellow-800">
-                                            Số phút đi muộn
-                                          </span>
-                                        </div>
-                                        <span className="text-lg font-bold text-yellow-700">
-                                          {attendanceDetails[0].late_minutes}{' '}
-                                          phút
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                  </>
-                                )}
-
-                              {selectedReason === 'early_leave_minutes' &&
-                                attendanceDetails[0]?.early_leave_minutes >
-                                0 && (
-                                  <>
-                                    <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-2">
-                                          <svg
-                                            className="w-5 h-5 text-yellow-600"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              strokeWidth={2}
-                                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                                            />
-                                          </svg>
-                                          <span className="text-sm font-medium text-yellow-800">
-                                            Số phút về sớm
-                                          </span>
-                                        </div>
-                                        <span className="text-lg font-bold text-yellow-700">
-                                          {
-                                            attendanceDetails[0]
-                                              .early_leave_minutes
-                                          }{' '}
-                                          phút
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                  </>
-                                )}
-                            </div>
-                          ) : (
-                            <div className="text-center py-4 text-gray-500">
+                        {/* Card 2: Đơn đăng ký */}
+                        <button
+                          type="button"
+                          onClick={() => handleContextSelect('registration')}
+                          className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left ${selectedContext === 'registration'
+                            ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
+                            : 'border-gray-200 hover:border-purple-400'
+                            }`}
+                        >
+                          <div className="flex items-start space-x-4">
+                            <div
+                              className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'registration'
+                                ? 'bg-purple-100 group-hover:bg-purple-200'
+                                : 'bg-blue-50 group-hover:bg-blue-100'
+                                }`}
+                            >
                               <svg
-                                className="w-8 h-8 mx-auto mb-2 text-gray-400"
+                                className={`w-6 h-6 ${selectedContext === 'registration' ? 'text-purple-600' : 'text-blue-600'}`}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -2947,126 +2651,313 @@ const AttendanceManagement: React.FC = () => {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth={2}
-                                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
                                 />
                               </svg>
-                              <p className="text-sm">
-                                Không có dữ liệu chấm công cho ngày này
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
+                                Đơn đăng ký
+                              </h4>
+                              <p className="mt-1 text-sm text-gray-500 leading-relaxed">
+                                Tăng ca, làm thêm giờ, trực tối, làm tối, live
                               </p>
+                            </div>
+                          </div>
+                          {/* Selected indicator */}
+                          {selectedContext === 'registration' && (
+                            <div className="absolute top-3 right-3">
+                              <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
+                                <svg
+                                  className="w-3 h-3 text-white"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </div>
                             </div>
                           )}
-                        </div>
-                      </div>
-                    )}
+                        </button>
 
-                  {/* === Time Picker for Overtime (Tăng ca) === */}
-                  {selectedContext === 'registration' &&
-                    selectedReason === 'overtime' && (
-                      <div className="space-y-4 mb-6 animate-fadeIn">
-                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                          Thời gian tăng ca
-                        </h3>
+                        {/* Card 3: Nghỉ phép tháng */}
+                        {(() => {
+                          const maxMonthlyLeave = 1;
+                          const usedMonthlyLeave = monthlyRequestHistory?.leaveRequests?.length || 0;
+                          const remainingMonthlyLeave = Math.max(0, maxMonthlyLeave - usedMonthlyLeave);
 
-                        {/* Brand Communications reminder */}
-                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                          <div className="flex items-start space-x-2">
-                            <svg
-                              className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                          return (
+                            <button
+                              type="button"
+                              disabled={remainingMonthlyLeave <= 0}
+                              onClick={() => remainingMonthlyLeave > 0 && handleContextSelect('monthly_leave')}
+                              className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left
+      ${remainingMonthlyLeave <= 0
+                                  ? 'opacity-50 cursor-not-allowed border-gray-200'
+                                  : selectedContext === 'monthly_leave'
+                                    ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
+                                    : 'border-gray-200 hover:border-purple-400'
+                                }
+      ${!isManagementUser ? 'sm:col-span-2' : ''}
+    `}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                            <div>
-                              <span className="text-sm font-medium text-blue-800">
-                                Dành cho phòng ban tất cả nhân sự trừ Telesale
-                                và CSKH
-                              </span>
-                              <p className="text-xs text-blue-700 mt-1">
-                                Vui lòng nhập chính xác thời gian tăng ca để
-                                được tính công đầy đủ
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                          <div className="grid grid-cols-2 gap-4">
-                            {/* Giờ bắt đầu */}
-                            <div>
-                              <label
-                                htmlFor="overtime-start"
-                                className="block text-xs font-medium text-gray-500 uppercase mb-2"
-                              >
-                                Giờ bắt đầu
-                              </label>
-                              <input
-                                type="time"
-                                id="overtime-start"
-                                value={overtimeStartTime}
-                                onChange={(e) =>
-                                  setOvertimeStartTime(e.target.value)
-                                }
-                                className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
-                              />
-                            </div>
-
-                            {/* Giờ kết thúc */}
-                            <div>
-                              <label
-                                htmlFor="overtime-end"
-                                className="block text-xs font-medium text-gray-500 uppercase mb-2"
-                              >
-                                Giờ kết thúc
-                              </label>
-                              <input
-                                type="time"
-                                id="overtime-end"
-                                value={overtimeEndTime}
-                                onChange={(e) =>
-                                  setOvertimeEndTime(e.target.value)
-                                }
-                                className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Duration display */}
-                          {overtimeStartTime && overtimeEndTime && (
-                            <div className="mt-4">
-                              <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${overtimeDuration <= 0 || overtimeDuration < 2
-                                  ? 'border-red-300'
-                                  : 'border-gray-100'
-                                  }`}
-                              >
-                                <span className="text-sm text-gray-600">
-                                  Tổng thời gian:
-                                </span>
-                                <span
-                                  className={`text-lg font-bold ${overtimeDuration <= 0 ||
-                                    overtimeDuration < 2
-                                    ? 'text-red-600'
-                                    : 'text-purple-700'
+                              <div className="flex items-start space-x-4">
+                                <div
+                                  className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'monthly_leave'
+                                    ? 'bg-purple-100 group-hover:bg-purple-200'
+                                    : 'bg-indigo-50 group-hover:bg-indigo-100'
                                     }`}
                                 >
-                                  {overtimeDuration.toFixed(1)} giờ
-                                </span>
+                                  <svg
+                                    className={`w-6 h-6 ${selectedContext === 'monthly_leave' ? 'text-purple-600' : 'text-indigo-600'}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
+                                    Nghỉ phép tháng
+                                  </h4>
+                                  <p className="mt-1 text-sm text-gray-500 leading-relaxed">
+                                    Đăng ký nghỉ phép trong tháng (Còn {remainingMonthlyLeave}/{maxMonthlyLeave} lần)
+                                  </p>
+                                  {remainingMonthlyLeave <= 0 && (
+                                    <p className="mt-1 text-xs text-red-500">
+                                      Hết lượt đăng ký trong tháng
+                                    </p>
+                                  )}
+                                </div>
                               </div>
+                              {/* Selected indicator */}
+                              {selectedContext === 'monthly_leave' && (
+                                <div className="absolute top-3 right-3">
+                                  <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
+                                    <svg
+                                      className="w-3 h-3 text-white"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                  </div>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })()}
 
-                              {/* Validation error */}
-                              {selectedReason === 'overtime' &&
-                                registrationTimeError && (
-                                  <div className="mt-2 bg-red-50 rounded-lg p-3 border border-red-200">
-                                    <div className="flex items-center space-x-2">
+                        {/* Card 4: Làm việc online */}
+                        {isManagementUser && (() => {
+                          const maxOnline = attendanceStats?.max_online_work_per_month || 2;
+                          const usedOnline = (attendanceStats?.max_online_work_per_month || 0) - (attendanceStats?.remaining_online_work || 0);
+                          const remainingOnline = Math.max(0, maxOnline - usedOnline);
+
+                          return (
+                            <button
+                              type="button"
+                              disabled={remainingOnline <= 0}
+                              onClick={() =>
+                                remainingOnline > 0 &&
+                                handleContextSelect('online_work')
+                              }
+                              className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${remainingOnline <= 0
+                                ? 'opacity-50 cursor-not-allowed border-gray-200'
+                                : selectedContext === 'online_work'
+                                  ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
+                                  : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
+                                }`}
+                            >
+                              <div className="flex items-start space-x-4">
+                                <div
+                                  className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'online_work'
+                                    ? 'bg-purple-100 group-hover:bg-purple-200'
+                                    : 'bg-teal-50 group-hover:bg-teal-100'
+                                    }`}
+                                >
+                                  <svg
+                                    className={`w-6 h-6 ${selectedContext === 'online_work'
+                                      ? 'text-purple-600'
+                                      : 'text-teal-600'
+                                      }`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
+                                    Làm việc online
+                                  </h4>
+                                  <p className="mt-1 text-sm text-gray-500 leading-relaxed">
+                                    Đăng ký làm việc từ xa (Còn {remainingOnline}/{maxOnline} lần)
+                                  </p>
+                                  {remainingOnline <= 0 && (
+                                    <p className="mt-1 text-xs text-red-500">
+                                      Hết lượt đăng ký trong tháng
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              {/* Selected indicator */}
+                              {selectedContext === 'online_work' && (
+                                <div className="absolute top-3 right-3">
+                                  <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
+                                    <svg
+                                      className="w-3 h-3 text-white"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                  </div>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* === ReasonSelector (Step 2) === */}
+                    {selectedContext &&
+                      (selectedContext === 'explanation' ||
+                        selectedContext === 'registration') && (
+                        <div className="space-y-4 mb-6 animate-fadeIn">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                            Chọn lý do cụ thể
+                          </h3>
+
+                          {/* Chip buttons - Render based on selected context */}
+                          <div className="flex flex-wrap gap-3">
+                            {(() => {
+                              const reasons = selectedContext === 'explanation'
+                                ? explanationReasons
+                                : selectedContext === 'registration'
+                                  ? registrationReasons
+                                  : onlineWorkReasons;
+
+                              // Lọc lý do cho Đơn giải trình dựa trên thực tế chấm công
+                              if (selectedContext === 'explanation') {
+                                const detail = attendanceDetails[0];
+                                const isNoViolation = detail &&
+                                  detail.late_minutes <= 0 &&
+                                  detail.early_leave_minutes <= 0 &&
+                                  detail.status !== 'INCOMPLETE_ATTENDANCE' &&
+                                  detail.status !== 'ABSENT';
+
+                                return reasons.filter(reason => {
+                                  const alreadyExplained = (allExplanations || []).some(e => {
+                                    if (reason.id === 'late_minutes' && e.explanation_type === 'LATE') return true;
+                                    if (reason.id === 'early_leave_minutes' && e.explanation_type === 'EARLY_LEAVE') return true;
+                                    if (reason.id === 'incomplete_attendance' && e.explanation_type === 'INCOMPLETE_ATTENDANCE') return true;
+                                    return false;
+                                  });
+                                  if (alreadyExplained) return false;
+                                  const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
+
+                                  if (reason.id === 'late_minutes') return !isIncomplete && (detail?.late_minutes || 0) > 0;
+                                  if (reason.id === 'early_leave_minutes') return !isIncomplete && (detail?.early_leave_minutes || 0) > 0;
+                                  if (reason.id === 'incomplete_attendance') return isIncomplete;
+                                  // Công tác và Ngày đầu chỉ hiện khi Vắng mặt hoặc chưa có dữ liệu
+                                  if (['business_trip', 'first_day'].includes(reason.id)) {
+                                    return !detail || detail.status === 'ABSENT';
+                                  }
+                                  return true;
+                                });
+                              }
+                              return reasons;
+                            })().map((reason) => {
+                              const isSelected = selectedReason === reason.id;
+
+                              // Xác định xem lý do này có bị tính vào quota giải trình không (đối với context explanation)
+                              const isQuotaConsuming = selectedContext === 'explanation' &&
+                                ['late_minutes', 'early_leave_minutes', 'incomplete_attendance'].includes(reason.id);
+                              const isNonQuota = selectedContext === 'explanation' &&
+                                ['business_trip', 'first_day'].includes(reason.id);
+
+                              return (
+                                <div key={reason.id} className="relative group/chip">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReasonSelect(reason.id)}
+                                    className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border-2 transition-all duration-150 ${isSelected
+                                      ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm'
+                                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                                      } ${isNonQuota && !isSelected ? 'border-dashed border-indigo-200' : ''}`}
+                                  >
+                                    {renderIcon(reason.icon, isSelected)}
+                                    {reason.label}
+                                    {isSelected && (
                                       <svg
-                                        className="w-5 h-5 text-red-500"
+                                        className="w-4 h-4 ml-2 text-purple-500"
+                                        fill="currentColor"
+                                        viewBox="0 0 20 20"
+                                      >
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                    )}
+                                  </button>
+                                  {isNonQuota && (
+                                    <div className="absolute -top-2 -right-1 bg-indigo-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter opacity-0 group-hover/chip:opacity-100 transition-opacity whitespace-nowrap">
+                                      Không mất lượt giải trình
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* === Time Info for Late/Early Leave === */}
+                    {selectedContext === 'explanation' &&
+                      (selectedReason === 'late_minutes' ||
+                        selectedReason === 'early_leave_minutes') && (
+                        <div className="space-y-4 mb-6 animate-fadeIn">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                            Thông tin chấm công
+                          </h3>
+                          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            {attendanceDetails.length > 0 ? (
+                              <div className="space-y-3">
+                                {/* Time Info Grid - Responsive */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  {/* Giờ đi */}
+                                  <div className="bg-white rounded-lg p-3 border border-gray-100">
+                                    <div className="flex items-center space-x-2 mb-1">
+                                      <svg
+                                        className="w-4 h-4 text-green-500"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -3075,22 +2966,828 @@ const AttendanceManagement: React.FC = () => {
                                           strokeLinecap="round"
                                           strokeLinejoin="round"
                                           strokeWidth={2}
-                                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                          d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
                                         />
                                       </svg>
-                                      <span className="text-sm font-medium text-red-700">
-                                        {registrationTimeError}
+                                      <span className="text-xs font-medium text-gray-500 uppercase">
+                                        Giờ đi
                                       </span>
                                     </div>
+                                    <p className="text-xl font-bold text-gray-900">
+                                      {attendanceDetails[0]?.check_in
+                                        ? new Date(
+                                          `2000-01-01T${attendanceDetails[0].check_in}`
+                                        ).toLocaleTimeString('vi-VN', {
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })
+                                        : '--:--'}
+                                    </p>
+                                  </div>
+
+                                  {/* Giờ về */}
+                                  <div className="bg-white rounded-lg p-3 border border-gray-100">
+                                    <div className="flex items-center space-x-2 mb-1">
+                                      <svg
+                                        className="w-4 h-4 text-red-500"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                                        />
+                                      </svg>
+                                      <span className="text-xs font-medium text-gray-500 uppercase">
+                                        Giờ về
+                                      </span>
+                                    </div>
+                                    <p className="text-xl font-bold text-gray-900">
+                                      {attendanceDetails[0]?.check_out
+                                        ? new Date(
+                                          `2000-01-01T${attendanceDetails[0].check_out}`
+                                        ).toLocaleTimeString('vi-VN', {
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })
+                                        : '--:--'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Late/Early Minutes Info */}
+                                {selectedReason === 'late_minutes' &&
+                                  attendanceDetails[0]?.late_minutes > 0 && (
+                                    <>
+                                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center space-x-2">
+                                            <svg
+                                              className="w-5 h-5 text-yellow-600"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              viewBox="0 0 24 24"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                              />
+                                            </svg>
+                                            <span className="text-sm font-medium text-yellow-800">
+                                              Số phút đi muộn
+                                            </span>
+                                          </div>
+                                          <span className="text-lg font-bold text-yellow-700">
+                                            {attendanceDetails[0].late_minutes}{' '}
+                                            phút
+                                          </span>
+                                        </div>
+                                        {penaltyAmount > 0 && (
+                                          <div className="mt-2 pt-2 border-t border-yellow-200 space-y-1">
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-xs font-bold text-red-600 uppercase tracking-tighter">Số tiền phạt:</span>
+                                              <span className="text-sm font-black text-red-700">
+                                                {(attendanceDetails[0].late_penalty || 0).toLocaleString('vi-VN')} VNĐ
+                                              </span>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                    </>
+                                  )}
+
+                                {selectedReason === 'early_leave_minutes' &&
+                                  attendanceDetails[0]?.early_leave_minutes >
+                                  0 && (
+                                    <>
+                                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center space-x-2">
+                                            <svg
+                                              className="w-5 h-5 text-yellow-600"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              viewBox="0 0 24 24"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                              />
+                                            </svg>
+                                            <span className="text-sm font-medium text-yellow-800">
+                                              Số phút về sớm
+                                            </span>
+                                          </div>
+                                          <span className="text-lg font-bold text-yellow-700">
+                                            {
+                                              attendanceDetails[0]
+                                                .early_leave_minutes
+                                            }{' '}
+                                            phút
+                                          </span>
+                                        </div>
+                                        {penaltyAmount > 0 && (
+                                          <div className="mt-2 pt-2 border-t border-yellow-200 space-y-1">
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-xs font-bold text-red-600 uppercase tracking-tighter">Số tiền phạt:</span>
+                                              <span className="text-sm font-black text-red-700">
+                                                {(attendanceDetails[0].early_leave_penalty || 0).toLocaleString('vi-VN')} VNĐ
+                                              </span>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                    </>
+                                  )}
+                              </div>
+                            ) : (
+                              <div className="text-center py-4 text-gray-500">
+                                <svg
+                                  className="w-8 h-8 mx-auto mb-2 text-gray-400"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  />
+                                </svg>
+                                <p className="text-sm">
+                                  Không có dữ liệu chấm công cho ngày này
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* === Note Input for Late/Early Leave === */}
+                    {selectedContext === 'explanation' &&
+                      (selectedReason === 'late_minutes' ||
+                        selectedReason === 'early_leave_minutes') && (
+                        <div className="space-y-3 mb-6 animate-fadeIn">
+                          <label
+                            htmlFor="explanation-note"
+                            className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
+                          >
+                            Ghi chú giải trình
+                          </label>
+                          <textarea
+                            id="explanation-note"
+                            rows={3}
+                            value={formNote}
+                            onChange={(e) => setFormNote(e.target.value)}
+                            placeholder="Nhập lý do đi muộn/về sớm cụ thể..."
+                            className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                          />
+                        </div>
+                      )}
+
+                    {/* === Time Picker for Overtime (Tăng ca) === */}
+                    {selectedContext === 'registration' &&
+                      selectedReason === 'overtime' && (
+                        <div className="space-y-4 mb-6 animate-fadeIn">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                            Thời gian tăng ca
+                          </h3>
+
+                          {/* Brand Communications reminder */}
+                          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                            <div className="flex items-start space-x-2">
+                              <svg
+                                className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              <div>
+                                <span className="text-sm font-medium text-blue-800">
+                                  Dành cho phòng ban tất cả nhân sự trừ Telesale
+                                  và CSKH
+                                </span>
+                                <p className="text-xs text-blue-700 mt-1">
+                                  Vui lòng nhập chính xác thời gian tăng ca để
+                                  được tính công đầy đủ
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <div className="grid grid-cols-2 gap-4">
+                              {/* Giờ bắt đầu */}
+                              <div>
+                                <label
+                                  htmlFor="overtime-start"
+                                  className="block text-xs font-medium text-gray-500 uppercase mb-2"
+                                >
+                                  Giờ bắt đầu
+                                </label>
+                                <input
+                                  type="time"
+                                  id="overtime-start"
+                                  value={overtimeStartTime}
+                                  onChange={(e) =>
+                                    setOvertimeStartTime(e.target.value)
+                                  }
+                                  className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
+                                />
+                              </div>
+
+                              {/* Giờ kết thúc */}
+                              <div>
+                                <label
+                                  htmlFor="overtime-end"
+                                  className="block text-xs font-medium text-gray-500 uppercase mb-2"
+                                >
+                                  Giờ kết thúc
+                                </label>
+                                <input
+                                  type="time"
+                                  id="overtime-end"
+                                  value={overtimeEndTime}
+                                  onChange={(e) =>
+                                    setOvertimeEndTime(e.target.value)
+                                  }
+                                  className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Duration display */}
+                            {overtimeStartTime && overtimeEndTime && (
+                              <div className="mt-4">
+                                <div
+                                  className={`flex items-center justify-between bg-white rounded-lg p-3 border ${overtimeDuration <= 0 || overtimeDuration < 2
+                                    ? 'border-red-300'
+                                    : 'border-gray-100'
+                                    }`}
+                                >
+                                  <span className="text-sm text-gray-600">
+                                    Tổng thời gian:
+                                  </span>
+                                  <span
+                                    className={`text-lg font-bold ${overtimeDuration <= 0 ||
+                                      overtimeDuration < 2
+                                      ? 'text-red-600'
+                                      : 'text-purple-700'
+                                      }`}
+                                  >
+                                    {overtimeDuration.toFixed(1)} giờ
+                                  </span>
+                                </div>
+
+                                {/* Validation error */}
+                                {selectedReason === 'overtime' &&
+                                  registrationTimeError && (
+                                    <div className="mt-2 bg-red-50 rounded-lg p-3 border border-red-200">
+                                      <div className="flex items-center space-x-2">
+                                        <svg
+                                          className="w-5 h-5 text-red-500"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                          />
+                                        </svg>
+                                        <span className="text-sm font-medium text-red-700">
+                                          {registrationTimeError}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                {/* Night work bonus indicator */}
+                                {overtimeDuration >= 3 && (
+                                  <div className="mt-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-3 border border-indigo-200">
+                                    <div className="flex items-center space-x-2">
+                                      <svg
+                                        className="w-5 h-5 text-indigo-600"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                                        />
+                                      </svg>
+                                      <span className="text-sm font-semibold text-indigo-700">
+                                        Tính 1 suất làm tối
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-indigo-600 mt-1 ml-7">
+                                      Thời gian tăng ca từ 3 giờ trở lên được tính
+                                      1 suất làm tối
+                                    </p>
                                   </div>
                                 )}
+                              </div>
+                            )}
 
-                              {/* Night work bonus indicator */}
-                              {overtimeDuration >= 3 && (
-                                <div className="mt-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-3 border border-indigo-200">
+                            {/* Note input for Overtime */}
+                            <div className="mt-4 space-y-2">
+                              <label
+                                htmlFor="overtime-note"
+                                className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                              >
+                                Ghi chú tăng ca
+                              </label>
+                              <textarea
+                                id="overtime-note"
+                                rows={3}
+                                value={formNote}
+                                onChange={(e) => setFormNote(e.target.value)}
+                                placeholder="Nhập ghi chú, lý do tăng ca chi tiết..."
+                                className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                    {/* === Time Picker for Extra Hours (Làm thêm giờ) - Part-time === */}
+                    {selectedContext === 'registration' &&
+                      selectedReason === 'extra_hours' && (
+                        <div className="space-y-4 mb-6 animate-fadeIn">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                            Thời gian làm thêm giờ
+                          </h3>
+
+                          {/* Part-time reminder */}
+                          <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+                            <div className="flex items-start space-x-2">
+                              <svg
+                                className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              <div>
+                                <span className="text-sm font-medium text-amber-800">
+                                  Dành cho nhân viên vị trí giám sát nội bộ
+                                  Part-time
+                                </span>
+                                <p className="text-xs text-amber-700 mt-1">
+                                  Vui lòng nhập chính xác thời gian làm thêm để
+                                  được tính công đầy đủ
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <div className="grid grid-cols-2 gap-4">
+                              {/* Giờ bắt đầu */}
+                              <div>
+                                <label
+                                  htmlFor="extra-hours-start"
+                                  className="block text-xs font-medium text-gray-500 uppercase mb-2"
+                                >
+                                  Giờ bắt đầu
+                                </label>
+                                <input
+                                  type="time"
+                                  id="extra-hours-start"
+                                  value={extraHoursStartTime}
+                                  onChange={(e) =>
+                                    setExtraHoursStartTime(e.target.value)
+                                  }
+                                  className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
+                                />
+                              </div>
+
+                              {/* Giờ kết thúc */}
+                              <div>
+                                <label
+                                  htmlFor="extra-hours-end"
+                                  className="block text-xs font-medium text-gray-500 uppercase mb-2"
+                                >
+                                  Giờ kết thúc
+                                </label>
+                                <input
+                                  type="time"
+                                  id="extra-hours-end"
+                                  value={extraHoursEndTime}
+                                  onChange={(e) =>
+                                    setExtraHoursEndTime(e.target.value)
+                                  }
+                                  className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Duration display */}
+                            {extraHoursStartTime && extraHoursEndTime && (
+                              <div className="mt-4">
+                                <div
+                                  className={`flex items-center justify-between bg-white rounded-lg p-3 border ${extraHoursDuration <= 0 ||
+                                    extraHoursDuration < 2
+                                    ? 'border-red-300'
+                                    : 'border-gray-100'
+                                    }`}
+                                >
+                                  <span className="text-sm text-gray-600">
+                                    Tổng thời gian làm thêm:
+                                  </span>
+                                  <span
+                                    className={`text-lg font-bold ${extraHoursDuration <= 0 ||
+                                      extraHoursDuration < 2
+                                      ? 'text-red-600'
+                                      : 'text-purple-700'
+                                      }`}
+                                  >
+                                    {extraHoursDuration.toFixed(1)} giờ
+                                  </span>
+                                </div>
+
+                                {/* Validation error */}
+                                {selectedReason === 'extra_hours' &&
+                                  registrationTimeError && (
+                                    <div className="mt-2 bg-red-50 rounded-lg p-3 border border-red-200">
+                                      <div className="flex items-center space-x-2">
+                                        <svg
+                                          className="w-5 h-5 text-red-500"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                          />
+                                        </svg>
+                                        <span className="text-sm font-medium text-red-700">
+                                          {registrationTimeError}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
+                            )}
+
+                            {/* Note input for Extra Hours */}
+                            <div className="mt-4 space-y-2">
+                              <label
+                                htmlFor="extra-hours-note"
+                                className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                              >
+                                Ghi chú làm thêm giờ
+                              </label>
+                              <textarea
+                                id="extra-hours-note"
+                                rows={3}
+                                value={formNote}
+                                onChange={(e) => setFormNote(e.target.value)}
+                                placeholder="Nhập ghi chú, lý do làm thêm giờ..."
+                                className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                    {/* === Time Picker for Home Duty (Trực tại nhà) - Sales Department === */}
+                    {selectedContext === 'registration' &&
+                      selectedReason === 'night_shift' && (
+                        <div className="space-y-4 mb-6 animate-fadeIn">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                            Thời gian trực tại nhà
+                          </h3>
+
+                          {/* Sales Department reminder */}
+                          <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                            <div className="flex items-start space-x-2">
+                              <svg
+                                className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                                />
+                              </svg>
+                              <div>
+                                <span className="text-sm font-medium text-emerald-800">
+                                  Dành cho vị trí Telesale và CSKH
+                                </span>
+                                <p className="text-xs text-emerald-700 mt-1">
+                                  Ca sáng: 8h30 - 12h | Ca chiều tối: 17h30 - 23h
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Preset Ca */}
+                          <div>
+                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                              Chọn nhanh ca trực
+                            </h4>
+                            <div className="grid grid-cols-1 gap-2">
+                              {[
+                                {
+                                  label: 'Ca chiều tối',
+                                  time: '13h → 21h',
+                                  start: '13:00',
+                                  end: '21:00',
+                                  color: 'indigo',
+                                  icon: '🏢',
+                                },
+                                {
+                                  label: 'Ca gãy',
+                                  time: '8h30→12h + 17h30→23h',
+                                  start: '08:30',
+                                  end: '23:00',
+                                  color: 'purple',
+                                  icon: '🔀',
+                                },
+                              ].map((preset) => {
+                                const isSelected =
+                                  nightShiftStartTime === preset.start &&
+                                  nightShiftEndTime === preset.end;
+                                const colorMap: Record<string, { card: string; badge: string; dot: string }> = {
+                                  blue: {
+                                    card: isSelected
+                                      ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                      : 'bg-white border-blue-200 text-gray-700 hover:border-blue-400 hover:bg-blue-50',
+                                    badge: isSelected ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-700',
+                                    dot: 'bg-blue-400',
+                                  },
+                                  indigo: {
+                                    card: isSelected
+                                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
+                                      : 'bg-white border-indigo-200 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50',
+                                    badge: isSelected ? 'bg-indigo-500 text-white' : 'bg-indigo-50 text-indigo-700',
+                                    dot: 'bg-indigo-400',
+                                  },
+                                  purple: {
+                                    card: isSelected
+                                      ? 'bg-purple-600 border-purple-600 text-white shadow-md'
+                                      : 'bg-white border-purple-200 text-gray-700 hover:border-purple-400 hover:bg-purple-50',
+                                    badge: isSelected ? 'bg-purple-500 text-white' : 'bg-purple-50 text-purple-700',
+                                    dot: 'bg-purple-400',
+                                  },
+                                };
+                                const c = colorMap[preset.color];
+                                return (
+                                  <button
+                                    key={preset.start}
+                                    type="button"
+                                    onClick={() => {
+                                      setNightShiftStartTime(preset.start);
+                                      setNightShiftEndTime(preset.end);
+                                    }}
+                                    className={`flex items-center justify-between w-full px-4 py-3 rounded-xl border-2 transition-all font-medium ${c.card} ${isSelected ? 'scale-[1.01]' : ''}`}
+                                  >
+                                    <div className="flex items-center gap-2.5">
+                                      <span className="text-lg">{preset.icon}</span>
+                                      <div className="text-left">
+                                        <div className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-gray-800'}`}>{preset.label}</div>
+                                      </div>
+                                    </div>
+                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${c.badge}`}>
+                                      {preset.time}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+
+                          {/* Duration display */}
+                          {nightShiftStartTime && nightShiftEndTime && (
+                            <div className={`flex items-center justify-between bg-white rounded-xl border px-4 py-3 ${nightShiftDuration <= 0 || nightShiftDuration < 2 ? 'border-red-300' : 'border-gray-200'}`}>
+                              <span className="text-sm text-gray-600">Tổng thời gian trực:</span>
+                              <span className={`text-lg font-bold ${nightShiftDuration <= 0 || nightShiftDuration < 2 ? 'text-red-600' : 'text-purple-700'}`}>
+                                {nightShiftDuration.toFixed(1)} giờ
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Note input for Night Shift */}
+                          <div className="mt-2 space-y-2">
+                            <label
+                              htmlFor="night-shift-note"
+                              className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                            >
+                              Ghi chú trực tối
+                            </label>
+                            <textarea
+                              id="night-shift-note"
+                              rows={3}
+                              value={formNote}
+                              onChange={(e) => setFormNote(e.target.value)}
+                              placeholder="Nhập ghi chú, ca trực cụ thể..."
+                              className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                            />
+                          </div>
+
+                          {/* Validation error */}
+                          {selectedReason === 'night_shift' && registrationTimeError && (
+                            <div className="bg-red-50 rounded-lg p-3 border border-red-200">
+                              <div className="flex items-center space-x-2">
+                                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="text-sm font-medium text-red-700">{registrationTimeError}</span>
+                              </div>
+                            </div>
+                          )}
+
+                        </div>
+                      )}
+
+                    {/* === Time Picker for Live - TikTok Department === */}
+                    {selectedContext === 'registration' &&
+                      selectedReason === 'live' && (
+                        <div className="space-y-4 mb-6 animate-fadeIn">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                            Thời gian Live
+                          </h3>
+
+                          {/* TikTok Department reminder */}
+                          <div className="bg-pink-50 rounded-lg p-3 border border-pink-200">
+                            <div className="flex items-start space-x-2">
+                              <svg
+                                className="w-5 h-5 text-pink-600 mt-0.5 flex-shrink-0"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                />
+                              </svg>
+                              <div>
+                                <span className="text-sm font-medium text-pink-800">
+                                  Dành cho phòng ban TikTok, Truyền thông thương
+                                  hiệu, Kinh doanh
+                                </span>
+                                <p className="text-xs text-pink-700 mt-1">
+                                  Live sau 21h không được vượt quá 20% tổng số
+                                  live của Team. Tối đa ≤10 phiên live Team trong
+                                  tháng.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <div className="grid grid-cols-2 gap-4">
+                              {/* Giờ bắt đầu */}
+                              <div>
+                                <label
+                                  htmlFor="live-start"
+                                  className="block text-xs font-medium text-gray-500 uppercase mb-2"
+                                >
+                                  Giờ bắt đầu
+                                </label>
+                                <input
+                                  type="time"
+                                  id="live-start"
+                                  value={liveStartTime}
+                                  onChange={(e) =>
+                                    setLiveStartTime(e.target.value)
+                                  }
+                                  className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
+                                />
+                              </div>
+
+                              {/* Giờ kết thúc */}
+                              <div>
+                                <label
+                                  htmlFor="live-end"
+                                  className="block text-xs font-medium text-gray-500 uppercase mb-2"
+                                >
+                                  Giờ kết thúc
+                                </label>
+                                <input
+                                  type="time"
+                                  id="live-end"
+                                  value={liveEndTime}
+                                  onChange={(e) => setLiveEndTime(e.target.value)}
+                                  className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Duration display */}
+                            {liveStartTime && liveEndTime && (
+                              <div className="mt-4">
+                                <div
+                                  className={`flex items-center justify-between bg-white rounded-lg p-3 border ${liveDuration <= 0 || liveDuration < 2
+                                    ? 'border-red-300'
+                                    : 'border-gray-100'
+                                    }`}
+                                >
+                                  <span className="text-sm text-gray-600">
+                                    Tổng thời gian live:
+                                  </span>
+                                  <span
+                                    className={`text-lg font-bold ${liveDuration <= 0 || liveDuration < 2
+                                      ? 'text-red-600'
+                                      : 'text-purple-700'
+                                      }`}
+                                  >
+                                    {liveDuration.toFixed(1)} giờ
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Note input for Live */}
+                            <div className="mt-4 space-y-2">
+                              <label
+                                htmlFor="live-note"
+                                className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                              >
+                                Ghi chú live
+                              </label>
+                              <textarea
+                                id="live-note"
+                                rows={3}
+                                value={formNote}
+                                onChange={(e) => setFormNote(e.target.value)}
+                                placeholder="Nhập ghi chú, phiên live cụ thể..."
+                                className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                              />
+                            </div>
+
+                            {liveStartTime && liveEndTime && (
+                              <>
+                                {/* Validation error */}
+                                {selectedReason === 'live' &&
+                                  registrationTimeError && (
+                                    <div className="mt-2 bg-red-50 rounded-lg p-3 border border-red-200">
+                                      <div className="flex items-center space-x-2">
+                                        <svg
+                                          className="w-5 h-5 text-red-500"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                          />
+                                        </svg>
+                                        <span className="text-sm font-medium text-red-700">
+                                          {registrationTimeError}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                {/* Night live session indicator */}
+                                <div className="mt-3 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-3 border border-pink-200">
                                   <div className="flex items-center space-x-2">
                                     <svg
-                                      className="w-5 h-5 text-indigo-600"
+                                      className="w-5 h-5 text-pink-600"
                                       fill="none"
                                       stroke="currentColor"
                                       viewBox="0 0 24 24"
@@ -3102,946 +3799,447 @@ const AttendanceManagement: React.FC = () => {
                                         d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
                                       />
                                     </svg>
-                                    <span className="text-sm font-semibold text-indigo-700">
-                                      Tính 1 suất làm tối
+                                    <span className="text-sm font-semibold text-pink-700">
+                                      Tính 1 ca live tối
                                     </span>
                                   </div>
-                                  <p className="text-xs text-indigo-600 mt-1 ml-7">
-                                    Thời gian tăng ca từ 3 giờ trở lên được tính
-                                    1 suất làm tối
+                                  <p className="text-xs text-pink-600 mt-1 ml-7">
+                                    Phiên live sau 21h được tính là 1 ca live tối
                                   </p>
                                 </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Note input for Overtime */}
-                          <div className="mt-4 space-y-2">
-                            <label
-                              htmlFor="overtime-note"
-                              className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
-                            >
-                              Ghi chú tăng ca
-                            </label>
-                            <textarea
-                              id="overtime-note"
-                              rows={3}
-                              value={formNote}
-                              onChange={(e) => setFormNote(e.target.value)}
-                              placeholder="Nhập ghi chú, lý do tăng ca chi tiết..."
-                              className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
-                            />
+                              </>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                  {/* === Time Picker for Extra Hours (Làm thêm giờ) - Part-time === */}
-                  {selectedContext === 'registration' &&
-                    selectedReason === 'extra_hours' && (
-                      <div className="space-y-4 mb-6 animate-fadeIn">
-                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                          Thời gian làm thêm giờ
-                        </h3>
-
-                        {/* Part-time reminder */}
-                        <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
-                          <div className="flex items-start space-x-2">
-                            <svg
-                              className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                            <div>
-                              <span className="text-sm font-medium text-amber-800">
-                                Dành cho nhân viên vị trí giám sát nội bộ
-                                Part-time
-                              </span>
-                              <p className="text-xs text-amber-700 mt-1">
-                                Vui lòng nhập chính xác thời gian làm thêm để
-                                được tính công đầy đủ
-                              </p>
-                            </div>
-                          </div>
+                    {/* === Note Input for First Day === */}
+                    {selectedContext === 'explanation' &&
+                      selectedReason === 'first_day' && (
+                        <div className="space-y-3 mb-6 animate-fadeIn">
+                          <label
+                            htmlFor="first-day-note"
+                            className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
+                          >
+                            Ghi chú
+                          </label>
+                          <textarea
+                            id="first-day-note"
+                            rows={4}
+                            value={formNote}
+                            onChange={(e) => setFormNote(e.target.value)}
+                            placeholder="Nhập ghi chú về ngày đầu đi làm..."
+                            className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
+                          />
+                          <p className="text-xs text-gray-500">
+                            Vui lòng mô tả chi tiết về ngày đầu đi làm (ví dụ:
+                            chưa được cấp thẻ, chưa đăng ký vân tay...)
+                          </p>
                         </div>
+                      )}
 
-                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                          <div className="grid grid-cols-2 gap-4">
-                            {/* Giờ bắt đầu */}
-                            <div>
-                              <label
-                                htmlFor="extra-hours-start"
-                                className="block text-xs font-medium text-gray-500 uppercase mb-2"
-                              >
-                                Giờ bắt đầu
-                              </label>
-                              <input
-                                type="time"
-                                id="extra-hours-start"
-                                value={extraHoursStartTime}
-                                onChange={(e) =>
-                                  setExtraHoursStartTime(e.target.value)
-                                }
-                                className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
-                              />
-                            </div>
-
-                            {/* Giờ kết thúc */}
-                            <div>
-                              <label
-                                htmlFor="extra-hours-end"
-                                className="block text-xs font-medium text-gray-500 uppercase mb-2"
-                              >
-                                Giờ kết thúc
-                              </label>
-                              <input
-                                type="time"
-                                id="extra-hours-end"
-                                value={extraHoursEndTime}
-                                onChange={(e) =>
-                                  setExtraHoursEndTime(e.target.value)
-                                }
-                                className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Duration display */}
-                          {extraHoursStartTime && extraHoursEndTime && (
-                            <div className="mt-4">
-                              <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${extraHoursDuration <= 0 ||
-                                  extraHoursDuration < 2
-                                  ? 'border-red-300'
-                                  : 'border-gray-100'
-                                  }`}
-                              >
-                                <span className="text-sm text-gray-600">
-                                  Tổng thời gian làm thêm:
-                                </span>
-                                <span
-                                  className={`text-lg font-bold ${extraHoursDuration <= 0 ||
-                                    extraHoursDuration < 2
-                                    ? 'text-red-600'
-                                    : 'text-purple-700'
-                                    }`}
-                                >
-                                  {extraHoursDuration.toFixed(1)} giờ
-                                </span>
-                              </div>
-
-                              {/* Validation error */}
-                              {selectedReason === 'extra_hours' &&
-                                registrationTimeError && (
-                                  <div className="mt-2 bg-red-50 rounded-lg p-3 border border-red-200">
-                                    <div className="flex items-center space-x-2">
-                                      <svg
-                                        className="w-5 h-5 text-red-500"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                      </svg>
-                                      <span className="text-sm font-medium text-red-700">
-                                        {registrationTimeError}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-                            </div>
-                          )}
-
-                          {/* Note input for Extra Hours */}
-                          <div className="mt-4 space-y-2">
-                            <label
-                              htmlFor="extra-hours-note"
-                              className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
-                            >
-                              Ghi chú làm thêm giờ
-                            </label>
-                            <textarea
-                              id="extra-hours-note"
-                              rows={3}
-                              value={formNote}
-                              onChange={(e) => setFormNote(e.target.value)}
-                              placeholder="Nhập ghi chú, lý do làm thêm giờ..."
-                              className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
-                            />
-                          </div>
+                    {/* === Note Input for Business Trip === */}
+                    {selectedContext === 'explanation' &&
+                      selectedReason === 'business_trip' && (
+                        <div className="space-y-3 mb-6 animate-fadeIn">
+                          <label
+                            htmlFor="business-trip-note"
+                            className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
+                          >
+                            Ghi chú
+                          </label>
+                          <textarea
+                            id="business-trip-note"
+                            rows={4}
+                            value={formNote}
+                            onChange={(e) => setFormNote(e.target.value)}
+                            placeholder="Nhập ghi chú về chuyến công tác..."
+                            className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
+                          />
+                          <p className="text-xs text-gray-500">
+                            Vui lòng mô tả chi tiết về chuyến công tác (ví dụ: địa
+                            điểm, mục đích, thời gian...)
+                          </p>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                  {/* === Time Picker for Home Duty (Trực tại nhà) - Sales Department === */}
-                  {selectedContext === 'registration' &&
-                    selectedReason === 'night_shift' && (
-                      <div className="space-y-4 mb-6 animate-fadeIn">
-                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                          Thời gian trực tại nhà
-                        </h3>
-
-                        {/* Sales Department reminder */}
-                        <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
-                          <div className="flex items-start space-x-2">
-                            <svg
-                              className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                              />
-                            </svg>
-                            <div>
-                              <span className="text-sm font-medium text-emerald-800">
-                                Dành cho vị trí Telesale và CSKH
-                              </span>
-                              <p className="text-xs text-emerald-700 mt-1">
-                                Ca sáng: 8h30 - 12h | Ca chiều tối: 17h30 - 23h
-                              </p>
-                            </div>
-                          </div>
+                    {/* === Note Input for Online Work === */}
+                    {selectedContext === 'online_work' &&
+                      selectedReason === 'online_work' && (
+                        <div className="space-y-3 mb-6 animate-fadeIn">
+                          <label
+                            htmlFor="online-work-note"
+                            className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
+                          >
+                            Ghi chú làm việc online
+                          </label>
+                          <textarea
+                            id="online-work-note"
+                            rows={4}
+                            value={formNote}
+                            onChange={(e) => setFormNote(e.target.value)}
+                            placeholder="Nhập ghi chú về ca làm việc online (VD: nội dung công việc, kết quả dự kiến...)"
+                            className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
+                          />
+                          <p className="text-xs text-gray-500">
+                            Mô tả chi tiết để quản lý xem xét phê duyệt đơn làm
+                            việc online của bạn.
+                          </p>
                         </div>
+                      )}
 
-                        {/* Preset Ca */}
-                        <div>
-                          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
-                            Chọn nhanh ca trực
-                          </h4>
-                          <div className="grid grid-cols-1 gap-2">
+                    {/* === Detailed Options for Incomplete Attendance === */}
+                    {selectedContext === 'explanation' &&
+                      selectedReason === 'incomplete_attendance' && (
+                        <div className="space-y-4 mb-6 animate-fadeIn">
+
+                          {/* Tiêu đề */}
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-1 h-5 bg-purple-500 rounded-full"></div>
+                            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+                              Bạn quên chấm công lúc nào?
+                            </h3>
+                          </div>
+
+                          {/* Bước 1: 3 card lựa chọn */}
+                          <div className="grid grid-cols-3 gap-2">
                             {[
                               {
-                                label: 'Ca chiều tối',
-                                time: '13h → 21h',
-                                start: '13:00',
-                                end: '21:00',
-                                color: 'indigo',
-                                icon: '🏢',
+                                id: 'checkin',
+                                label: 'Quên\nCheck-in',
+                                icon: (
+                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5-4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                  </svg>
+                                ),
+                                activeColor: 'bg-purple-600 border-purple-600 text-white shadow-lg',
+                                inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50',
+                                dotColor: 'bg-purple-500',
                               },
                               {
-                                label: 'Ca gãy',
-                                time: '8h30→12h + 17h30→23h',
-                                start: '08:30',
-                                end: '23:00',
-                                color: 'purple',
-                                icon: '🔀',
+                                id: 'checkout',
+                                label: 'Quên\nCheck-out',
+                                icon: (
+                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                  </svg>
+                                ),
+                                activeColor: 'bg-orange-500 border-orange-500 text-white shadow-lg',
+                                inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-orange-300 hover:bg-orange-50',
+                                dotColor: 'bg-orange-500',
                               },
-                            ].map((preset) => {
-                              const isSelected =
-                                nightShiftStartTime === preset.start &&
-                                nightShiftEndTime === preset.end;
-                              const colorMap: Record<string, { card: string; badge: string; dot: string }> = {
-                                blue: {
-                                  card: isSelected
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                                    : 'bg-white border-blue-200 text-gray-700 hover:border-blue-400 hover:bg-blue-50',
-                                  badge: isSelected ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-700',
-                                  dot: 'bg-blue-400',
-                                },
-                                indigo: {
-                                  card: isSelected
-                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md'
-                                    : 'bg-white border-indigo-200 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50',
-                                  badge: isSelected ? 'bg-indigo-500 text-white' : 'bg-indigo-50 text-indigo-700',
-                                  dot: 'bg-indigo-400',
-                                },
-                                purple: {
-                                  card: isSelected
-                                    ? 'bg-purple-600 border-purple-600 text-white shadow-md'
-                                    : 'bg-white border-purple-200 text-gray-700 hover:border-purple-400 hover:bg-purple-50',
-                                  badge: isSelected ? 'bg-purple-500 text-white' : 'bg-purple-50 text-purple-700',
-                                  dot: 'bg-purple-400',
-                                },
-                              };
-                              const c = colorMap[preset.color];
+                              {
+                                id: 'both',
+                                label: 'Cả\nhai',
+                                icon: (
+                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                  </svg>
+                                ),
+                                activeColor: 'bg-gradient-to-br from-purple-600 to-orange-500 border-transparent text-white shadow-lg',
+                                inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50',
+                                dotColor: 'bg-purple-500',
+                              },
+                            ].map((type) => {
+                              const isActive = forgotPunchType === type.id;
                               return (
                                 <button
-                                  key={preset.start}
+                                  key={type.id}
                                   type="button"
                                   onClick={() => {
-                                    setNightShiftStartTime(preset.start);
-                                    setNightShiftEndTime(preset.end);
+                                    setForgotPunchType(type.id as any);
+                                    setForgotCheckinTime(null);
+                                    setForgotCheckoutTime(null);
                                   }}
-                                  className={`flex items-center justify-between w-full px-4 py-3 rounded-xl border-2 transition-all font-medium ${c.card} ${isSelected ? 'scale-[1.01]' : ''}`}
+                                  className={`relative flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl border-2 transition-all duration-200 font-semibold ${isActive ? type.activeColor : type.inactiveColor} ${isActive ? 'scale-[1.03]' : ''}`}
                                 >
-                                  <div className="flex items-center gap-2.5">
-                                    <span className="text-lg">{preset.icon}</span>
-                                    <div className="text-left">
-                                      <div className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-gray-800'}`}>{preset.label}</div>
-                                    </div>
-                                  </div>
-                                  <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${c.badge}`}>
-                                    {preset.time}
+                                  {isActive && (
+                                    <span className="absolute top-2 right-2 w-4 h-4 bg-white bg-opacity-30 rounded-full flex items-center justify-center">
+                                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                      </svg>
+                                    </span>
+                                  )}
+                                  <span className={`${isActive ? 'text-white opacity-90' : 'text-gray-400'}`}>{type.icon}</span>
+                                  <span className={`text-xs font-bold text-center leading-tight whitespace-pre-line ${isActive ? 'text-white' : 'text-gray-700'}`}>
+                                    {type.label}
                                   </span>
                                 </button>
                               );
                             })}
                           </div>
-                        </div>
 
-
-                        {/* Duration display */}
-                        {nightShiftStartTime && nightShiftEndTime && (
-                          <div className={`flex items-center justify-between bg-white rounded-xl border px-4 py-3 ${nightShiftDuration <= 0 || nightShiftDuration < 2 ? 'border-red-300' : 'border-gray-200'}`}>
-                            <span className="text-sm text-gray-600">Tổng thời gian trực:</span>
-                            <span className={`text-lg font-bold ${nightShiftDuration <= 0 || nightShiftDuration < 2 ? 'text-red-600' : 'text-purple-700'}`}>
-                              {nightShiftDuration.toFixed(1)} giờ
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Note input for Night Shift */}
-                        <div className="mt-2 space-y-2">
-                          <label
-                            htmlFor="night-shift-note"
-                            className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
-                          >
-                            Ghi chú trực tối
-                          </label>
-                          <textarea
-                            id="night-shift-note"
-                            rows={3}
-                            value={formNote}
-                            onChange={(e) => setFormNote(e.target.value)}
-                            placeholder="Nhập ghi chú, ca trực cụ thể..."
-                            className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
-                          />
-                        </div>
-
-                        {/* Validation error */}
-                        {selectedReason === 'night_shift' && registrationTimeError && (
-                          <div className="bg-red-50 rounded-lg p-3 border border-red-200">
-                            <div className="flex items-center space-x-2">
-                              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <span className="text-sm font-medium text-red-700">{registrationTimeError}</span>
-                            </div>
-                          </div>
-                        )}
-
-                      </div>
-                    )}
-
-                  {/* === Time Picker for Live - TikTok Department === */}
-                  {selectedContext === 'registration' &&
-                    selectedReason === 'live' && (
-                      <div className="space-y-4 mb-6 animate-fadeIn">
-                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                          Thời gian Live
-                        </h3>
-
-                        {/* TikTok Department reminder */}
-                        <div className="bg-pink-50 rounded-lg p-3 border border-pink-200">
-                          <div className="flex items-start space-x-2">
-                            <svg
-                              className="w-5 h-5 text-pink-600 mt-0.5 flex-shrink-0"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                              />
-                            </svg>
-                            <div>
-                              <span className="text-sm font-medium text-pink-800">
-                                Dành cho phòng ban TikTok, Truyền thông thương
-                                hiệu, Kinh doanh
-                              </span>
-                              <p className="text-xs text-pink-700 mt-1">
-                                Live sau 21h không được vượt quá 20% tổng số
-                                live của Team. Tối đa ≤10 phiên live Team trong
-                                tháng.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                          <div className="grid grid-cols-2 gap-4">
-                            {/* Giờ bắt đầu */}
-                            <div>
-                              <label
-                                htmlFor="live-start"
-                                className="block text-xs font-medium text-gray-500 uppercase mb-2"
-                              >
-                                Giờ bắt đầu
-                              </label>
-                              <input
-                                type="time"
-                                id="live-start"
-                                value={liveStartTime}
-                                onChange={(e) =>
-                                  setLiveStartTime(e.target.value)
-                                }
-                                className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
-                              />
-                            </div>
-
-                            {/* Giờ kết thúc */}
-                            <div>
-                              <label
-                                htmlFor="live-end"
-                                className="block text-xs font-medium text-gray-500 uppercase mb-2"
-                              >
-                                Giờ kết thúc
-                              </label>
-                              <input
-                                type="time"
-                                id="live-end"
-                                value={liveEndTime}
-                                onChange={(e) => setLiveEndTime(e.target.value)}
-                                className="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Duration display */}
-                          {liveStartTime && liveEndTime && (
-                            <div className="mt-4">
-                              <div
-                                className={`flex items-center justify-between bg-white rounded-lg p-3 border ${liveDuration <= 0 || liveDuration < 2
-                                  ? 'border-red-300'
-                                  : 'border-gray-100'
-                                  }`}
-                              >
-                                <span className="text-sm text-gray-600">
-                                  Tổng thời gian live:
-                                </span>
-                                <span
-                                  className={`text-lg font-bold ${liveDuration <= 0 || liveDuration < 2
-                                    ? 'text-red-600'
-                                    : 'text-purple-700'
-                                    }`}
-                                >
-                                  {liveDuration.toFixed(1)} giờ
-                                </span>
-                              </div>
-
-                              {/* Note input for Live */}
-                              <div className="mt-4 space-y-2">
-                                <label
-                                  htmlFor="live-note"
-                                  className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
-                                >
-                                  Ghi chú live
-                                </label>
-                                <textarea
-                                  id="live-note"
-                                  rows={3}
-                                  value={formNote}
-                                  onChange={(e) => setFormNote(e.target.value)}
-                                  placeholder="Nhập ghi chú, phiên live cụ thể..."
-                                  className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
-                                />
-                              </div>
-
-                              {/* Validation error */}
-                              {selectedReason === 'live' &&
-                                registrationTimeError && (
-                                  <div className="mt-2 bg-red-50 rounded-lg p-3 border border-red-200">
-                                    <div className="flex items-center space-x-2">
-                                      <svg
-                                        className="w-5 h-5 text-red-500"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                      </svg>
-                                      <span className="text-sm font-medium text-red-700">
-                                        {registrationTimeError}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-
-                              {/* Night live session indicator */}
-                              <div className="mt-3 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-3 border border-pink-200">
-                                <div className="flex items-center space-x-2">
-                                  <svg
-                                    className="w-5 h-5 text-pink-600"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                                    />
-                                  </svg>
-                                  <span className="text-sm font-semibold text-pink-700">
-                                    Tính 1 ca live tối
-                                  </span>
-                                </div>
-                                <p className="text-xs text-pink-600 mt-1 ml-7">
-                                  Phiên live sau 21h được tính là 1 ca live tối
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                  {/* === Note Input for First Day === */}
-                  {selectedContext === 'explanation' &&
-                    selectedReason === 'first_day' && (
-                      <div className="space-y-3 mb-6 animate-fadeIn">
-                        <label
-                          htmlFor="first-day-note"
-                          className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
-                        >
-                          Ghi chú
-                        </label>
-                        <textarea
-                          id="first-day-note"
-                          rows={4}
-                          value={formNote}
-                          onChange={(e) => setFormNote(e.target.value)}
-                          placeholder="Nhập ghi chú về ngày đầu đi làm..."
-                          className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
-                        />
-                        <p className="text-xs text-gray-500">
-                          Vui lòng mô tả chi tiết về ngày đầu đi làm (ví dụ:
-                          chưa được cấp thẻ, chưa đăng ký vân tay...)
-                        </p>
-                      </div>
-                    )}
-
-                  {/* === Note Input for Business Trip === */}
-                  {selectedContext === 'explanation' &&
-                    selectedReason === 'business_trip' && (
-                      <div className="space-y-3 mb-6 animate-fadeIn">
-                        <label
-                          htmlFor="business-trip-note"
-                          className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
-                        >
-                          Ghi chú
-                        </label>
-                        <textarea
-                          id="business-trip-note"
-                          rows={4}
-                          value={formNote}
-                          onChange={(e) => setFormNote(e.target.value)}
-                          placeholder="Nhập ghi chú về chuyến công tác..."
-                          className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
-                        />
-                        <p className="text-xs text-gray-500">
-                          Vui lòng mô tả chi tiết về chuyến công tác (ví dụ: địa
-                          điểm, mục đích, thời gian...)
-                        </p>
-                      </div>
-                    )}
-
-                  {/* === Detailed Options for Incomplete Attendance === */}
-                  {selectedContext === 'explanation' &&
-                    selectedReason === 'incomplete_attendance' && (
-                      <div className="space-y-4 mb-6 animate-fadeIn">
-
-                        {/* Tiêu đề */}
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-1 h-5 bg-purple-500 rounded-full"></div>
-                          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
-                            Bạn quên chấm công lúc nào?
-                          </h3>
-                        </div>
-
-                        {/* Bước 1: 3 card lựa chọn */}
-                        <div className="grid grid-cols-3 gap-2">
-                          {[
-                            {
-                              id: 'checkin',
-                              label: 'Quên\nCheck-in',
-                              icon: (
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          {/* Bước 2a: Chọn giờ check-in */}
+                          {(forgotPunchType === 'checkin' || forgotPunchType === 'both') && (
+                            <div className="rounded-2xl border border-purple-100 overflow-hidden">
+                              <div className="bg-purple-600 px-4 py-2.5 flex items-center gap-2">
+                                <svg className="w-4 h-4 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5-4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                                 </svg>
-                              ),
-                              activeColor: 'bg-purple-600 border-purple-600 text-white shadow-lg',
-                              inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50',
-                              dotColor: 'bg-purple-500',
-                            },
-                            {
-                              id: 'checkout',
-                              label: 'Quên\nCheck-out',
-                              icon: (
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <span className="text-xs font-bold text-white tracking-wide uppercase">Giờ check-in bị quên</span>
+                              </div>
+                              <div className="bg-purple-50 p-3 flex gap-2">
+                                {[
+                                  { value: '08:30', label: '8h30', desc: 'Sáng' },
+                                  { value: '13:00', label: '13h00', desc: 'Chiều' },
+                                  { value: '17:30', label: '17h30', desc: 'Tối' },
+                                ].map((opt) => {
+                                  const sel = forgotCheckinTime === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => setForgotCheckinTime(sel ? null : opt.value)}
+                                      className={`flex-1 flex flex-col items-center py-2.5 rounded-xl border-2 transition-all duration-150 ${sel ? 'bg-purple-600 border-purple-600 shadow-md scale-[1.04]' : 'bg-white border-purple-200 hover:border-purple-400 hover:bg-purple-50'}`}
+                                    >
+                                      <span className={`text-sm font-extrabold ${sel ? 'text-white' : 'text-purple-700'}`}>{opt.label}</span>
+                                      <span className={`text-[10px] mt-0.5 font-medium ${sel ? 'text-purple-200' : 'text-gray-400'}`}>{opt.desc}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Bước 2b: Chọn giờ check-out */}
+                          {(forgotPunchType === 'checkout' || forgotPunchType === 'both') && (
+                            <div className="rounded-2xl border border-orange-100 overflow-hidden">
+                              <div className="bg-orange-500 px-4 py-2.5 flex items-center gap-2">
+                                <svg className="w-4 h-4 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                                 </svg>
-                              ),
-                              activeColor: 'bg-orange-500 border-orange-500 text-white shadow-lg',
-                              inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-orange-300 hover:bg-orange-50',
-                              dotColor: 'bg-orange-500',
-                            },
-                            {
-                              id: 'both',
-                              label: 'Cả\nhai',
-                              icon: (
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                </svg>
-                              ),
-                              activeColor: 'bg-gradient-to-br from-purple-600 to-orange-500 border-transparent text-white shadow-lg',
-                              inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50',
-                              dotColor: 'bg-purple-500',
-                            },
-                          ].map((type) => {
-                            const isActive = forgotPunchType === type.id;
-                            return (
-                              <button
-                                key={type.id}
-                                type="button"
-                                onClick={() => {
-                                  setForgotPunchType(type.id as any);
-                                  setForgotCheckinTime(null);
-                                  setForgotCheckoutTime(null);
-                                }}
-                                className={`relative flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-2xl border-2 transition-all duration-200 font-semibold ${isActive ? type.activeColor : type.inactiveColor} ${isActive ? 'scale-[1.03]' : ''}`}
-                              >
-                                {isActive && (
-                                  <span className="absolute top-2 right-2 w-4 h-4 bg-white bg-opacity-30 rounded-full flex items-center justify-center">
-                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                  </span>
-                                )}
-                                <span className={`${isActive ? 'text-white opacity-90' : 'text-gray-400'}`}>{type.icon}</span>
-                                <span className={`text-xs font-bold text-center leading-tight whitespace-pre-line ${isActive ? 'text-white' : 'text-gray-700'}`}>
-                                  {type.label}
-                                </span>
-                              </button>
-                            );
-                          })}
+                                <span className="text-xs font-bold text-white tracking-wide uppercase">Giờ check-out bị quên</span>
+                              </div>
+                              <div className="bg-orange-50 p-3 flex gap-2">
+                                {[
+                                  { value: '12:00', label: '12h00', desc: 'Trưa' },
+                                  { value: '17:30', label: '17h30', desc: 'Chiều' },
+                                ].map((opt) => {
+                                  const sel = forgotCheckoutTime === opt.value;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => setForgotCheckoutTime(sel ? null : opt.value)}
+                                      className={`flex-1 flex flex-col items-center py-2.5 rounded-xl border-2 transition-all duration-150 ${sel ? 'bg-orange-500 border-orange-500 shadow-md scale-[1.04]' : 'bg-white border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
+                                    >
+                                      <span className={`text-sm font-extrabold ${sel ? 'text-white' : 'text-orange-600'}`}>{opt.label}</span>
+                                      <span className={`text-[10px] mt-0.5 font-medium ${sel ? 'text-orange-200' : 'text-gray-400'}`}>{opt.desc}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
                         </div>
+                      )}
 
-                        {/* Bước 2a: Chọn giờ check-in */}
-                        {(forgotPunchType === 'checkin' || forgotPunchType === 'both') && (
-                          <div className="rounded-2xl border border-purple-100 overflow-hidden">
-                            <div className="bg-purple-600 px-4 py-2.5 flex items-center gap-2">
-                              <svg className="w-4 h-4 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5-4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                              </svg>
-                              <span className="text-xs font-bold text-white tracking-wide uppercase">Giờ check-in bị quên</span>
-                            </div>
-                            <div className="bg-purple-50 p-3 flex gap-2">
-                              {[
-                                { value: '08:30', label: '8h30', desc: 'Sáng' },
-                                { value: '13:00', label: '13h00', desc: 'Chiều' },
-                                { value: '17:30', label: '17h30', desc: 'Tối' },
-                              ].map((opt) => {
-                                const sel = forgotCheckinTime === opt.value;
-                                return (
-                                  <button
-                                    key={opt.value}
-                                    type="button"
-                                    onClick={() => setForgotCheckinTime(sel ? null : opt.value)}
-                                    className={`flex-1 flex flex-col items-center py-2.5 rounded-xl border-2 transition-all duration-150 ${sel ? 'bg-purple-600 border-purple-600 shadow-md scale-[1.04]' : 'bg-white border-purple-200 hover:border-purple-400 hover:bg-purple-50'}`}
-                                  >
-                                    <span className={`text-sm font-extrabold ${sel ? 'text-white' : 'text-purple-700'}`}>{opt.label}</span>
-                                    <span className={`text-[10px] mt-0.5 font-medium ${sel ? 'text-purple-200' : 'text-gray-400'}`}>{opt.desc}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Bước 2b: Chọn giờ check-out */}
-                        {(forgotPunchType === 'checkout' || forgotPunchType === 'both') && (
-                          <div className="rounded-2xl border border-orange-100 overflow-hidden">
-                            <div className="bg-orange-500 px-4 py-2.5 flex items-center gap-2">
-                              <svg className="w-4 h-4 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                              </svg>
-                              <span className="text-xs font-bold text-white tracking-wide uppercase">Giờ check-out bị quên</span>
-                            </div>
-                            <div className="bg-orange-50 p-3 flex gap-2">
-                              {[
-                                { value: '12:00', label: '12h00', desc: 'Trưa' },
-                                { value: '17:30', label: '17h30', desc: 'Chiều' },
-                              ].map((opt) => {
-                                const sel = forgotCheckoutTime === opt.value;
-                                return (
-                                  <button
-                                    key={opt.value}
-                                    type="button"
-                                    onClick={() => setForgotCheckoutTime(sel ? null : opt.value)}
-                                    className={`flex-1 flex flex-col items-center py-2.5 rounded-xl border-2 transition-all duration-150 ${sel ? 'bg-orange-500 border-orange-500 shadow-md scale-[1.04]' : 'bg-white border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
-                                  >
-                                    <span className={`text-sm font-extrabold ${sel ? 'text-white' : 'text-orange-600'}`}>{opt.label}</span>
-                                    <span className={`text-[10px] mt-0.5 font-medium ${sel ? 'text-orange-200' : 'text-gray-400'}`}>{opt.desc}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
+                    {/* === Note Input for Online Work === */}
+                    {selectedContext === 'online_work' && (
+                      <div className="space-y-3 mb-6 animate-fadeIn">
+                        <label
+                          htmlFor="online-work-note"
+                          className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
+                        >
+                          Ghi chú
+                        </label>
+                        <textarea
+                          id="online-work-note"
+                          rows={4}
+                          value={formNote}
+                          onChange={(e) => setFormNote(e.target.value)}
+                          placeholder="Nhập lý do làm việc online, công việc dự kiến hoàn thành..."
+                          className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
+                        />
+                        <p className="text-xs text-gray-500">
+                          Vui lòng mô tả chi tiết lý do và công việc sẽ thực hiện
+                          khi làm việc online
+                        </p>
                       </div>
                     )}
 
-                  {/* === Note Input for Online Work === */}
-                  {selectedContext === 'online_work' && (
-                    <div className="space-y-3 mb-6 animate-fadeIn">
-                      <label
-                        htmlFor="online-work-note"
-                        className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
-                      >
-                        Ghi chú
-                      </label>
-                      <textarea
-                        id="online-work-note"
-                        rows={4}
-                        value={formNote}
-                        onChange={(e) => setFormNote(e.target.value)}
-                        placeholder="Nhập lý do làm việc online, công việc dự kiến hoàn thành..."
-                        className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
-                      />
-                      <p className="text-xs text-gray-500">
-                        Vui lòng mô tả chi tiết lý do và công việc sẽ thực hiện
-                        khi làm việc online
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Placeholder when no context selected */}
-                  {!selectedContext && (
-                    <div className="text-center py-8 text-gray-400">
-                      <svg
-                        className="w-12 h-12 mx-auto mb-3 opacity-50"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M8 9l4-4 4 4m0 6l-4 4-4-4"
-                        />
-                      </svg>
-                      <p className="text-sm">
-                        Vui lòng chọn loại yêu cầu trước
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* === FooterButtons === */}
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 sm:flex sm:flex-row-reverse sm:gap-3 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmModal(true)}
-                  disabled={
-                    isSubmitting ||
-                    !selectedContext ||
-                    ((selectedContext === 'explanation' ||
-                      selectedContext === 'registration') &&
-                      !selectedReason) ||
-                    !isRegistrationTimeValid()
-                  }
-                  className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-transparent shadow-lg text-base font-semibold transition-all duration-200 ${isSubmitting
-                    ? 'bg-purple-400 text-white cursor-wait'
-                    : ((selectedContext &&
-                      (selectedContext === 'monthly_leave' ||
-                        selectedContext === 'online_work')) ||
-                      (selectedContext && selectedReason)) &&
-                      isRegistrationTimeValid()
-                      ? 'text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transform hover:scale-[1.02]'
-                      : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                    }`}
-                >
-                  {isSubmitting ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Đang xử lý...
-                    </div>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5 mr-2"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                        />
-                      </svg>
-                      Gửi đơn
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetSupplementaryForm();
-                    handleCloseSupplementaryRequest();
-                  }}
-                  className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border-2 border-gray-300 shadow-sm text-base font-semibold text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-all duration-200"
-                >
-                  Hủy
-                </button>
-              </div>
-
-              {/* Form Completion Summary */}
-              {selectedContext &&
-                (selectedContext === 'monthly_leave' ||
-                  selectedContext === 'online_work' ||
-                  selectedReason) && (
-                  <div className="px-6 py-3 bg-green-50 border-t border-green-100">
-                    <div className="flex items-center text-sm text-green-700">
-                      <svg
-                        className="w-5 h-5 mr-2 text-green-500"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      <span>
-                        <strong>
-                          {selectedContext === 'explanation'
-                            ? 'Đơn giải trình'
-                            : selectedContext === 'registration'
-                              ? 'Đơn đăng ký'
-                              : selectedContext === 'monthly_leave'
-                                ? 'Nghỉ phép tháng'
-                                : selectedContext === 'online_work'
-                                  ? 'Làm việc online'
-                                  : ''}
-                        </strong>
-                        {(selectedContext === 'explanation' ||
-                          selectedContext === 'registration') &&
-                          selectedReason && (
-                            <>
-                              {' - '}
-                              {
-                                (selectedContext === 'explanation'
-                                  ? explanationReasons
-                                  : registrationReasons
-                                ).find((r) => r.id === selectedReason)?.label
-                              }
-                            </>
-                          )}
-                      </span>
-                    </div>
+                    {/* Placeholder when no context selected */}
+                    {!selectedContext && (
+                      <div className="text-center py-8 text-gray-400">
+                        <svg
+                          className="w-12 h-12 mx-auto mb-3 opacity-50"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M8 9l4-4 4 4m0 6l-4 4-4-4"
+                          />
+                        </svg>
+                        <p className="text-sm">
+                          Vui lòng chọn loại yêu cầu trước
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+
+                {/* === FooterButtons === */}
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 sm:flex sm:flex-row-reverse sm:gap-3 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmModal(true)}
+                    disabled={
+                      isSubmitting ||
+                      !selectedContext ||
+                      ((selectedContext === 'explanation' ||
+                        selectedContext === 'registration') &&
+                        !selectedReason) ||
+                      !isRegistrationTimeValid()
+                    }
+                    className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-transparent shadow-lg text-base font-semibold transition-all duration-200 ${isSubmitting
+                      ? 'bg-purple-400 text-white cursor-wait'
+                      : ((selectedContext &&
+                        (selectedContext === 'monthly_leave' ||
+                          selectedContext === 'online_work')) ||
+                        (selectedContext && selectedReason)) &&
+                        isRegistrationTimeValid()
+                        ? 'text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transform hover:scale-[1.02]'
+                        : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                      }`}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        Đang xử lý...
+                      </div>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                          />
+                        </svg>
+                        Gửi đơn
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetSupplementaryForm();
+                      handleCloseSupplementaryRequest();
+                    }}
+                    className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border-2 border-gray-300 shadow-sm text-base font-semibold text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-all duration-200"
+                  >
+                    Hủy
+                  </button>
+                </div>
+
+                {/* Form Completion Summary */}
+                {selectedContext &&
+                  (selectedContext === 'monthly_leave' ||
+                    selectedContext === 'online_work' ||
+                    selectedReason) && (
+                    <div className="px-6 py-3 bg-green-50 border-t border-green-100">
+                      <div className="flex items-center text-sm text-green-700">
+                        <svg
+                          className="w-5 h-5 mr-2 text-green-500"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        <span>
+                          <strong>
+                            {selectedContext === 'explanation'
+                              ? 'Đơn giải trình'
+                              : selectedContext === 'registration'
+                                ? 'Đơn đăng ký'
+                                : selectedContext === 'monthly_leave'
+                                  ? 'Nghỉ phép tháng'
+                                  : selectedContext === 'online_work'
+                                    ? 'Làm việc online'
+                                    : ''}
+                          </strong>
+                          {(selectedContext === 'explanation' ||
+                            selectedContext === 'registration' ||
+                            selectedContext === 'online_work') &&
+                            selectedReason && (
+                              <>
+                                {' - '}
+                                {
+                                  (selectedContext === 'explanation'
+                                    ? explanationReasons
+                                    : selectedContext === 'registration'
+                                      ? registrationReasons
+                                      : onlineWorkReasons
+                                  ).find((r) => r.id === selectedReason)?.label
+                                }
+                              </>
+                            )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center p-4">
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-              onClick={() => setShowConfirmModal(false)}
-            />
+      {
+        showConfirmModal && (
+          <div className="fixed inset-0 z-[60] overflow-y-auto">
+            <div className="flex min-h-screen items-center justify-center p-4">
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+                onClick={() => setShowConfirmModal(false)}
+              />
 
-            {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
-              {/* Icon */}
-              <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
-                  <svg
-                    className="w-8 h-8 text-purple-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Title */}
-              <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-                Xác nhận gửi đơn
-              </h3>
-
-              {/* Modern Request Summary Card */}
-              <div className="bg-gray-50 rounded-2xl p-5 mb-6 border border-gray-100">
-                <div className="space-y-4">
-                  {/* Row: Type */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center text-gray-500">
-                      <svg
-                        className="w-4 h-4 mr-2"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      <span className="text-[10px] uppercase font-bold tracking-wider">
-                        Loại đơn
-                      </span>
-                    </div>
-                    <span className="text-sm font-bold text-gray-900 bg-white px-2 py-1 rounded-lg border border-gray-100 shadow-sm">
-                      {selectedContext === 'explanation'
-                        ? 'Giải trình'
-                        : selectedContext === 'registration'
-                          ? 'Đăng ký'
-                          : selectedContext === 'monthly_leave'
-                            ? 'Nghỉ phép tháng'
-                            : 'Làm online'}
-                    </span>
+              {/* Modal */}
+              <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+                {/* Icon */}
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-8 h-8 text-purple-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
                   </div>
+                </div>
 
-                  {/* Row: Reason */}
-                  {selectedReason && (
+                {/* Title */}
+                <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+                  Xác nhận gửi đơn
+                </h3>
+
+                {/* Modern Request Summary Card */}
+                <div className="bg-gray-50 rounded-2xl p-5 mb-6 border border-gray-100">
+                  <div className="space-y-4">
+                    {/* Row: Type */}
                     <div className="flex justify-between items-center">
                       <div className="flex items-center text-gray-500">
                         <svg
@@ -4054,32 +4252,27 @@ const AttendanceManagement: React.FC = () => {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                           />
                         </svg>
                         <span className="text-[10px] uppercase font-bold tracking-wider">
-                          Lý do
+                          Loại đơn
                         </span>
                       </div>
-                      <span className="text-sm font-semibold text-purple-700">
-                        {
-                          (selectedContext === 'explanation'
-                            ? explanationReasons
-                            : registrationReasons
-                          ).find((r) => r.id === selectedReason)?.label
-                        }
+                      <span className="text-sm font-bold text-gray-900 bg-white px-2 py-1 rounded-lg border border-gray-100 shadow-sm">
+                        {selectedContext === 'explanation'
+                          ? 'Giải trình'
+                          : selectedContext === 'registration'
+                            ? 'Đăng ký'
+                            : selectedContext === 'monthly_leave'
+                              ? 'Nghỉ phép tháng'
+                              : 'Làm online'}
                       </span>
                     </div>
-                  )}
 
-                  {/* Row: Note */}
-                  {formNote &&
-                    (selectedReason === 'incomplete_attendance' ||
-                      selectedReason === 'business_trip' ||
-                      selectedReason === 'first_day' ||
-                      selectedContext === 'registration' ||
-                      selectedContext === 'online_work') && (
-                      <div className="flex flex-col space-y-1.5 pt-1">
+                    {/* Row: Reason */}
+                    {selectedReason && (
+                      <div className="flex justify-between items-center">
                         <div className="flex items-center text-gray-500">
                           <svg
                             className="w-4 h-4 mr-2"
@@ -4091,83 +4284,63 @@ const AttendanceManagement: React.FC = () => {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
                             />
                           </svg>
                           <span className="text-[10px] uppercase font-bold tracking-wider">
-                            Ghi chú chi tiết
+                            Lý do
                           </span>
                         </div>
-                        <div className="text-sm text-gray-700 bg-white/60 p-3 rounded-xl border border-gray-100 italic leading-relaxed">
-                          {formNote}
-                        </div>
-                      </div>
-                    )}
-
-                  {/* Row: Date */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center text-gray-500">
-                      <svg
-                        className="w-4 h-4 mr-2"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                      <span className="text-[10px] uppercase font-bold tracking-wider">
-                        Ngày áp dụng
-                      </span>
-                    </div>
-                    <span className="text-sm font-bold text-gray-900">
-                      {selectedDate?.toLocaleDateString('vi-VN', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                      })}
-                    </span>
-                  </div>
-
-                  {/* Row: Time Range (for Overtime) */}
-                  {selectedContext === 'registration' &&
-                    selectedReason === 'overtime' && (
-                      <div className="flex justify-between items-center p-2 bg-purple-50 rounded-xl">
-                        <div className="flex items-center text-purple-700">
-                          <svg
-                            className="w-4 h-4 mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                          <span className="text-[10px] uppercase font-bold tracking-wider">
-                            Thời gian
-                          </span>
-                        </div>
-                        <span className="text-sm font-black text-purple-800">
-                          {overtimeStartTime} — {overtimeEndTime}
+                        <span className="text-sm font-semibold text-purple-700">
+                          {
+                            (selectedContext === 'explanation'
+                              ? explanationReasons
+                              : selectedContext === 'registration'
+                                ? registrationReasons
+                                : onlineWorkReasons
+                            ).find((r) => r.id === selectedReason)?.label
+                          }
                         </span>
                       </div>
                     )}
 
-                  {/* Quota Warning for Explanation */}
-                  {selectedContext === 'explanation' &&
-                    attendanceStats?.remaining_explanations <= 0 && (
-                      <div className="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-200 flex items-start space-x-3">
+                    {/* Row: Note */}
+                    {formNote &&
+                      (selectedReason === 'incomplete_attendance' ||
+                        selectedReason === 'business_trip' ||
+                        selectedReason === 'first_day' ||
+                        selectedContext === 'registration' ||
+                        selectedContext === 'online_work') && (
+                        <div className="flex flex-col space-y-1.5 pt-1">
+                          <div className="flex items-center text-gray-500">
+                            <svg
+                              className="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                            <span className="text-[10px] uppercase font-bold tracking-wider">
+                              Ghi chú chi tiết
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-700 bg-white/60 p-3 rounded-xl border border-gray-100 italic leading-relaxed">
+                            {formNote}
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Row: Date */}
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center text-gray-500">
                         <svg
-                          className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0"
+                          className="w-4 h-4 mr-2"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -4176,398 +4349,471 @@ const AttendanceManagement: React.FC = () => {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 17c-.77 1.333.192 3 1.732 3z"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                           />
                         </svg>
-                        <p className="text-xs text-amber-800 leading-relaxed">
-                          <span className="font-bold">Lưu ý:</span> Bạn đã hết
-                          lượt giải trình miễn phí trong tháng này (tối đa 3
-                          lần). Đơn này vẫn có thể gửi đi nhưng có thể sẽ bị
-                          tính phí bổ sung tùy theo quy định của công ty.
-                        </p>
+                        <span className="text-[10px] uppercase font-bold tracking-wider">
+                          Ngày áp dụng
+                        </span>
                       </div>
-                    )}
-                </div>
-              </div>
-              <p className="text-gray-600 text-center mb-6">
-                Bạn đã chắc chắn gửi đơn?
-              </p>
-
-              {/* Buttons */}
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmModal(false)}
-                  className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-                >
-                  Huỷ
-                </button>
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => {
-                    setShowConfirmModal(false);
-                    handleSubmitSupplementaryRequest();
-                  }}
-                  className={`flex-1 px-4 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center justify-center ${isSubmitting
-                    ? 'bg-purple-400 text-white cursor-wait'
-                    : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800'
-                    }`}
-                >
-                  {isSubmitting ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Đang gửi...
-                    </div>
-                  ) : (
-                    'OK'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* ===== DRAWER: Lịch sử đơn tháng ===== */}
-      {showRequestHistoryDrawer && (
-        <div className="fixed inset-0 z-[80] overflow-hidden">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black bg-opacity-40 transition-opacity"
-            onClick={() => setShowRequestHistoryDrawer(false)}
-          />
-          {/* Drawer panel */}
-          <div className="absolute inset-y-0 right-0 flex max-w-full">
-            <div className="relative w-screen max-w-md transform transition-transform duration-300 ease-in-out">
-              <div className="flex h-full flex-col bg-white shadow-2xl">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
-                        <ClipboardDocumentListIcon className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-white">Lịch sử đơn tháng</h2>
-                        <p className="text-purple-200 text-xs mt-0.5">
-                          Tháng {currentDate.getMonth() + 1}/{currentDate.getFullYear()}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowRequestHistoryDrawer(false)}
-                      className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center hover:bg-opacity-30 transition-colors"
-                    >
-                      <XMarkIcon className="h-5 w-5 text-white" />
-                    </button>
-                  </div>
-
-                  {/* Summary badges */}
-                  <div className="mt-3 flex gap-2 flex-wrap">
-                    {[
-                      { label: 'Giải trình', count: monthlyRequestHistory.explanations.length, color: 'bg-blue-400' },
-                      { label: 'Đăng ký', count: monthlyRequestHistory.registrations.length, color: 'bg-amber-400' },
-                      ...(currentEmployee?.position?.is_management
-                        ? [{ label: 'Làm việc online', count: monthlyRequestHistory.onlineWorks.length, color: 'bg-teal-400' }]
-                        : []),
-                    ].map((item) => (
-                      <div key={item.label} className="flex items-center gap-1.5 bg-white bg-opacity-15 rounded-lg px-2.5 py-1">
-                        <span className={`w-2 h-2 rounded-full ${item.color}`} />
-                        <span className="text-white text-xs font-medium">{item.label}</span>
-                        <span className="text-white text-xs font-bold">{item.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tab filter */}
-                <div className="border-b border-gray-100 bg-gray-50 px-4 pt-3 pb-0">
-                  <div className="flex gap-1 overflow-x-auto scrollbar-hide">
-                    {[
-                      {
-                        key: 'all',
-                        label: 'Tất cả',
-                        count: monthlyRequestHistory.explanations.length + monthlyRequestHistory.registrations.length
-                          + (currentEmployee?.position?.is_management ? monthlyRequestHistory.onlineWorks.length : 0),
-                      },
-                      { key: 'explanation', label: 'Giải trình', count: monthlyRequestHistory.explanations.length },
-                      { key: 'registration', label: 'Đăng ký', count: monthlyRequestHistory.registrations.length },
-                      ...(currentEmployee?.position?.is_management
-                        ? [{ key: 'online_work', label: 'Làm việc online', count: monthlyRequestHistory.onlineWorks.length }]
-                        : []),
-                    ].map((tab) => (
-                      <button
-                        key={tab.key}
-                        onClick={() => setHistoryActiveTab(tab.key as any)}
-                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-colors ${historyActiveTab === tab.key
-                          ? 'border-purple-600 text-purple-700'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                          }`}
-                      >
-                        {tab.label}
-                        {tab.count > 0 && (
-                          <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full ${historyActiveTab === tab.key ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-600'
-                            }`}>
-                            {tab.count}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto">
-                  {requestHistoryLoading ? (
-                    <div className="flex flex-col items-center justify-center h-48 gap-3">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
-                      <p className="text-sm text-gray-500">Đang tải lịch sử đơn...</p>
-                    </div>
-                  ) : (() => {
-                    // Tổng hợp danh sách theo tab
-                    const allItems = [
-                      ...(historyActiveTab === 'all' || historyActiveTab === 'explanation'
-                        ? monthlyRequestHistory.explanations.map((e) => ({ ...e, _type: 'explanation' }))
-                        : []),
-                      ...(historyActiveTab === 'all' || historyActiveTab === 'registration'
-                        ? monthlyRequestHistory.registrations.map((r) => ({ ...r, _type: 'registration' }))
-                        : []),
-                      ...(historyActiveTab === 'all' || historyActiveTab === 'online_work'
-                        ? monthlyRequestHistory.onlineWorks.map((ow) => ({ ...ow, _type: 'online_work' }))
-                        : []),
-                    ].sort((a, b) => new Date(b.created_at || b.work_date || 0).getTime() - new Date(a.created_at || a.work_date || 0).getTime());
-
-                    if (allItems.length === 0) {
-                      return (
-                        <div className="flex flex-col items-center justify-center h-48 gap-3 text-center px-6">
-                          <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center">
-                            <ClipboardDocumentListIcon className="h-7 w-7 text-gray-400" />
-                          </div>
-                          <p className="text-gray-500 text-sm font-medium">Chưa có đơn nào trong tháng này</p>
-                          <p className="text-gray-400 text-xs">Các đơn bạn tạo sẽ hiển thị tại đây</p>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div className="p-4 space-y-3 bg-gray-50/50 min-h-full">
-                        {allItems.map((item, idx) => {
-                          const statusConfig = ({
-                            APPROVED: { label: 'Đã duyệt', cls: 'bg-green-50 text-green-700 ring-1 ring-green-600/20' },
-                            REJECTED: { label: 'Từ chối', cls: 'bg-red-50 text-red-700 ring-1 ring-red-600/20' },
-                            PENDING: { label: 'Chờ duyệt', cls: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
-                            DRAFT: { label: 'Nháp', cls: 'bg-gray-50 text-gray-600 ring-1 ring-gray-500/20' },
-                            CANCELLED: { label: 'Đã huỷ', cls: 'bg-gray-50 text-gray-500 ring-1 ring-gray-500/20' },
-                          } as Record<string, { label: string; cls: string }>)[item.status] || { label: item.status, cls: 'bg-gray-50 text-gray-600 ring-1 ring-gray-500/20' };
-
-                          const typeConfig = (() => {
-                            if (item._type === 'explanation' && item.explanation_type === 'LEAVE') {
-                              return { label: 'Nghỉ phép tháng', bg: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20' };
-                            }
-                            return ({
-                              explanation: { label: 'Giải trình', bg: 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' },
-                              registration: { label: 'Đăng ký', bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
-                              online_work: { label: 'Làm việc online', bg: 'bg-teal-50 text-teal-700 ring-1 ring-teal-600/20' },
-                            } as Record<string, { label: string; bg: string }>)[item._type] || { label: item._type, bg: 'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20' };
-                          })();
-
-                          const dateStr = item.attendance_date || item.work_date || item.created_at;
-                          const displayDate = dateStr
-                            ? new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                            : '—';
-
-                          let requestName = '';
-                          if (item._type === 'explanation') {
-                            requestName = item.explanation_type ? (EXPLANATION_TYPE_MAP[item.explanation_type] || item.explanation_type) : 'Đơn giải trình';
-                          } else if (item._type === 'registration') {
-                            requestName = item.registration_type ? (EXPLANATION_TYPE_MAP[item.registration_type] || item.registration_type) : 'Đơn đăng ký';
-                          } else if (item._type === 'online_work') {
-                            requestName = 'Đơn làm việc online';
-                          } else if (item._type === 'explanation' && item.explanation_type === 'LEAVE') {
-                            requestName = 'Đơn nghỉ phép tháng';
-                          }
-
-                          return (
-                            <div key={`${item._type}-${item.id}-${idx}`} className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-purple-200 transition-all duration-300">
-                              <div className="flex flex-col gap-3">
-                                {/* Header: Badges & Code */}
-                                <div className="flex justify-between items-center">
-                                  <div className="flex items-center gap-2">
-                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${typeConfig.bg}`}>
-                                      {typeConfig.label}
-                                    </span>
-                                    {item.request_code && (
-                                      <span className="text-[11px] font-mono text-gray-400 font-medium bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100/50">
-                                        {item.request_code}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${statusConfig.cls}`}>
-                                    {statusConfig.label}
-                                  </span>
-                                </div>
-
-                                {/* Body: Title & Reason */}
-                                <div className="flex flex-col gap-2 relative z-10">
-                                  {requestName && (
-                                    <h4 className="text-[15px] font-bold text-gray-900 leading-snug">
-                                      {requestName}
-                                    </h4>
-                                  )}
-
-                                  {(() => {
-                                    let rawReason = item.reason || item.work_plan || '';
-
-                                    const prefixes = [
-                                      requestName,
-                                      item.explanation_type ? EXPLANATION_TYPE_MAP[item.explanation_type] : '',
-                                      item.registration_type ? EXPLANATION_TYPE_MAP[item.registration_type] : '',
-                                      'Giải trình đi muộn', 'Giải trình về sớm', 'Giải trình quên chấm công',
-                                      'Giải trình đi công tác', 'Giải trình ngày đầu đi làm',
-                                      'Đi muộn', 'Về sớm', 'Quên chấm công', 'Đi công tác', 'Ngày đầu đi làm',
-                                      'Đăng ký tăng ca', 'Đăng ký làm thêm giờ', 'Đăng ký trực tối', 'Đăng ký Live',
-                                      'Tăng ca', 'Làm thêm giờ', 'Trực tối', 'Live',
-                                      'Làm việc online', 'Làm online', 'Nghỉ phép'
-                                    ].filter(Boolean);
-
-                                    prefixes.sort((a, b) => b.length - a.length);
-
-                                    for (const p of prefixes) {
-                                      if (p && rawReason.toLowerCase().startsWith(p.toLowerCase())) {
-                                        rawReason = rawReason.substring(p.length).replace(/^[\:\-\s]+/, '').trim();
-                                        break;
-                                      }
-                                    }
-
-                                    return rawReason ? (
-                                      <div className="bg-gray-50 rounded-xl p-3 border border-gray-100/60 shadow-inner overflow-hidden relative">
-                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-gray-200 to-gray-100"></div>
-                                        <div className="flex items-start gap-2 pl-1">
-                                          <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h7" />
-                                          </svg>
-                                          <span className="text-[13px] text-gray-600 font-medium leading-relaxed line-clamp-2">
-                                            {rawReason}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    ) : null;
-                                  })()}
-                                </div>
-
-                                {/* Footer: Date */}
-                                <div className="flex items-center justify-between pt-2.5 mt-0.5 border-t border-gray-50">
-                                  <div className="flex items-center gap-1.5 text-gray-400">
-                                    <CalendarIcon className="h-4 w-4" />
-                                    <span className="text-xs font-semibold">{displayDate}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
+                      <span className="text-sm font-bold text-gray-900">
+                        {selectedDate?.toLocaleDateString('vi-VN', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
                         })}
-                      </div>
-                    );
-                  })()}
-                </div>
+                      </span>
+                    </div>
 
-                {/* Footer */}
-                <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+                    {/* Row: Time Range (for Overtime) */}
+                    {selectedContext === 'registration' &&
+                      selectedReason === 'overtime' && (
+                        <div className="flex justify-between items-center p-2 bg-purple-50 rounded-xl">
+                          <div className="flex items-center text-purple-700">
+                            <svg
+                              className="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <span className="text-[10px] uppercase font-bold tracking-wider">
+                              Thời gian
+                            </span>
+                          </div>
+                          <span className="text-sm font-black text-purple-800">
+                            {overtimeStartTime} — {overtimeEndTime}
+                          </span>
+                        </div>
+                      )}
+
+                    {/* Quota Warning for Explanation */}
+                    {selectedContext === 'explanation' &&
+                      attendanceStats?.remaining_explanations <= 0 && (
+                        <div className="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-200 flex items-start space-x-3">
+                          <svg
+                            className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 17c-.77 1.333.192 3 1.732 3z"
+                            />
+                          </svg>
+                          <p className="text-xs text-amber-800 leading-relaxed">
+                            <span className="font-bold">Lưu ý:</span> Bạn đã hết
+                            lượt giải trình miễn phí trong tháng này (tối đa 3
+                            lần). Đơn này vẫn có thể gửi đi nhưng có thể sẽ bị
+                            tính phí bổ sung tùy theo quy định của công ty.
+                          </p>
+                        </div>
+                      )}
+                  </div>
+                </div>
+                <p className="text-gray-600 text-center mb-6">
+                  Bạn đã chắc chắn gửi đơn?
+                </p>
+
+                {/* Buttons */}
+                <div className="flex gap-3">
                   <button
-                    onClick={() => {
-                      setRequestHistoryLoading(true);
-                      fetchMonthlyRequestHistory();
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-2 text-sm text-purple-600 font-medium hover:text-purple-700 transition-colors"
+                    type="button"
+                    onClick={() => setShowConfirmModal(false)}
+                    className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Làm mới
+                    Huỷ
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      setShowConfirmModal(false);
+                      handleSubmitSupplementaryRequest();
+                    }}
+                    className={`flex-1 px-4 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg flex items-center justify-center ${isSubmitting
+                      ? 'bg-purple-400 text-white cursor-wait'
+                      : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800'
+                      }`}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Đang gửi...
+                      </div>
+                    ) : (
+                      'OK'
+                    )}
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Notification Dialog */}
-
-      {notification.show && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        )
+      }
+      {/* ===== DRAWER: Lịch sử đơn tháng ===== */}
+      {
+        showRequestHistoryDrawer && (
+          <div className="fixed inset-0 z-[80] overflow-hidden">
+            {/* Backdrop */}
             <div
-              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-              onClick={() =>
-                setNotification((prev) => ({ ...prev, show: false }))
-              }
-            ></div>
+              className="absolute inset-0 bg-black bg-opacity-40 transition-opacity"
+              onClick={() => setShowRequestHistoryDrawer(false)}
+            />
+            {/* Drawer panel */}
+            <div className="absolute inset-y-0 right-0 flex max-w-full">
+              <div className="relative w-screen max-w-md transform transition-transform duration-300 ease-in-out">
+                <div className="flex h-full flex-col bg-white shadow-2xl">
+                  {/* Header */}
+                  <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
+                          <ClipboardDocumentListIcon className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-base font-bold text-white">Lịch sử đơn tháng</h2>
+                          <p className="text-purple-200 text-xs mt-0.5">
+                            Tháng {currentDate.getMonth() + 1}/{currentDate.getFullYear()}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowRequestHistoryDrawer(false)}
+                        className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center hover:bg-opacity-30 transition-colors"
+                      >
+                        <XMarkIcon className="h-5 w-5 text-white" />
+                      </button>
+                    </div>
 
-            <span
-              className="hidden sm:inline-block sm:align-middle sm:h-screen"
-              aria-hidden="true"
-            >
-              &#8203;
-            </span>
+                    {/* Summary badges */}
+                    <div className="mt-3 flex gap-2 flex-wrap">
+                      {[
+                        { label: 'Giải trình', count: monthlyRequestHistory.explanations.length, color: 'bg-blue-400' },
+                        { label: 'Nghỉ phép', count: monthlyRequestHistory.leaveRequests.length, color: 'bg-indigo-400' },
+                        { label: 'Đăng ký', count: monthlyRequestHistory.registrations.length, color: 'bg-amber-400' },
+                        ...(isManagementUser
+                          ? [{ label: 'Làm việc online', count: monthlyRequestHistory.onlineWorks.length, color: 'bg-teal-400' }]
+                          : []),
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center gap-1.5 bg-white bg-opacity-15 rounded-lg px-2.5 py-1">
+                          <span className={`w-2 h-2 rounded-full ${item.color}`} />
+                          <span className="text-white text-xs font-medium">{item.label}</span>
+                          <span className="text-white text-xs font-bold">{item.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm sm:w-full sm:p-6">
-              <div>
-                <div
-                  className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${notification.type === 'success'
-                    ? 'bg-green-100'
-                    : notification.type === 'error'
-                      ? 'bg-red-100'
-                      : 'bg-yellow-100'
-                    }`}
-                >
-                  {notification.type === 'success' ? (
-                    <CheckCircleIcon
-                      className="h-6 w-6 text-green-600"
-                      aria-hidden="true"
-                    />
-                  ) : notification.type === 'error' ? (
-                    <XMarkIcon
-                      className="h-6 w-6 text-red-600"
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <ClockIcon
-                      className="h-6 w-6 text-yellow-600"
-                      aria-hidden="true"
-                    />
-                  )}
-                </div>
-                <div className="mt-3 text-center sm:mt-5">
-                  <h3 className="text-lg leading-6 font-bold text-gray-900">
-                    {notification.title}
-                  </h3>
-                  <div className="mt-2 text-sm text-gray-500">
-                    <p>{notification.message}</p>
+                  {/* Tab filter */}
+                  <div className="border-b border-gray-100 bg-gray-50 px-4 pt-3 pb-0">
+                    <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+                      {[
+                        {
+                          key: 'all',
+                          label: 'Tất cả',
+                          count: monthlyRequestHistory.explanations.length + monthlyRequestHistory.leaveRequests.length + monthlyRequestHistory.registrations.length
+                            + (isManagementUser ? monthlyRequestHistory.onlineWorks.length : 0),
+                        },
+                        { key: 'explanation', label: 'Giải trình', count: monthlyRequestHistory.explanations.length },
+                        { key: 'leave', label: 'Nghỉ phép', count: monthlyRequestHistory.leaveRequests.length },
+                        { key: 'registration', label: 'Đăng ký', count: monthlyRequestHistory.registrations.length },
+                        ...(isManagementUser
+                          ? [{ key: 'online_work', label: 'Làm việc online', count: monthlyRequestHistory.onlineWorks.length }]
+                          : []),
+                      ].map((tab) => (
+                        <button
+                          key={tab.key}
+                          onClick={() => setHistoryActiveTab(tab.key as any)}
+                          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border-b-2 transition-colors ${historyActiveTab === tab.key
+                            ? 'border-purple-600 text-purple-700'
+                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                          {tab.label}
+                          {tab.count > 0 && (
+                            <span className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full ${historyActiveTab === tab.key ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-600'
+                              }`}>
+                              {tab.count}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 overflow-y-auto">
+                    {requestHistoryLoading ? (
+                      <div className="flex flex-col items-center justify-center h-48 gap-3">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+                        <p className="text-sm text-gray-500">Đang tải lịch sử đơn...</p>
+                      </div>
+                    ) : (() => {
+                      // Tổng hợp danh sách theo tab
+                      const allItems = [
+                        ...(historyActiveTab === 'all' || historyActiveTab === 'explanation'
+                          ? monthlyRequestHistory.explanations.map((e) => ({ ...e, _type: 'explanation' }))
+                          : []),
+                        ...(historyActiveTab === 'all' || historyActiveTab === 'leave'
+                          ? monthlyRequestHistory.leaveRequests.map((l) => ({ ...l, _type: 'explanation' }))
+                          : []),
+                        ...(historyActiveTab === 'all' || historyActiveTab === 'registration'
+                          ? monthlyRequestHistory.registrations.map((r) => ({ ...r, _type: 'registration' }))
+                          : []),
+                        ...(historyActiveTab === 'all' || historyActiveTab === 'online_work'
+                          ? monthlyRequestHistory.onlineWorks.map((ow) => ({ ...ow, _type: 'online_work' }))
+                          : []),
+                      ].sort((a, b) => {
+                        const dateA = new Date(a.created_at || a.attendance_date || a.work_date || a.event_date || 0).getTime();
+                        const dateB = new Date(b.created_at || b.attendance_date || b.event_date || b.work_date || 0).getTime();
+                        return dateB - dateA;
+                      });
+
+                      if (allItems.length === 0) {
+                        return (
+                          <div className="flex flex-col items-center justify-center h-48 gap-3 text-center px-6">
+                            <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center">
+                              <ClipboardDocumentListIcon className="h-7 w-7 text-gray-400" />
+                            </div>
+                            <p className="text-gray-500 text-sm font-medium">Chưa có đơn nào trong tháng này</p>
+                            <p className="text-gray-400 text-xs">Các đơn bạn tạo sẽ hiển thị tại đây</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="p-4 space-y-3 bg-gray-50/50 min-h-full">
+                          {allItems.map((item, idx) => {
+                            const statusConfig = ({
+                              APPROVED: { label: 'Đã duyệt', cls: 'bg-green-50 text-green-700 ring-1 ring-green-600/20' },
+                              REJECTED: { label: 'Từ chối', cls: 'bg-red-50 text-red-700 ring-1 ring-red-600/20' },
+                              PENDING: { label: 'Chờ duyệt', cls: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
+                              DRAFT: { label: 'Nháp', cls: 'bg-gray-50 text-gray-600 ring-1 ring-gray-500/20' },
+                              CANCELLED: { label: 'Đã huỷ', cls: 'bg-gray-50 text-gray-500 ring-1 ring-gray-500/20' },
+                            } as Record<string, { label: string; cls: string }>)[item.status] || { label: item.status, cls: 'bg-gray-50 text-gray-600 ring-1 ring-gray-500/20' };
+
+                            const typeConfig = (() => {
+                              if (item._type === 'explanation' && item.explanation_type === 'LEAVE') {
+                                return { label: 'Nghỉ phép tháng', bg: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20' };
+                              }
+                              return ({
+                                explanation: { label: 'Giải trình', bg: 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' },
+                                registration: { label: 'Đăng ký', bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
+                                online_work: { label: 'Làm việc online', bg: 'bg-teal-50 text-teal-700 ring-1 ring-teal-600/20' },
+                              } as Record<string, { label: string; bg: string }>)[item._type] || { label: item._type, bg: 'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20' };
+                            })();
+
+                            const dateStr = item.attendance_date || item.work_date || item.created_at;
+                            const displayDate = dateStr
+                              ? new Date(dateStr).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                              : '—';
+
+                            let requestName = '';
+                            if (item._type === 'explanation') {
+                              requestName = item.explanation_type ? (EXPLANATION_TYPE_MAP[item.explanation_type] || item.explanation_type) : 'Đơn giải trình';
+                            } else if (item._type === 'registration') {
+                              requestName = item.registration_type ? (EXPLANATION_TYPE_MAP[item.registration_type] || item.registration_type) : 'Đơn đăng ký';
+                            } else if (item._type === 'online_work') {
+                              requestName = 'Đơn làm việc online';
+                            } else if (item._type === 'explanation' && item.explanation_type === 'LEAVE') {
+                              requestName = 'Đơn nghỉ phép tháng';
+                            }
+
+                            return (
+                              <div key={`${item._type}-${item.id}-${idx}`} className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-purple-200 transition-all duration-300">
+                                <div className="flex flex-col gap-3">
+                                  {/* Header: Badges & Code */}
+                                  <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${typeConfig.bg}`}>
+                                        {typeConfig.label}
+                                      </span>
+                                      {item.request_code && (
+                                        <span className="text-[11px] font-mono text-gray-400 font-medium bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100/50">
+                                          {item.request_code}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide ${statusConfig.cls}`}>
+                                      {statusConfig.label}
+                                    </span>
+                                  </div>
+
+                                  {/* Body: Title & Reason */}
+                                  <div className="flex flex-col gap-2 relative z-10">
+                                    {requestName && (
+                                      <h4 className="text-[15px] font-bold text-gray-900 leading-snug">
+                                        {requestName}
+                                      </h4>
+                                    )}
+
+                                    {(() => {
+                                      let rawReason = item.reason || item.work_plan || '';
+
+                                      const prefixes = [
+                                        requestName,
+                                        item.explanation_type ? EXPLANATION_TYPE_MAP[item.explanation_type] : '',
+                                        item.registration_type ? EXPLANATION_TYPE_MAP[item.registration_type] : '',
+                                        'Giải trình đi muộn', 'Giải trình về sớm', 'Giải trình quên chấm công',
+                                        'Giải trình đi công tác', 'Giải trình ngày đầu đi làm',
+                                        'Đi muộn', 'Về sớm', 'Quên chấm công', 'Đi công tác', 'Ngày đầu đi làm',
+                                        'Đăng ký tăng ca', 'Đăng ký làm thêm giờ', 'Đăng ký trực tối', 'Đăng ký Live',
+                                        'Tăng ca', 'Làm thêm giờ', 'Trực tối', 'Live',
+                                        'Làm việc online', 'Làm online', 'Nghỉ phép'
+                                      ].filter(Boolean);
+
+                                      prefixes.sort((a, b) => b.length - a.length);
+
+                                      for (const p of prefixes) {
+                                        if (p && rawReason.toLowerCase().startsWith(p.toLowerCase())) {
+                                          rawReason = rawReason.substring(p.length).replace(/^[\:\-\s]+/, '').trim();
+                                          break;
+                                        }
+                                      }
+
+                                      return rawReason ? (
+                                        <div className="bg-gray-50 rounded-xl p-3 border border-gray-100/60 shadow-inner overflow-hidden relative">
+                                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-gray-200 to-gray-100"></div>
+                                          <div className="flex items-start gap-2 pl-1">
+                                            <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h7" />
+                                            </svg>
+                                            <span className="text-[13px] text-gray-600 font-medium leading-relaxed line-clamp-2">
+                                              {rawReason}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ) : null;
+                                    })()}
+                                  </div>
+
+                                  {/* Footer: Date */}
+                                  <div className="flex items-center justify-between pt-2.5 mt-0.5 border-t border-gray-50">
+                                    <div className="flex items-center gap-1.5 text-gray-400">
+                                      <CalendarIcon className="h-4 w-4" />
+                                      <span className="text-xs font-semibold">{displayDate}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+                    <button
+                      onClick={() => {
+                        setRequestHistoryLoading(true);
+                        fetchMonthlyRequestHistory();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 py-2 text-sm text-purple-600 font-medium hover:text-purple-700 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Làm mới
+                    </button>
                   </div>
                 </div>
               </div>
-              <div className="mt-5 sm:mt-6">
-                <button
-                  type="button"
-                  className={`inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm transition-colors ${notification.type === 'success'
-                    ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                    : notification.type === 'error'
-                      ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                      : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
-                    }`}
-                  onClick={() =>
-                    setNotification((prev) => ({ ...prev, show: false }))
-                  }
-                >
-                  Đóng
-                </button>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Notification Dialog */}
+
+      {
+        notification.show && (
+          <div className="fixed inset-0 z-[100] overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div
+                className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                onClick={() =>
+                  setNotification((prev) => ({ ...prev, show: false }))
+                }
+              ></div>
+
+              <span
+                className="hidden sm:inline-block sm:align-middle sm:h-screen"
+                aria-hidden="true"
+              >
+                &#8203;
+              </span>
+
+              <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-sm sm:w-full sm:p-6">
+                <div>
+                  <div
+                    className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${notification.type === 'success'
+                      ? 'bg-green-100'
+                      : notification.type === 'error'
+                        ? 'bg-red-100'
+                        : 'bg-yellow-100'
+                      }`}
+                  >
+                    {notification.type === 'success' ? (
+                      <CheckCircleIcon
+                        className="h-6 w-6 text-green-600"
+                        aria-hidden="true"
+                      />
+                    ) : notification.type === 'error' ? (
+                      <XMarkIcon
+                        className="h-6 w-6 text-red-600"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <ClockIcon
+                        className="h-6 w-6 text-yellow-600"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </div>
+                  <div className="mt-3 text-center sm:mt-5">
+                    <h3 className="text-lg leading-6 font-bold text-gray-900">
+                      {notification.title}
+                    </h3>
+                    <div className="mt-2 text-sm text-gray-500">
+                      <p>{notification.message}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-5 sm:mt-6">
+                  <button
+                    type="button"
+                    className={`inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:text-sm transition-colors ${notification.type === 'success'
+                      ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                      : notification.type === 'error'
+                        ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                        : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
+                      }`}
+                    onClick={() =>
+                      setNotification((prev) => ({ ...prev, show: false }))
+                    }
+                  >
+                    Đóng
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 
