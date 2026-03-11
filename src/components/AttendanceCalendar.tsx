@@ -106,7 +106,19 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date(year, month, 1));
   const [attendanceData, setAttendanceData] = useState<AttendanceDay[]>([]);
+  const [engineSummary, setEngineSummary] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  // DEBUG: Log engine summary when it changes
+  useEffect(() => {
+    if (engineSummary) {
+      console.log('--- [AttendanceCalendar] LOG DEBUG engineSummary ---');
+      console.log('Used:', engineSummary.explanation_quota_used);
+      console.log('Remaining:', engineSummary.explanation_quota_remaining);
+      console.log('Max:', engineSummary.explanation_quota_max);
+      console.log('Data:', engineSummary);
+    }
+  }, [engineSummary]);
 
   // Map API shift status string to AttendanceStatus
   const mapShiftStatus = (shift: any): AttendanceStatus => {
@@ -205,6 +217,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         (responseData as any)?.data?.calendar ||
         (responseData as any)?.calendar_data ||
         [];
+      
+      const summary = (responseData as any)?.data?.engine_summary || null;
+      setEngineSummary(summary);
 
       const transformedData: AttendanceDay[] = calendarDays.map((dayItem: any) => {
         // Parse date as local time (append T00:00:00 to avoid UTC offset shifting the day)
@@ -682,6 +697,67 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           </div>
         ))}
       </div>
+
+      {/* Explanation Quota Info - Professional Display */}
+      {engineSummary && engineSummary.explanation_quota_max !== undefined && (
+        <div className="px-2.5 py-2.5 md:px-6 md:py-3 border-b border-gray-100 bg-amber-50/30 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="p-1.5 md:p-2 bg-amber-100 rounded-xl text-amber-600 shadow-sm border border-amber-200">
+              <BoltIcon className="h-4 w-4 md:h-5 md:w-5" />
+            </div>
+            <div>
+              <p className="text-[9px] md:text-[11px] font-black text-amber-800 uppercase tracking-widest leading-tight">Hạn mức giải trình tháng {currentDate.getMonth() + 1}</p>
+              <div className="flex items-center gap-1.5 md:gap-2 mt-0.5">
+                <span className="text-base md:text-xl font-black text-amber-900 leading-none">
+                  {engineSummary.explanation_quota_used}
+                  <span className="text-xs md:text-sm font-bold text-amber-500 mx-0.5 md:mx-1">/</span>
+                  {engineSummary.explanation_quota_max}
+                </span>
+                <span className="text-[8px] md:text-[10px] font-bold text-amber-600 bg-amber-100/50 px-1.5 py-0.5 rounded-md border border-amber-200/50 leading-none">
+                  đã dùng
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex flex-col items-end">
+              <span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] md:tracking-[0.2em] leading-tight">Còn lại</span>
+              <span className={`text-sm md:text-lg font-black mt-0.5 leading-none ${
+                engineSummary.explanation_quota_remaining > 0 
+                ? 'text-green-600' 
+                : 'text-red-500'
+              }`}>
+                {engineSummary.explanation_quota_remaining} lượt
+              </span>
+            </div>
+            <div className="w-10 h-10 md:w-14 md:h-14 flex items-center justify-center rounded-xl md:rounded-2xl bg-white shadow-sm border border-slate-100 ring-1 ring-slate-200/50">
+              <div className="relative w-7 h-7 md:w-10 md:h-10">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                  <circle
+                    cx="50" cy="50" r="40"
+                    className="stroke-amber-100 fill-none"
+                    strokeWidth="8"
+                    pathLength="100"
+                  />
+                  <circle
+                    cx="50" cy="50" r="40"
+                    className={`${engineSummary.explanation_quota_remaining > 0 ? 'stroke-amber-500' : 'stroke-red-500'} fill-none transition-all duration-1000 ease-out`}
+                    strokeWidth="8"
+                    strokeDasharray="100"
+                    strokeDashoffset={Math.max(0, 100 - ((engineSummary.explanation_quota_used / engineSummary.explanation_quota_max) * 100))}
+                    strokeLinecap="round"
+                    pathLength="100"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center text-[8px] md:text-[10px] font-black text-amber-700">
+                  {Math.min(100, Math.round((engineSummary.explanation_quota_used / engineSummary.explanation_quota_max) * 100))}%
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="p-2.5 md:p-5">
         {/* ===== DESKTOP: Calendar Grid (md+) ===== */}
