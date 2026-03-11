@@ -30,6 +30,26 @@ const Approvals: React.FC = () => {
   const [selectedOnlineWorkRequest, setSelectedOnlineWorkRequest] =
     useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+
+  // Debug log cho Quota và dữ liệu được chọn
+  useEffect(() => {
+    if (selectedExplanation) {
+      console.log('🔵 [DEBUG] Đơn giải trình được chọn:', {
+        id: selectedExplanation.id,
+        type: selectedExplanation.explanation_type,
+        attendance_date: selectedExplanation.attendance_date,
+        quota_used: selectedExplanation.quota_used,
+        quota_remaining: selectedExplanation.quota_remaining,
+        full_data: selectedExplanation
+      });
+    }
+  }, [selectedExplanation]);
+
+  useEffect(() => {
+    if (selectedOnlineWorkRequest) {
+      console.log('🟢 [DEBUG] Đơn làm việc online được chọn:', selectedOnlineWorkRequest);
+    }
+  }, [selectedOnlineWorkRequest]);
   const [stats, setStats] = useState({
     pending_leave: 0,
     pending_overtime: 0,
@@ -50,6 +70,8 @@ const Approvals: React.FC = () => {
   );
   const [approvalNote, setApprovalNote] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const isAdmin = currentEmployee?.user?.is_staff || currentEmployee?.user?.is_superuser;
   const isHR = currentEmployee?.is_hr ||
@@ -510,7 +532,9 @@ const Approvals: React.FC = () => {
       fetchRequests(); // Refresh data
     } catch (error: any) {
       console.error(`Error ${actionType}:`, error);
-      alert(`Lỗi: ${error.response?.data?.detail || 'Thao tác thất bại'}`);
+      const msg = error.response?.data?.error || error.response?.data?.detail || 'Thao tác thất bại';
+      setErrorMessage(msg);
+      setErrorModalOpen(true);
     } finally {
       setIsProcessing(false);
     }
@@ -537,19 +561,23 @@ const Approvals: React.FC = () => {
       fetchRequests();
     } catch (error: any) {
       console.error('Error deleting:', error);
-      alert(`Lỗi: ${error.response?.data?.detail || 'Xóa thất bại'}`);
+      const msg = error.response?.data?.error || error.response?.data?.detail || 'Xóa thất bại';
+      setErrorMessage(msg);
+      setErrorModalOpen(true);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleViewOnlineWorkDetails = (request: any) => {
+    console.log('📂 [VIEW] Mở chi tiết đơn làm việc online');
     setSelectedOnlineWorkRequest(request);
     setSelectedExplanation(null);
     setShowDetailModal(true);
   };
 
   const handleViewDetails = (explanation: any) => {
+    console.log('📂 [VIEW] Mở chi tiết đơn giải trình');
     setSelectedExplanation(explanation);
     setShowDetailModal(true);
   };
@@ -1679,6 +1707,47 @@ const Approvals: React.FC = () => {
                                   {selectedExplanation.expected_status_display || getExpectedStatusText(selectedExplanation.expected_status)}
                                 </span>
                               </div>
+
+                              {/* Hiển thị Quota cho Đi muộn, Về sớm, Quên chấm công */}
+                              {['LATE', 'EARLY_LEAVE', 'INCOMPLETE_ATTENDANCE'].includes(selectedExplanation.explanation_type || selectedExplanation.expected_status) && (
+                                <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-100 ring-1 ring-amber-200/50">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider flex items-center">
+                                      <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                      Hạn mức tháng
+                                    </span>
+                                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                                      (selectedExplanation.quota_remaining || 0) > 0 
+                                      ? 'bg-green-100 text-green-700' 
+                                      : 'bg-red-100 text-red-700'
+                                    }`}>
+                                      Tháng {new Date(selectedExplanation.attendance_date).getMonth() + 1}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-end">
+                                    <div>
+                                      <p className="text-[10px] text-amber-700 font-medium">Đã dùng (được duyệt):</p>
+                                      <p className="text-lg font-black text-amber-900 leading-none mt-0.5">
+                                        {selectedExplanation.quota_used ?? '0'}<span className="text-xs font-bold text-amber-700 ml-0.5">/3</span>
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[10px] text-amber-700 font-medium italic">
+                                        Còn lại: <span className="text-sm font-bold text-amber-900 not-italic">{(selectedExplanation.quota_remaining ?? 3)}</span>
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {/* Progress bar mini */}
+                                  <div className="mt-2 h-1.5 w-full bg-amber-200/50 rounded-full overflow-hidden">
+                                    <div 
+                                      className={`h-full transition-all duration-500 ${
+                                        (selectedExplanation.quota_used || 0) >= 3 ? 'bg-red-500' : 'bg-amber-500'
+                                      }`}
+                                      style={{ width: `${Math.min(100, ((selectedExplanation.quota_used || 0) / 3) * 100)}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              )}
                             </>
                           )}
                         </>
@@ -1996,6 +2065,33 @@ const Approvals: React.FC = () => {
                 {isProcessing ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : 'Đồng ý xóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Modal Thông báo Lỗi */}
+      {errorModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110]">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Thông báo</h3>
+              <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line">
+                {errorMessage}
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 flex gap-3">
+              <button
+                onClick={() => setErrorModalOpen(false)}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all text-sm shadow-lg shadow-red-200"
+              >
+                Đã hiểu
               </button>
             </div>
           </div>
