@@ -73,6 +73,7 @@ import LeavePolicyList from './pages/LeavePolicyList';
 import LeavePolicyCreate from './pages/LeavePolicyCreate';
 import { EmployeeOnboardingForm } from "./pages/EmployeeOnboardingForm";
 import WorkFinalization from './pages/WorkFinalization';
+import WorkFinalizationApprovals from './pages/WorkFinalizationApprovals';
 
 function App() {
   return (
@@ -731,6 +732,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <WorkFinalization />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Work Finalization Approvals Route */}
+          <Route
+            path="/dashboard/work-finalization/approvals"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <WorkFinalizationApprovals />
                 </Layout>
               </ProtectedRoute>
             }

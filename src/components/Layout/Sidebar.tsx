@@ -135,6 +135,12 @@ const navigationItems: NavigationItem[] = [
     icon: TableCellsIcon,
     roles: ['ADMIN', 'HR'],
   },
+  {
+    name: 'Phê duyệt chốt công',
+    href: '/dashboard/work-finalization/approvals',
+    icon: CheckCircleIcon,
+    roles: ['ADMIN', 'HR'],
+  },
 ];
 
 interface SidebarProps {
@@ -204,8 +210,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           }
         }
 
-        // ← MỚI: Trưởng phòng (is_management) được xem Onboarding
+        // ← MỚI: Trưởng phòng (is_management) được xem Onboarding và Phê duyệt chốt công
         if (isManager && item.name === 'Onboard nhân sự') {
+          return true;
+        }
+        if (isManager && item.name === 'Phê duyệt chốt công') {
           return true;
         }
         
@@ -239,8 +248,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           console.log('Sidebar - Adding item with department access:', item.name, 'departments:', item.departments);
           staffNavigation.push(item);
         }
-        // ← MỚI: Trưởng phòng trong STAFF cũng xem được Onboarding
+        // ← MỚI: Trưởng phòng trong STAFF cũng xem được Onboarding và Phê duyệt chốt công
         if (isManager && item.name === 'Onboard nhân sự') {
+          staffNavigation.push(item);
+        }
+        if (isManager && item.name === 'Phê duyệt chốt công') {
           staffNavigation.push(item);
         }
       }
@@ -256,11 +268,15 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     let customerNavigation = navigationItems.filter((item) =>
       allowedCustomerItems.includes(item.name)
     );
-    // Trưởng phòng trong CUSTOMER cũng xem được Onboarding
+    // Trưởng phòng trong CUSTOMER cũng xem được Onboarding và Phê duyệt chốt công
     if (isManager) {
       const onboardingItem = navigationItems.find(item => item.name === 'Onboard nhân sự');
       if (onboardingItem && !customerNavigation.some(n => n.name === 'Onboard nhân sự')) {
         customerNavigation.push(onboardingItem);
+      }
+      const approvalItem = navigationItems.find(item => item.name === 'Phê duyệt chốt công');
+      if (approvalItem && !customerNavigation.some(n => n.name === 'Phê duyệt chốt công')) {
+        customerNavigation.push(approvalItem);
       }
     }
     navigation = customerNavigation;
