@@ -35,6 +35,14 @@ const WorkFinalizationApprovals: React.FC = () => {
   const { user } = useAuth();
   const userRole = user?.role ? user.role.toUpperCase() : 'USER';
   const isHROrAdmin = userRole === 'ADMIN' || userRole === 'HR';
+  const isManager = !!(user as any)?.is_manager;
+
+  // Department code of the currently logged-in manager
+  const managerDeptCode: string | null =
+    (user as any)?.employee_profile?.department_code ||
+    (user as any)?.hrm_user?.department_code ||
+    (user as any)?.department_code ||
+    null;
 
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
@@ -66,13 +74,22 @@ const WorkFinalizationApprovals: React.FC = () => {
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
-  // Load departments
+  // Load departments — managers only see their own department
   useEffect(() => {
     departmentsAPI
       .list({ page_size: 200 })
-      .then((res) => setDepartments(res.results))
+      .then((res) => {
+        if (!isHROrAdmin && isManager && managerDeptCode) {
+          // Filter to only the manager's department
+          setDepartments(
+            res.results.filter((d) => d.code === managerDeptCode)
+          );
+        } else {
+          setDepartments(res.results);
+        }
+      })
       .catch(() => {});
-  }, []);
+  }, [isHROrAdmin, isManager, managerDeptCode]);
 
   // Load approvals list
   const loadApprovals = useCallback(async () => {
@@ -294,6 +311,47 @@ const WorkFinalizationApprovals: React.FC = () => {
         </div>
       )}
 
+      {/* Manager: prominent pending-approval card for their own department */}
+      {isManager && managerDeptCode && (() => {
+        const myApproval = getDeptApproval(managerDeptCode);
+        if (!myApproval || myApproval.status !== 'PENDING') return null;
+        return (
+          <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <ClockIcon className="w-6 h-6 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-yellow-900">
+                  Yêu cầu phê duyệt chốt công đang chờ xử lý
+                </p>
+                <p className="text-sm text-yellow-800 mt-0.5">
+                  Phòng ban <span className="font-medium">{myApproval.department_name || myApproval.department_code}</span>{' '}
+                  — Tháng {myApproval.month}/{myApproval.year}
+                  {myApproval.sent_by_name && (
+                    <> · Gửi bởi <span className="font-medium">{myApproval.sent_by_name}</span></>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => openActionModal(myApproval, 'APPROVE')}
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md border border-green-400 text-green-800 bg-green-100 hover:bg-green-200"
+              >
+                <CheckCircleIcon className="w-4 h-4 mr-1" />
+                Duyệt
+              </button>
+              <button
+                onClick={() => openActionModal(myApproval, 'REJECT')}
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md border border-red-400 text-red-800 bg-red-100 hover:bg-red-200"
+              >
+                <XCircleIcon className="w-4 h-4 mr-1" />
+                Từ chối
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Filters */}
       <div className="bg-white shadow rounded-lg p-4">
         <div className="flex items-center mb-3">
@@ -410,11 +468,20 @@ const WorkFinalizationApprovals: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-100">
                 {departments.map((dept) => {
                   const approval = getDeptApproval(dept.code);
+                  const isMyDept = isManager && dept.code === managerDeptCode;
                   return (
-                    <tr key={dept.id} className="hover:bg-gray-50">
+                    <tr
+                      key={dept.id}
+                      className={`hover:bg-gray-50 ${isMyDept && approval?.status === 'PENDING' ? 'bg-yellow-50' : ''}`}
+                    >
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="font-medium text-gray-900">
                           {dept.name}
+                          {isMyDept && (
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700">
+                              Phòng của bạn
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-gray-500 font-mono">
                           {dept.code}
@@ -477,8 +544,9 @@ const WorkFinalizationApprovals: React.FC = () => {
                                 : 'Gửi'}
                             </button>
                           )}
-                          {/* Dept head (or admin): approve/reject PENDING requests */}
-                          {approval && approval.status === 'PENDING' && (
+                          {/* Dept head / HR / Admin: approve or reject PENDING requests */}
+                          {approval && approval.status === 'PENDING' &&
+                            (isHROrAdmin || (isManager && isMyDept)) && (
                             <>
                               <button
                                 onClick={() =>
