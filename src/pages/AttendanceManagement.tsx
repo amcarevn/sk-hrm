@@ -1098,46 +1098,58 @@ const AttendanceManagement: React.FC = () => {
           return;
         }
       } else if (selectedContext === 'registration') {
-        // Đăng ký công (OVERTIME, EXTRA_HOURS, NIGHT_SHIFT, LIVE) — gọi endpoint mới
-        const registrationTypeMap: Record<string, 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE'> = {
-          overtime: 'OVERTIME',
-          extra_hours: 'EXTRA_HOURS',
-          night_shift: 'NIGHT_SHIFT',
-          live: 'LIVE',
-        };
-        const registrationType = registrationTypeMap[selectedReason as string] || 'OVERTIME';
-
-        // Lấy start_time/end_time theo loại
-        let startTime: string | undefined;
-        let endTime: string | undefined;
+        // Tách riêng logic xử lý cho từng loại đơn đăng ký để đảm bảo tính chính xác và thông báo rõ ràng
         if (selectedReason === 'overtime') {
-          startTime = overtimeStartTime;
-          endTime = overtimeEndTime;
+          // 1. Phân đoạn gửi Đơn Tăng ca (Overtime)
+          const overtimeData = {
+            employee_id: currentEmployee.id,
+            attendance_date: dateStr,
+            registration_type: 'OVERTIME' as const,
+            start_time: overtimeStartTime,
+            end_time: overtimeEndTime,
+            reason: finalReason,
+            status: 'PENDING' as const,
+          };
+          result = await attendanceService.createRegistrationRequest(overtimeData);
+          await refreshAllData();
+          showNotify('success', 'Thành công', 'Đơn đăng ký tăng ca đã được gửi thành công!');
         } else if (selectedReason === 'extra_hours') {
-          startTime = extraHoursStartTime;
-          endTime = extraHoursEndTime;
-        } else if (selectedReason === 'night_shift') {
-          startTime = nightShiftStartTime;
-          endTime = nightShiftEndTime;
-        } else if (selectedReason === 'live') {
-          startTime = liveStartTime;
-          endTime = liveEndTime;
+          // 2. Phân đoạn gửi Đơn Làm thêm giờ (Extra Hours - Thường dành cho Part-time)
+          const extraHoursData = {
+            employee_id: currentEmployee.id,
+            attendance_date: dateStr,
+            registration_type: 'EXTRA_HOURS' as const,
+            start_time: extraHoursStartTime,
+            end_time: extraHoursEndTime,
+            reason: finalReason,
+            status: 'PENDING' as const,
+          };
+          result = await attendanceService.createRegistrationRequest(extraHoursData);
+          await refreshAllData();
+          showNotify('success', 'Thành công', 'Đơn làm thêm giờ đã được gửi thành công!');
+        } else {
+          // 3. Các loại đăng ký khác (Trực tối, Live)
+          const otherRegMap: Record<string, 'NIGHT_SHIFT' | 'LIVE'> = {
+            night_shift: 'NIGHT_SHIFT',
+            live: 'LIVE',
+          };
+          const regType = otherRegMap[selectedReason as string] || 'NIGHT_SHIFT';
+          const startTime = selectedReason === 'night_shift' ? nightShiftStartTime : liveStartTime;
+          const endTime = selectedReason === 'night_shift' ? nightShiftEndTime : liveEndTime;
+
+          const otherRegData = {
+            employee_id: currentEmployee.id,
+            attendance_date: dateStr,
+            registration_type: regType,
+            start_time: startTime,
+            end_time: endTime,
+            reason: finalReason,
+            status: 'PENDING' as const,
+          };
+          result = await attendanceService.createRegistrationRequest(otherRegData);
+          await refreshAllData();
+          showNotify('success', 'Thành công', `Đơn đăng ký ${selectedReason === 'live' ? 'Live' : 'trực tối'} đã gửi thành công!`);
         }
-
-        const registrationData = {
-          employee_id: currentEmployee.id,
-          attendance_date: dateStr,
-          registration_type: registrationType,
-          start_time: startTime,
-          end_time: endTime,
-          reason: finalReason,
-          status: 'PENDING' as const,
-        };
-
-        result = await attendanceService.createRegistrationRequest(registrationData);
-
-        await refreshAllData();
-        showNotify('success', 'Thành công', 'Đơn đăng ký công đã được gửi thành công!');
       } else {
         // Giải trình (LATE, EARLY_LEAVE, INCOMPLETE_ATTENDANCE, BUSINESS_TRIP, FIRST_DAY)
         const explanationTypeMap: Record<string, string> = {
@@ -2106,41 +2118,66 @@ const AttendanceManagement: React.FC = () => {
                     const allEvents: any[] = [];
                     attendanceDetails.forEach((r) => {
                       (r.events || []).forEach((ev) => {
+                        // Skip raw request approval events as we expand them manually below
+                        if (
+                          ['request_approval', 'explanation_approval'].includes(
+                            ev.event_type
+                          )
+                        )
+                          return;
+
                         allEvents.push({
                           ...ev,
                           recordStatus: r.status,
                           recordStatusDisplay: r.status_display,
                         });
 
-                        // Expand registrations into separate approval steps if they exist
+                        // Expand registrations and explanations into separate approval steps if they exist
                         if (
-                          ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(
-                            ev.event_type
-                          )
+                          [
+                            'overtime',
+                            'extra_hours',
+                            'night_shift',
+                            'live',
+                            'livestream',
+                            'explanation',
+                          ].includes(ev.event_type)
                         ) {
                           if (ev.data?.direct_manager_approved_by_name) {
                             allEvents.push({
                               id: `v-dm-${ev.id}`,
                               event_type: 'registration_approval',
-                              created_at: new Date(new Date(ev.created_at).getTime() + 1000).toISOString(),
+                              created_at: new Date(
+                                new Date(ev.created_at).getTime() + 1000
+                              ).toISOString(),
                               data: {
                                 approval_level: 'DIRECT_MANAGER',
-                                approved_by_name: ev.data.direct_manager_approved_by_name,
+                                approved_by_name:
+                                  ev.data.direct_manager_approved_by_name,
                                 status: 'APPROVED',
-                                registration_type: ev.data.registration_type,
+                                registration_type:
+                                  ev.data.registration_type || ev.event_type,
                               },
                             });
                           }
-                          if (ev.data?.hr_approved_by_name) {
+                          // Only show HR approval if NOT created by HR and NOT for an HR employee
+                          const isStaffHR =
+                            ev.is_hr_created ||
+                            ev.employee_is_hr ||
+                            ev.data?.employee_is_hr;
+                          if (ev.data?.hr_approved_by_name && !isStaffHR) {
                             allEvents.push({
                               id: `v-hr-${ev.id}`,
                               event_type: 'registration_approval',
-                              created_at: new Date(new Date(ev.created_at).getTime() + 2000).toISOString(),
+                              created_at: new Date(
+                                new Date(ev.created_at).getTime() + 2000
+                              ).toISOString(),
                               data: {
                                 approval_level: 'HR',
                                 approved_by_name: ev.data.hr_approved_by_name,
                                 status: 'APPROVED',
-                                registration_type: ev.data.registration_type,
+                                registration_type:
+                                  ev.data.registration_type || ev.event_type,
                               },
                             });
                           }

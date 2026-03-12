@@ -234,7 +234,7 @@ const WorkFinalization: React.FC = () => {
         { header: 'Tăng Ca', key: 'tang_ca', width: 10 },
         { header: 'Làm Tối', key: 'lam_toi', width: 10 },
         { header: 'Trực Tối', key: 'truc_toi', width: 10 },
-        { header: 'Thêm Giờ', key: 'them_gio', width: 10 },
+        { header: 'Làm Thêm Giờ', key: 'lam_them_gio', width: 14 },
         { header: 'Live', key: 'live', width: 8 },
         { header: 'Phụ Cấp Gửi Xe', key: 'phu_cap_gui_xe', width: 16 },
       ];
@@ -279,7 +279,7 @@ const WorkFinalization: React.FC = () => {
           tang_ca: rec.tang_ca,
           lam_toi: rec.lam_toi ?? '',
           truc_toi: rec.truc_toi,
-          them_gio: rec.them_gio,
+          lam_them_gio: rec.lam_them_gio,
           live: rec.live,
           phu_cap_gui_xe: rec.phu_cap_gui_xe,
         });
@@ -732,10 +732,10 @@ const WorkFinalization: React.FC = () => {
                       { label: 'Tổng công', value: String(finalizedRec.tong_cong), cardCls: 'bg-emerald-50', labelCls: 'text-emerald-700', valCls: 'text-emerald-800 font-extrabold' },
                       { label: 'Nghỉ phép tháng', value: String(finalizedRec.nghi_phep), cardCls: 'bg-indigo-50/50', labelCls: 'text-indigo-700', valCls: 'text-indigo-800 font-bold' },
                       { label: 'Tổng phạt', value: `${formatNumber(finalizedRec.tong_phat)}đ`, cardCls: 'bg-red-50', labelCls: 'text-red-700', valCls: 'text-red-800 font-bold' },
-                      { label: 'Tăng ca', value: String(finalizedRec.tang_ca), cardCls: 'bg-orange-50', labelCls: 'text-orange-700', valCls: 'text-orange-800 font-bold' },
-                      { label: 'Trực tối', value: String(finalizedRec.truc_toi), cardCls: 'bg-purple-50', labelCls: 'text-purple-700', valCls: 'text-purple-800 font-bold' },
-                      { label: 'Thêm giờ', value: String(finalizedRec.them_gio), cardCls: 'bg-yellow-50', labelCls: 'text-yellow-700', valCls: 'text-yellow-800 font-bold' },
-                      { label: 'Live', value: String(finalizedRec.live), cardCls: 'bg-pink-50', labelCls: 'text-pink-700', valCls: 'text-pink-800 font-bold' },
+                      { label: 'Tăng ca', value: `${finalizedRec.tang_ca} giờ`, cardCls: 'bg-orange-50', labelCls: 'text-orange-700', valCls: 'text-orange-800 font-bold' },
+                      { label: 'Trực tối', value: `${finalizedRec.truc_toi} buổi`, cardCls: 'bg-purple-50', labelCls: 'text-purple-700', valCls: 'text-purple-800 font-bold' },
+                      { label: 'Làm thêm giờ', value: `${finalizedRec.lam_them_gio} giờ`, cardCls: 'bg-yellow-50', labelCls: 'text-yellow-700', valCls: 'text-yellow-800 font-bold' },
+                      { label: 'Live', value: `${finalizedRec.live} ca`, cardCls: 'bg-pink-50', labelCls: 'text-pink-700', valCls: 'text-pink-800 font-bold' },
                       { label: 'PC Gửi xe', value: `${formatNumber(finalizedRec.phu_cap_gui_xe)}đ`, cardCls: 'bg-teal-50', labelCls: 'text-teal-700', valCls: 'text-teal-800 font-bold' },
                     ].map((item) => (
                       <div key={item.label} className={`${item.cardCls} rounded-lg p-3`}>

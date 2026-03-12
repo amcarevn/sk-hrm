@@ -12,6 +12,8 @@ export interface AttendanceEvent {
   data: Record<string, any>;
   created_at: string;
   created_by: string | null;
+  is_hr_created?: boolean;
+  employee_is_hr?: boolean;
 }
 
 export interface AttendanceRecord {

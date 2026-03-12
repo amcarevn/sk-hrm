@@ -241,10 +241,10 @@ const Approvals: React.FC = () => {
     BUSINESS_TRIP: 'Giải trình đi công tác',
     FIRST_DAY: 'Giải trình ngày đầu đi làm',
     OTHER: 'Khác',
-    OVERTIME: 'Đăng ký tăng ca',
-    EXTRA_HOURS: 'Đăng ký làm thêm giờ',
-    NIGHT_SHIFT: 'Đăng ký trực tối',
-    LIVE: 'Đăng ký Live',
+    OVERTIME: 'Tăng ca',
+    EXTRA_HOURS: 'Làm thêm giờ',
+    NIGHT_SHIFT: 'Trực tối',
+    LIVE: 'Live',
     LEAVE: 'Nghỉ phép tháng',
   };
 
@@ -276,11 +276,13 @@ const Approvals: React.FC = () => {
   const getRequestTypeLabel = (req: any): string => {
     if (req._itemType === 'ONLINE_WORK') return 'Làm việc online';
     if (req.explanation_type === 'LEAVE' || req._itemType === 'LEAVE') return 'Nghỉ phép tháng';
-    if (req._itemType === 'OVERTIME') return 'Làm thêm giờ';
-    if (req._itemType === 'REGISTRATION') {
-      const type = req.registration_type || '';
+    
+    // Đơn đăng ký (Tăng ca, Làm thêm giờ, Live, Trực tối)
+    if (req._itemType === 'REGISTRATION' || req._itemType === 'OVERTIME') {
+      const type = req.registration_type || (req._itemType === 'OVERTIME' ? 'OVERTIME' : '');
       return EXPLANATION_TYPE_MAP[type] || 'Đơn đăng ký';
     }
+    
     // Mặc định là đơn giải trình
     const typeLabel = req.explanation_type ? (EXPLANATION_TYPE_MAP[req.explanation_type] || req.explanation_type) : 'Đơn giải trình';
     return typeLabel;
@@ -1123,7 +1125,7 @@ const Approvals: React.FC = () => {
       .filter(matchesTextFilters)
       .map(r => ({
         ...r,
-        _itemType: (r.registration_type === 'OVERTIME' || r.registration_type === 'EXTRA_HOURS') ? 'OVERTIME' : 'REGISTRATION'
+        _itemType: 'REGISTRATION'
       }));
 
     const mappedOnlineWorks = onlineWorks
@@ -1136,7 +1138,11 @@ const Approvals: React.FC = () => {
 
     const mappedOvertimes = overtimeRequests
       .filter(matchesTextFilters)
-      .map(ov => ({ ...ov, _itemType: 'OVERTIME' }));
+      .map(ov => ({ 
+        ...ov, 
+        _itemType: 'REGISTRATION',
+        registration_type: 'OVERTIME' 
+      }));
 
     // 3. Combine and filter by type (search bar filters)
     let all = [

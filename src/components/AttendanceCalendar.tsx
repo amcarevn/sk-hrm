@@ -152,11 +152,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   };
 
   const getRequestTypeLabel = (reg: any): string => {
-    const type = reg.event_type;
+    const type = (reg.event_type || '').toUpperCase();
     const data = reg.data || {};
+    const regType = (data.registration_type || '').toUpperCase();
 
-    if (type === 'explanation') {
-      const expType = data.explanation_type;
+    if (type === 'EXPLANATION') {
+      const expType = (data.explanation_type || '').toUpperCase();
       switch (expType) {
         case 'LATE': return 'đi muộn';
         case 'EARLY_LEAVE': return 'về sớm';
@@ -167,13 +168,18 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       }
     }
 
-    switch (type) {
-      case 'overtime': return 'tăng ca';
-      case 'extra_hours': return 'làm thêm giờ';
-      case 'night_shift': return 'trực tối';
-      case 'online_work': return 'làm việc online';
-      case 'leave': return 'nghỉ phép';
-      case 'live':
+    // Ưu tiên sử dụng registration_type từ BE, nếu không có mới dùng event_type
+    const effectiveType = regType || type;
+
+    switch (effectiveType) {
+      case 'OVERTIME': return 'tăng ca';
+      case 'EXTRA_HOURS': return 'làm thêm giờ';
+      case 'NIGHT_SHIFT': return 'trực tối';
+      case 'ONLINE_WORK': return 'làm việc online';
+      case 'LEAVE': return 'nghỉ phép';
+      case 'LIVE':
+      case 'LIVESTREAM':
+        return 'live';
       default: return 'đơn';
     }
   };
@@ -287,33 +293,37 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         // Process registrations for summary and compatibility
         const registrations = dayItem.registrations || [];
         const approvedExplanations = registrations
-          .filter((r: any) => r.event_type === 'explanation' && r.data?.status === 'APPROVED')
+          .filter((r: any) => (r.event_type || '').toUpperCase() === 'EXPLANATION' && r.data?.status === 'APPROVED')
           .map((r: any) => ({
             ...r.data,
             reason: r.explanation || r.data?.reason,
           }));
 
         const allExplanations = registrations
-          .filter((r: any) => r.event_type === 'explanation' && ['APPROVED', 'PENDING'].includes(r.data?.status))
+          .filter((r: any) => (r.event_type || '').toUpperCase() === 'EXPLANATION' && ['APPROVED', 'PENDING'].includes(r.data?.status))
           .map((r: any) => ({
             ...r.data,
             reason: r.explanation || r.data?.reason,
           }));
 
         const approvedRegistrations = registrations
-          .filter((r: any) => ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(r.event_type) && r.data?.status === 'APPROVED')
-          .map((r: any) => r.data);
+          .filter((r: any) => {
+            const t = (r.event_type || '').toUpperCase();
+            return ['OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM'].includes(t) && r.data?.status === 'APPROVED';
+          })
+          .map((r: any) => r);
 
         const onlineWorkRequests = registrations
-          .filter((r: any) => r.event_type === 'online_work' && r.data?.status === 'APPROVED')
+          .filter((r: any) => (r.event_type || '').toUpperCase() === 'ONLINE_WORK' && r.data?.status === 'APPROVED')
           .map((r: any) => r.data);
 
         const hasApprovedExplanations = approvedExplanations.length > 0;
         const hasApprovedRegistration = approvedRegistrations.length > 0;
-        const pendingRequests = registrations.filter((r: any) =>
-          ['explanation', 'overtime', 'extra_hours', 'night_shift', 'live', 'livestream', 'online_work', 'leave'].includes(r.event_type) &&
-          r.data?.status === 'PENDING'
-        );
+        const pendingRequests = registrations.filter((r: any) => {
+          const t = (r.event_type || '').toUpperCase();
+          return ['EXPLANATION', 'OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM', 'ONLINE_WORK', 'LEAVE'].includes(t) &&
+                 r.data?.status === 'PENDING';
+        });
 
         const pendingRequestLabels = Array.from(new Set(pendingRequests.map((r: any) => getRequestTypeLabel(r))));
         const hasPendingRequest = pendingRequests.length > 0;
@@ -582,13 +592,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       // Sau đó tới các đơn đăng ký
       const reg = (day.approvedRegistrations || [])[0];
       if (reg) {
-        const regTypeMap: Record<string, string> = {
-          'overtime': 'Đã duyệt tăng ca',
-          'extra_hours': 'Đã duyệt làm thêm',
-          'night_shift': 'Đã duyệt trực tối',
-          'live': 'Đã duyệt live',
-        };
-        return regTypeMap[reg.registration_type] || 'Đã duyệt ĐK';
+        const label = getRequestTypeLabel(reg);
+        return 'Đã duyệt ' + label;
       }
 
       return 'Đã duyệt';

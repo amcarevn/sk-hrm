@@ -23,7 +23,7 @@ export interface WorkFinalizationRecord {
   tang_ca: number;
   lam_toi: number | null;
   truc_toi: number;
-  them_gio: number;
+  lam_them_gio: number;
   live: number;
   phu_cap_gui_xe: number;
   nghi_phep: number;
