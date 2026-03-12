@@ -485,6 +485,48 @@ class ApprovalService {
       return false;
     }
   }
+
+  // Duyệt hàng loạt giải trình chấm công
+  async bulkApproveAttendanceExplanations(ids: number[], note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/attendance-explanations/bulk_approve/', {
+        ids,
+        approval_note: note || 'Duyệt nhanh hàng loạt'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in bulk approving attendance explanations:', error);
+      throw error;
+    }
+  }
+
+  // Duyệt hàng loạt đơn đăng ký
+  async bulkApproveRegistrationRequests(ids: number[], note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/registration-requests/bulk_approve/', {
+        ids,
+        approval_note: note || 'Duyệt nhanh hàng loạt'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in bulk approving registration requests:', error);
+      throw error;
+    }
+  }
+
+  // Duyệt hàng loạt đơn làm việc online
+  async bulkApproveOnlineWorkRequests(ids: number[], note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/online-work-requests/bulk_approve/', {
+        ids,
+        approval_note: note || 'Duyệt nhanh hàng loạt'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in bulk approving online work requests:', error);
+      throw error;
+    }
+  }
 }
 
 export const approvalService = new ApprovalService();

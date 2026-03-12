@@ -538,6 +538,10 @@ class AttendanceService {
       // ONLINE WORK STATS
       max_online_work_per_month?: number;
       remaining_online_work?: number;
+      approved_online_work?: number;
+      approved_leave?: number;
+      max_leave_per_month?: number;
+      approved_registrations?: number;
     };
   }> {
     try {
