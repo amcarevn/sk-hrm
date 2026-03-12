@@ -135,6 +135,12 @@ const navigationItems: NavigationItem[] = [
     icon: TableCellsIcon,
     roles: ['ADMIN', 'HR'],
   },
+  {
+    name: 'Phê duyệt chốt công',
+    href: '/dashboard/work-finalization/approvals',
+    icon: CheckCircleIcon,
+    roles: ['ADMIN', 'HR'],
+  },
 ];
 
 interface SidebarProps {
