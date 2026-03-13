@@ -534,7 +534,7 @@ const OnboardingDetail: React.FC = () => {
             >
               Tài liệu ({onboarding.documents?.length || 0})
             </button>
-            {!isEmployee && (
+            {userRole === 'ADMIN' && (
               <button
                 onClick={() => setActiveTab('contracts')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
