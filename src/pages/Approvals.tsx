@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { approvalService } from '../services/approval.service';
 import { attendanceService } from '../services/attendance.service';
+import { workFinalizationApprovalService } from '../services/workFinalizationApproval.service';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
+import { useAuth } from '../contexts/AuthContext';
 
 
 const Approvals: React.FC = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
     'pending' | 'approved' | 'rejected'
@@ -24,6 +27,7 @@ const Approvals: React.FC = () => {
   const [approvedOvertimeRequests, setApprovedOvertimeRequests] = useState<any[]>([]);
   const [rejectedOvertimeRequests, setRejectedOvertimeRequests] = useState<any[]>([]);
   const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
+  const [workFinalizationApprovals, setWorkFinalizationApprovals] = useState<any[]>([]);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [filterExplanationSubTypes, setFilterExplanationSubTypes] = useState<string[]>([]);
   const [filterRegistrationSubTypes, setFilterRegistrationSubTypes] = useState<string[]>([]);
@@ -34,6 +38,9 @@ const Approvals: React.FC = () => {
   const [selectedExplanation, setSelectedExplanation] = useState<any>(null);
   const [selectedOnlineWorkRequest, setSelectedOnlineWorkRequest] =
     useState<any>(null);
+  const [selectedWfApproval, setSelectedWfApproval] = useState<any>(null);
+  const [wfEmployees, setWfEmployees] = useState<any[]>([]);
+  const [showWfDetailModal, setShowWfDetailModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
   const [employeeFreqStats, setEmployeeFreqStats] = useState<any>(null);
@@ -52,6 +59,12 @@ const Approvals: React.FC = () => {
       });
     }
   }, [selectedExplanation]);
+
+  useEffect(() => {
+    if (workFinalizationApprovals.length > 0) {
+      console.log('💎 [DATA UPDATE] Work Finalization list updated:', workFinalizationApprovals);
+    }
+  }, [workFinalizationApprovals]);
 
   useEffect(() => {
     if (selectedOnlineWorkRequest) {
@@ -85,14 +98,23 @@ const Approvals: React.FC = () => {
   const [bulkActionResult, setBulkActionResult] = useState<{ success: number; error: number; groupName: string } | null>(null);
   const [bulkConfirmModal, setBulkConfirmModal] = useState<{ items: any[]; name: string } | null>(null);
 
-  const isAdmin = currentEmployee?.user?.is_staff || currentEmployee?.user?.is_superuser;
-  const isHR = currentEmployee?.is_hr ||
-    currentEmployee?.position?.title?.includes('HR') ||
-    currentEmployee?.position?.title?.includes('Nhân sự') ||
-    currentEmployee?.department?.name?.includes('HR') ||
-    currentEmployee?.department?.name?.includes('Nhân sự');
+  const isAdmin = (user as any)?.is_superuser || 
+                  (user as any)?.is_staff || 
+                  user?.role?.toUpperCase() === 'ADMIN' ||
+                  currentEmployee?.user?.is_staff || 
+                  currentEmployee?.user?.is_superuser;
 
-  const isManagement = currentEmployee?.position?.is_management || false;
+  const isHR = (user as any)?.hrm_user?.department_code === 'HCNS' ||
+               (user as any)?.employee_profile?.department_code === 'HCNS' ||
+               user?.role?.toUpperCase() === 'HR' ||
+               currentEmployee?.is_hr ||
+               currentEmployee?.position?.title?.toUpperCase().includes('HR') ||
+               currentEmployee?.department?.code === 'HCNS';
+
+  const isManagement = currentEmployee?.position?.is_management || 
+                       currentEmployee?.is_manager || 
+                       Number(currentEmployee?.management_level) >= 1 ||
+                       false;
 
   const currentItem = selectedExplanation || selectedOnlineWorkRequest;
   const isViewingExp = currentItem?._itemType === 'EXPLANATION' || (!currentItem?._itemType && currentItem?.explanation_type && currentItem?.explanation_type !== 'LEAVE');
@@ -123,18 +145,25 @@ const Approvals: React.FC = () => {
 
 
   useEffect(() => {
-    fetchCurrentEmployee();
     fetchAllData();
   }, [activeTab]);
 
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      // Gọi fetch cho cả 3 trang để lấy stats
+      // Đảm bảo lấy thông tin nhân viên trước để có department_code phục vụ việc lọc
+      const emp = await fetchCurrentEmployee();
+      
+      // Khai báo lại các biến quyền dựa trên dữ liệu mới nhất
+      const currentIsAdmin = emp?.user?.is_staff || emp?.user?.is_superuser || (user as any)?.is_superuser || (user as any)?.is_staff || user?.role?.toUpperCase() === 'ADMIN';
+      const currentIsHR = emp?.is_hr || emp?.department?.code === 'HCNS' || (user as any)?.hrm_user?.department_code === 'HCNS' || user?.role?.toUpperCase() === 'HR';
+
+      // Gọi fetch cho các trang để lấy dữ liệu
       await Promise.all([
         fetchPendingRequests(),
         fetchApprovedRequests(),
         fetchRejectedRequests(),
+        fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR),
       ]);
     } catch (error) {
       console.error('Error fetching all data:', error);
@@ -145,7 +174,14 @@ const Approvals: React.FC = () => {
 
   const fetchRequests = async () => {
     if (activeTab === 'pending') {
-      await fetchPendingRequests();
+      const emp = await fetchCurrentEmployee();
+      const currentIsAdmin = emp?.user?.is_staff || emp?.user?.is_superuser || (user as any)?.is_superuser || (user as any)?.is_staff || user?.role?.toUpperCase() === 'ADMIN';
+      const currentIsHR = emp?.is_hr || emp?.department?.code === 'HCNS' || (user as any)?.hrm_user?.department_code === 'HCNS' || user?.role?.toUpperCase() === 'HR';
+      
+      await Promise.all([
+        fetchPendingRequests(),
+        fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR)
+      ]);
     } else if (activeTab === 'approved') {
       await fetchApprovedRequests();
     } else if (activeTab === 'rejected') {
@@ -157,8 +193,10 @@ const Approvals: React.FC = () => {
     try {
       const employee = await approvalService.getCurrentEmployee();
       setCurrentEmployee(employee);
+      return employee;
     } catch (error) {
       console.error('Error fetching current employee:', error);
+      return null;
     }
   };
 
@@ -189,6 +227,105 @@ const Approvals: React.FC = () => {
       }));
     } catch (error) {
       console.error('❌ [APPROVALS] Error fetching pending requests:', error);
+    }
+  };
+
+  const fetchWorkFinalizationData = async (empContext?: any, isAdminArg?: boolean, isHRArg?: boolean) => {
+    try {
+      const activeAdmin = isAdminArg !== undefined ? isAdminArg : isAdmin;
+      const activeHR = isHRArg !== undefined ? isHRArg : isHR;
+      const activeEmp = empContext || currentEmployee;
+
+      console.log('🚀 [APPROVALS] Bắt đầu lấy dữ liệu chốt công (mở rộng 3 tháng, không lọc status API)...');
+      const now = new Date();
+      
+      const fetchMonth = async (m: number, y: number) => {
+        try {
+          console.log(`📡 [FETCH] Checking month ${m}/${y}...`);
+          const res = await workFinalizationApprovalService.list({ year: y, month: m });
+          console.log(`📥 [FETCH SUCCESS] month ${m}/${y}:`, res);
+          return res.results || [];
+        } catch (err: any) {
+          console.error(`❌ [FETCH ERROR] month ${m}/${y}:`, err.response?.data || err.message, "Status:", err.response?.status);
+          return [];
+        }
+      };
+
+      // Lấy tháng hiện tại
+      const m0 = now.getMonth() + 1;
+      const y0 = now.getFullYear();
+      
+      // Lấy tháng trước
+      const d1 = new Date();
+      d1.setMonth(d1.getMonth() - 1);
+      const m1 = d1.getMonth() + 1;
+      const y1 = d1.getFullYear();
+
+      // Lấy tháng trước nữa
+      const d2 = new Date();
+      d2.setMonth(d2.getMonth() - 2);
+      const m2 = d2.getMonth() + 1;
+      const y2 = d2.getFullYear();
+
+      const [res0, res1, res2] = await Promise.all([
+        fetchMonth(m0, y0),
+        fetchMonth(m1, y1),
+        fetchMonth(m2, y2)
+      ]);
+
+      const combined = [...res0, ...res1, ...res2];
+      
+      console.log('📦 [APPROVALS] Toàn bộ dữ liệu chốt công thô (3 tháng):', combined.length, combined);
+
+      const uniqueMap = new Map();
+      combined.forEach(item => uniqueMap.set(item.id, item));
+      
+      // Lấy các đơn PENDING hoặc APPROVED (để Admin theo dõi)
+      const pendingWfItems = Array.from(uniqueMap.values())
+        .filter(item => item.status === 'PENDING' || item.status === 'APPROVED')
+        .map(item => ({
+          ...item,
+          _itemType: 'WORK_FINALIZATION',
+          employee_name: `Phòng ${item.department_name || item.department_code}`,
+          employee_code: item.department_code,
+          reason: item.note || `Chốt công tháng ${item.month}/${item.year}`
+        }));
+
+      const userDeptCode = activeEmp?.department?.code || 
+                          activeEmp?.hrm_user?.department_code || 
+                          activeEmp?.employee_profile?.department_code ||
+                          (user as any)?.department_code ||
+                          (user as any)?.employee_profile?.department_code;
+
+      console.log('🔍 [APPROVALS] Filtering Context:', {
+        user: user?.username,
+        activeAdmin,
+        activeHR,
+        userDeptCode,
+        totalPendingBeforeDeptFilter: pendingWfItems.length
+      });
+
+      // Lọc dữ liệu theo phòng ban nếu không phải Admin/HR
+      let filteredWfItems = pendingWfItems;
+      if (!activeAdmin && !activeHR) {
+        if (!userDeptCode) {
+          console.warn('⚠️ [APPROVALS] NO DEPT CODE found. Manager cannot see items.');
+          filteredWfItems = [];
+        } else {
+          filteredWfItems = pendingWfItems.filter(item => {
+            const itemDept = item.department_code?.toString().trim().toUpperCase();
+            const userDept = userDeptCode.toString().trim().toUpperCase();
+            const match = itemDept === userDept;
+            console.log(`⚖️ [FILTER CHECK] Item Dept: "${itemDept}" vs User Dept: "${userDept}" => Match: ${match}`);
+            return match;
+          });
+        }
+      }
+      
+      console.log('✅ [APPROVALS] Final Display Data:', filteredWfItems.length, filteredWfItems);
+      setWorkFinalizationApprovals(filteredWfItems);
+    } catch (wfError) {
+      console.error('❌ [APPROVALS] Lỗi khi lấy dữ liệu chốt công:', wfError);
     }
   };
 
@@ -282,6 +419,8 @@ const Approvals: React.FC = () => {
       const type = req.registration_type || (req._itemType === 'OVERTIME' ? 'OVERTIME' : '');
       return EXPLANATION_TYPE_MAP[type] || 'Đơn đăng ký';
     }
+    
+    if (req._itemType === 'WORK_FINALIZATION') return 'Chốt công tháng';
     
     // Mặc định là đơn giải trình
     const typeLabel = req.explanation_type ? (EXPLANATION_TYPE_MAP[req.explanation_type] || req.explanation_type) : 'Đơn giải trình';
@@ -494,7 +633,30 @@ const Approvals: React.FC = () => {
 
     const isOnlineWork = request._itemType === 'ONLINE_WORK';
     const isRegistration = request._itemType === 'REGISTRATION' || request._itemType === 'OVERTIME';
-    const isExplanation = !isOnlineWork && !isRegistration;
+    const isWorkFinalization = request._itemType === 'WORK_FINALIZATION';
+    const isExplanation = !isOnlineWork && !isRegistration && !isWorkFinalization;
+
+    if (isWorkFinalization) {
+      // Admin/HR hoặc Quản lý trực tiếp của phòng ban đó
+      const isAdminUser = 
+        currentEmployee.user?.is_staff || 
+        currentEmployee.user?.is_superuser || 
+        (user as any)?.is_superuser || 
+        (user as any)?.is_staff;
+      
+      const isHRUser = 
+        currentEmployee.is_hr || 
+        currentEmployee.position?.title?.toUpperCase().includes('HR') ||
+        currentEmployee.department?.code === 'HCNS';
+
+      const myDeptCode = currentEmployee.department?.code || 
+                        currentEmployee.hrm_user?.department_code || 
+                        currentEmployee.employee_profile?.department_code;
+
+      const isMyDept = request.department_code === myDeptCode;
+      
+      return isAdminUser || isHRUser || isMyDept;
+    }
 
     // For explanations and leaves, use the dedicated logic
     if (isExplanation) {
@@ -583,13 +745,25 @@ const Approvals: React.FC = () => {
       const note = approvalNote || (isApprove ? 'Đã duyệt' : 'Đã từ chối');
 
       if (isApprove) {
-        if (isRegistration || targetItem._itemType === 'OVERTIME') await approvalService.approveRegistrationRequest(targetItem.id, note);
-        else if (isOnlineWork) await approvalService.approveOnlineWorkRequest(targetItem.id, note);
-        else await approvalService.approveAttendanceExplanation(targetItem.id, note);
+        if (targetItem._itemType === 'WORK_FINALIZATION') {
+          await workFinalizationApprovalService.approve(targetItem.id, { note });
+        } else if (isRegistration || targetItem._itemType === 'OVERTIME') {
+          await approvalService.approveRegistrationRequest(targetItem.id, note);
+        } else if (isOnlineWork) {
+          await approvalService.approveOnlineWorkRequest(targetItem.id, note);
+        } else {
+          await approvalService.approveAttendanceExplanation(targetItem.id, note);
+        }
       } else {
-        if (isRegistration || targetItem._itemType === 'OVERTIME') await approvalService.rejectRegistrationRequest(targetItem.id, note);
-        else if (isOnlineWork) await approvalService.rejectOnlineWorkRequest(targetItem.id, note);
-        else await approvalService.rejectAttendanceExplanation(targetItem.id, note);
+        if (targetItem._itemType === 'WORK_FINALIZATION') {
+          await workFinalizationApprovalService.reject(targetItem.id, { note });
+        } else if (isRegistration || targetItem._itemType === 'OVERTIME') {
+          await approvalService.rejectRegistrationRequest(targetItem.id, note);
+        } else if (isOnlineWork) {
+          await approvalService.rejectOnlineWorkRequest(targetItem.id, note);
+        } else {
+          await approvalService.rejectAttendanceExplanation(targetItem.id, note);
+        }
       }
 
       setActionModalOpen(false);
@@ -652,6 +826,23 @@ const Approvals: React.FC = () => {
     setShowDetailModal(true);
     if (explanation.employee_id) {
       fetchEmployeeStats(explanation.employee_id, explanation.attendance_date || explanation.event_date || explanation.created_at);
+    }
+  };
+
+  const handleViewWfDetails = async (approval: any) => {
+    try {
+      console.log('📂 [VIEW] Mở chi tiết chốt công:', approval.department_code);
+      setLoading(true);
+      const data = await workFinalizationApprovalService.get(approval.id);
+      setSelectedWfApproval(data);
+      setWfEmployees(data.employees || []);
+      setShowWfDetailModal(true);
+    } catch (error: any) {
+       console.error("Lỗi khi lấy chi tiết chốt công:", error);
+       setErrorMessage("Không thể tải danh sách nhân viên phòng ban này. Vui lòng thử lại.");
+       setErrorModalOpen(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1851,7 +2042,171 @@ const Approvals: React.FC = () => {
           )}
         </div>
 
-        <div className="mt-8">
+        {/* BẢNG YÊU CẦU CHỜ DUYỆT RIÊNG BIỆT CHO QUẢN LÝ (Viết ở dưới theo yêu cầu) */}
+        {activeTab === 'pending' && !loading && (isAdmin || isHR || isManagement) && (
+          <div className="mt-12 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex items-center justify-between mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Phê duyệt chốt công nhân viên</h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-ping"></span>
+                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Ưu tiên xử lý các đơn trong danh sách này</p>
+                  </div>
+                </div>
+              </div>
+              
+              {(() => {
+                const count = workFinalizationApprovals.length;
+                return (
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-[10px] font-black text-slate-400 uppercase leading-none">Số lượng phòng</div>
+                      <div className="text-2xl font-black text-indigo-600 leading-none mt-1">{count}</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-[32px] overflow-hidden shadow-2xl shadow-slate-200/40">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-100">
+                  <thead className="bg-slate-50/50">
+                    <tr>
+                      <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100/50">STT</th>
+                      <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Mã NV/Phòng</th>
+                      <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Nhân viên / Đơn vị</th>
+                      <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Số công / Chi tiết</th>
+                      <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Thời gian gửi</th>
+                      <th className="px-6 py-5 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest bg-indigo-50/30">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-slate-50">
+                    {(() => {
+                      if (workFinalizationApprovals.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-20 text-center bg-slate-50/20">
+                              <div className="flex flex-col items-center max-w-sm mx-auto">
+                                <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mb-6 shadow-sm">
+                                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                </div>
+                                <h4 className="text-lg font-black text-slate-800">Hoàn thành tuyệt vời!</h4>
+                                <p className="text-slate-400 text-sm mt-2 font-medium">Bạn đã xử lý hết tất cả các đơn thuộc quyền hạn của mình.</p>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return workFinalizationApprovals.map((item, index) => (
+                        <tr key={`manager-row-${item.id}`} className="hover:bg-indigo-50/20 transition-all duration-300 group cursor-pointer" onClick={() => {
+                          if (item._itemType === 'WORK_FINALIZATION') {
+                            handleViewWfDetails(item);
+                            return;
+                          }
+                          (item._itemType === 'ONLINE_WORK') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item);
+                        }}>
+                          <td className="px-6 py-5 whitespace-nowrap text-sm font-black text-slate-300 border-r border-slate-50">
+                            {(index + 1).toString().padStart(2, '0')}
+                          </td>
+                          <td className="px-6 py-5 whitespace-nowrap">
+                            <span className="px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black border border-slate-200 group-hover:bg-white group-hover:shadow-sm transition-all duration-300">
+                              {item.department_code}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5 whitespace-nowrap">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-black shadow-md shadow-indigo-100">
+                                {item.department_name?.charAt(0)}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-black text-slate-800 group-hover:text-indigo-600 transition-colors">{item.department_name || item.department_code}</span>
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Chốt công tháng {item.month}/{item.year}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 whitespace-nowrap">
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-black text-slate-800`}>
+                                  Xem chi tiết ↗
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-[10px] font-bold text-slate-400 italic">Người gửi: {item.sent_by_name} ({item.sent_by_role || 'Admin'})</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 whitespace-nowrap">
+                            <div className="text-sm font-black text-slate-700">
+                              {formatDateTime(item.created_at)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-5 whitespace-nowrap text-center bg-indigo-50/5 group-hover:bg-indigo-50/10 transition-all border-l border-slate-50" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-center min-h-[50px]">
+                              {/* PHẦN HIỂN THỊ DÀNH CHO QUẢN LÝ (KHI CÓ QUYỀN DUYỆT) */}
+                              {item.status === 'PENDING' && isManagement && !isAdmin ? (
+                                <div className="flex items-center gap-2.5">
+                                  <button
+                                    onClick={() => openApproveModal(item)}
+                                    className="h-9 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black rounded-xl shadow-lg shadow-emerald-100 transition-all hover:scale-105 active:scale-95 whitespace-nowrap uppercase tracking-wider"
+                                  >
+                                    PHÊ DUYỆT
+                                  </button>
+                                  <button
+                                    onClick={() => openRejectModal(item)}
+                                    className="h-9 px-6 bg-white hover:bg-rose-50 text-rose-500 text-[11px] font-black rounded-xl border border-slate-200 hover:border-rose-200 transition-all uppercase tracking-wider"
+                                  >
+                                    TỪ CHỐI
+                                  </button>
+                                </div>
+                              ) : (
+                                /* PHẦN HIỂN THỊ DÀNH CHO ADMIN (HOẶC KHI ĐÃ DUYỆT XONG) */
+                                <div className="flex flex-col items-center">
+                                  {item.status === 'APPROVED' ? (
+                                    <div className="flex items-center gap-2.5 px-4 py-2.5 bg-emerald-50 border border-emerald-100 rounded-2xl shadow-sm">
+                                      <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-emerald-100">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
+                                      </div>
+                                      <span className="text-emerald-700 font-black text-[10px] uppercase tracking-widest">QLTT ĐÃ PHÊ DUYỆT</span>
+                                    </div>
+                                  ) : item.status === 'REJECTED' ? (
+                                    <div className="flex items-center gap-2.5 px-4 py-2.5 bg-rose-50 border border-rose-100 rounded-2xl shadow-sm">
+                                      <div className="w-6 h-6 bg-rose-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-rose-100">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M6 18L18 6M6 6l12 12" /></svg>
+                                      </div>
+                                      <span className="text-rose-700 font-black text-[10px] uppercase tracking-widest">QLTT ĐÃ TỪ CHỐI</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2.5 px-4 py-2.5 bg-amber-50 border border-amber-100 rounded-2xl shadow-sm">
+                                      <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-white shrink-0 animate-pulse shadow-sm shadow-amber-100">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                      </div>
+                                      <span className="text-amber-700 font-black text-[10px] uppercase tracking-widest">ĐANG CHỜ QLTT DUYỆT</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="mt-8 tracking-tight">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Quy trình duyệt của bạn
           </h3>
@@ -1875,6 +2230,156 @@ const Approvals: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Chi tiết Chốt công (Danh sách nhân viên) */}
+      {showWfDetailModal && selectedWfApproval && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 bg-white flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Chi tiết bảng công {selectedWfApproval.department_name || selectedWfApproval.department_code}</h3>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Tháng {selectedWfApproval.month}/{selectedWfApproval.year} • {wfEmployees.length} nhân sự</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowWfDetailModal(false);
+                  setSelectedWfApproval(null);
+                  setWfEmployees([]);
+                }} 
+                className="text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-slate-100 transition-all font-black text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body - Scrollable Table */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/30">
+              <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-100">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Nhân viên</th>
+                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Công thực tế</th>
+                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Tăng ca</th>
+                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Thêm giờ</th>
+                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Trực tối</th>
+                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Live</th>
+                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Nghỉ phép tháng</th>
+                        <th className="px-5 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng phạt</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {wfEmployees.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="px-6 py-10 text-center text-slate-400 italic">Không tìm thấy dữ liệu nhân viên</td>
+                        </tr>
+                      ) : (
+                        wfEmployees.map((emp) => (
+                          <tr key={`wf-emp-${emp.employee_id}`} className="hover:bg-slate-50/50 transition-colors group">
+                            <td className="px-5 py-4">
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm font-black text-slate-800 tracking-tight group-hover:text-indigo-600 transition-colors">{emp.ho_va_ten}</span>
+                                  {emp.is_locked && (
+                                    <div className="bg-amber-100 text-amber-600 p-0.5 rounded shadow-sm" title="Dữ liệu đã khóa">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                </div>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{emp.ma_nv} • {emp.vi_tri || 'N/A'}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              <div className="flex flex-col items-center">
+                                <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{emp.cong_thuc_te}</span>
+                                <span className="text-[9px] font-bold text-slate-400 mt-1">Tổng: {emp.tong_cong}</span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              {emp.tang_ca > 0 ? (
+                                <span className="text-sm font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg">{emp.tang_ca}h</span>
+                              ) : (
+                                <span className="text-xs text-slate-300">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              {emp.lam_them_gio > 0 ? (
+                                <span className="text-sm font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">{emp.lam_them_gio}h</span>
+                              ) : (
+                                <span className="text-xs text-slate-300">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              {emp.truc_toi > 0 ? (
+                                <span className="text-sm font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-lg">{emp.truc_toi}</span>
+                              ) : (
+                                <span className="text-xs text-slate-300">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 text-center">
+                              {emp.live > 0 ? (
+                                <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">{emp.live}</span>
+                              ) : (
+                                <span className="text-xs text-slate-300">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 text-center text-sm font-bold text-slate-500">{emp.nghi_phep_thang > 0 ? emp.nghi_phep_thang : '-'}</td>
+                            <td className="px-5 py-4 text-right">
+                              <span className="text-sm font-mono font-black text-rose-600">{(emp.tong_phat || 0) > 0 ? `${(emp.tong_phat || 0).toLocaleString('vi-VN')} VNĐ` : '-'}</span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-5 bg-white border-t border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                 <div className="h-2 w-2 rounded-full bg-indigo-500"></div>
+                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Toàn bộ dữ liệu đã được đối soát tự động</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {selectedWfApproval.status === 'APPROVED' && (
+                  <span className="px-4 py-2 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-xl border border-emerald-100 uppercase tracking-widest">
+                    Bảng công đã được phê duyệt
+                  </span>
+                )}
+                {selectedWfApproval.status === 'REJECTED' && (
+                  <span className="px-4 py-2 bg-rose-50 text-rose-600 text-[10px] font-black rounded-xl border border-rose-100 uppercase tracking-widest">
+                    Bảng công đã bị từ chối
+                  </span>
+                )}
+                {selectedWfApproval.can_approve && selectedWfApproval.status === 'PENDING' && !isAdmin && (
+                  <button 
+                    onClick={() => { 
+                      setShowWfDetailModal(false); 
+                      openApproveModal(selectedWfApproval); 
+                    }} 
+                    className="h-11 px-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-2xl shadow-xl shadow-emerald-100 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest"
+                  >
+                    Duyệt bảng công này
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal chi tiết */}
       {showDetailModal &&

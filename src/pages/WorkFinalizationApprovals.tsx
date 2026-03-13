@@ -18,6 +18,7 @@ import {
   ApprovalListParams,
   SendAllApprovalsResponse,
 } from '../services/workFinalizationApproval.service';
+import { approvalService } from '../services/approval.service';
 
 const STATUS_LABELS: Record<ApprovalStatus, string> = {
   PENDING: 'Chờ duyệt',
@@ -33,8 +34,16 @@ const STATUS_COLORS: Record<ApprovalStatus, string> = {
 
 const WorkFinalizationApprovals: React.FC = () => {
   const { user } = useAuth();
+  const [currentEmployee, setCurrentEmployee] = useState<any>(null);
+  
   const userRole = user?.role ? user.role.toUpperCase() : 'USER';
-  const isHROrAdmin = userRole === 'ADMIN' || userRole === 'HR';
+  
+  const isAdmin = (user as any)?.is_superuser || (user as any)?.is_staff || userRole === 'ADMIN';
+  const isHR = (user as any)?.employee_profile?.is_hr || 
+               userRole === 'HR' || 
+               (user as any)?.hrm_user?.department_code === 'HCNS';
+  
+  const isHROrAdmin = isAdmin || isHR;
   const isManager = !!(user as any)?.is_manager;
 
   // Department code of the currently logged-in manager
@@ -73,6 +82,28 @@ const WorkFinalizationApprovals: React.FC = () => {
 
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  useEffect(() => {
+    const fetchEmployee = async () => {
+      try {
+        const emp = await approvalService.getCurrentEmployee();
+        setCurrentEmployee(emp);
+      } catch (e) {
+        console.error('Error fetching employee in WorkFinalization:', e);
+      }
+    };
+    fetchEmployee();
+  }, []);
+
+  useEffect(() => {
+    console.log('👤 [ROLE CHECK] WorkFinalizationApprovals:', {
+      userRole,
+      isAdmin,
+      isHR,
+      isManager,
+      username: user?.username
+    });
+  }, [userRole, isAdmin, isHR]);
 
   // Load departments — managers only see their own department
   useEffect(() => {
@@ -227,25 +258,20 @@ const WorkFinalizationApprovals: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Phê duyệt chốt công
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Gửi và theo dõi phê duyệt chốt công theo phòng ban
-          </p>
-        </div>
-        {isHROrAdmin && (
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">
+          Phê duyệt chốt công
+        </h1>
+        {isAdmin && (
           <button
             onClick={handleSendAll}
-            disabled={sendingAll || sendingDept !== null}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={sendingAll || departments.length === 0}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
-            <BoltIcon className="w-4 h-4 mr-2" />
+            <PaperAirplaneIcon className="w-4 h-4 mr-2" />
             {sendingAll
               ? 'Đang gửi...'
-              : `Gửi tất cả (Tháng ${selectedMonth}/${selectedYear})`}
+              : `Gửi phê duyệt tất cả (Tháng ${selectedMonth}/${selectedYear})`}
           </button>
         )}
       </div>
@@ -527,21 +553,23 @@ const WorkFinalizationApprovals: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {/* HR/Admin: send or resend request */}
+                          {/* HR: Chốt, Admin: Gửi */}
                           {isHROrAdmin && (
                             <button
                               onClick={() => handleSendOne(dept.code)}
-                              disabled={
-                                sendingDept === dept.code || sendingAll
-                              }
-                              className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded border border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={sendingDept === dept.code}
+                              className={`inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded border ${
+                                approval
+                                  ? 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                                  : 'border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
+                              } disabled:opacity-50`}
                             >
                               <PaperAirplaneIcon className="w-3 h-3 mr-1" />
                               {sendingDept === dept.code
-                                ? 'Đang gửi...'
-                                : approval
-                                ? 'Gửi lại'
-                                : 'Gửi'}
+                                ? 'Đang xử lý...'
+                                : isAdmin
+                                ? (approval ? 'Gửi lại' : 'Gửi phê duyệt')
+                                : (approval ? 'Chốt lại' : 'Chốt công')}
                             </button>
                           )}
                           {/* Dept head / HR / Admin: approve or reject PENDING requests */}

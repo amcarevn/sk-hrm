@@ -19,8 +19,6 @@ import {
   UserCircleIcon,
   BriefcaseIcon,
   ChartBarIcon,
-  EyeIcon,
-  UserGroupIcon,
   ShieldCheckIcon,
   TableCellsIcon,
 } from '@heroicons/react/24/outline';
@@ -40,25 +38,25 @@ const navigationItems: NavigationItem[] = [
     name: 'Trang chủ',
     href: '/home',
     icon: Squares2X2Icon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF'],
   },
   {
     name: 'Dashboard',
     href: '/dashboard',
     icon: ChartBarIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF'],
   },
   {
     name: 'Me',
     href: '/dashboard/me',
     icon: UserCircleIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF'],
   },
   {
     name: 'Quản lý nhân viên',
     href: '/dashboard/employees',
     icon: UserIcon,
-    roles: ['ADMIN', 'USER'],
+    roles: ['ADMIN', 'USER', 'HR'],
   },
   {
     name: 'Phân quyền',
@@ -82,14 +80,14 @@ const navigationItems: NavigationItem[] = [
     name: 'Chấm công',
     href: '/dashboard/attendance',
     icon: ClockIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF'],
   },
   {
     name: 'Quản lý chấm công',
     href: '/dashboard/attendance/upload',
     icon: CloudArrowUpIcon,
     roles: ['ADMIN', 'HR'],
-    departments: ['HCNS'], // Thêm điều kiện department_code
+    departments: ['HCNS'],
   },
   {
     name: 'Quản lý tài sản',
@@ -107,21 +105,13 @@ const navigationItems: NavigationItem[] = [
     name: 'Phê duyệt',
     href: '/dashboard/approvals',
     icon: CheckCircleIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
-  // TODO: sẽ thêm lại sơ đồ tổ chức vào sau
-  // {
-  //   name: 'Sơ đồ tổ chức',
-  //   href: '/dashboard/organization-chart',
-  //   icon: EyeIcon,
-  //   roles: ['ADMIN', 'USER', 'CUSTOMER'], // ← thêm CUSTOMER
-  // },
   {
     name: 'Onboard nhân sự',
     href: '/dashboard/onboarding',
     icon: UserPlusIcon,
     roles: ['ADMIN', 'HR'],
-    // Trưởng phòng (is_management=true) được thêm qua isManager check bên dưới
   },
   {
     name: 'Offboard nhân sự',
@@ -139,7 +129,7 @@ const navigationItems: NavigationItem[] = [
     name: 'Phê duyệt chốt công',
     href: '/dashboard/work-finalization/approvals',
     icon: CheckCircleIcon,
-    roles: ['ADMIN', 'HR'],
+    roles: ['ADMIN'],
   },
 ];
 
@@ -173,19 +163,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   }
 
   // Filter navigation items based on user role and department
-  // Convert user role to uppercase to match navigation item roles
   const userRole = user?.role ? user.role.toUpperCase() : 'USER';
-  const isSuperAdmin = user?.is_super_admin || false;
-
-  const isManager = user?.is_manager || false
+  const isSuperAdmin = user?.is_super_admin || (user as any)?.is_superuser || false;
+  const isManager = user?.is_manager || false;
   
-  // Debug: Log user object to check department_code
-  console.log('Sidebar - User object:', user);
-  console.log('Sidebar - Employee profile:', user?.employee_profile);
-  console.log('Sidebar - HRM user:', user?.hrm_user);
-  console.log('Sidebar - Is manager:', isManager);
-  
-  // Get user's department code from various possible locations in user object
+  // Get user's department code
   const userDepartmentCode = (
     user?.employee_profile?.department_code ||
     user?.hrm_user?.department_code ||
@@ -193,146 +175,23 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     null
   );
   
-  console.log('Sidebar - Department code found:', userDepartmentCode);
-  console.log('Sidebar - User role:', userRole);
-  console.log('Sidebar - Is super admin:', isSuperAdmin);
-  
-  // If user is super admin, show all navigation items
-  // Otherwise, filter based on user role and department (case-insensitive comparison)
-  let navigation = isSuperAdmin 
+  // Unified filtering logic
+  const navigation = isSuperAdmin 
     ? navigationItems 
     : navigationItems.filter((item) => {
-        // Check if user has access based on department
+        // 1. Check department access
         if (item.departments && userDepartmentCode) {
-          const hasDepartmentAccess = item.departments.includes(userDepartmentCode);
-          if (hasDepartmentAccess) {
-            return true;
-          }
+          if (item.departments.includes(userDepartmentCode)) return true;
         }
 
-        // ← MỚI: Trưởng phòng (is_management) được xem Onboarding và Phê duyệt chốt công
+        // 2. Special case: Managers can access Onboarding
         if (isManager && item.name === 'Onboard nhân sự') {
-          return true;
-        }
-        if (isManager && item.name === 'Phê duyệt chốt công') {
           return true;
         }
         
-        // Check if user has access based on role
+        // 3. Check role access
         return item.roles.some(role => role.toUpperCase() === userRole);
       });
-  
-  // Special handling for staff role
-  if (userRole === 'STAFF') {
-    // Staff should see specific USER items: Home, Me, Attendance, Organization Chart, Approvals
-    // PLUS any items they have department access to (e.g., "Quản lý chấm công" for HCNS)
-    const allowedStaffItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt', 'Onboard nhân sự']; // ← thêm Onboard nhân sự cho STAFF nếu là trưởng phòng
-    
-    // Debug: Log staff handling
-    console.log('Sidebar - STAFF role handling:');
-    console.log('Sidebar - userDepartmentCode:', userDepartmentCode);
-    console.log('Sidebar - allowedStaffItems:', allowedStaffItems);
-    
-    // First, get items that staff are allowed to see based on role
-    let staffNavigation = navigationItems.filter((item) => 
-      allowedStaffItems.includes(item.name)
-    );
-    
-    console.log('Sidebar - Initial staff navigation (based on role):', staffNavigation.map(item => item.name));
-    
-    // Then, add any items that staff have department access to
-    navigationItems.forEach((item) => {
-      if (!staffNavigation.some(navItem => navItem.name === item.name)) {
-        // Check if staff has department access to this item
-        if (item.departments && userDepartmentCode && item.departments.includes(userDepartmentCode)) {
-          console.log('Sidebar - Adding item with department access:', item.name, 'departments:', item.departments);
-          staffNavigation.push(item);
-        }
-        // ← MỚI: Trưởng phòng trong STAFF cũng xem được Onboarding và Phê duyệt chốt công
-        if (isManager && item.name === 'Onboard nhân sự') {
-          staffNavigation.push(item);
-        }
-        if (isManager && item.name === 'Phê duyệt chốt công') {
-          staffNavigation.push(item);
-        }
-      }
-    });
-    
-    console.log('Sidebar - Final staff navigation:', staffNavigation.map(item => item.name));
-    navigation = staffNavigation;
-  }
-
-  // ← MỚI: Special handling for CUSTOMER role (nhân viên thường có role=CUSTOMER)
-  if (userRole === 'CUSTOMER') {
-    const allowedCustomerItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt', 'Onboard nhân sự'];
-    let customerNavigation = navigationItems.filter((item) =>
-      allowedCustomerItems.includes(item.name)
-    );
-    // Trưởng phòng trong CUSTOMER cũng xem được Onboarding và Phê duyệt chốt công
-    if (isManager) {
-      const onboardingItem = navigationItems.find(item => item.name === 'Onboard nhân sự');
-      if (onboardingItem && !customerNavigation.some(n => n.name === 'Onboard nhân sự')) {
-        customerNavigation.push(onboardingItem);
-      }
-      const approvalItem = navigationItems.find(item => item.name === 'Phê duyệt chốt công');
-      if (approvalItem && !customerNavigation.some(n => n.name === 'Phê duyệt chốt công')) {
-        customerNavigation.push(approvalItem);
-      }
-    }
-    navigation = customerNavigation;
-  }
-  
-  // Special handling for HR role - HR should see all STAFF items plus HR-specific items
-  if (userRole === 'HR') {
-    // First, get all items that STAFF would see
-    const allowedStaffItems = ['Trang chủ', 'Me', 'Chấm công', 'Sơ đồ tổ chức', 'Phê duyệt'];
-    
-    // Debug: Log HR handling
-    console.log('Sidebar - HR role handling:');
-    console.log('Sidebar - userDepartmentCode:', userDepartmentCode);
-    console.log('Sidebar - allowedStaffItems for HR:', allowedStaffItems);
-    
-    // Start with items that STAFF can see
-    let hrNavigation = navigationItems.filter((item) => 
-      allowedStaffItems.includes(item.name)
-    );
-    
-    console.log('Sidebar - Initial HR navigation (STAFF items):', hrNavigation.map(item => item.name));
-    
-    // Then add all HR-specific items (items where HR is in roles)
-    navigationItems.forEach((item) => {
-      if (!hrNavigation.some(navItem => navItem.name === item.name)) {
-        // Check if item has HR role access
-        if (item.roles.some(role => role.toUpperCase() === 'HR')) {
-          console.log('Sidebar - Adding HR-specific item:', item.name, 'roles:', item.roles);
-          hrNavigation.push(item);
-        }
-      }
-    });
-    
-    // Also add any items that HR has department access to
-    navigationItems.forEach((item) => {
-      if (!hrNavigation.some(navItem => navItem.name === item.name)) {
-        // Check if HR has department access to this item
-        if (item.departments && userDepartmentCode && item.departments.includes(userDepartmentCode)) {
-          console.log('Sidebar - Adding item with department access for HR:', item.name, 'departments:', item.departments);
-          hrNavigation.push(item);
-        }
-      }
-    });
-    
-    console.log('Sidebar - Final HR navigation:', hrNavigation.map(item => item.name));
-    navigation = hrNavigation;
-  }
-  
-  // Debug: Log filtered navigation items
-  console.log('Sidebar - Filtered navigation items:', navigation.map(item => ({
-    name: item.name,
-    hasDepartmentAccess: item.departments && userDepartmentCode ? item.departments.includes(userDepartmentCode) : false,
-    hasRoleAccess: item.roles.some(role => role.toUpperCase() === userRole),
-    departments: item.departments,
-    roles: item.roles
-  })));
 
   const handleCollapseToggle = () => {
     const newCollapsedState = !isCollapsed;

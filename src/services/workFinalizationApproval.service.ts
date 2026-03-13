@@ -88,11 +88,18 @@ class WorkFinalizationApprovalService {
     return response.data;
   }
 
+  async get(approvalId: number): Promise<DepartmentWorkFinalizationApproval & { employees: any[], can_approve: boolean }> {
+    const response = await managementApi.get(
+      `/api-hrm/work-finalization/approvals/${approvalId}/`
+    );
+    return response.data;
+  }
+
   async approve(
     approvalId: number,
     data: ApproveRejectRequest = {}
   ): Promise<DepartmentWorkFinalizationApproval> {
-    const payload: ApproveRejectRequest = {};
+    const payload: any = { action: 'APPROVED' };
     if (data.note !== undefined && data.note !== '') payload.note = data.note;
     const response = await managementApi.post(
       `/api-hrm/work-finalization/approvals/${approvalId}/approve/`,
@@ -105,10 +112,10 @@ class WorkFinalizationApprovalService {
     approvalId: number,
     data: ApproveRejectRequest = {}
   ): Promise<DepartmentWorkFinalizationApproval> {
-    const payload: ApproveRejectRequest = {};
+    const payload: any = { action: 'REJECTED' };
     if (data.note !== undefined && data.note !== '') payload.note = data.note;
     const response = await managementApi.post(
-      `/api-hrm/work-finalization/approvals/${approvalId}/reject/`,
+      `/api-hrm/work-finalization/approvals/${approvalId}/approve/`,
       payload
     );
     return response.data;
