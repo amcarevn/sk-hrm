@@ -38,19 +38,19 @@ const navigationItems: NavigationItem[] = [
     name: 'Trang chủ',
     href: '/home',
     icon: Squares2X2Icon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF'],
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
   {
     name: 'Dashboard',
     href: '/dashboard',
     icon: ChartBarIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF'],
+    roles: ['ADMIN', 'USER', 'CUSTOMER'],
   },
   {
     name: 'Me',
     href: '/dashboard/me',
     icon: UserCircleIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF'],
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
   {
     name: 'Quản lý nhân viên',
@@ -80,7 +80,7 @@ const navigationItems: NavigationItem[] = [
     name: 'Chấm công',
     href: '/dashboard/attendance',
     icon: ClockIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF'],
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
   {
     name: 'Quản lý chấm công',
@@ -181,7 +181,9 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     : navigationItems.filter((item) => {
         // 1. Check department access
         if (item.departments && userDepartmentCode) {
-          if (item.departments.includes(userDepartmentCode)) return true;
+          if (item.departments.includes(userDepartmentCode)) {
+            return item.roles.some(role => role.toUpperCase() === userRole);
+          }
         }
 
         // 2. Special case: Managers can access Onboarding
