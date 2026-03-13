@@ -610,10 +610,12 @@ export const EmployeeOnboardingForm: React.FC = () => {
             onChange={handleChange('permanent_address')} multiline rows={2}
             required placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
 
+      <p className="text-xs text-gray-500 px-1">
+        (Vui lòng tra cứu địa chỉ mới bằng cách đăng nhập ứng dụng VNeID để kiểm tra)
+      </p>
           <TF label="Địa chỉ hiện tại" value={values.current_address}
             onChange={handleChange('current_address')} multiline rows={2}
             required placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
-
           <div className="grid grid-cols-2 gap-4">
             <div>
               <TF label="Mã BHXH" value={values.social_insurance_number}

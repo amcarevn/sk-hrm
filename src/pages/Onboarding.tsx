@@ -202,10 +202,17 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
     } catch (e: any) {
       console.error(e);
       const errData = e.response?.data || {};
-      const msgs = Object.entries(errData)
-        .map(([f, v]) => `${f}: ${Array.isArray(v) ? v.join(', ') : v}`)
-        .join('\n');
-      alert(msgs || 'Tạo quy trình thất bại. Vui lòng thử lại.');
+      let msg = 'Tạo quy trình thất bại. Vui lòng thử lại.';
+      if (errData.non_field_errors) {
+        msg = Array.isArray(errData.non_field_errors) 
+          ? errData.non_field_errors[0] 
+          : errData.non_field_errors;
+      } else if (typeof errData === 'string') {
+        msg = errData;
+      } else if (errData.detail) {
+        msg = errData.detail;
+      }
+      alert(msg);
     } finally {
       setSubmitting(false);
     }
