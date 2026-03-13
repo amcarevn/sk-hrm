@@ -21,6 +21,7 @@ import {
   ChartBarIcon,
   ShieldCheckIcon,
   TableCellsIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -106,6 +107,12 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard/approvals',
     icon: CheckCircleIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
+  {
+  name: 'Template hợp đồng',
+  href: '/dashboard/contract-templates',
+  icon: DocumentTextIcon,
+  roles: ['ADMIN'],
   },
   {
     name: 'Onboard nhân sự',

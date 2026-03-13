@@ -74,6 +74,7 @@ import LeavePolicyCreate from './pages/LeavePolicyCreate';
 import { EmployeeOnboardingForm } from "./pages/EmployeeOnboardingForm";
 import WorkFinalization from './pages/WorkFinalization';
 import WorkFinalizationApprovals from './pages/WorkFinalizationApprovals';
+import ContractTemplates from './pages/ContractTemplates';
 
 function App() {
   return (
@@ -786,6 +787,16 @@ function App() {
                   <WorkProcedures />
                 </Layout>
               </ProtectedRoute>
+            }
+          />
+          <Route 
+            path="/dashboard/contract-templates" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ContractTemplates />
+                  </Layout>
+                </ProtectedRoute>    
             }
           />
           <Route 
