@@ -56,7 +56,7 @@ const navigationItems: NavigationItem[] = [
     name: 'Quản lý nhân viên',
     href: '/dashboard/employees',
     icon: UserIcon,
-    roles: ['ADMIN', 'USER', 'HR'],
+    roles: ['ADMIN', 'USER',],
   },
   {
     name: 'Phân quyền',
@@ -68,13 +68,13 @@ const navigationItems: NavigationItem[] = [
     name: 'Quản lý phòng ban',
     href: '/dashboard/departments',
     icon: BuildingOfficeIcon,
-    roles: ['ADMIN', 'HR'],
+    roles: ['ADMIN', ],
   },
   {
     name: 'Quản lý vị trí',
     href: '/dashboard/positions',
     icon: BriefcaseIcon,
-    roles: ['ADMIN', 'HR'],
+    roles: ['ADMIN',],
   },
   {
     name: 'Chấm công',
