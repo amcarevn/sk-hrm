@@ -86,14 +86,44 @@ type OnboardingDetail = {
   start_date: string;
   expected_end_date: string | null;
   contract_type: string;
+  probation_period_months?: number;
   status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   progress_percentage: number;
   employee: { id: number; full_name: string; employee_id: string } | null;
+  created_by?: { id: number; full_name: string; employee_id: string } | null;
   tasks: OnboardingTask[];
   documents: OnboardingDocument[];
   contracts?: { id: number }[];
   created_at: string;
   notes: string;
+  // Personal info (filled by employee)
+  desired_employee_id?: string;
+  citizen_id?: string;
+  date_of_birth?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  permanent_address?: string;
+  current_address?: string;
+  // Education
+  education_level?: string;
+  university?: string;
+  major?: string;
+  graduation_year?: number | null;
+  // Financial / Banking
+  salary?: number | string | null;
+  salary_note?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  bank_account_holder?: string;
+  tax_code?: string;
+  tax_dependents?: number;
+  // Uploaded files
+  cv_file?: string | null;
+  id_card_front?: string | null;
+  id_card_back?: string | null;
+  diploma_file?: string | null;
+  // Status flags
+  employee_info_completed?: boolean;
+  employee_info_completed_at?: string | null;
 };
 
 // ============================================
@@ -108,6 +138,20 @@ const showError = (msg: string) => {
 const showSuccess = (msg: string) => {
   console.log('SUCCESS:', msg);
   window.alert(msg);
+};
+
+const GENDER_LABELS: Record<string, string> = {
+  MALE: 'Nam',
+  FEMALE: 'Nữ',
+  OTHER: 'Khác',
+};
+
+const CONTRACT_TYPE_LABELS: Record<string, string> = {
+  PROBATION: 'Thử việc',
+  DEFINITE: 'Có thời hạn',
+  INDEFINITE: 'Vô thời hạn',
+  SEASONAL: 'Theo mùa vụ',
+  PART_TIME: 'Bán thời gian',
 };
 
 const getStatusBadge = (status: string) => {
@@ -287,10 +331,202 @@ const OnboardingDetail: React.FC = () => {
             </div>
             <div>
               <label className="text-sm text-gray-600">Loại hợp đồng</label>
-              <p className="font-medium">{onboarding.contract_type || 'N/A'}</p>
+              <p className="font-medium">{CONTRACT_TYPE_LABELS[onboarding.contract_type] || onboarding.contract_type || 'N/A'}</p>
             </div>
+            {onboarding.probation_period_months != null && (
+              <div>
+                <label className="text-sm text-gray-600">Thời gian thử việc</label>
+                <p className="font-medium">{onboarding.probation_period_months} tháng</p>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Employee-filled personal information — only visible to admin */}
+        {userRole === 'ADMIN' && onboarding.employee_info_completed && (
+          <>
+            <div className="bg-white rounded-lg border p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <span className="mr-2">🪪</span>
+                Thông tin cá nhân (nhân sự tự nhập)
+                {onboarding.employee_info_completed_at && (
+                  <span className="ml-3 text-xs font-normal text-gray-500">
+                    Hoàn thành lúc: {new Date(onboarding.employee_info_completed_at).toLocaleString('vi-VN')}
+                  </span>
+                )}
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-600">Số CMND / CCCD</label>
+                  <p className="font-medium">{onboarding.citizen_id || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Ngày sinh</label>
+                  <p className="font-medium">
+                    {onboarding.date_of_birth
+                      ? new Date(onboarding.date_of_birth).toLocaleDateString('vi-VN')
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Giới tính</label>
+                  <p className="font-medium">{onboarding.gender ? (GENDER_LABELS[onboarding.gender] || onboarding.gender) : 'N/A'}</p>
+                </div>
+                {onboarding.desired_employee_id && (
+                  <div>
+                    <label className="text-sm text-gray-600">Mã nhân viên mong muốn</label>
+                    <p className="font-medium">{onboarding.desired_employee_id}</p>
+                  </div>
+                )}
+                <div className="col-span-2">
+                  <label className="text-sm text-gray-600">Địa chỉ thường trú</label>
+                  <p className="font-medium">{onboarding.permanent_address || 'N/A'}</p>
+                </div>
+                {onboarding.current_address && (
+                  <div className="col-span-2">
+                    <label className="text-sm text-gray-600">Địa chỉ hiện tại</label>
+                    <p className="font-medium">{onboarding.current_address}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <span className="mr-2">🎓</span>
+                Trình độ học vấn
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-600">Trình độ</label>
+                  <p className="font-medium">{onboarding.education_level || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Trường đại học / cao đẳng</label>
+                  <p className="font-medium">{onboarding.university || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Chuyên ngành</label>
+                  <p className="font-medium">{onboarding.major || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Năm tốt nghiệp</label>
+                  <p className="font-medium">{onboarding.graduation_year ?? 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <span className="mr-2">💳</span>
+                Thông tin tài chính & ngân hàng
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-600">Mức lương</label>
+                  <p className="font-medium">
+                    {onboarding.salary != null && onboarding.salary !== '' && !isNaN(Number(onboarding.salary))
+                      ? Number(onboarding.salary).toLocaleString('vi-VN') + ' đ'
+                      : 'N/A'}
+                  </p>
+                </div>
+                {onboarding.salary_note && (
+                  <div>
+                    <label className="text-sm text-gray-600">Ghi chú lương</label>
+                    <p className="font-medium">{onboarding.salary_note}</p>
+                  </div>
+                )}
+                <div>
+                  <label className="text-sm text-gray-600">Ngân hàng</label>
+                  <p className="font-medium">{onboarding.bank_name || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Số tài khoản</label>
+                  <p className="font-medium">{onboarding.bank_account_number || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Chủ tài khoản</label>
+                  <p className="font-medium">{onboarding.bank_account_holder || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Mã số thuế</label>
+                  <p className="font-medium">{onboarding.tax_code || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Số người phụ thuộc</label>
+                  <p className="font-medium">{onboarding.tax_dependents ?? 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file) && (
+              <div className="bg-white rounded-lg border p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                  <span className="mr-2">📎</span>
+                  Hồ sơ đính kèm
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {onboarding.cv_file && (
+                    <div>
+                      <label className="text-sm text-gray-600">CV</label>
+                      <a
+                        href={onboarding.cv_file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
+                      >
+                        <DocumentTextIcon className="w-4 h-4 mr-1" />
+                        Xem CV
+                      </a>
+                    </div>
+                  )}
+                  {onboarding.id_card_front && (
+                    <div>
+                      <label className="text-sm text-gray-600">CCCD mặt trước</label>
+                      <a
+                        href={onboarding.id_card_front}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
+                      >
+                        <DocumentTextIcon className="w-4 h-4 mr-1" />
+                        Xem ảnh
+                      </a>
+                    </div>
+                  )}
+                  {onboarding.id_card_back && (
+                    <div>
+                      <label className="text-sm text-gray-600">CCCD mặt sau</label>
+                      <a
+                        href={onboarding.id_card_back}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
+                      >
+                        <DocumentTextIcon className="w-4 h-4 mr-1" />
+                        Xem ảnh
+                      </a>
+                    </div>
+                  )}
+                  {onboarding.diploma_file && (
+                    <div>
+                      <label className="text-sm text-gray-600">Bằng cấp</label>
+                      <a
+                        href={onboarding.diploma_file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
+                      >
+                        <DocumentTextIcon className="w-4 h-4 mr-1" />
+                        Xem tài liệu
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         {onboarding.employee && (
           <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
