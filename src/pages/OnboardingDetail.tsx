@@ -13,11 +13,14 @@ import {
   ArrowLeftIcon,
   ExclamationTriangleIcon,
   PlusIcon,
+  UserCircleIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
 import DocumentsSection from './DocumentsSection';
 import { useAuth } from '../contexts/AuthContext';
+import { employeesAPI, SuperAdminEmployee } from '../utils/api';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -183,6 +186,7 @@ const OnboardingDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingDetail | null>(null);
+  const [employeeProfile, setEmployeeProfile] = useState<SuperAdminEmployee | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'tasks' | 'documents' | 'contracts'>('info');
 
   useEffect(() => {
@@ -213,6 +217,17 @@ const OnboardingDetail: React.FC = () => {
       }
 
       setOnboarding(data as any);
+
+      // Fetch full employee profile for admins when employee record exists
+      if (userRole === 'ADMIN' && (data as any).employee?.employee_id) {
+        try {
+          const profile = await employeesAPI.getByEmployeeId((data as any).employee.employee_id);
+          setEmployeeProfile(profile);
+        } catch (profileErr) {
+          console.warn('Could not load employee profile:', profileErr);
+          setEmployeeProfile(null);
+        }
+      }
     } catch (error: any) {
       console.error('❌ FETCH DETAIL ERROR:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Không thể tải thông tin quy trình onboarding';
@@ -545,6 +560,333 @@ const OnboardingDetail: React.FC = () => {
               Xem hồ sơ nhân viên
             </button>
           </div>
+        )}
+
+        {/* Admin-only: Full employee profile from super-admin API */}
+        {userRole === 'ADMIN' && employeeProfile && (
+          <>
+            {/* Account & Status */}
+            <div className="bg-white rounded-lg border p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center">
+                <UserCircleIcon className="w-5 h-5 mr-2 text-indigo-600" />
+                Hồ sơ nhân viên hệ thống
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-600">Mã nhân viên</label>
+                  <p className="font-medium text-indigo-700">{employeeProfile.employee_id}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Họ và tên</label>
+                  <p className="font-medium">{employeeProfile.full_name}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Giới tính</label>
+                  <p className="font-medium">
+                    {employeeProfile.gender === 'M' ? 'Nam' : employeeProfile.gender === 'F' ? 'Nữ' : employeeProfile.gender || 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Ngày sinh</label>
+                  <p className="font-medium">
+                    {employeeProfile.date_of_birth
+                      ? new Date(employeeProfile.date_of_birth).toLocaleDateString('vi-VN')
+                      : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Số điện thoại</label>
+                  <p className="font-medium">{employeeProfile.phone_number || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Email cá nhân</label>
+                  <p className="font-medium">{employeeProfile.personal_email || 'N/A'}</p>
+                </div>
+                {employeeProfile.user && (
+                  <div>
+                    <label className="text-sm text-gray-600">Tài khoản hệ thống</label>
+                    <p className="font-medium">{employeeProfile.user.username}</p>
+                  </div>
+                )}
+                {employeeProfile.user?.email && (
+                  <div>
+                    <label className="text-sm text-gray-600">Email tài khoản</label>
+                    <p className="font-medium">{employeeProfile.user.email}</p>
+                  </div>
+                )}
+                <div>
+                  <label className="text-sm text-gray-600">Trạng thái</label>
+                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                    employeeProfile.employment_status === 'ACTIVE'
+                      ? 'bg-green-100 text-green-800'
+                      : employeeProfile.employment_status === 'PROBATION'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {employeeProfile.employment_status === 'ACTIVE' ? 'Đang làm việc'
+                      : employeeProfile.employment_status === 'PROBATION' ? 'Thử việc'
+                      : employeeProfile.employment_status === 'INACTIVE' ? 'Đã nghỉ'
+                      : employeeProfile.employment_status}
+                  </span>
+                </div>
+                {employeeProfile.start_date && (
+                  <div>
+                    <label className="text-sm text-gray-600">Ngày vào làm</label>
+                    <p className="font-medium">{new Date(employeeProfile.start_date).toLocaleDateString('vi-VN')}</p>
+                  </div>
+                )}
+                {employeeProfile.end_date && (
+                  <div>
+                    <label className="text-sm text-gray-600">Ngày kết thúc</label>
+                    <p className="font-medium">{new Date(employeeProfile.end_date).toLocaleDateString('vi-VN')}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Identity (CCCD) */}
+            {(employeeProfile.cccd_number || employeeProfile.cccd_issue_date || employeeProfile.cccd_issue_place || employeeProfile.birth_place || employeeProfile.permanent_residence) && (
+              <div className="bg-white rounded-lg border p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                  <span className="mr-2">🪪</span>
+                  Thông tin CCCD / Giấy tờ tùy thân
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-gray-600">Số CCCD</label>
+                    <p className="font-medium font-mono">{employeeProfile.cccd_number || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Ngày cấp CCCD</label>
+                    <p className="font-medium">
+                      {employeeProfile.cccd_issue_date
+                        ? new Date(employeeProfile.cccd_issue_date).toLocaleDateString('vi-VN')
+                        : 'N/A'}
+                    </p>
+                  </div>
+                  {employeeProfile.cccd_issue_place && (
+                    <div className="col-span-2">
+                      <label className="text-sm text-gray-600">Nơi cấp CCCD</label>
+                      <p className="font-medium">{employeeProfile.cccd_issue_place}</p>
+                    </div>
+                  )}
+                  {employeeProfile.birth_place && (
+                    <div className="col-span-2">
+                      <label className="text-sm text-gray-600">Nơi sinh</label>
+                      <p className="font-medium">{employeeProfile.birth_place}</p>
+                    </div>
+                  )}
+                  {employeeProfile.permanent_residence && (
+                    <div className="col-span-2">
+                      <label className="text-sm text-gray-600">Địa chỉ thường trú</label>
+                      <p className="font-medium">{employeeProfile.permanent_residence}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Salary & Contract */}
+            {(employeeProfile.basic_salary != null || employeeProfile.contract_type) && (
+              <div className="bg-white rounded-lg border p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                  <span className="mr-2">💰</span>
+                  Lương & Hợp đồng
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {employeeProfile.basic_salary != null && (
+                    <div>
+                      <label className="text-sm text-gray-600">Lương cơ bản</label>
+                      <p className="font-medium text-green-700 text-lg">
+                        {Number(employeeProfile.basic_salary).toLocaleString('vi-VN')} đ
+                      </p>
+                    </div>
+                  )}
+                  {employeeProfile.contract_type && (
+                    <div>
+                      <label className="text-sm text-gray-600">Loại hợp đồng</label>
+                      <p className="font-medium">{employeeProfile.contract_type_display || CONTRACT_TYPE_LABELS[employeeProfile.contract_type] || employeeProfile.contract_type}</p>
+                    </div>
+                  )}
+                  {employeeProfile.probation_months != null && (
+                    <div>
+                      <label className="text-sm text-gray-600">Thời gian thử việc</label>
+                      <p className="font-medium">{employeeProfile.probation_months} tháng</p>
+                    </div>
+                  )}
+                  {employeeProfile.probation_end_date && (
+                    <div>
+                      <label className="text-sm text-gray-600">Ngày kết thúc thử việc</label>
+                      <p className="font-medium">{new Date(employeeProfile.probation_end_date).toLocaleDateString('vi-VN')}</p>
+                    </div>
+                  )}
+                  {employeeProfile.probation_salary_percentage != null && (
+                    <div>
+                      <label className="text-sm text-gray-600">% lương thử việc</label>
+                      <p className="font-medium">{employeeProfile.probation_salary_percentage_display || `${employeeProfile.probation_salary_percentage}%`}</p>
+                    </div>
+                  )}
+                  {employeeProfile.bank_name && (
+                    <div>
+                      <label className="text-sm text-gray-600">Ngân hàng</label>
+                      <p className="font-medium">{employeeProfile.bank_name}</p>
+                    </div>
+                  )}
+                  {employeeProfile.bank_account && (
+                    <div>
+                      <label className="text-sm text-gray-600">Số tài khoản</label>
+                      <p className="font-medium font-mono">{employeeProfile.bank_account}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* File Status */}
+            {employeeProfile.file_status && (
+              <div className="bg-white rounded-lg border p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                  <span className="mr-2">📋</span>
+                  Trạng thái hồ sơ
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-gray-600">Trạng thái hồ sơ</label>
+                    <p className="font-medium">{employeeProfile.file_status_display || employeeProfile.file_status}</p>
+                  </div>
+                  {employeeProfile.file_submission_deadline && (
+                    <div>
+                      <label className="text-sm text-gray-600">Hạn nộp hồ sơ</label>
+                      <p className="font-medium">{new Date(employeeProfile.file_submission_deadline).toLocaleDateString('vi-VN')}</p>
+                    </div>
+                  )}
+                  {employeeProfile.file_submission_date && (
+                    <div>
+                      <label className="text-sm text-gray-600">Ngày nộp hồ sơ</label>
+                      <p className="font-medium">{new Date(employeeProfile.file_submission_date).toLocaleDateString('vi-VN')}</p>
+                    </div>
+                  )}
+                  {employeeProfile.file_review_notes && (
+                    <div className="col-span-2">
+                      <label className="text-sm text-gray-600">Ghi chú hồ sơ</label>
+                      <p className="font-medium">{employeeProfile.file_review_notes}</p>
+                    </div>
+                  )}
+                  {employeeProfile.training_presentation_viewed != null && (
+                    <div>
+                      <label className="text-sm text-gray-600">Đã xem bài thuyết trình đào tạo</label>
+                      <p className="font-medium">
+                        {employeeProfile.training_presentation_viewed ? (
+                          <span className="text-green-600">✓ Đã xem</span>
+                        ) : (
+                          <span className="text-gray-500">Chưa xem</span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Permissions */}
+            {employeeProfile.permissions && (
+              <div className="bg-white rounded-lg border p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                  <ShieldCheckIcon className="w-5 h-5 mr-2 text-purple-600" />
+                  Phân quyền hệ thống
+                  {employeeProfile.permissions.permission_summary && (
+                    <span className="ml-3 text-sm font-normal text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                      {employeeProfile.permissions.permission_summary}
+                    </span>
+                  )}
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'can_approve_attendance', label: 'Duyệt công' },
+                    { key: 'can_approve_leave', label: 'Duyệt nghỉ phép' },
+                    { key: 'can_approve_overtime', label: 'Duyệt tăng ca' },
+                    { key: 'can_create_employee', label: 'Tạo nhân viên' },
+                    { key: 'can_edit_employee', label: 'Sửa nhân viên' },
+                    { key: 'can_view_all_employees', label: 'Xem tất cả nhân viên' },
+                    { key: 'can_manage_attendance', label: 'Quản lý chấm công' },
+                    { key: 'can_import_attendance', label: 'Import chấm công' },
+                    { key: 'can_adjust_attendance', label: 'Điều chỉnh chấm công' },
+                    { key: 'can_manage_assets', label: 'Quản lý tài sản' },
+                    { key: 'can_assign_assets', label: 'Cấp phát tài sản' },
+                    { key: 'can_approve_asset_requests', label: 'Duyệt yêu cầu tài sản' },
+                    { key: 'can_manage_departments', label: 'Quản lý phòng ban' },
+                    { key: 'can_manage_positions', label: 'Quản lý chức vụ' },
+                    { key: 'can_manage_company_config', label: 'Cấu hình công ty' },
+                    { key: 'can_manage_attendance_rules', label: 'Quy tắc chấm công' },
+                    { key: 'can_manage_leave_policies', label: 'Chính sách nghỉ phép' },
+                    { key: 'can_view_reports', label: 'Xem báo cáo' },
+                    { key: 'can_export_reports', label: 'Xuất báo cáo' },
+                  ].map(({ key, label }) => {
+                    const hasPermission = employeeProfile.permissions![key as keyof typeof employeeProfile.permissions];
+                    return (
+                      <div key={key} className="flex items-center gap-2">
+                        {hasPermission ? (
+                          <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        ) : (
+                          <XMarkIcon className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                        )}
+                        <span className={`text-sm ${hasPermission ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
+                          {label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Extra Info (parsed JSON) */}
+            {employeeProfile.extra_info && (() => {
+              try {
+                const extra = typeof employeeProfile.extra_info === 'string'
+                  ? JSON.parse(employeeProfile.extra_info)
+                  : employeeProfile.extra_info;
+                const entries = Object.entries(extra).filter(([, v]) => v !== null && v !== '');
+                if (entries.length === 0) return null;
+                const EXTRA_LABELS: Record<string, string> = {
+                  facebook_link: 'Facebook',
+                  work_type: 'Hình thức làm việc',
+                  citizen_id_issue_date: 'Ngày cấp CMND/CCCD',
+                  allowance_notes: 'Phụ cấp (ghi chú)',
+                };
+                return (
+                  <div className="bg-white rounded-lg border p-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center">
+                      <span className="mr-2">ℹ️</span>
+                      Thông tin bổ sung
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {entries.map(([key, value]) => (
+                        <div key={key}>
+                          <label className="text-sm text-gray-600">{EXTRA_LABELS[key] || key}</label>
+                          {String(value).startsWith('http') ? (
+                            <a
+                              href={String(value)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block font-medium text-blue-600 hover:text-blue-800 underline truncate"
+                            >
+                              {String(value)}
+                            </a>
+                          ) : (
+                            <p className="font-medium">{String(value)}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              } catch (parseErr) {
+                console.warn('Could not parse extra_info JSON:', parseErr, employeeProfile.extra_info);
+                return null;
+              }
+            })()}
+          </>
         )}
 
         {(() => {
