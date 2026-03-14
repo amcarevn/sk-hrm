@@ -1694,6 +1694,52 @@ export interface Employee {
   updated_at: string;
 }
 
+export interface EmployeePermissions {
+  can_approve_attendance: boolean;
+  can_approve_leave: boolean;
+  can_approve_overtime: boolean;
+  can_create_employee: boolean;
+  can_edit_employee: boolean;
+  can_view_all_employees: boolean;
+  can_manage_attendance: boolean;
+  can_import_attendance: boolean;
+  can_adjust_attendance: boolean;
+  can_manage_assets: boolean;
+  can_assign_assets: boolean;
+  can_approve_asset_requests: boolean;
+  can_manage_departments: boolean;
+  can_manage_positions: boolean;
+  can_manage_company_config: boolean;
+  can_manage_attendance_rules: boolean;
+  can_manage_leave_policies: boolean;
+  can_view_reports: boolean;
+  can_export_reports: boolean;
+  has_any_permission: boolean;
+  permission_summary: string;
+}
+
+export interface SuperAdminEmployee extends Employee {
+  qr_code?: string | null;
+  extra_info?: string;
+  reporting_path?: string;
+  is_active?: boolean;
+  personal_email?: string;
+  probation_salary_percentage?: number;
+  probation_salary_percentage_display?: string;
+  file_status_display?: string;
+  file_review_notes?: string;
+  permissions?: EmployeePermissions;
+  user?: {
+    id: number;
+    username: string;
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+    is_staff?: boolean;
+    is_superuser?: boolean;
+  };
+}
+
 export interface Department {
   id: number;
   name: string;
@@ -1794,6 +1840,14 @@ export const employeesAPI = {
 
   getById: async (id: number): Promise<Employee> => {
     const response: AxiosResponse<Employee> = await managementApi.get(`/api-hrm/employees/${id}/`);
+    return response.data;
+  },
+
+  getByEmployeeId: async (employeeId: string): Promise<SuperAdminEmployee> => {
+    const response: AxiosResponse<SuperAdminEmployee> = await managementApi.get(
+      `/api-hrm/super-admin/employee/`,
+      { params: { employee_id: employeeId } }
+    );
     return response.data;
   },
 
