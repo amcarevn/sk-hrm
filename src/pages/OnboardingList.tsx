@@ -41,6 +41,7 @@
     ContentCopy,
     Refresh,
     Visibility,
+    FilterList,
   } from '@mui/icons-material';
 
   // ============================================
@@ -78,6 +79,7 @@
 
     const [loading, setLoading] = useState(false);
     const [onboardings, setOnboardings] = useState<OnboardingRecord[]>([]);
+    const [statusFilter, setStatusFilter] = useState<string>('all');
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [page, setPage] = useState(0);
@@ -239,6 +241,15 @@
       expired: onboardings.filter((o) => o.token_status === 'expired').length,
     };
 
+    // ===== FILTER =====
+    const filteredOnboardings = onboardings.filter((o) => {
+      if (statusFilter === 'completed') return o.employee_info_completed;
+      if (statusFilter === 'waiting') return o.token_status === 'active' && !o.employee_info_completed;
+      if (statusFilter === 'expired') return o.token_status === 'expired';
+      if (statusFilter === 'not_generated') return o.token_status === 'not_generated';
+      return true; // 'all'
+    });
+
     // ============================================
     // RENDER
     // ============================================
@@ -279,16 +290,59 @@
         {/* Stats cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Tổng số', value: stats.total, color: 'text-gray-800', bg: 'bg-gray-50' },
-            { label: 'Chờ điền thông tin', value: stats.waiting, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Đã điền thông tin', value: stats.completed, color: 'text-green-600', bg: 'bg-green-50' },
-            { label: 'Token hết hạn', value: stats.expired, color: 'text-red-500', bg: 'bg-red-50' },
-          ].map(({ label, value, color, bg }) => (
-            <div key={label} className={`${bg} rounded-xl p-4 border border-gray-100 text-center`}>
+            { label: 'Tổng số', value: stats.total, color: 'text-gray-800', bg: 'bg-gray-50', filterKey: 'all' },
+            { label: 'Chờ điền thông tin', value: stats.waiting, color: 'text-blue-600', bg: 'bg-blue-50', filterKey: 'waiting' },
+            { label: 'Đã điền thông tin', value: stats.completed, color: 'text-green-600', bg: 'bg-green-50', filterKey: 'completed' },
+            { label: 'Token hết hạn', value: stats.expired, color: 'text-red-500', bg: 'bg-red-50', filterKey: 'expired' },
+          ].map(({ label, value, color, bg, filterKey }) => (
+            <div
+              key={label}
+              role="button"
+              tabIndex={0}
+              aria-label={`Lọc theo: ${label}`}
+              aria-pressed={statusFilter === filterKey}
+              className={`${bg} rounded-xl p-4 border text-center cursor-pointer transition-all hover:shadow-md
+                ${statusFilter === filterKey ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-100'}`}
+              onClick={() => { setStatusFilter(filterKey); setPage(0); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setStatusFilter(filterKey); setPage(0); } }}
+            >
               <p className={`text-2xl font-bold ${color}`}>{value}</p>
               <p className="text-xs text-gray-500 mt-1">{label}</p>
             </div>
           ))}
+        </div>
+
+        {/* Filter bar */}
+        <div className="flex flex-wrap items-center gap-3 mb-3">
+          <FormControl size="small" sx={{ minWidth: 220 }}>
+            <InputLabel>
+              <span className="flex items-center gap-1">
+                <FilterList sx={{ fontSize: 16 }} /> Lọc theo trạng thái
+              </span>
+            </InputLabel>
+            <Select
+              value={statusFilter}
+              label={<span className="flex items-center gap-1"><FilterList sx={{ fontSize: 16 }} /> Lọc theo trạng thái</span>}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+            >
+              <MenuItem value="all">Tất cả trạng thái</MenuItem>
+              <MenuItem value="waiting">Chờ điền thông tin</MenuItem>
+              <MenuItem value="completed">Đã điền thông tin</MenuItem>
+              <MenuItem value="expired">Token hết hạn</MenuItem>
+              <MenuItem value="not_generated">Chưa tạo link</MenuItem>
+            </Select>
+          </FormControl>
+          {statusFilter !== 'all' && (
+            <Button
+              size="small" variant="outlined"
+              onClick={() => { setStatusFilter('all'); setPage(0); }}
+            >
+              Xóa bộ lọc
+            </Button>
+          )}
+          <Typography variant="body2" color="text.secondary">
+            Hiển thị {filteredOnboardings.length} / {onboardings.length} onboarding
+          </Typography>
         </div>
 
         {/* Table */}
@@ -320,8 +374,14 @@
                       Chưa có dữ liệu onboarding
                     </TableCell>
                   </TableRow>
+                ) : filteredOnboardings.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#9ca3af' }}>
+                      Không có onboarding nào khớp với bộ lọc
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  onboardings
+                  filteredOnboardings
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                     .map((record) => (
                       <TableRow key={record.id} hover>
@@ -381,7 +441,7 @@
           </TableContainer>
           <TablePagination
             component="div"
-            count={onboardings.length}
+            count={filteredOnboardings.length}
             page={page}
             onPageChange={(_, p) => setPage(p)}
             rowsPerPage={rowsPerPage}
