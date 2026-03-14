@@ -14,7 +14,6 @@ import {
   ExclamationTriangleIcon,
   PlusIcon,
   UserCircleIcon,
-  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
@@ -784,58 +783,6 @@ const OnboardingDetail: React.FC = () => {
                       </p>
                     </div>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* Permissions */}
-            {employeeProfile.permissions && (
-              <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <ShieldCheckIcon className="w-5 h-5 mr-2 text-purple-600" />
-                  Phân quyền hệ thống
-                  {employeeProfile.permissions.permission_summary && (
-                    <span className="ml-3 text-sm font-normal text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
-                      {employeeProfile.permissions.permission_summary}
-                    </span>
-                  )}
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { key: 'can_approve_attendance', label: 'Duyệt công' },
-                    { key: 'can_approve_leave', label: 'Duyệt nghỉ phép' },
-                    { key: 'can_approve_overtime', label: 'Duyệt tăng ca' },
-                    { key: 'can_create_employee', label: 'Tạo nhân viên' },
-                    { key: 'can_edit_employee', label: 'Sửa nhân viên' },
-                    { key: 'can_view_all_employees', label: 'Xem tất cả nhân viên' },
-                    { key: 'can_manage_attendance', label: 'Quản lý chấm công' },
-                    { key: 'can_import_attendance', label: 'Import chấm công' },
-                    { key: 'can_adjust_attendance', label: 'Điều chỉnh chấm công' },
-                    { key: 'can_manage_assets', label: 'Quản lý tài sản' },
-                    { key: 'can_assign_assets', label: 'Cấp phát tài sản' },
-                    { key: 'can_approve_asset_requests', label: 'Duyệt yêu cầu tài sản' },
-                    { key: 'can_manage_departments', label: 'Quản lý phòng ban' },
-                    { key: 'can_manage_positions', label: 'Quản lý chức vụ' },
-                    { key: 'can_manage_company_config', label: 'Cấu hình công ty' },
-                    { key: 'can_manage_attendance_rules', label: 'Quy tắc chấm công' },
-                    { key: 'can_manage_leave_policies', label: 'Chính sách nghỉ phép' },
-                    { key: 'can_view_reports', label: 'Xem báo cáo' },
-                    { key: 'can_export_reports', label: 'Xuất báo cáo' },
-                  ].map(({ key, label }) => {
-                    const hasPermission = employeeProfile.permissions![key as keyof typeof employeeProfile.permissions];
-                    return (
-                      <div key={key} className="flex items-center gap-2">
-                        {hasPermission ? (
-                          <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0" />
-                        ) : (
-                          <XMarkIcon className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                        )}
-                        <span className={`text-sm ${hasPermission ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
-                          {label}
-                        </span>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
             )}
