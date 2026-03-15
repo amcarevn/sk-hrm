@@ -98,23 +98,23 @@ const Approvals: React.FC = () => {
   const [bulkActionResult, setBulkActionResult] = useState<{ success: number; error: number; groupName: string } | null>(null);
   const [bulkConfirmModal, setBulkConfirmModal] = useState<{ items: any[]; name: string } | null>(null);
 
-  const isAdmin = (user as any)?.is_superuser || 
-                  (user as any)?.is_staff || 
-                  user?.role?.toUpperCase() === 'ADMIN' ||
-                  currentEmployee?.user?.is_staff || 
-                  currentEmployee?.user?.is_superuser;
+  const isAdmin = (user as any)?.is_superuser ||
+    (user as any)?.is_staff ||
+    user?.role?.toUpperCase() === 'ADMIN' ||
+    currentEmployee?.user?.is_staff ||
+    currentEmployee?.user?.is_superuser;
 
   const isHR = (user as any)?.hrm_user?.department_code === 'HCNS' ||
-               (user as any)?.employee_profile?.department_code === 'HCNS' ||
-               user?.role?.toUpperCase() === 'HR' ||
-               currentEmployee?.is_hr ||
-               currentEmployee?.position?.title?.toUpperCase().includes('HR') ||
-               currentEmployee?.department?.code === 'HCNS';
+    (user as any)?.employee_profile?.department_code === 'HCNS' ||
+    user?.role?.toUpperCase() === 'HR' ||
+    currentEmployee?.is_hr ||
+    currentEmployee?.position?.title?.toUpperCase().includes('HR') ||
+    currentEmployee?.department?.code === 'HCNS';
 
-  const isManagement = currentEmployee?.position?.is_management || 
-                       currentEmployee?.is_manager || 
-                       Number(currentEmployee?.management_level) >= 1 ||
-                       false;
+  const isManagement = currentEmployee?.position?.is_management ||
+    currentEmployee?.is_manager ||
+    Number(currentEmployee?.management_level) >= 1 ||
+    false;
 
   const currentItem = selectedExplanation || selectedOnlineWorkRequest;
   const isViewingExp = currentItem?._itemType === 'EXPLANATION' || (!currentItem?._itemType && currentItem?.explanation_type && currentItem?.explanation_type !== 'LEAVE');
@@ -153,7 +153,7 @@ const Approvals: React.FC = () => {
       setLoading(true);
       // Đảm bảo lấy thông tin nhân viên trước để có department_code phục vụ việc lọc
       const emp = await fetchCurrentEmployee();
-      
+
       // Khai báo lại các biến quyền dựa trên dữ liệu mới nhất
       const currentIsAdmin = emp?.user?.is_staff || emp?.user?.is_superuser || (user as any)?.is_superuser || (user as any)?.is_staff || user?.role?.toUpperCase() === 'ADMIN';
       const currentIsHR = emp?.is_hr || emp?.department?.code === 'HCNS' || (user as any)?.hrm_user?.department_code === 'HCNS' || user?.role?.toUpperCase() === 'HR';
@@ -177,7 +177,7 @@ const Approvals: React.FC = () => {
       const emp = await fetchCurrentEmployee();
       const currentIsAdmin = emp?.user?.is_staff || emp?.user?.is_superuser || (user as any)?.is_superuser || (user as any)?.is_staff || user?.role?.toUpperCase() === 'ADMIN';
       const currentIsHR = emp?.is_hr || emp?.department?.code === 'HCNS' || (user as any)?.hrm_user?.department_code === 'HCNS' || user?.role?.toUpperCase() === 'HR';
-      
+
       await Promise.all([
         fetchPendingRequests(),
         fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR)
@@ -238,7 +238,7 @@ const Approvals: React.FC = () => {
 
       console.log('🚀 [APPROVALS] Bắt đầu lấy dữ liệu chốt công (mở rộng 3 tháng, không lọc status API)...');
       const now = new Date();
-      
+
       const fetchMonth = async (m: number, y: number) => {
         try {
           console.log(`📡 [FETCH] Checking month ${m}/${y}...`);
@@ -254,7 +254,7 @@ const Approvals: React.FC = () => {
       // Lấy tháng hiện tại
       const m0 = now.getMonth() + 1;
       const y0 = now.getFullYear();
-      
+
       // Lấy tháng trước
       const d1 = new Date();
       d1.setMonth(d1.getMonth() - 1);
@@ -274,12 +274,12 @@ const Approvals: React.FC = () => {
       ]);
 
       const combined = [...res0, ...res1, ...res2];
-      
+
       console.log('📦 [APPROVALS] Toàn bộ dữ liệu chốt công thô (3 tháng):', combined.length, combined);
 
       const uniqueMap = new Map();
       combined.forEach(item => uniqueMap.set(item.id, item));
-      
+
       // Lấy các đơn PENDING hoặc APPROVED (để Admin theo dõi)
       const pendingWfItems = Array.from(uniqueMap.values())
         .filter(item => item.status === 'PENDING' || item.status === 'APPROVED')
@@ -291,11 +291,11 @@ const Approvals: React.FC = () => {
           reason: item.note || `Chốt công tháng ${item.month}/${item.year}`
         }));
 
-      const userDeptCode = activeEmp?.department?.code || 
-                          activeEmp?.hrm_user?.department_code || 
-                          activeEmp?.employee_profile?.department_code ||
-                          (user as any)?.department_code ||
-                          (user as any)?.employee_profile?.department_code;
+      const userDeptCode = activeEmp?.department?.code ||
+        activeEmp?.hrm_user?.department_code ||
+        activeEmp?.employee_profile?.department_code ||
+        (user as any)?.department_code ||
+        (user as any)?.employee_profile?.department_code;
 
       console.log('🔍 [APPROVALS] Filtering Context:', {
         user: user?.username,
@@ -321,7 +321,7 @@ const Approvals: React.FC = () => {
           });
         }
       }
-      
+
       console.log('✅ [APPROVALS] Final Display Data:', filteredWfItems.length, filteredWfItems);
       setWorkFinalizationApprovals(filteredWfItems);
     } catch (wfError) {
@@ -413,15 +413,15 @@ const Approvals: React.FC = () => {
   const getRequestTypeLabel = (req: any): string => {
     if (req._itemType === 'ONLINE_WORK') return 'Làm việc online';
     if (req.explanation_type === 'LEAVE' || req._itemType === 'LEAVE') return 'Nghỉ phép tháng';
-    
+
     // Đơn đăng ký (Tăng ca, Làm thêm giờ, Live, Trực tối)
     if (req._itemType === 'REGISTRATION' || req._itemType === 'OVERTIME') {
       const type = req.registration_type || (req._itemType === 'OVERTIME' ? 'OVERTIME' : '');
       return EXPLANATION_TYPE_MAP[type] || 'Đơn đăng ký';
     }
-    
+
     if (req._itemType === 'WORK_FINALIZATION') return 'Chốt công tháng';
-    
+
     // Mặc định là đơn giải trình
     const typeLabel = req.explanation_type ? (EXPLANATION_TYPE_MAP[req.explanation_type] || req.explanation_type) : 'Đơn giải trình';
     return typeLabel;
@@ -595,22 +595,24 @@ const Approvals: React.FC = () => {
    * - Admin/HR có quyền xóa đơn bất kỳ khi chưa được xử lý xong
    */
   const canDeleteRequest = (req: any): boolean => {
-    if (!currentEmployee) return false;
+    if (!currentEmployee || !req) return false;
 
     const requesterId = req.employee_id ||
       (typeof req.employee === 'object' ? req.employee.id : req.employee);
 
     const isOwner = requesterId === currentEmployee.id;
-    const isAdminOrHR = isAdmin || isHR;
 
-    // Chỉ người tạo đơn hoặc Admin/HR mới thấy nút xóa
-    if (!isOwner && !isAdminOrHR) return false;
+    // QUY TẮC MỚI: Chỉ người tạo đơn (Owner) mới có quyền Hủy đơn của chính mình
+    if (!isOwner) return false;
 
-    // Chỉ xóa được khi DRAFT hoặc PENDING
+    // Chỉ xóa được khi đơn còn ở trạng thái sơ thảo hoặc đang chờ xử lý
     if (!['DRAFT', 'PENDING'].includes(req.status)) return false;
 
-    // Không xóa được khi quản lý trực tiếp đã duyệt (trừ khi là Admin)
-    if (req.direct_manager_approved && !isAdmin) return false;
+    // ĐẶC BIỆT: Nếu bất kỳ cấp nào đã phê duyệt (QLTT hoặc HR) thì không được xóa (hủy) nữa 
+    // Tránh trường hợp đơn đã đi vào quy trình xử lý chuyên sâu
+    if (req.direct_manager_approved || req.hr_approved || req.status === 'APPROVED') {
+      return false;
+    }
 
     // Không xóa được khi có situation đã xử lý (chỉ áp dụng cho đơn giải trình)
     const situationDetails = req.situation_details;
@@ -638,23 +640,23 @@ const Approvals: React.FC = () => {
 
     if (isWorkFinalization) {
       // Admin/HR hoặc Quản lý trực tiếp của phòng ban đó
-      const isAdminUser = 
-        currentEmployee.user?.is_staff || 
-        currentEmployee.user?.is_superuser || 
-        (user as any)?.is_superuser || 
+      const isAdminUser =
+        currentEmployee.user?.is_staff ||
+        currentEmployee.user?.is_superuser ||
+        (user as any)?.is_superuser ||
         (user as any)?.is_staff;
-      
-      const isHRUser = 
-        currentEmployee.is_hr || 
+
+      const isHRUser =
+        currentEmployee.is_hr ||
         currentEmployee.position?.title?.toUpperCase().includes('HR') ||
         currentEmployee.department?.code === 'HCNS';
 
-      const myDeptCode = currentEmployee.department?.code || 
-                        currentEmployee.hrm_user?.department_code || 
-                        currentEmployee.employee_profile?.department_code;
+      const myDeptCode = currentEmployee.department?.code ||
+        currentEmployee.hrm_user?.department_code ||
+        currentEmployee.employee_profile?.department_code;
 
       const isMyDept = request.department_code === myDeptCode;
-      
+
       return isAdminUser || isMyDept;
     }
 
@@ -838,9 +840,9 @@ const Approvals: React.FC = () => {
       setWfEmployees(data.employees || []);
       setShowWfDetailModal(true);
     } catch (error: any) {
-       console.error("Lỗi khi lấy chi tiết chốt công:", error);
-       setErrorMessage("Không thể tải danh sách nhân viên phòng ban này. Vui lòng thử lại.");
-       setErrorModalOpen(true);
+      console.error("Lỗi khi lấy chi tiết chốt công:", error);
+      setErrorMessage("Không thể tải danh sách nhân viên phòng ban này. Vui lòng thử lại.");
+      setErrorModalOpen(true);
     } finally {
       setLoading(false);
     }
@@ -964,8 +966,8 @@ const Approvals: React.FC = () => {
           {/* Step 1: Manager */}
           <div className="flex flex-col items-center relative">
             <div className={`z-10 w-5 h-5 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${step1.rejected ? 'bg-rose-500 border-rose-100 text-white' :
-                step1.active ? 'bg-emerald-500 border-emerald-100 text-white' :
-                  'bg-white border-slate-200 text-slate-400'
+              step1.active ? 'bg-emerald-500 border-emerald-100 text-white' :
+                'bg-white border-slate-200 text-slate-400'
               }`}>
               {step1.rejected ? (
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -988,8 +990,8 @@ const Approvals: React.FC = () => {
               {/* Step 2: HR */}
               <div className="flex flex-col items-center relative">
                 <div className={`z-10 w-5 h-5 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${step2.rejected ? 'bg-rose-500 border-rose-100 text-white' :
-                    step2.active ? 'bg-emerald-500 border-emerald-100 text-white' :
-                      'bg-white border-slate-200 text-slate-400'
+                  step2.active ? 'bg-emerald-500 border-emerald-100 text-white' :
+                    'bg-white border-slate-200 text-slate-400'
                   }`}>
                   {step2.rejected ? (
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -1329,10 +1331,10 @@ const Approvals: React.FC = () => {
 
     const mappedOvertimes = overtimeRequests
       .filter(matchesTextFilters)
-      .map(ov => ({ 
-        ...ov, 
+      .map(ov => ({
+        ...ov,
         _itemType: 'REGISTRATION',
-        registration_type: 'OVERTIME' 
+        registration_type: 'OVERTIME'
       }));
 
     // 3. Combine and filter by type (search bar filters)
@@ -1434,138 +1436,272 @@ const Approvals: React.FC = () => {
 
   const getTotalFilteredCount = () => getTotalCount();
 
-  const totalPending =
-    stats.pending_leave +
-    stats.pending_overtime +
-    stats.pending_explanation +
-    stats.pending_registration +
-    stats.pending_online_work;
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Phê duyệt</h1>
-        <p className="text-gray-600 mt-2">
+    <div className="w-full">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Phê duyệt</h1>
+        <p className="text-base sm:text-lg text-gray-600 mt-1 sm:mt-2">
           Duyệt các đơn xin nghỉ phép, làm thêm giờ, giải trình chấm công và các
           yêu cầu khác.
         </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 md:p-6 border border-gray-100">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-gray-900">
               {getCurrentTitle()}
             </h2>
-            <p className="text-gray-500 text-base">
+            <p className="text-gray-500 text-lg">
               Có {getTotalFilteredCount()} yêu cầu
             </p>
           </div>
-          <div className="flex space-x-3">
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             <button
               onClick={fetchAllData}
-              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors flex items-center space-x-2"
+              className="flex-1 sm:flex-none justify-center border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 flex items-center space-x-2 text-base"
             >
-              {loading && <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>}
+              {loading && <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full"></div>}
               <span>Làm mới</span>
             </button>
-            <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors">
+            <button className="flex-1 sm:flex-none justify-center border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition-colors text-base">
               Lịch sử duyệt
             </button>
           </div>
         </div>
 
-        {/* Tabs - Scrollable on mobile */}
-        <div className="border-b border-slate-200 mb-8 overflow-x-auto scrollbar-hide">
-          <nav className="-mb-px flex space-x-6 sm:space-x-8 min-w-max">
+        {/* Tabs Điều hướng - Responsive Premium */}
+        <div className="mb-6 sm:mb-10 px-0.5">
+          <div className="bg-slate-100/50 p-1.5 rounded-[24px] grid grid-cols-3 gap-1.5 sm:gap-3 border border-slate-200/60 backdrop-blur-sm shadow-sm">
             <button
               onClick={() => setActiveTab('pending')}
-              className={`py-2 px-1 border-b-2 font-medium text-base ${activeTab === 'pending'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              className={`relative flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-6 py-2.5 sm:py-3.5 rounded-[20px] group ${activeTab === 'pending'
+                ? 'bg-white text-indigo-600 shadow-xl shadow-indigo-100 ring-1 ring-slate-200'
+                : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
                 }`}
             >
-              Chờ duyệt
-              <span className="ml-2 bg-gray-100 text-gray-600 text-sm font-medium px-2 py-0.5 rounded-full">
-                {stats.total_pending}
-              </span>
+              <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${activeTab === 'pending' ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 text-slate-400 group-hover:bg-slate-200'
+                }`}>
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+                <span className="text-[10px] xs:text-[11px] sm:text-sm font-black uppercase tracking-widest leading-none">Chờ duyệt</span>
+                <span className={`mt-0.5 text-[9px] sm:text-xs font-bold px-2 py-0.5 rounded-full ${activeTab === 'pending' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200/50 text-slate-400'
+                  }`}>
+                  {stats.total_pending} <span className="hidden xs:inline">yêu cầu</span>
+                </span>
+              </div>
+              {activeTab === 'pending' && stats.total_pending > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                </span>
+              )}
             </button>
+
             <button
               onClick={() => setActiveTab('approved')}
-              className={`py-2 px-1 border-b-2 font-medium text-base ${activeTab === 'approved'
-                ? 'border-green-600 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-6 py-2.5 sm:py-3.5 rounded-[20px] group ${activeTab === 'approved'
+                ? 'bg-white text-emerald-600 shadow-xl shadow-emerald-100 ring-1 ring-slate-200'
+                : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
                 }`}
             >
-              Đã duyệt
-              <span className="ml-2 bg-green-100 text-green-600 text-sm font-medium px-2 py-0.5 rounded-full">
-                {stats.total_approved}
-              </span>
+              <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${activeTab === 'approved' ? 'bg-emerald-500 text-white' : 'bg-slate-200/70 text-slate-400 group-hover:bg-slate-200'
+                }`}>
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+                <span className="text-[10px] xs:text-[11px] sm:text-sm font-black uppercase tracking-widest leading-none">Đã duyệt</span>
+                <span className={`mt-0.5 text-[9px] sm:text-xs font-bold px-2 py-0.5 rounded-full ${activeTab === 'approved' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-200/50 text-slate-400'
+                  }`}>
+                  {stats.total_approved} <span className="hidden xs:inline">đơn</span>
+                </span>
+              </div>
             </button>
+
             <button
               onClick={() => setActiveTab('rejected')}
-              className={`py-2 px-1 border-b-2 font-medium text-base ${activeTab === 'rejected'
-                ? 'border-red-600 text-red-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-6 py-2.5 sm:py-3.5 rounded-[20px] group ${activeTab === 'rejected'
+                ? 'bg-white text-rose-600 shadow-xl shadow-rose-100 ring-1 ring-slate-200'
+                : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
                 }`}
             >
-              Đã từ chối
-              <span className="ml-2 bg-red-100 text-red-600 text-sm font-medium px-2 py-0.5 rounded-full">
-                {stats.total_rejected}
-              </span>
+              <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${activeTab === 'rejected' ? 'bg-rose-500 text-white' : 'bg-slate-200/70 text-slate-400 group-hover:bg-slate-200'
+                }`}>
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
+                <span className="text-[10px] xs:text-[11px] sm:text-sm font-black uppercase tracking-widest leading-none">Từ chối</span>
+                <span className={`mt-0.5 text-[9px] sm:text-xs font-bold px-2 py-0.5 rounded-full ${activeTab === 'rejected' ? 'bg-rose-50 text-rose-600' : 'bg-slate-200/50 text-slate-400'
+                  }`}>
+                  {stats.total_rejected} <span className="hidden xs:inline">đơn</span>
+                </span>
+              </div>
             </button>
-          </nav>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6 mb-8">
+
+        {/* Thẻ Thống kê - Responsive Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 mb-8">
           {[
-            { type: 'EXPLANATION', label: 'Đơn giải trình', count: stats.pending_explanation, color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-            { type: 'REGISTRATION', label: 'Đơn đăng ký', count: (stats.pending_registration || 0) + (stats.pending_overtime || 0), color: 'indigo', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
-            { type: 'LEAVE', label: 'Nghỉ phép tháng', count: stats.pending_leave, color: 'blue', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-            { type: 'ONLINE_WORK', label: 'Làm việc online', count: stats.pending_online_work, color: 'teal', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' }
+            { type: 'EXPLANATION', label: 'Giải trình', fullLabel: 'Đơn giải trình', count: stats.pending_explanation, color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+            { type: 'REGISTRATION', label: 'Đăng ký', fullLabel: 'Đơn đăng ký', count: (stats.pending_registration || 0) + (stats.pending_overtime || 0), color: 'indigo', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
+            { type: 'LEAVE', label: 'Nghỉ phép', fullLabel: 'Nghỉ phép tháng', count: stats.pending_leave, color: 'blue', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { type: 'ONLINE_WORK', label: 'Online', fullLabel: 'Làm việc online', count: stats.pending_online_work, color: 'teal', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' }
           ].map((item) => (
             <button
               key={item.type}
               onClick={() => toggleFilter(item.type)}
-              className={`relative overflow-hidden p-4 rounded-2xl border transition-all duration-300 group ${filterTypes.includes(item.type)
-                  ? `bg-${item.color}-50 border-${item.color}-300 shadow-md scale-[1.02] ring-2 ring-${item.color}-200`
-                  : `bg-white border-gray-100 hover:border-${item.color}-200 hover:shadow-sm`
+              className={`relative overflow-hidden p-3.5 sm:p-5 rounded-3xl border group text-left ${filterTypes.includes(item.type)
+                ? `bg-white border-${item.color}-300 shadow-xl shadow-${item.color}-100 ring-2 ring-${item.color}-500/20`
+                : `bg-white border-slate-100 hover:border-${item.color}-200 hover:shadow-lg`
                 }`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <div>
-                  <h3 className={`font-semibold text-xs uppercase tracking-wider ${filterTypes.includes(item.type) ? `text-${item.color}-700` : 'text-gray-400'}`}>
-                    {item.label}
-                  </h3>
-                  <p className={`text-xl font-bold mt-1 ${filterTypes.includes(item.type) ? `text-${item.color}-800` : 'text-gray-900'}`}>
-                    {item.count}
-                  </p>
-                </div>
-                <div className={`p-1.5 rounded-lg ${filterTypes.includes(item.type) ? `bg-${item.color}-500 text-white` : `bg-${item.color}-50 text-${item.color}-600`}`}>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                <div className={`p-2 rounded-2xl ${filterTypes.includes(item.type) ? `bg-${item.color}-500 text-white` : `bg-slate-50 text-slate-400 group-hover:bg-${item.color}-50 group-hover:text-${item.color}-500`
+                  }`}>
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={item.icon} />
                   </svg>
                 </div>
+                <div className={`flex items-center gap-1 sm:hidden ${filterTypes.includes(item.type) ? `text-${item.color}-600` : 'text-slate-300'}`}>
+                  <span className="text-[10px] font-black uppercase tracking-tighter">Chờ</span>
+                </div>
               </div>
-              <div className={`mt-2 text-xs font-medium ${filterTypes.includes(item.type) ? `text-${item.color}-600` : 'text-gray-400'}`}>
-                Chờ duyệt
+
+              <div className="mt-3 sm:mt-4 relative z-10">
+                <h3 className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] ${filterTypes.includes(item.type) ? `text-${item.color}-600` : 'text-slate-400'
+                  }`}>
+                  <span className="sm:hidden">{item.label}</span>
+                  <span className="hidden sm:inline">{item.fullLabel}</span>
+                </h3>
+                <div className="flex items-baseline gap-1 mt-1 sm:mt-2">
+                  <span className={`text-2xl sm:text-3xl font-black ${filterTypes.includes(item.type) ? `text-${item.color}-900` : 'text-slate-800'
+                    }`}>
+                    {item.count}
+                  </span>
+                  <span className={`text-[10px] font-bold uppercase ${filterTypes.includes(item.type) ? `text-${item.color}-400` : 'text-slate-300'}`}>đơn</span>
+                </div>
               </div>
-              <div className={`absolute -right-2 -bottom-2 w-16 h-16 bg-${item.color}-400/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500`} />
+
+              {/* Background Glow */}
+              <div className={`absolute -right-4 -bottom-4 w-20 h-20 rounded-full blur-3xl ${filterTypes.includes(item.type) ? `bg-${item.color}-400 opacity-20` : 'bg-slate-200 opacity-0 group-hover:opacity-10'
+                }`} />
             </button>
           ))}
 
-          <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-2xl shadow-lg shadow-green-100 relative overflow-hidden">
-            <div className="relative z-10">
-              <h3 className="font-semibold text-xs uppercase tracking-wider text-white/90">Tháng này</h3>
-              <p className="text-xl font-bold text-white mt-1">
-                {stats.total_approved}
-              </p>
-              <div className="mt-2 text-xs font-medium text-white bg-white/20 px-2 py-0.5 rounded-full w-fit">
-                Đã duyệt
+          {/* Month Summary Card */}
+          <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 p-4 sm:p-5 rounded-3xl shadow-xl shadow-indigo-100 relative overflow-hidden flex flex-col justify-between col-span-2 lg:col-span-1 xl:col-span-1">
+            <div className="relative z-10 flex justify-between items-start">
+              <div>
+                <h3 className="font-black text-[10px] sm:text-xs uppercase tracking-[0.15em] text-indigo-100/80">Tháng này</h3>
+                <div className="flex items-baseline gap-1 mt-1 sm:mt-2 text-white">
+                  <span className="text-2xl sm:text-3xl font-black">{stats.total_approved}</span>
+                  <span className="text-[10px] font-bold uppercase">đã duyệt</span>
+                </div>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white border border-white/10">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
               </div>
             </div>
-            <svg className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-            </svg>
+
+            <div className="relative z-10 mt-4 sm:mt-6">
+              <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-emerald-400 h-full rounded-full" style={{ width: '100%' }}></div>
+              </div>
+              <p className="text-[9px] font-bold text-indigo-100/50 uppercase tracking-widest mt-2 flex justify-between">
+                <span>Hoàn thành xử lý</span>
+                <span>100%</span>
+              </p>
+            </div>
+
+            <div className="absolute -left-6 -bottom-6 w-24 h-24 bg-white/5 rounded-full blur-2xl" />
+          </div>
+        </div>
+
+
+
+        {/* Nhãn và Bộ lọc Search */}
+        <div className="bg-white border border-slate-100 rounded-[32px] p-4 sm:p-7 mb-8 shadow-sm">
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {/* Tên nhân viên */}
+              {(isAdmin || isHR || isManagement) && (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" /></svg>
+                    Tìm nhân viên
+                  </label>
+                  <div className="relative group">
+                    <input
+                      type="text"
+                      value={filterName}
+                      onChange={e => setFilterName(e.target.value)}
+                      placeholder="Nhập tên hoặc mã nhân viên..."
+                      className="w-full pl-4 pr-4 py-3 sm:py-3.5 text-sm font-bold border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 bg-slate-50/50 transition-all placeholder:text-slate-300 placeholder:font-medium"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Phòng ban */}
+              {(isAdmin || isHR) && (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                    Phòng ban
+                  </label>
+                  <div className="[&>div]:m-0">
+                    <SelectBox
+                      label=""
+                      value={filterDepartment}
+                      options={deptOptions}
+                      onChange={setFilterDepartment}
+                      placeholder="Chọn phòng ban cần xem"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Reset & Tùy chọn - Responsive Alignment */}
+              <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 mt-1 sm:mt-0">
+                <div className="flex items-center gap-3 w-full sm:w-auto h-full pt-0 sm:pt-6">
+                  {(isAdmin || isHR || isManagement) && (
+                    <label className={`flex-1 sm:flex-none flex items-center justify-center gap-2.5 cursor-pointer px-4 py-3 sm:py-3.5 rounded-2xl border transition-all duration-300 font-bold text-xs uppercase tracking-widest ${filterOnlyMine ? 'bg-rose-50 border-rose-200 text-rose-600 shadow-sm' : 'bg-white border-slate-100 text-slate-400 hover:bg-slate-50'
+                      }`}>
+                      <input
+                        type="checkbox"
+                        checked={filterOnlyMine}
+                        onChange={e => setFilterOnlyMine(e.target.checked)}
+                        className="hidden"
+                      />
+                      <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${filterOnlyMine ? 'bg-rose-600 text-white' : 'border-2 border-slate-200 bg-slate-50'}`}>
+                        {filterOnlyMine && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24 font-black"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                      </div>
+                      Đơn của tôi
+                    </label>
+                  )}
+
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearAllFilters}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-3.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-slate-100 group"
+                    >
+                      <svg className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                      Làm mới
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1609,7 +1745,7 @@ const Approvals: React.FC = () => {
 
               {/* Reset & Tùy chọn */}
               <div className="flex items-end gap-3 md:col-span-2 xl:col-span-1">
-                <div className="flex items-center gap-3 w-full">
+                <div className="flex flex-wrap items-center gap-3 w-full">
                   {(isAdmin || isHR || isManagement) && (
                     <label className="flex items-center gap-2 cursor-pointer group bg-rose-50/50 border border-rose-100/50 px-3 py-2 rounded-xl hover:bg-rose-50 transition-colors">
                       <input
@@ -1635,114 +1771,136 @@ const Approvals: React.FC = () => {
               </div>
             </div>
 
-            {/* Loại đơn Chips */}
-            <div className="border-t border-gray-50 pt-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2">Phân loại đơn:</span>
-                {[
-                  { value: 'EXPLANATION', label: 'Đơn giải trình', count: stats.pending_explanation, color: 'amber' },
-                  { value: 'REGISTRATION', label: 'Đơn đăng ký', count: (stats.pending_registration || 0) + (stats.pending_overtime || 0), color: 'indigo' },
-                  { value: 'LEAVE', label: 'Nghỉ phép tháng', count: stats.pending_leave, color: 'blue' },
-                  { value: 'ONLINE_WORK', label: 'Làm việc online', count: stats.pending_online_work, color: 'teal' },
-                ].map(opt => {
-                  const isActive = filterTypes.includes(opt.value);
-                  const colorMap: Record<string, string> = {
-                    amber: isActive ? 'bg-amber-500 text-white border-amber-500' : 'hover:border-amber-300 hover:text-amber-600',
-                    indigo: isActive ? 'bg-indigo-500 text-white border-indigo-500' : 'hover:border-indigo-300 hover:text-indigo-600',
-                    blue: isActive ? 'bg-blue-500 text-white border-blue-500' : 'hover:border-blue-300 hover:text-blue-600',
-                    teal: isActive ? 'bg-teal-500 text-white border-teal-500' : 'hover:border-teal-300 hover:text-teal-600'
-                  };
+            {/* Loại đơn Chips - Premium Design - Even Display */}
+            <div className="border-t border-slate-50 mt-6 pt-5">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" /></svg>
+                  Phân loại đơn:
+                </div>
+                <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 sm:gap-3">
 
-                  const badgeColorMap: Record<string, string> = {
-                    amber: isActive ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-600',
-                    indigo: isActive ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-600',
-                    blue: isActive ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-600',
-                    teal: isActive ? 'bg-white/20 text-white' : 'bg-teal-100 text-teal-600'
-                  };
+                  {/* Use a fixed height and whitespace-nowrap to ensure equality */}
+                  {[
+                    { value: 'EXPLANATION', label: 'Giải trình', count: stats.pending_explanation, color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+                    { value: 'REGISTRATION', label: 'Đăng ký', count: (stats.pending_registration || 0) + (stats.pending_overtime || 0), color: 'indigo', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
+                    { value: 'LEAVE', label: 'Nghỉ phép', count: stats.pending_leave, color: 'blue', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+                    { value: 'ONLINE_WORK', label: 'Làm việc', count: stats.pending_online_work, color: 'teal', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+                  ].map(opt => {
+                    const isActive = filterTypes.includes(opt.value);
+                    const colorConfigs: Record<string, any> = {
+                      amber: { active: 'bg-amber-500 text-white shadow-amber-200', inactive: 'bg-white text-slate-500 hover:text-amber-600 border-slate-100 hover:border-amber-200' },
+                      indigo: { active: 'bg-indigo-600 text-white shadow-indigo-200', inactive: 'bg-white text-slate-500 hover:text-indigo-600 border-slate-100 hover:border-indigo-200' },
+                      blue: { active: 'bg-blue-500 text-white shadow-blue-200', inactive: 'bg-white text-slate-500 hover:text-blue-600 border-slate-100 hover:border-blue-200' },
+                      teal: { active: 'bg-teal-600 text-white shadow-teal-200', inactive: 'bg-white text-slate-500 hover:text-teal-600 border-slate-100 hover:border-teal-200' }
+                    };
 
-                  return (
-                    <button
-                      key={opt.value}
-                      onClick={() => toggleFilter(opt.value)}
-                      className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 border uppercase tracking-wider flex items-center gap-2 ${isActive ? colorMap[opt.color] + ' shadow-sm' : 'bg-white text-gray-400 border-gray-100 ' + colorMap[opt.color]
-                        }`}
-                    >
-                      {opt.label}
-                      {opt.count > 0 && (
-                        <span className={`px-1.5 rounded-full text-[10px] ${badgeColorMap[opt.color]}`}>
-                          {opt.count}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => toggleFilter(opt.value)}
+                        className={`group flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-[9px] sm:text-xs font-black uppercase tracking-widest transition-all duration-500 border-2 w-full md:w-auto h-[52px] whitespace-nowrap md:min-w-[140px] ${isActive ? `${colorConfigs[opt.color].active} border-transparent shadow-xl scale-[1.02]` : `${colorConfigs[opt.color].inactive} shadow-sm`
+                          }`}
+                      >
+                        <svg className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isActive ? 'text-white/90' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActive ? 3 : 2} d={opt.icon} />
+                        </svg>
+                        {opt.label}
+                        {opt.count > 0 && (
+                          <span className={`ml-1 px-1.5 py-0.5 rounded-lg text-[9px] font-black min-w-[18px] text-center ${isActive ? 'bg-white/20 text-white' : `bg-${opt.color}-50 text-${opt.color}-600`
+                            }`}>
+                            {opt.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Sub-filters for Explanations */}
+
+
+            {/* Sub-filters for Explanations - Modern Style & Even Display */}
             {filterTypes.includes('EXPLANATION') && (
-              <div className="border-t border-gray-50 pt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+              <div className="border-t border-slate-50 mt-4 pt-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                <div className="flex flex-col gap-3">
+                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
                     Chi tiết giải trình:
                   </span>
-                  {[
-                    { value: 'LATE', label: 'Đi muộn' },
-                    { value: 'EARLY_LEAVE', label: 'Về sớm' },
-                    { value: 'INCOMPLETE_ATTENDANCE', label: 'Quên chấm công' },
-                    { value: 'BUSINESS_TRIP', label: 'Đi công tác' },
-                    { value: 'FIRST_DAY', label: 'Ngày đầu đi làm' },
-                  ].map(sub => {
-                    const isSubActive = filterExplanationSubTypes.includes(sub.value);
-                    return (
-                      <button
-                        key={sub.value}
-                        onClick={() => toggleSubTypeFilter(sub.value)}
-                        className={`px-3 py-1 rounded-lg text-[11px] font-bold uppercase tracking-tight transition-all border ${isSubActive
-                            ? 'bg-amber-100 text-amber-700 border-amber-200 shadow-sm'
-                            : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-amber-200 hover:text-amber-500'
-                          }`}
-                      >
-                        {sub.label}
-                      </button>
-                    );
-                  })}
+                  <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2">
+
+                    {[
+                      { value: 'LATE', label: 'Đi muộn', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+                      { value: 'EARLY_LEAVE', label: 'Về sớm', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' },
+                      { value: 'INCOMPLETE_ATTENDANCE', label: 'Quên chấm công', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
+                      { value: 'BUSINESS_TRIP', label: 'Đi công tác', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+                      { value: 'FIRST_DAY', label: 'Ngày đầu', icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z' },
+                    ].map(sub => {
+                      const isSubActive = filterExplanationSubTypes.includes(sub.value);
+                      return (
+                        <button
+                          key={sub.value}
+                          onClick={() => toggleSubTypeFilter(sub.value)}
+                          className={`flex items-center justify-center md:justify-start gap-2 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 border-2 w-full md:w-auto md:min-w-[120px] ${isSubActive
+                            ? 'bg-amber-50 text-amber-700 border-amber-500/50 shadow-sm scale-[1.03]'
+                            : 'bg-white text-slate-400 border-slate-100 hover:border-amber-200 hover:text-amber-500'
+                            }`}
+                        >
+                          <svg className={`w-3 h-3 ${isSubActive ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isSubActive ? 3 : 2} d={sub.icon} />
+                          </svg>
+                          <span className="truncate">{sub.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Sub-filters for Registrations */}
+
+
+            {/* Sub-filters for Registrations - Modern Style & Even Display */}
             {filterTypes.includes('REGISTRATION') && (
-              <div className="border-t border-gray-50 pt-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+              <div className="border-t border-slate-50 mt-4 pt-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                <div className="flex flex-col gap-3">
+                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
                     Chi tiết đăng ký:
                   </span>
-                  {[
-                    { value: 'OVERTIME', label: 'Tăng ca' },
-                    { value: 'EXTRA_HOURS', label: 'Làm thêm giờ' },
-                    { value: 'NIGHT_SHIFT', label: 'Trực tối' },
-                    { value: 'LIVE', label: 'Live' },
-                  ].map(sub => {
-                    const isSubActive = filterRegistrationSubTypes.includes(sub.value);
-                    return (
-                      <button
-                        key={sub.value}
-                        onClick={() => toggleRegSubTypeFilter(sub.value)}
-                        className={`px-3 py-1 rounded-lg text-[11px] font-bold uppercase tracking-tight transition-all border ${isSubActive
-                            ? 'bg-indigo-100 text-indigo-700 border-indigo-200 shadow-sm'
-                            : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-200 hover:text-indigo-500'
-                          }`}
-                      >
-                        {sub.label}
-                      </button>
-                    );
-                  })}
+                  <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2">
+
+                    {[
+                      { value: 'OVERTIME', label: 'Tăng ca', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+                      { value: 'EXTRA_HOURS', label: 'Làm thêm', icon: 'M12 4v16m8-8H4' },
+                      { value: 'NIGHT_SHIFT', label: 'Trực tối', icon: 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z' },
+                      { value: 'LIVE', label: 'Live stream', icon: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' },
+                    ].map(sub => {
+                      const isSubActive = filterRegistrationSubTypes.includes(sub.value);
+                      return (
+                        <button
+                          key={sub.value}
+                          onClick={() => toggleRegSubTypeFilter(sub.value)}
+                          className={`flex items-center justify-center sm:justify-start gap-2 px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 border-2 w-full sm:w-auto ${isSubActive
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-500/50 shadow-sm scale-[1.03]'
+                            : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-200 hover:text-indigo-500'
+                            }`}
+                        >
+                          <svg className={`w-3 h-3 ${isSubActive ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isSubActive ? 3 : 2} d={sub.icon} />
+                          </svg>
+                          <span className="truncate">{sub.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
+
+
           </div>
         </div>
 
@@ -1772,14 +1930,14 @@ const Approvals: React.FC = () => {
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <p className="text-lg font-medium text-gray-900">
+                <p className="text-xl font-medium text-gray-900">
                   {activeTab === 'pending' ? 'Không có yêu cầu nào chờ duyệt' : 'Không có yêu cầu nào'}
                 </p>
-                <p className="text-gray-500 mt-1">
+                <p className="text-gray-500 mt-1 text-base">
                   Tất cả yêu cầu đã được xử lý hoặc không tìm thấy kết quả phù hợp.
                 </p>
                 {hasActiveFilters && (
-                  <button onClick={clearAllFilters} className="mt-4 text-primary-600 font-bold hover:underline">
+                  <button onClick={clearAllFilters} className="mt-4 text-primary-600 font-bold hover:underline text-base">
                     Xóa bộ lọc để xem tất cả
                   </button>
                 )}
@@ -1806,11 +1964,11 @@ const Approvals: React.FC = () => {
                       </div>
 
                       <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3 overflow-hidden">
-                        <h3 className="font-black text-slate-800 uppercase tracking-tight text-sm sm:text-base truncate">{deptName}</h3>
+                        <h3 className="font-black text-slate-800 uppercase tracking-tight text-base sm:text-lg truncate">{deptName}</h3>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] sm:text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{allItemsInDept.length} đơn</span>
+                          <span className="text-xs sm:text-sm font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{allItemsInDept.length} đơn</span>
                           {pendingInDept > 0 && (activeTab === 'pending') && (
-                            <span className="text-[10px] sm:text-xs font-black text-rose-600 flex items-center gap-1">
+                            <span className="text-xs sm:text-sm font-black text-rose-600 flex items-center gap-1">
                               <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse"></span>
                               {pendingInDept} mới
                             </span>
@@ -1854,10 +2012,10 @@ const Approvals: React.FC = () => {
                             <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/50 border-b border-gray-100">
                               <div className="flex items-center gap-2">
                                 <span className="w-1.5 h-4 bg-primary-500 rounded-full"></span>
-                                <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
+                                <h4 className="text-base font-bold text-gray-700 uppercase tracking-wider">
                                   Vị trí: {posName}
                                 </h4>
-                                <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded ml-2">
+                                <span className="text-sm bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded ml-2">
                                   {items.length} đơn
                                 </span>
                               </div>
@@ -1866,27 +2024,28 @@ const Approvals: React.FC = () => {
                                 <button
                                   onClick={() => handleBulkApproveItems(items, `vị trí ${posName}`)}
                                   disabled={isBulkProcessing}
-                                  className="text-xs font-bold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 px-3 py-1 rounded transition-colors flex items-center gap-1"
+                                  className="text-sm font-bold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 px-3 py-1 rounded transition-colors flex items-center gap-1"
                                 >
-                                  {isBulkProcessing ? <div className="w-2.5 h-2.5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div> : <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                                  {isBulkProcessing ? <div className="w-3 h-3 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
                                   Duyệt tất cả {posName}
                                 </button>
                               )}
                             </div>
 
-                            <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-white">
+                            {/* Chế độ hiển thị Table trên Desktop - Desktop View ONLY */}
+                            <div className="hidden lg:block overflow-x-auto">
+                              <table className="min-w-full divide-y divide-slate-100">
+                                <thead className="bg-slate-50/30">
                                   <tr>
-                                    <th className="px-6 py-2 text-left text-xs font-bold text-gray-400 uppercase">Loại đơn & Lý do</th>
-                                    <th className="px-6 py-2 text-left text-xs font-bold text-gray-400 uppercase">Nhân viên</th>
-                                    <th className="px-6 py-2 text-left text-xs font-bold text-gray-400 uppercase">Thời gian</th>
-                                    <th className="px-6 py-2 text-left text-xs font-bold text-gray-400 uppercase">Vi phạm & Phạt</th>
-                                    <th className="px-6 py-2 text-left text-xs font-bold text-gray-400 uppercase">Trạng thái</th>
-                                    <th className="px-6 py-2 text-right text-xs font-bold text-gray-400 uppercase">Hành động</th>
+                                    <th className="px-6 py-3 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Loại đơn & Lý do</th>
+                                    <th className="px-6 py-3 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Nhân viên</th>
+                                    <th className="px-6 py-3 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Thời gian</th>
+                                    <th className="px-6 py-3 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Vi phạm & Phạt</th>
+                                    <th className="px-6 py-3 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Trạng thái</th>
+                                    <th className="px-6 py-3 text-right text-xs font-extrabold text-slate-400 uppercase tracking-widest">Hành động</th>
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-50">
+                                <tbody className="divide-y divide-slate-50">
                                   {items.map((item) => {
                                     const isRegistration = item._itemType === 'REGISTRATION';
                                     const isOnlineWork = item._itemType === 'ONLINE_WORK';
@@ -1894,16 +2053,15 @@ const Approvals: React.FC = () => {
                                     const isOvertime = item._itemType === 'OVERTIME';
                                     const itemKey = `${item._itemType}-${item.id}`;
 
-                                    // Icon mapping
                                     return (
-                                      <tr key={itemKey} className="group hover:bg-gray-50/80 transition-colors">
-                                        <td className="px-6 py-4">
-                                          <div className="flex items-center space-x-3.5 group">
-                                            <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300 ${item._itemType === 'LEAVE' ? 'bg-blue-50 text-blue-500' :
-                                                item._itemType === 'OVERTIME' ? 'bg-purple-50 text-purple-500' :
-                                                  item._itemType === 'ONLINE_WORK' ? 'bg-teal-50 text-teal-500' :
-                                                    item._itemType === 'REGISTRATION' ? 'bg-indigo-50 text-indigo-500' :
-                                                      'bg-amber-50 text-amber-500'
+                                      <tr key={itemKey} className="group hover:bg-indigo-50/20 transition-all duration-300">
+                                        <td className="px-6 py-5">
+                                          <div className="flex items-center space-x-4">
+                                            <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 shadow-sm ${item._itemType === 'LEAVE' ? 'bg-blue-100/50 text-blue-600 border border-blue-200/50' :
+                                              item._itemType === 'OVERTIME' ? 'bg-purple-100/50 text-purple-600 border border-purple-200/50' :
+                                                item._itemType === 'ONLINE_WORK' ? 'bg-teal-100/50 text-teal-600 border border-teal-200/50' :
+                                                  item._itemType === 'REGISTRATION' ? 'bg-indigo-100/50 text-indigo-600 border border-indigo-200/50' :
+                                                    'bg-amber-100/50 text-amber-600 border border-amber-200/50'
                                               }`}>
                                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={
@@ -1917,7 +2075,7 @@ const Approvals: React.FC = () => {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                               <div className="flex flex-wrap items-center gap-2 mb-1">
-                                                <div className="text-sm font-extrabold text-slate-800 truncate group-hover:text-primary-700 transition-colors">
+                                                <div className="text-sm font-black text-slate-800 truncate uppercase tracking-tight group-hover:text-indigo-600 transition-colors">
                                                   {getRequestTypeLabel(item)}
                                                 </div>
                                                 {renderRequestStatsBadge(item)}
@@ -1926,8 +2084,8 @@ const Approvals: React.FC = () => {
                                                 const requestName = getRequestTypeLabel(item);
                                                 const cleanedReason = cleanReasonText(item.reason || item.work_plan || '', requestName);
                                                 return cleanedReason ? (
-                                                  <div className="text-[11px] text-slate-400 truncate max-w-[320px] transition-all group-hover:text-slate-500" title={cleanedReason}>
-                                                    <span className="font-semibold text-slate-300 group-hover:text-slate-400 mr-1.5 uppercase tracking-tighter text-[9px]">Lý do:</span>
+                                                  <div className="text-[11px] text-slate-400 truncate max-w-[280px] font-medium" title={cleanedReason}>
+                                                    <span className="font-bold text-slate-300 mr-1 opacity-60 uppercase tracking-tighter">Lý do:</span>
                                                     {cleanedReason}
                                                   </div>
                                                 ) : null;
@@ -1935,82 +2093,68 @@ const Approvals: React.FC = () => {
                                             </div>
                                           </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                          <div className="text-sm text-gray-900 font-bold">{item.employee_name}</div>
-                                          <div className="text-xs text-gray-400 tracking-tighter">{item.employee_code}</div>
+                                        <td className="px-6 py-5 whitespace-nowrap">
+                                          <div className="text-sm font-black text-slate-800">{item.employee_name}</div>
+                                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.employee_code}</div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                          <div className="text-sm font-semibold text-gray-700">
+                                        <td className="px-6 py-5 whitespace-nowrap">
+                                          <div className="text-sm font-black text-slate-700">
                                             {formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date || item.event_date || item.overtime_date)}
                                           </div>
-                                          <div className="text-[11px] text-gray-400">Ngày gửi: {formatDate(item.created_at)}</div>
+                                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Lúc: {formatDateTime(item.created_at).split(' ')[1]}</div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-6 py-5 whitespace-nowrap">
                                           <div className="flex flex-col gap-1.5">
                                             {(item.late_minutes > 0 || item.early_leave_minutes > 0) ? (
-                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                              <div className="flex items-center gap-2">
                                                 {item.late_minutes > 0 && (
-                                                  <div className="flex items-center gap-1 bg-orange-50 text-orange-700 px-2.5 py-1 border border-orange-100 rounded-md shadow-sm">
-                                                    <div className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"></div>
-                                                    <span className="text-xs font-semibold">Muộn:</span>
-                                                    <span className="text-xs font-bold">{item.late_minutes} phút</span>
+                                                  <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2 py-0.5 border border-amber-100/50 rounded-lg">
+                                                    <span className="text-[10px] font-black uppercase tracking-tighter">Muộn {item.late_minutes} phút</span>
                                                   </div>
                                                 )}
                                                 {item.early_leave_minutes > 0 && (
-                                                  <div className="flex items-center gap-1 bg-orange-50 text-orange-700 px-2.5 py-1 border border-orange-100 rounded-md shadow-sm">
-                                                    <div className="w-1.5 h-1.5 bg-orange-400 rounded-full"></div>
-                                                    <span className="text-xs font-semibold">Sớm:</span>
-                                                    <span className="text-xs font-bold">{item.early_leave_minutes} phút</span>
+                                                  <div className="flex items-center gap-1.5 bg-rose-50 text-rose-700 px-2 py-0.5 border border-rose-100/50 rounded-lg">
+                                                    <span className="text-[10px] font-black uppercase tracking-tighter">Sớm {item.early_leave_minutes} phút</span>
                                                   </div>
                                                 )}
                                               </div>
                                             ) : (
-                                              <span className="text-xs text-gray-400 font-medium italic opacity-60">Không có vi phạm</span>
+                                              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-widest italic opacity-40">N/A</span>
                                             )}
                                             {item.penalty_amount > 0 && (
-                                              <div className="inline-flex items-center gap-1 bg-rose-50/70 px-2 py-0.5 rounded-lg border border-rose-100/50 w-fit mt-1 shadow-sm">
-                                                <svg className="w-3.5 h-3.5 text-rose-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                                <span className="text-sm font-bold text-rose-600 font-mono tracking-tight">
-                                                  {(item.penalty_amount || 0).toLocaleString('vi-VN')}
-                                                  <span className="text-xs ml-0.5 font-semibold uppercase">VNĐ</span>
-                                                </span>
+                                              <div className="text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100/30 w-fit font-mono tracking-tighter">
+                                                -{(item.penalty_amount || 0).toLocaleString('vi-VN')}VNĐ
                                               </div>
                                             )}
                                           </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-6 py-5 whitespace-nowrap">
                                           {getStatusBadge(item)}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                          <div className="flex justify-end items-center space-x-2">
-                                            {activeTab === 'pending' ? (
-                                              canApproveRequest(item) ? (
-                                                <div className="flex bg-gray-50/50 border border-gray-100 rounded-lg p-1 shadow-sm">
-                                                  <button
-                                                    onClick={() => openApproveModal(item)}
-                                                    className="p-1 px-2 text-green-600 hover:bg-green-50 rounded-md transition-colors flex items-center gap-1"
-                                                    title="Duyệt nhanh"
-                                                  >
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                                                    <span className="text-xs font-bold">Duyệt</span>
-                                                  </button>
-                                                  <div className="w-[1px] bg-gray-100 my-1 mx-1"></div>
-                                                  <button
-                                                    onClick={() => openRejectModal(item)}
-                                                    className="p-1 px-2 text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                                                    title="Từ chối nhanh"
-                                                  >
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                  </button>
-                                                </div>
-                                              ) : null
-                                            ) : null}
+                                        <td className="px-6 py-5 whitespace-nowrap text-right">
+                                          <div className="flex justify-end items-center gap-2">
+                                            {activeTab === 'pending' && canApproveRequest(item) && (
+                                              <>
+                                                <button
+                                                  onClick={() => openApproveModal(item)}
+                                                  className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm border border-emerald-100"
+                                                  title="Duyệt nhanh"
+                                                >
+                                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                                </button>
+                                                <button
+                                                  onClick={() => openRejectModal(item)}
+                                                  className="p-2 text-rose-500 bg-rose-50 hover:bg-rose-600 hover:text-white rounded-xl transition-all shadow-sm border border-rose-100"
+                                                  title="Từ chối nhanh"
+                                                >
+                                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                              </>
+                                            )}
 
                                             <button
                                               onClick={() => (isOnlineWork || isRegistration || isOvertime) ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
-                                              className="p-1.5 px-3 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-md text-xs font-bold transition-all flex items-center gap-1"
+                                              className="px-4 py-2 bg-slate-900 text-white hover:bg-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-slate-200"
                                             >
                                               Chi tiết
                                             </button>
@@ -2018,7 +2162,7 @@ const Approvals: React.FC = () => {
                                             {canDeleteRequest(item) && (
                                               <button
                                                 onClick={() => openDeleteModal(item)}
-                                                className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                                                className="p-2 text-slate-300 hover:text-rose-600 transition-colors"
                                               >
                                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                               </button>
@@ -2031,6 +2175,171 @@ const Approvals: React.FC = () => {
                                 </tbody>
                               </table>
                             </div>
+
+                            {/* Chế độ hiển thị Card trên Mobile - Premium Separated Cards */}
+                            <div className="lg:hidden space-y-6 p-4 sm:p-6 bg-slate-50/50">
+                              {items.map((item) => {
+                                const itemKey = `${item._itemType}-${item.id}`;
+                                const isOnlineWork = item._itemType === 'ONLINE_WORK';
+                                const isRegistration = item._itemType === 'REGISTRATION';
+                                const isOvertime = item._itemType === 'OVERTIME';
+
+                                return (
+                                  <div
+                                    key={itemKey}
+                                    onClick={() => (isOnlineWork || isRegistration || isOvertime) ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
+                                    className="p-5 sm:p-6 bg-white active:bg-slate-50 transition-all duration-300 relative overflow-hidden rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md"
+                                  >
+
+                                    <div className="flex justify-between items-start gap-3 mb-5">
+                                      <div className="flex items-center gap-3.5">
+                                        <div className={`flex-shrink-0 w-12 h-12 rounded-[20px] flex items-center justify-center shadow-lg transform rotate-2 ${item._itemType === 'LEAVE' ? 'bg-gradient-to-br from-blue-500 to-blue-700' :
+                                          item._itemType === 'OVERTIME' ? 'bg-gradient-to-br from-purple-500 to-purple-700' :
+                                            item._itemType === 'ONLINE_WORK' ? 'bg-gradient-to-br from-teal-500 to-teal-700' :
+                                              item._itemType === 'REGISTRATION' ? 'bg-gradient-to-br from-indigo-500 to-indigo-700' :
+                                                'bg-gradient-to-br from-amber-500 to-amber-700'
+                                          } text-white`}>
+                                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={
+                                              item._itemType === 'LEAVE' ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' :
+                                                item._itemType === 'OVERTIME' ? 'M13 10V3L4 14h7v7l9-11h-7z' :
+                                                  item._itemType === 'ONLINE_WORK' ? 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' :
+                                                    item._itemType === 'REGISTRATION' ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' :
+                                                      'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+                                            } />
+                                          </svg>
+                                        </div>
+                                        <div>
+                                          <div className="flex items-baseline gap-2">
+                                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight leading-none mb-1 group-hover:text-indigo-600 transition-colors">
+                                              {getRequestTypeLabel(item)}
+                                            </h4>
+                                            {renderRequestStatsBadge(item)}
+                                          </div>
+                                          <div className="flex items-center gap-1.5 font-bold text-slate-400 text-[10px] uppercase tracking-[0.1em]">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" /></svg>
+                                            {formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div onClick={(e) => e.stopPropagation()}>
+                                        {getStatusBadge(item)}
+                                      </div>
+                                    </div>
+
+                                    {/* Reason Subtext */}
+                                    {(() => {
+                                      const requestName = getRequestTypeLabel(item);
+                                      const cleanedReason = cleanReasonText(item.reason || item.work_plan || '', requestName);
+                                      return cleanedReason ? (
+                                        <div className="mb-4 px-4 py-3 bg-slate-50 border-l-4 border-slate-200 rounded-r-2xl">
+                                          <p className="text-[11px] text-slate-500 italic font-medium line-clamp-2">
+                                            "{cleanedReason}"
+                                          </p>
+                                        </div>
+                                      ) : null;
+                                    })()}
+
+                                    {/* Employee Info + Penalty */}
+                                    <div className="flex items-center justify-between p-3.5 bg-slate-100/40 rounded-3xl border border-white shadow-inner">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-2xl bg-slate-900 border-2 border-white flex items-center justify-center text-white text-[11px] font-black shadow-lg">
+                                          {item.employee_name?.charAt(0)}
+                                        </div>
+                                        <div>
+                                          <p className="text-xs font-black text-slate-800 leading-none mb-1">{item.employee_name}</p>
+                                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{item.employee_code}</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex flex-col items-end gap-1.5">
+                                        {/* Minutes first - Clearer text */}
+                                        <div className="flex flex-wrap gap-1.5 justify-end">
+                                          {item.late_minutes > 0 && (
+                                            <span className="text-[10px] font-black text-amber-700 bg-amber-100/60 px-2.5 py-1 rounded-lg border border-amber-200/50 flex items-center gap-1.5 whitespace-nowrap">
+                                              Muộn {item.late_minutes} phút
+                                            </span>
+                                          )}
+                                          {item.early_leave_minutes > 0 && (
+                                            <span className="text-[10px] font-black text-rose-700 bg-rose-100/60 px-2.5 py-1 rounded-lg border border-rose-200/50 flex items-center gap-1.5 whitespace-nowrap">
+                                              Về sớm {item.early_leave_minutes} phút
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Penalty second - Larger & Clearer */}
+                                        {item.penalty_amount > 0 && (
+                                          <span className="text-[11px] font-black text-rose-600 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100 shadow-sm flex items-center gap-1.5">
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            -{(item.penalty_amount || 0).toLocaleString()} <span className="text-[9px]">VNĐ</span>
+                                          </span>
+                                        )}
+                                      </div>
+
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    {activeTab === 'pending' && canApproveRequest(item) ? (
+                                      <div className="mt-5" onClick={(e) => e.stopPropagation()}>
+                                        <button
+                                          onClick={() => (isOnlineWork || isRegistration || isOvertime) ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
+                                          className="w-full mb-3 py-3.5 bg-slate-900 active:bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
+                                        >
+
+                                          XEM CHI TIẾT ĐƠN
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                        </button>
+                                        <div className="flex gap-3">
+                                          <button
+                                            onClick={() => openApproveModal(item)}
+                                            className="flex-[2.5] py-4 bg-indigo-600 active:bg-indigo-700 active:scale-95 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-3"
+                                          >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                            PHÊ DUYỆT NHANH
+                                          </button>
+                                          <button
+                                            onClick={() => openRejectModal(item)}
+                                            className="flex-1 py-4 bg-white active:bg-rose-50 active:scale-95 border-2 border-rose-100 text-rose-500 rounded-2xl transition-all flex items-center justify-center"
+                                          >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                    ) : (
+                                      <button
+                                        onClick={() => (isOnlineWork || isRegistration || isOvertime) ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
+                                        className="w-full mt-5 py-4 bg-slate-900 active:bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
+                                      >
+                                        XEM CHI TIẾT ĐƠN
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+                                      </button>
+                                    )}
+
+                                    {canDeleteRequest(item) && (
+                                      <div className="mt-6 pt-5 border-t border-slate-50 flex justify-center">
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); openDeleteModal(item); }}
+                                          className="group flex flex-col items-center gap-2 active:scale-90 transition-all duration-300"
+                                        >
+                                          <div className="w-14 h-14 bg-rose-500 rounded-full flex items-center justify-center shadow-lg shadow-rose-200 border-4 border-white transition-transform group-hover:rotate-6">
+                                            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                          </div>
+                                          <span className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em]">Hủy đơn này</span>
+                                        </button>
+                                      </div>
+                                    )}
+
+
+
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+
                           </div>
                         );
                       })}
@@ -2044,30 +2353,30 @@ const Approvals: React.FC = () => {
 
         {/* BẢNG YÊU CẦU CHỜ DUYỆT RIÊNG BIỆT CHO QUẢN LÝ (Viết ở dưới theo yêu cầu) */}
         {activeTab === 'pending' && !loading && (isAdmin || isManagement) && (
-          <div className="mt-12 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex items-center justify-between mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="mt-8 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 bg-white p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border border-slate-100">
+              <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                   </svg>
                 </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Phê duyệt chốt công nhân viên</h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-ping"></span>
-                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Ưu tiên xử lý các đơn trong danh sách này</p>
+                <div className="flex-1">
+                  <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-800 uppercase tracking-tight leading-tight">Phê duyệt chốt công NV</h3>
+                  <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-0.5">
+                    <span className="flex h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-rose-500 animate-ping"></span>
+                    <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-wider leading-tight">Ưu tiên xử lý các đơn này</p>
                   </div>
                 </div>
               </div>
-              
+
               {(() => {
                 const count = workFinalizationApprovals.length;
                 return (
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100 mt-1 sm:mt-0 justify-end">
                     <div className="text-right">
-                      <div className="text-[10px] font-black text-slate-400 uppercase leading-none">Số lượng phòng</div>
-                      <div className="text-2xl font-black text-indigo-600 leading-none mt-1">{count}</div>
+                      <div className="text-xs font-black text-slate-400 uppercase leading-none">Số lượng phòng</div>
+                      <div className="text-3xl font-black text-indigo-600 leading-none mt-1">{count}</div>
                     </div>
                   </div>
                 );
@@ -2075,16 +2384,17 @@ const Approvals: React.FC = () => {
             </div>
 
             <div className="bg-white border border-slate-200 rounded-[32px] overflow-hidden shadow-2xl shadow-slate-200/40">
-              <div className="overflow-x-auto">
+              {/* Desktop Table View */}
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-slate-100">
                   <thead className="bg-slate-50/50">
                     <tr>
-                      <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100/50">STT</th>
-                      <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Mã NV/Phòng</th>
-                      <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Nhân viên / Đơn vị</th>
-                      <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Số công / Chi tiết</th>
-                      <th className="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Thời gian gửi</th>
-                      <th className="px-6 py-5 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest bg-indigo-50/30">Hành động</th>
+                      <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest border-r border-slate-100/50">STT</th>
+                      <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Mã NV/Phòng</th>
+                      <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Nhân viên / Đơn vị</th>
+                      <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Số công / Chi tiết</th>
+                      <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Thời gian gửi</th>
+                      <th className="px-6 py-5 text-center text-xs font-black text-slate-400 uppercase tracking-widest bg-indigo-50/30">Hành động</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-slate-50">
@@ -2098,7 +2408,7 @@ const Approvals: React.FC = () => {
                                   <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                 </div>
                                 <h4 className="text-lg font-black text-slate-800">Hoàn thành tuyệt vời!</h4>
-                                <p className="text-slate-400 text-sm mt-2 font-medium">Bạn đã xử lý hết tất cả các đơn thuộc quyền hạn của mình.</p>
+                                <p className="text-slate-400 text-base mt-2 font-medium">Bạn đã xử lý hết tất cả các đơn thuộc quyền hạn của mình.</p>
                               </div>
                             </td>
                           </tr>
@@ -2113,39 +2423,39 @@ const Approvals: React.FC = () => {
                           }
                           (item._itemType === 'ONLINE_WORK') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item);
                         }}>
-                          <td className="px-6 py-5 whitespace-nowrap text-sm font-black text-slate-300 border-r border-slate-50">
+                          <td className="px-6 py-5 whitespace-nowrap text-base font-black text-slate-300 border-r border-slate-50">
                             {(index + 1).toString().padStart(2, '0')}
                           </td>
                           <td className="px-6 py-5 whitespace-nowrap">
-                            <span className="px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black border border-slate-200 group-hover:bg-white group-hover:shadow-sm transition-all duration-300">
+                            <span className="px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-black border border-slate-200 group-hover:bg-white group-hover:shadow-sm transition-all duration-300">
                               {item.department_code}
                             </span>
                           </td>
                           <td className="px-6 py-5 whitespace-nowrap">
                             <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-black shadow-md shadow-indigo-100">
+                              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-black shadow-md shadow-indigo-100">
                                 {item.department_name?.charAt(0)}
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-sm font-black text-slate-800 group-hover:text-indigo-600 transition-colors">{item.department_name || item.department_code}</span>
-                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">Chốt công tháng {item.month}/{item.year}</span>
+                                <span className="text-base font-black text-slate-800 group-hover:text-indigo-600 transition-colors">{item.department_name || item.department_code}</span>
+                                <span className="text-xs text-slate-400 font-bold uppercase tracking-tight">Chốt công tháng {item.month}/{item.year}</span>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-5 whitespace-nowrap">
                             <div className="flex flex-col gap-1.5">
                               <div className="flex items-center gap-2">
-                                <span className={`text-sm font-black text-slate-800`}>
+                                <span className={`text-base font-black text-slate-800`}>
                                   Xem chi tiết ↗
                                 </span>
                               </div>
                               <div className="flex items-center gap-3">
-                                <span className="text-[10px] font-bold text-slate-400 italic">Người gửi: {item.sent_by_name} ({item.sent_by_role || 'Admin'})</span>
+                                <span className="text-xs font-bold text-slate-400 italic">Người gửi: {item.sent_by_name} ({item.sent_by_role || 'Admin'})</span>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-5 whitespace-nowrap">
-                            <div className="text-sm font-black text-slate-700">
+                            <div className="text-base font-black text-slate-700">
                               {formatDateTime(item.created_at)}
                             </div>
                           </td>
@@ -2156,13 +2466,13 @@ const Approvals: React.FC = () => {
                                 <div className="flex items-center gap-2.5">
                                   <button
                                     onClick={() => openApproveModal(item)}
-                                    className="h-9 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black rounded-xl shadow-lg shadow-emerald-100 transition-all hover:scale-105 active:scale-95 whitespace-nowrap uppercase tracking-wider"
+                                    className="h-9 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-black rounded-xl shadow-lg shadow-emerald-100 transition-all hover:scale-105 active:scale-95 whitespace-nowrap uppercase tracking-wider"
                                   >
                                     PHÊ DUYỆT
                                   </button>
                                   <button
                                     onClick={() => openRejectModal(item)}
-                                    className="h-9 px-6 bg-white hover:bg-rose-50 text-rose-500 text-[11px] font-black rounded-xl border border-slate-200 hover:border-rose-200 transition-all uppercase tracking-wider"
+                                    className="h-9 px-6 bg-white hover:bg-rose-50 text-rose-500 text-sm font-black rounded-xl border border-slate-200 hover:border-rose-200 transition-all uppercase tracking-wider"
                                   >
                                     TỪ CHỐI
                                   </button>
@@ -2175,21 +2485,21 @@ const Approvals: React.FC = () => {
                                       <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-emerald-100">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
                                       </div>
-                                      <span className="text-emerald-700 font-black text-[10px] uppercase tracking-widest">QLTT ĐÃ PHÊ DUYỆT</span>
+                                      <span className="text-emerald-700 font-black text-xs uppercase tracking-widest">QLTT ĐÃ PHÊ DUYỆT</span>
                                     </div>
                                   ) : item.status === 'REJECTED' ? (
                                     <div className="flex items-center gap-2.5 px-4 py-2.5 bg-rose-50 border border-rose-100 rounded-2xl shadow-sm">
                                       <div className="w-6 h-6 bg-rose-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-rose-100">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M6 18L18 6M6 6l12 12" /></svg>
                                       </div>
-                                      <span className="text-rose-700 font-black text-[10px] uppercase tracking-widest">QLTT ĐÃ TỪ CHỐI</span>
+                                      <span className="text-rose-700 font-black text-xs uppercase tracking-widest">QLTT ĐÃ TỪ CHỐI</span>
                                     </div>
                                   ) : (
                                     <div className="flex items-center gap-2.5 px-4 py-2.5 bg-amber-50 border border-amber-100 rounded-2xl shadow-sm">
                                       <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-white shrink-0 animate-pulse shadow-sm shadow-amber-100">
                                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                       </div>
-                                      <span className="text-amber-700 font-black text-[10px] uppercase tracking-widest">ĐANG CHỜ QLTT DUYỆT</span>
+                                      <span className="text-amber-700 font-black text-xs uppercase tracking-widest">ĐANG CHỜ QLTT DUYỆT</span>
                                     </div>
                                   )}
                                 </div>
@@ -2202,33 +2512,132 @@ const Approvals: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Card View for Manager Table */}
+              <div className="lg:hidden divide-y divide-slate-100">
+                {workFinalizationApprovals.length === 0 ? (
+                  <div className="px-6 py-16 text-center bg-slate-50/20">
+                    <div className="flex flex-col items-center max-w-sm mx-auto">
+                      <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mb-4">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                      <h4 className="text-base font-black text-slate-800 uppercase tracking-tight">Tất cả đã xử lý!</h4>
+                    </div>
+                  </div>
+                ) : (
+                  workFinalizationApprovals.map((item) => (
+                    <div
+                      key={`manager-card-${item.id}`}
+                      onClick={() => {
+                        if (item._itemType === 'WORK_FINALIZATION') {
+                          handleViewWfDetails(item);
+                          return;
+                        }
+                        (item._itemType === 'ONLINE_WORK') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item);
+                      }}
+                      className="p-5 bg-white active:bg-slate-50 transition-all border-b border-slate-50"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-100">
+                            {item.department_name?.charAt(0)}
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">{item.department_name || item.department_code}</h4>
+                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.1em]">Chốt công : {item.month}/{item.year}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Thời gian gửi</div>
+                          <div className="text-[11px] font-black text-slate-500">{formatDateTime(item.created_at).split(' ')[0]}</div>
+                        </div>
+                      </div>
+
+                      <div className="px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100 mb-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Trạng thái hiện tại:</span>
+                          {item.status === 'APPROVED' ? (
+                            <span className="text-[10px] font-black text-emerald-600 uppercase">Đã phê duyệt</span>
+                          ) : item.status === 'REJECTED' ? (
+                            <span className="text-[10px] font-black text-rose-600 uppercase">Đã từ chối</span>
+                          ) : (
+                            <span className="text-[10px] font-black text-amber-600 uppercase animate-pulse">Đang chờ xử lý</span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1 italic font-medium">Người gửi: {item.sent_by_name}</p>
+                      </div>
+
+                      {item.status === 'PENDING' && isManagement && !isAdmin && (
+                        <div className="grid grid-cols-2 gap-3" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => openApproveModal(item)}
+                            className="py-3.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-emerald-100"
+                          >
+                            PHÊ DUYỆT
+                          </button>
+                          <button
+                            onClick={() => openRejectModal(item)}
+                            className="py-3.5 bg-white border border-rose-100 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-[0.1em]"
+                          >
+                            TỪ CHỐI
+                          </button>
+                        </div>
+                      )}
+
+                      <button className="w-full mt-3 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em]">
+                        XEM CHI TIẾT BẢNG CÔNG
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
+
           </div>
         )}
-        
-        <div className="mt-8 tracking-tight">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Quy trình duyệt của bạn
-          </h3>
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center">
+
+        <div className="mt-12 tracking-tight">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
+            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+              Quy trình & Quyền hạn của bạn
+            </h3>
+          </div>
+
+          <div className="bg-gradient-to-br from-slate-50 to-indigo-50/30 p-6 sm:p-8 rounded-[32px] border border-slate-100 relative overflow-hidden">
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
               <div className="flex-1">
-                <p className="text-gray-700">
-                  Bạn có quyền duyệt các đơn:{' '}
-                  <span className="font-medium">
-                    Nghỉ phép, Làm thêm giờ, Giải trình chấm công
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-black rounded-md uppercase tracking-widest">Quyền hạn cao nhất</span>
+                </div>
+                <p className="text-slate-700 text-lg font-bold leading-snug">
+                  Bạn có quyền phê duyệt quản lý các loại đơn:{' '}
+                  <span className="text-indigo-600 border-b-2 border-indigo-100">
+                    Nghỉ phép, Tăng ca, Giải trình chấm công & Chốt công tháng.
                   </span>
                 </p>
-                <p className="text-gray-500 text-base mt-1">
-                  Cấp duyệt: Quản lý trực tiếp • Thời gian xử lý: 24 giờ
-                </p>
+                <div className="flex flex-wrap items-center gap-4 mt-4 text-slate-400 font-bold text-xs uppercase tracking-widest leading-none">
+                  <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-slate-100">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    Cấp duyệt: QLTT
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-slate-100">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
+                    Thời gian: 24h
+                  </div>
+                </div>
               </div>
-              <button className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors">
-                Cấu hình quy trình
+              <button className="w-full sm:w-auto px-8 py-4 bg-slate-900 border-2 border-slate-900 hover:bg-indigo-600 hover:border-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-md hover:shadow-xl shadow-slate-200">
+                CẤU HÌNH QUY TRÌNH
               </button>
+
             </div>
+
+            {/* Decoration */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
           </div>
         </div>
+
       </div>
 
       {/* Modal Chi tiết Chốt công (Danh sách nhân viên) */}
@@ -2236,41 +2645,43 @@ const Approvals: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-slate-100 bg-white flex justify-between items-center">
+            <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shrink-0">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Chi tiết bảng công {selectedWfApproval.department_name || selectedWfApproval.department_code}</h3>
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Tháng {selectedWfApproval.month}/{selectedWfApproval.year} • {wfEmployees.length} nhân sự</p>
+                  <h3 className="text-base sm:text-xl font-black text-slate-800 uppercase tracking-tight line-clamp-2">Chi tiết bảng công {selectedWfApproval.department_name || selectedWfApproval.department_code}</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Tháng {selectedWfApproval.month}/{selectedWfApproval.year} • {wfEmployees.length} nhân sự</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => {
                   setShowWfDetailModal(false);
                   setSelectedWfApproval(null);
                   setWfEmployees([]);
-                }} 
-                className="text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-slate-100 transition-all font-black text-xl"
+                }}
+                className="absolute sm:relative top-4 right-4 sm:top-auto sm:right-auto text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-slate-100 font-black text-xl"
               >
                 ✕
               </button>
             </div>
 
-            {/* Modal Body - Scrollable Table */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/30">
-              <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
+            {/* Modal Body - Responsive Content */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-50/30">
+              <div className="bg-white border border-slate-200 rounded-[24px] sm:rounded-3xl overflow-hidden shadow-sm">
+                
+                {/* Desktop View (Table) */}
+                <div className="hidden lg:block overflow-x-auto">
                   <table className="min-w-full divide-y divide-slate-100">
                     <thead className="bg-slate-50">
                       <tr>
                         <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Nhân viên</th>
                         <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Công thực tế</th>
                         <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Tăng ca</th>
-                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Thêm giờ</th>
+                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Làm thêm giờ</th>
                         <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Trực tối</th>
                         <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Live</th>
                         <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Nghỉ phép tháng</th>
@@ -2284,11 +2695,11 @@ const Approvals: React.FC = () => {
                         </tr>
                       ) : (
                         wfEmployees.map((emp) => (
-                          <tr key={`wf-emp-${emp.employee_id}`} className="hover:bg-slate-50/50 transition-colors group">
+                          <tr key={`wf-emp-${emp.employee_id}`} className="hover:bg-slate-50/50 group">
                             <td className="px-5 py-4">
                               <div className="flex flex-col">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-sm font-black text-slate-800 tracking-tight group-hover:text-indigo-600 transition-colors">{emp.ho_va_ten}</span>
+                                  <span className="text-sm font-black text-slate-800 tracking-tight group-hover:text-indigo-600">{emp.ho_va_ten}</span>
                                   {emp.is_locked && (
                                     <div className="bg-amber-100 text-amber-600 p-0.5 rounded shadow-sm" title="Dữ liệu đã khóa">
                                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -2336,7 +2747,7 @@ const Approvals: React.FC = () => {
                             </td>
                             <td className="px-3 py-4 text-center text-sm font-bold text-slate-500">{emp.nghi_phep_thang > 0 ? emp.nghi_phep_thang : '-'}</td>
                             <td className="px-5 py-4 text-right">
-                              <span className="text-sm font-mono font-black text-rose-600">{(emp.tong_phat || 0) > 0 ? `${(emp.tong_phat || 0).toLocaleString('vi-VN')} VNĐ` : '-'}</span>
+                              <span className="text-sm font-black text-rose-600">{(emp.tong_phat || 0) > 0 ? `${(emp.tong_phat || 0).toLocaleString('vi-VN')} VNĐ` : '-'}</span>
                             </td>
                           </tr>
                         ))
@@ -2344,33 +2755,92 @@ const Approvals: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile/Tablet View (Cards) */}
+                <div className="lg:hidden divide-y divide-slate-100">
+                  {wfEmployees.length === 0 ? (
+                    <div className="px-6 py-10 text-center text-slate-400 italic">Không tìm thấy dữ liệu nhân viên</div>
+                  ) : (
+                    wfEmployees.map((emp) => (
+                      <div key={`wf-emp-mobile-${emp.employee_id}`} className="p-4 sm:p-6 space-y-5 bg-white">
+                        {/* Header: Name & Info */}
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-black text-slate-800 tracking-tight truncate">{emp.ho_va_ten}</span>
+                              {emp.is_locked && (
+                                <div className="bg-amber-100 text-amber-600 p-0.5 rounded shadow-sm shrink-0">
+                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{emp.ma_nv} • {emp.vi_tri || 'N/A'}</span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-[10px] font-black text-rose-600 uppercase block mb-1">Tổng phạt</span>
+                            <span className="text-sm font-black text-rose-600">{(emp.tong_phat || 0) > 0 ? `${(emp.tong_phat || 0).toLocaleString('vi-VN')} VNĐ` : '0 VNĐ'}</span>
+                          </div>
+                        </div>
+
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-2 xs:grid-cols-3 gap-3">
+                          <div className="bg-indigo-50/50 p-2.5 rounded-2xl border border-indigo-100/50">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Công thực tế</span>
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-base font-black text-indigo-600">{emp.cong_thuc_te}</span>
+                              <span className="text-[10px] font-bold text-slate-400">/ {emp.tong_cong}</span>
+                            </div>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Tăng ca/Làm thêm giờ</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-orange-600">{emp.tang_ca}h</span>
+                              <span className="text-slate-300">|</span>
+                              <span className="text-xs font-black text-blue-600">{emp.lam_them_gio}h</span>
+                            </div>
+                          </div>
+                          <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Trực tối/Live</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-purple-600">{emp.truc_toi}</span>
+                              <span className="text-slate-300">|</span>
+                              <span className="text-xs font-black text-emerald-600">{emp.live}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-5 bg-white border-t border-slate-100 flex items-center justify-between">
+            <div className="px-4 sm:px-6 py-5 bg-white border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
-                 <div className="h-2 w-2 rounded-full bg-indigo-500"></div>
-                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Toàn bộ dữ liệu đã được đối soát tự động</p>
+                <div className="h-2 w-2 rounded-full bg-indigo-500 shrink-0"></div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic leading-tight">Toàn bộ dữ liệu đã được đối soát tự động</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                 {selectedWfApproval.status === 'APPROVED' && (
-                  <span className="px-4 py-2 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-xl border border-emerald-100 uppercase tracking-widest">
+                  <span className="w-full sm:w-auto text-center px-4 py-3 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-xl border border-emerald-100 uppercase tracking-widest">
                     Bảng công đã được phê duyệt
                   </span>
                 )}
                 {selectedWfApproval.status === 'REJECTED' && (
-                  <span className="px-4 py-2 bg-rose-50 text-rose-600 text-[10px] font-black rounded-xl border border-rose-100 uppercase tracking-widest">
+                  <span className="w-full sm:w-auto text-center px-4 py-3 bg-rose-50 text-rose-600 text-[10px] font-black rounded-xl border border-rose-100 uppercase tracking-widest">
                     Bảng công đã bị từ chối
                   </span>
                 )}
                 {selectedWfApproval.can_approve && selectedWfApproval.status === 'PENDING' && !isAdmin && (
-                  <button 
-                    onClick={() => { 
-                      setShowWfDetailModal(false); 
-                      openApproveModal(selectedWfApproval); 
-                    }} 
-                    className="h-11 px-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-2xl shadow-xl shadow-emerald-100 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest"
+                  <button
+                    onClick={() => {
+                      setShowWfDetailModal(false);
+                      openApproveModal(selectedWfApproval);
+                    }}
+                    className="w-full sm:w-auto h-12 px-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-2xl shadow-xl shadow-emerald-100 uppercase tracking-widest"
                   >
                     Duyệt bảng công này
                   </button>
@@ -2405,7 +2875,7 @@ const Approvals: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <button
                     onClick={() => {
                       setShowDetailModal(false);
@@ -2532,9 +3002,9 @@ const Approvals: React.FC = () => {
                       {/* Info List */}
                       <div className="space-y-3 px-1">
                         {/* Request ID */}
-                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Mã định danh đơn</span>
-                          <span className="text-xs font-mono font-black text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                        <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
+                          <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Mã định danh đơn</span>
+                          <span className="text-[11px] font-mono font-black text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 whitespace-nowrap">
                             {selectedExplanation?.request_code || selectedOnlineWorkRequest?.request_code || '---'}
                           </span>
                         </div>
@@ -2542,26 +3012,26 @@ const Approvals: React.FC = () => {
                         {selectedExplanation ? (
                           <>
                             {/* Date Detail */}
-                            <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                  {selectedExplanation._itemType === 'REGISTRATION' ? 'Ngày đăng ký' :
-                                    selectedExplanation._itemType === 'LEAVE' ? 'Thời gian nghỉ' :
-                                      'Ngày hiệu lực'}
-                                </span>
-                                <span className="text-sm font-black text-slate-700">
-                                  {selectedExplanation._itemType === 'LEAVE'
-                                    ? (selectedExplanation.start_date === selectedExplanation.end_date
-                                      ? formatDate(selectedExplanation.start_date)
-                                      : `${formatDate(selectedExplanation.start_date)} - ${formatDate(selectedExplanation.end_date)}`)
-                                    : formatDate(selectedExplanation.attendance_date || selectedExplanation.registration_date || selectedExplanation.event_date || selectedExplanation.start_date)}
-                                </span>
+                            <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
+                              <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">
+                                {selectedExplanation._itemType === 'REGISTRATION' ? 'Ngày đăng ký' :
+                                  selectedExplanation._itemType === 'LEAVE' ? 'Thời gian nghỉ' :
+                                    'Ngày hiệu lực'}
+                              </span>
+                              <span className="text-[15px] font-black text-slate-700 whitespace-nowrap">
+                                {selectedExplanation._itemType === 'LEAVE'
+                                  ? (selectedExplanation.start_date === selectedExplanation.end_date
+                                    ? formatDate(selectedExplanation.start_date)
+                                    : `${formatDate(selectedExplanation.start_date)} - ${formatDate(selectedExplanation.end_date)}`)
+                                  : formatDate(selectedExplanation.attendance_date || selectedExplanation.registration_date || selectedExplanation.event_date || selectedExplanation.start_date)}
+                              </span>
                             </div>
 
                             {/* Time Range (if applicable) */}
                             {selectedExplanation._itemType === 'REGISTRATION' && (selectedExplanation.start_time || selectedExplanation.end_time) && (
-                              <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Khung thời gian</span>
-                                <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                              <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
+                                <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Khung thời gian</span>
+                                <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 whitespace-nowrap">
                                   {selectedExplanation.start_time?.substring(0, 5) || '??:??'} - {selectedExplanation.end_time?.substring(0, 5) || '??:??'}
                                 </span>
                               </div>
@@ -2577,7 +3047,7 @@ const Approvals: React.FC = () => {
                                       {selectedExplanation.original_status_display || getOriginalStatusText(selectedExplanation.original_status)}
                                     </span>
                                   </div>
-                                  
+
                                   <div className="flex justify-between items-center">
                                     <div className="flex items-center gap-2">
                                       <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
@@ -2597,7 +3067,7 @@ const Approvals: React.FC = () => {
                                   <div className="mt-6 p-5 rounded-3xl bg-rose-50/50 border border-rose-100 shadow-sm relative overflow-hidden group/violation">
                                     {/* Decorative background element */}
                                     <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-100/30 rounded-full blur-2xl group-hover/violation:bg-rose-100/50 transition-colors duration-500" />
-                                    
+
                                     <div className="flex items-center gap-3 mb-5 scale-in-center">
                                       <div className="flex-shrink-0 w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-200">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
@@ -2610,7 +3080,7 @@ const Approvals: React.FC = () => {
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                       {/* Thời gian vi phạm card */}
-                                      { (selectedExplanation.late_minutes > 0 || selectedExplanation.early_leave_minutes > 0) && (
+                                      {(selectedExplanation.late_minutes > 0 || selectedExplanation.early_leave_minutes > 0) && (
                                         <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-rose-100/50 shadow-sm hover:shadow-md transition-shadow duration-300">
                                           <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-3">Thời gian vi phạm</span>
                                           <div className="space-y-2">
@@ -2647,10 +3117,10 @@ const Approvals: React.FC = () => {
                                         <div className="bg-gradient-to-br from-rose-500 to-rose-600 p-4 rounded-2xl shadow-lg shadow-rose-200 flex flex-col justify-between group/total">
                                           <span className="text-[10px] text-rose-100 font-extrabold uppercase tracking-widest block mb-1">Tiền phạt</span>
                                           <div className="flex items-baseline gap-1.5 justify-end">
-                                             <span className="text-2xl font-black text-white font-mono tracking-tighter drop-shadow-sm">
-                                                {(selectedExplanation.penalty_amount || 0).toLocaleString('vi-VN')}
-                                             </span>
-                                             <span className="text-xs font-black text-rose-100 uppercase tracking-tighter">VNĐ</span>
+                                            <span className="text-2xl font-black text-white font-mono tracking-tighter drop-shadow-sm">
+                                              {(selectedExplanation.penalty_amount || 0).toLocaleString('vi-VN')}
+                                            </span>
+                                            <span className="text-xs font-black text-rose-100 uppercase tracking-tighter">VNĐ</span>
                                           </div>
                                         </div>
                                       )}
@@ -2879,15 +3349,15 @@ const Approvals: React.FC = () => {
               </div>
 
               {/* Footer / Actions */}
-              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
-                <div className="mr-auto">
+              <div className="px-4 sm:px-6 py-4 border-t border-gray-200 bg-gray-50 flex flex-wrap sm:flex-nowrap justify-end gap-3 rounded-b-lg">
+                <div className="mr-auto w-full sm:w-auto mb-2 sm:mb-0 order-last sm:order-first">
                   {((selectedExplanation && canDeleteRequest(selectedExplanation)) || (selectedOnlineWorkRequest && canDeleteRequest(selectedOnlineWorkRequest))) && (
                     <button
                       onClick={() => {
                         openDeleteModal(selectedExplanation || selectedOnlineWorkRequest);
                         setShowDetailModal(false);
                       }}
-                      className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
+                      className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl sm:rounded-md hover:bg-red-100 transition-colors font-semibold"
                     >
                       Xoá đơn
                     </button>
@@ -2900,7 +3370,7 @@ const Approvals: React.FC = () => {
                     setSelectedOnlineWorkRequest(null);
                     setEmployeeFreqStats(null);
                   }}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 border border-gray-300 text-gray-700 font-semibold rounded-xl sm:rounded-md hover:bg-gray-50 transition-colors order-1"
                 >
                   Đóng
                 </button>
@@ -2914,7 +3384,7 @@ const Approvals: React.FC = () => {
                               openApproveModal(selectedExplanation);
                               setShowDetailModal(false);
                             }}
-                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-green-600 text-white font-semibold rounded-xl sm:rounded-md hover:bg-green-700 transition-colors order-3"
                           >
                             Duyệt
                           </button>
@@ -2923,7 +3393,7 @@ const Approvals: React.FC = () => {
                               openRejectModal(selectedExplanation);
                               setShowDetailModal(false);
                             }}
-                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-red-600 text-white font-semibold rounded-xl sm:rounded-md hover:bg-red-700 transition-colors order-2"
                           >
                             Từ chối
                           </button>
@@ -2937,7 +3407,7 @@ const Approvals: React.FC = () => {
                               openApproveModal(selectedOnlineWorkRequest);
                               setShowDetailModal(false);
                             }}
-                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-green-600 text-white font-semibold rounded-xl sm:rounded-md hover:bg-green-700 transition-colors order-3"
                           >
                             Duyệt
                           </button>
@@ -2946,7 +3416,7 @@ const Approvals: React.FC = () => {
                               openRejectModal(selectedOnlineWorkRequest);
                               setShowDetailModal(false);
                             }}
-                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-red-600 text-white font-semibold rounded-xl sm:rounded-md hover:bg-red-700 transition-colors order-2"
                           >
                             Từ chối
                           </button>
@@ -3008,18 +3478,18 @@ const Approvals: React.FC = () => {
             </div>
 
             {/* Actions */}
-            <div className="px-6 py-4 bg-gray-50 border-t flex gap-3">
+            <div className="px-6 py-4 bg-gray-50 border-t flex flex-col sm:flex-row gap-3">
               <button
                 disabled={isProcessing}
                 onClick={() => setActionModalOpen(false)}
-                className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all text-base disabled:opacity-50"
+                className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all text-base disabled:opacity-50 order-last sm:order-first"
               >
                 Hủy bỏ
               </button>
               <button
                 disabled={isProcessing || (actionType === 'REJECT' && !approvalNote.trim())}
                 onClick={confirmAction}
-                className={`flex-1 px-4 py-2.5 text-white font-bold rounded-xl transition-all text-base flex items-center justify-center gap-2 shadow-lg shadow-opacity-20 ${actionType === 'APPROVE' ? 'bg-green-600 hover:bg-green-700 shadow-green-200' : 'bg-red-600 hover:bg-red-700 shadow-red-200'} disabled:bg-gray-400 disabled:shadow-none`}
+                className={`flex-1 w-full sm:w-auto px-4 py-2.5 text-white font-bold rounded-xl transition-all text-base flex items-center justify-center gap-2 shadow-lg ${actionType === 'APPROVE' ? 'bg-green-600 hover:bg-green-700 shadow-green-200/50' : 'bg-red-600 hover:bg-red-700 shadow-red-200/50'} disabled:bg-gray-400 disabled:shadow-none`}
               >
                 {isProcessing ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -3054,18 +3524,18 @@ const Approvals: React.FC = () => {
                 Hành động này <span className="text-red-600 font-bold underline">không thể hoàn tác</span>.
               </p>
             </div>
-            <div className="px-6 py-4 bg-gray-50 flex gap-3">
+            <div className="px-6 py-4 bg-gray-50 flex flex-col sm:flex-row gap-3">
               <button
                 disabled={isProcessing}
                 onClick={() => setDeleteModalOpen(false)}
-                className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all text-base"
+                className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all text-base order-last sm:order-first"
               >
                 Hủy
               </button>
               <button
                 disabled={isProcessing}
                 onClick={confirmDelete}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all text-base flex items-center justify-center gap-2 shadow-lg shadow-red-200 disabled:bg-gray-400 disabled:shadow-none"
+                className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all text-base flex items-center justify-center gap-2 shadow-lg shadow-red-200/50 disabled:bg-gray-400 disabled:shadow-none"
               >
                 {isProcessing ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -3130,16 +3600,16 @@ const Approvals: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setBulkConfirmModal(null)}
-                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex-1 w-full sm:w-auto py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors order-last sm:order-first"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   onClick={executeBulkApprove}
-                  className="flex-1 py-2.5 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all"
+                  className="flex-1 w-full sm:w-auto py-2.5 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-200/50 transition-all"
                 >
                   Đồng ý duyệt
                 </button>
