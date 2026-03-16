@@ -62,12 +62,14 @@ type OnboardingDocument = {
   document_type: 'CONTRACT' | 'REGULATION' | 'HANDBOOK' | 'FORM' | 'TRAINING' | 'SAFETY' | 'POLICY' | 'OTHER';
   description: string;
   file: string;
+  file_url?: string;
   is_required: boolean;
   requires_signature: boolean;
   is_read: boolean;
   is_signed: boolean;
   signed_at: string | null;
   signature_file: string | null;
+  signature_file_url?: string;
   uploaded_at: string;
   uploaded_by: number | null;
   uploaded_by_name: string | null;
@@ -120,9 +122,13 @@ type OnboardingDetail = {
   tax_dependents?: number;
   // Uploaded files
   cv_file?: string | null;
+  cv_file_url?: string | null;
   id_card_front?: string | null;
+  id_card_front_url?: string | null;
   id_card_back?: string | null;
+  id_card_back_url?: string | null;
   diploma_file?: string | null;
+  diploma_file_url?: string | null;
   // Status flags
   employee_info_completed?: boolean;
   employee_info_completed_at?: string | null;
@@ -484,7 +490,7 @@ const OnboardingDetail: React.FC = () => {
                     <div>
                       <label className="text-sm text-gray-600">CV</label>
                       <a
-                        href={onboarding.cv_file}
+                        href={onboarding.cv_file_url || onboarding.cv_file}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
@@ -498,7 +504,7 @@ const OnboardingDetail: React.FC = () => {
                     <div>
                       <label className="text-sm text-gray-600">CCCD mặt trước</label>
                       <a
-                        href={onboarding.id_card_front}
+                        href={onboarding.id_card_front_url || onboarding.id_card_front}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
@@ -512,7 +518,7 @@ const OnboardingDetail: React.FC = () => {
                     <div>
                       <label className="text-sm text-gray-600">CCCD mặt sau</label>
                       <a
-                        href={onboarding.id_card_back}
+                        href={onboarding.id_card_back_url || onboarding.id_card_back}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
@@ -526,7 +532,7 @@ const OnboardingDetail: React.FC = () => {
                     <div>
                       <label className="text-sm text-gray-600">Bằng cấp</label>
                       <a
-                        href={onboarding.diploma_file}
+                        href={onboarding.diploma_file_url || onboarding.diploma_file}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"

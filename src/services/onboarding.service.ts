@@ -72,9 +72,13 @@ export interface OnboardingProcess {
 
   // Files
   cv_file?: string;
+  cv_file_url?: string;
   id_card_front?: string;
+  id_card_front_url?: string;
   id_card_back?: string;
+  id_card_back_url?: string;
   diploma_file?: string;
+  diploma_file_url?: string;
 
   // Notes
   notes?: string;
@@ -99,6 +103,7 @@ export interface OnboardingTask {
   assigned_to_name?: string;
   completion_note?: string;
   attachment?: string;
+  attachment_url?: string;
   started_at?: string;
   completed_at?: string;
   is_overdue: boolean;
@@ -130,12 +135,14 @@ export interface OnboardingDocument {
   document_type: 'CONTRACT' | 'REGULATION' | 'HANDBOOK' | 'FORM' | 'TRAINING' | 'OTHER';
   description?: string;
   file: string;
+  file_url?: string;
   is_required: boolean;
   requires_signature: boolean;
   is_read: boolean;
   is_signed: boolean;
   signed_at?: string;
   signature_file?: string;
+  signature_file_url?: string;
   uploaded_at: string;
   uploaded_by?: number;
   uploaded_by_name?: string;
