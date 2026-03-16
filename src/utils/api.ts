@@ -1851,6 +1851,18 @@ export const employeesAPI = {
     return response.data;
   },
 
+  partialUpdateByEmployeeId: async (
+    employeeId: string,
+    data: Partial<EmployeeUpdateData>
+  ): Promise<SuperAdminEmployee> => {
+    const response: AxiosResponse<SuperAdminEmployee> = await managementApi.patch(
+      `/api-hrm/super-admin/employee/`,
+      data,
+      { params: { employee_id: employeeId } }
+    );
+    return response.data;
+  },
+
   me: async (): Promise<Employee> => {
     const response: AxiosResponse<Employee> = await managementApi.get('/api-hrm/employees/me/');
     return response.data;
