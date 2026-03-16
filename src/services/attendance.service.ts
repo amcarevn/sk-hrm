@@ -633,6 +633,13 @@ class AttendanceService {
         formData.append('evidence', data.evidence);
       }
 
+      // Add penalty and minute fields if they exist in data (passed as any/extended)
+      const extendedData = data as any;
+      if (extendedData.late_penalty !== undefined) formData.append('late_penalty', String(extendedData.late_penalty));
+      if (extendedData.early_leave_penalty !== undefined) formData.append('early_leave_penalty', String(extendedData.early_leave_penalty));
+      if (extendedData.late_minutes !== undefined) formData.append('late_minutes', String(extendedData.late_minutes));
+      if (extendedData.early_leave_minutes !== undefined) formData.append('early_leave_minutes', String(extendedData.early_leave_minutes));
+
       const response = await managementApi.post('/api-hrm/attendance-explanations/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',

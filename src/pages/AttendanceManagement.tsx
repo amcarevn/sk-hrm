@@ -6,7 +6,7 @@ import {
   AttendanceRecord,
   AttendanceEvent,
 } from '../services/attendance.service';
-import { employeesAPI, Employee, managementApi } from '../utils/api';
+import { employeesAPI, Employee } from '../utils/api';
 import {
   XMarkIcon,
   DocumentPlusIcon,
@@ -42,9 +42,6 @@ const AttendanceManagement: React.FC = () => {
   const [showSupplementaryRequestModal, setShowSupplementaryRequestModal] =
     useState(false);
   const [attendanceStats, setAttendanceStats] = useState<any>(null);
-  const [attendanceRecords, setAttendanceRecords] = useState<
-    AttendanceRecord[]
-  >([]);
   const [loading, setLoading] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const isManagementUser = !!(currentEmployee?.position?.is_management || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'HR');
@@ -53,17 +50,19 @@ const AttendanceManagement: React.FC = () => {
   >([]);
 
   console.log('attendanceDetails', attendanceDetails);
-  const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [approvedExplanations, setApprovedExplanations] = useState<any[]>([]);
+  const isMounted = React.useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
   const [allExplanations, setAllExplanations] = useState<any[]>([]);
   const [approvedRegistrations, setApprovedRegistrations] = useState<any[]>([]);
-  const [approvedLeaveRequests, setApprovedLeaveRequests] = useState<any[]>([]);
-  const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
   const [monthlyWorkCredits, setMonthlyWorkCredits] = useState<any>(null);
   const [penaltyAmount, setPenaltyAmount] = useState<number>(0);
-  const [workCreditsLoading, setWorkCreditsLoading] = useState(false);
   const [refreshDataTrigger, setRefreshDataTrigger] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -116,17 +115,6 @@ const AttendanceManagement: React.FC = () => {
     HALF_DAY: 'Nửa ngày',
     INCOMPLETE_ATTENDANCE: 'Quên chấm công',
   };
-
-  const EXPECTED_STATUS_MAP: Record<string, string> = {
-    ...ATTENDANCE_STATUS_MAP,
-    PRESENT: 'Đủ công',
-  };
-
-  const getOriginalStatusText = (status: string): string =>
-    ATTENDANCE_STATUS_MAP[status] || status;
-
-  const getExpectedStatusText = (status: string): string =>
-    EXPECTED_STATUS_MAP[status] || status;
 
   // Mapping loại đơn giải trình/đăng ký sang tiếng Việt
   const EXPLANATION_TYPE_MAP: Record<string, string> = {
@@ -263,7 +251,7 @@ const AttendanceManagement: React.FC = () => {
 
     if (!selectedReason) return false;
 
-    const MIN_HOURS = 2; // Default minimum for most registrations
+    const MIN_HOURS = 0.5; // Default minimum for most registrations (30 minutes)
 
     switch (selectedReason) {
       case 'overtime':
@@ -292,7 +280,7 @@ const AttendanceManagement: React.FC = () => {
   const getRegistrationTimeError = (): string | null => {
     if (selectedContext !== 'registration') return null;
 
-    const MIN_HOURS = 2;
+    const MIN_HOURS = 0.5;
     let hasTime = false;
     let duration = 0;
 
@@ -319,7 +307,7 @@ const AttendanceManagement: React.FC = () => {
 
     if (!hasTime) return null; // Don't show error until user selects times
     if (duration <= 0) return 'Giờ kết thúc phải sau giờ bắt đầu';
-    if (duration < MIN_HOURS) return `Tối thiểu ${MIN_HOURS} tiếng`;
+    if (duration < MIN_HOURS) return 'Tối thiểu 30 phút';
     return null;
   };
 
@@ -540,7 +528,7 @@ const AttendanceManagement: React.FC = () => {
     }
   };
   // ===================== END STEP-BASED FORM STATE =====================
-  const [calendarData, setCalendarData] = useState<any[]>([]);
+  /* Removed calendarData state */
   const [calendarSummary, setCalendarSummary] = useState<{
     total_work_days: number;
     full_days: number;
@@ -572,35 +560,61 @@ const AttendanceManagement: React.FC = () => {
     if (!currentEmployee) return;
 
     const fetchAllData = async () => {
-      // Set loading only for the first time or when specifically needed
-      if (initialLoading) {
-        setLoading(true);
-      }
+      if (!currentEmployee || !isMounted.current) return;
+      if (initialLoading) setLoading(true);
 
       try {
-        await Promise.all([
-          fetchAttendanceStats(currentEmployee),
-          fetchAttendanceRecords(currentEmployee),
-          fetchMonthlyWorkCredits(
-            currentDate.getMonth() + 1,
-            currentDate.getFullYear(),
-            currentEmployee.id
-          ),
-          fetchCalendarData(
-            currentDate.getMonth() + 1,
-            currentDate.getFullYear(),
-            currentEmployee.id
-          ),
-          fetchMonthlyRequestHistory(currentEmployee, currentDate),
-        ]);
+        // Tối ưu hóa: Gọi tuần tự (Sequential Await) theo ý USER
+        await fetchAttendanceStats(currentEmployee, true);
+        if (!isMounted.current) return;
+
+        await fetchMonthlyWorkCredits(
+          currentDate.getMonth() + 1,
+          currentDate.getFullYear(),
+          currentEmployee.id,
+          true
+        );
+        if (!isMounted.current) return;
+
+        await fetchMonthlyRequestHistory(currentEmployee, currentDate, true);
+
+        // fetchCalendarData sẽ KHÔNG được gọi ở đây nữa để tránh Duplicate 
+        // Thay vào đó dùng dữ liệu từ AttendanceCalendar truyền lên
+      } catch (err) {
+        console.error('Error fetching all data:', err);
       } finally {
-        setLoading(false);
-        setInitialLoading(false);
+        if (isMounted.current) {
+          setLoading(false);
+          setInitialLoading(false);
+        }
       }
     };
 
     fetchAllData();
   }, [currentEmployee?.id, currentDate.getMonth(), currentDate.getFullYear()]);
+
+  // Effect 3: Đồng bộ allExplanations và approvedRegistrations khi monthlyRequestHistory hoặc selectedDate thay đổi
+  // Điều này đảm bảo khi nhấn Làm đơn bổ sung lần nữa (hoặc đang mở), dữ liệu lọc sẽ luôn mới nhất
+  useEffect(() => {
+    if (selectedDate && currentEmployee) {
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
+      // Lọc giải trình của ngày đang chọn
+      const dayExplanations = monthlyRequestHistory.explanations.filter(e => 
+        e.attendance_date === dateStr || (e.event_date && e.event_date === dateStr)
+      );
+      setAllExplanations(dayExplanations);
+
+      // Lọc đăng ký của ngày đang chọn
+      const dayRegistrations = monthlyRequestHistory.registrations.filter(r => 
+        r.attendance_date === dateStr || (r.event_date && r.event_date === dateStr)
+      );
+      setApprovedRegistrations(dayRegistrations.filter(r => r.status === 'APPROVED'));
+    }
+  }, [monthlyRequestHistory, selectedDate, currentEmployee?.id]);
 
   const fetchCurrentEmployee = async (): Promise<Employee | null> => {
     try {
@@ -614,9 +628,9 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
-  const fetchAttendanceStats = async (employee?: Employee | null) => {
+  const fetchAttendanceStats = async (employee?: Employee | null, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const today = currentDate || new Date();
       const firstDayOfMonth = new Date(
         today.getFullYear(),
@@ -685,55 +699,19 @@ const AttendanceManagement: React.FC = () => {
     } catch (error) {
       console.error('❌ [STATS] Error fetching attendance stats:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
-  const fetchAttendanceRecords = async (employee?: Employee | null) => {
-    try {
-      const today = currentDate || new Date();
-      const firstDayOfMonth = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        1
-      );
-      const lastDayOfMonth = new Date(
-        today.getFullYear(),
-        today.getMonth() + 1,
-        0
-      );
-
-      // Reuse the formatDateLocal function from fetchAttendanceStats
-      const formatDateLocal = (date: Date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      };
-
-      // Use employee parameter or currentEmployee from state
-      const targetEmployee = employee || currentEmployee;
-
-      const response = await attendanceService.getAttendanceRecords({
-        start_date: formatDateLocal(firstDayOfMonth),
-        end_date: formatDateLocal(lastDayOfMonth),
-        employee_id: targetEmployee?.id,
-        department_id: targetEmployee?.department?.id,
-        page_size: 50,
-      });
-      setAttendanceRecords(response.results);
-    } catch (error) {
-      console.error('Error fetching attendance records:', error);
-    }
-  };
+  /* Removed fetchAttendanceRecords function */
 
   const fetchMonthlyWorkCredits = async (
     month?: number,
     year?: number,
-    employeeId?: number
+    employeeId?: number,
+    silent = false
   ) => {
     try {
-      setWorkCreditsLoading(true);
       const today = new Date();
       const params = {
         month: month || today.getMonth() + 1,
@@ -745,55 +723,25 @@ const AttendanceManagement: React.FC = () => {
       setMonthlyWorkCredits(response);
     } catch (error) {
       console.error('Error fetching monthly work credits:', error);
-    } finally {
-      setWorkCreditsLoading(false);
     }
   };
 
-  const fetchCalendarData = async (
-    month?: number,
-    year?: number,
-    employeeId?: number
-  ) => {
-    try {
-      const today = currentDate || new Date();
-      const params = {
-        year: year || today.getFullYear(),
-        month: month || today.getMonth() + 1,
-        employee_id: employeeId || currentEmployee?.id,
-      };
-
-      const response = await attendanceService.getCalendarView(params);
-
-      // Support new API format: { success: true, data: { calendar: [...], summary: {...} } }
-      // and old format: { calendar_data: [...] }
-      const calendarArray =
-        (response as any)?.data?.calendar ||
-        (response as any)?.calendar_data ||
-        [];
-      setCalendarData(calendarArray);
-
-      // Extract summary from new API format
-      let summary = (response as any)?.data?.summary;
-      if (summary) {
-        // Calculate total late and early minutes manually from calendar data
-        const totalLate = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.late_minutes || 0), 0);
-        const totalEarly = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.early_leave_minutes || 0), 0);
-
-        setCalendarSummary({
-          ...summary,
-          total_late_minutes: totalLate,
-          total_early_leave_minutes: totalEarly,
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching calendar data:', error);
-      setCalendarData([]);
+  // Xử lý dữ liệu trả về từ AttendanceCalendar (Tránh gọi API 2 lần)
+  const handleCalendarDataLoaded = (data: { calendar: any[]; summary: any }) => {
+    const { calendar: calendarArray, summary } = data;
+    if (summary) {
+      const totalLate = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.late_minutes || 0), 0);
+      const totalEarly = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.early_leave_minutes || 0), 0);
+      setCalendarSummary({
+        ...summary,
+        total_late_minutes: totalLate,
+        total_early_leave_minutes: totalEarly,
+      });
     }
   };
 
   // Fetch lịch sử đơn trong tháng hiện tại
-  const fetchMonthlyRequestHistory = async (emp?: Employee | null, date?: Date) => {
+  const fetchMonthlyRequestHistory = async (emp?: Employee | null, date?: Date, silent = false) => {
     const employee = emp ?? currentEmployee;
     if (!employee) return;
     setRequestHistoryLoading(true);
@@ -852,40 +800,33 @@ const AttendanceManagement: React.FC = () => {
   // Refresh all data on page
   const refreshAllData = async () => {
     if (currentEmployee) {
-      console.log('🔄 [REFRESH] Refreshing all attendance data...');
-      await Promise.all([
-        fetchAttendanceStats(currentEmployee),
-        fetchAttendanceRecords(currentEmployee),
-        fetchMonthlyWorkCredits(
-          currentDate.getMonth() + 1,
-          currentDate.getFullYear(),
-          currentEmployee.id
-        ),
-        fetchCalendarData(
-          currentDate.getMonth() + 1,
-          currentDate.getFullYear(),
-          currentEmployee.id
-        ),
-        fetchMonthlyRequestHistory(currentEmployee, currentDate),
-      ]);
-      setRefreshDataTrigger((prev) => prev + 1);
+      console.log('🔄 [REFRESH] Synchronous data refresh triggered...');
+      setLoading(true);
+      try {
+        await Promise.all([
+          fetchAttendanceStats(currentEmployee, true),
+          fetchMonthlyWorkCredits(
+            currentDate.getMonth() + 1,
+            currentDate.getFullYear(),
+            currentEmployee.id,
+            true
+          ),
+          fetchMonthlyRequestHistory(currentEmployee, currentDate, true),
+          // Nếu đang mở Modal chi tiết ngày, fetch lại chi tiết ngày đó
+          selectedDate ? fetchAttendanceDetailsForDate(selectedDate) : Promise.resolve(),
+        ]);
+
+        // RefreshTrigger sẽ điều khiển AttendanceCalendar tự fetch
+        setRefreshDataTrigger((prev) => prev + 1);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  const handleDateClick = async (date: Date, dayData?: any) => {
-    setSelectedDate(date);
-    setShowAttendanceModal(true);
-    setFetchingDetails(true);
-
-    // Set approved requests từ dayData ngay lập tức (không reset về mảng rỗng)
-    setApprovedExplanations(dayData?.approvedExplanations || []);
-    setAllExplanations(dayData?.allExplanations || []);
-    setApprovedRegistrations(dayData?.approvedRegistrations || []);
-    setApprovedLeaveRequests(dayData?.approvedLeaveRequests || []);
-    setOnlineWorkRequests(dayData?.approvedOnlineWorks || []);
-    setPenaltyAmount(dayData?.engine_context?.penalty_amount || 0);
-
+  const fetchAttendanceDetailsForDate = async (date: Date) => {
     try {
+      setFetchingDetails(true);
       // Format date to YYYY-MM-DD in local timezone
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -903,80 +844,42 @@ const AttendanceManagement: React.FC = () => {
 
       setAttendanceDetails(response.results);
 
-      // Calculate summary
-      if (response.results.length > 0) {
-        const summary = {
-          totalHours: response.results.reduce(
-            (sum: number, record: AttendanceRecord) =>
-              sum + (record.working_hours || 0),
-            0
-          ),
-          presentCount: response.results.filter(
-            (record: AttendanceRecord) => record.status === 'PRESENT'
-          ).length,
-          lateCount: response.results.filter(
-            (record: AttendanceRecord) => record.status === 'LATE'
-          ).length,
-          earlyLeaveCount: response.results.filter(
-            (record: AttendanceRecord) => record.status === 'EARLY_LEAVE'
-          ).length,
-          absentCount: response.results.filter(
-            (record: AttendanceRecord) => record.status === 'ABSENT'
-          ).length,
-          halfDayCount: response.results.filter(
-            (record: AttendanceRecord) => record.status === 'HALF_DAY'
-          ).length,
-          incompleteCount: response.results.filter(
-            (record: AttendanceRecord) =>
-              record.status === 'INCOMPLETE_ATTENDANCE'
-          ).length,
-          totalShifts: response.results.length,
-          workCoefficient: dayData?.engine_context?.work_credit ?? 0,
-          totalLateMinutes:
-            dayData?.lateMinutes ??
-            response.results.reduce(
-              (sum: number, r: any) => sum + (r.late_minutes || 0),
-              0
-            ),
-          totalEarlyLeaveMinutes:
-            dayData?.earlyLeaveMinutes ??
-            response.results.reduce(
-              (sum: number, r: any) => sum + (r.early_leave_minutes || 0),
-              0
-            ),
-        };
-        setAttendanceSummary(summary);
-      } else {
-        // Default summary if no records
-        setAttendanceSummary({
-          totalHours: 0,
-          presentCount: 0,
-          lateCount: 0,
-          earlyLeaveCount: 0,
-          absentCount: 0,
-          halfDayCount: 0,
-          incompleteCount: 0,
-          totalShifts: 0,
-          workCoefficient: 0,
-          totalLateMinutes: 0,
-          totalEarlyLeaveMinutes: 0,
-        });
+      // Cập nhật lại penaltyAmount từ record mới nhất nếu có
+      if (response.results && response.results.length > 0) {
+        const record = response.results[0];
+        // Ưu tiên dùng dữ liệu từ engine nếu có (engine_summary hoặc engine_context thường được map vào record ở BE)
+        // Nếu không có trường penalty tổng, ta cộng late + early
+        const newPenalty = (record.late_penalty || 0) + (record.early_leave_penalty || 0);
+        setPenaltyAmount(newPenalty);
       }
+      
+      return response.results;
     } catch (error) {
       console.error('Error fetching attendance details:', error);
       setAttendanceDetails([]);
-      setAttendanceSummary(null);
+      return [];
     } finally {
       setFetchingDetails(false);
     }
   };
 
+  const handleDateClick = async (date: Date, dayData?: any) => {
+    setSelectedDate(date);
+    setShowAttendanceModal(true);
+
+    // Set approved requests từ dayData ngay lập tức (không reset về mảng rỗng)
+    setAllExplanations(dayData?.allExplanations || []);
+    setApprovedRegistrations(dayData?.approvedRegistrations || []);
+    setPenaltyAmount(dayData?.engine_context?.penalty_amount || 0);
+
+    // Fetch chi tiết bản ghi (bao gồm Lịch sử sự kiện)
+    await fetchAttendanceDetailsForDate(date);
+  };
+
   const handleCloseModal = () => {
     setShowAttendanceModal(false);
     setSelectedDate(null);
-    setApprovedExplanations([]);
     setAllExplanations([]);
-    setApprovedLeaveRequests([]);
   };
 
   const handleOpenSupplementaryRequest = () => {
@@ -1003,6 +906,15 @@ const AttendanceManagement: React.FC = () => {
         'error',
         'Thông tin chưa đầy đủ',
         'Vui lòng hoàn thành thông tin trước khi gửi.'
+      );
+      return;
+    }
+
+    if (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave') {
+      showNotify(
+        'error',
+        'Thiếu ghi chú',
+        'Vui lòng nhập ghi chú/lý do trước khi gửi đơn.'
       );
       return;
     }
@@ -1183,17 +1095,31 @@ const AttendanceManagement: React.FC = () => {
           status: 'PENDING',
         };
 
-        // Thêm thông tin loại quên chấm công kèm giờ cụ thể
-        if (selectedReason === 'incomplete_attendance') {
-          const checkinPart = forgotCheckinTime ? ` lúc ${forgotCheckinTime}` : '';
-          const checkoutPart = forgotCheckoutTime ? ` lúc ${forgotCheckoutTime}` : '';
-          const typeLabel =
-            forgotPunchType === 'checkin'
-              ? `Quên check-in${checkinPart}`
-              : forgotPunchType === 'checkout'
-                ? `Quên check-out${checkoutPart}`
-                : `Quên cả vào${checkinPart ? ` (${forgotCheckinTime})` : ''} và ra${checkoutPart ? ` (${forgotCheckoutTime})` : ''}`;
-          explanationData.reason = `[${typeLabel}] ${finalReason}`;
+        if (explanationType === 'INCOMPLETE_ATTENDANCE') {
+          explanationData.actual_check_in = forgotCheckinTime;
+          explanationData.actual_check_out = forgotCheckoutTime;
+        }
+
+        // Gửi kèm tiền phạt và số phút của vi phạm tương ứng (Snapshot data)
+        const record = attendanceDetails[0];
+        if (record) {
+          if (explanationType === 'LATE') {
+            explanationData.late_penalty = record.late_penalty;
+            explanationData.late_minutes = record.late_minutes;
+          } else if (explanationType === 'EARLY_LEAVE') {
+            explanationData.early_leave_penalty = record.early_leave_penalty;
+            explanationData.early_leave_minutes = record.early_leave_minutes;
+          } else if (explanationType === 'BUSINESS_TRIP') {
+            // Đối với đi công tác, gửi kèm tất cả vi phạm hiện có để BE xử lý miễn giảm snapshot
+            if (record.late_minutes > 0) {
+              explanationData.late_penalty = record.late_penalty;
+              explanationData.late_minutes = record.late_minutes;
+            }
+            if (record.early_leave_minutes > 0) {
+              explanationData.early_leave_penalty = record.early_leave_penalty;
+              explanationData.early_leave_minutes = record.early_leave_minutes;
+            }
+          }
         }
 
         result = await attendanceService.createAttendanceExplanation(explanationData);
@@ -1203,6 +1129,16 @@ const AttendanceManagement: React.FC = () => {
           ? 'Đơn nghỉ phép tháng đã được gửi thành công!'
           : 'Đơn bổ sung công đã được gửi thành công!';
         showNotify('success', 'Thành công', successMsg);
+
+        // Nếu là đơn giải trình, không đóng modal mà reset về bước 2 (Chọn lý do)
+        // để người dùng có thể làm tiếp các đơn khác (ví dụ xong đi muộn còn về sớm)
+        if (selectedContext === 'explanation') {
+          const prevContext = selectedContext;
+          resetSupplementaryForm();
+          setSelectedContext(prevContext);
+          setCurrentStep(2);
+          return; // Dừng lại ở đây, không gọi handleClose...
+        }
       }
 
       handleCloseSupplementaryRequest();
@@ -1723,6 +1659,7 @@ const AttendanceManagement: React.FC = () => {
           onMonthChange={(date: Date) => setCurrentDate(date)}
           employeeId={currentEmployee?.id}
           refreshTrigger={refreshDataTrigger}
+          onDataLoaded={handleCalendarDataLoaded}
         />
       </div>
 
@@ -2246,7 +2183,16 @@ const AttendanceManagement: React.FC = () => {
 
                             // Clean redundant prefixes from reason (e.g., "Tăng ca: abc" -> "abc")
                             const rawReason = ev.explanation || ev.data?.reason || ev.notes || '';
-                            let cleanedReason = rawReason;
+                            let cleanedReason = rawReason.trim();
+                            
+                            // Bóc các tiền tố trong ngoặc vuông [] (ví dụ: [Đi muộn: 5 phút] Lý do -> Lý do)
+                            if (cleanedReason.startsWith('[')) {
+                              const closingBracketIndex = cleanedReason.indexOf(']');
+                              if (closingBracketIndex !== -1) {
+                                cleanedReason = cleanedReason.substring(closingBracketIndex + 1).replace(/^[\:\-\s]+/, '').trim();
+                              }
+                            }
+
                             const prefixes = [
                               ...Object.values(EXPLANATION_TYPE_MAP),
                               'Tăng ca', 'Làm thêm giờ', 'Trực tối', 'Live', 'Livestream',
@@ -2326,8 +2272,26 @@ const AttendanceManagement: React.FC = () => {
                                   {ev.event_type === 'explanation' && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
                                       {cleanedReason && (
-                                        <p>Lý do: {cleanedReason}</p>
+                                        <p className="text-gray-900 font-medium">Lý do: {cleanedReason}</p>
                                       )}
+                                      
+                                      {/* Hiển thị chi tiết vi phạm nếu có trong dữ liệu đơn */}
+                                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 font-semibold">
+                                        {(ev.data?.late_minutes > 0 || ev.data?.late_penalty > 0) && (
+                                          <span className="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 flex items-center gap-1">
+                                            <ClockIcon className="h-3 w-3" />
+                                            {ev.data.late_minutes > 0 && `Đi muộn ${ev.data.late_minutes} phút`}
+                                            {ev.data.late_penalty > 0 && ` • Phạt ${ev.data.late_penalty.toLocaleString('vi-VN')}đ`}
+                                          </span>
+                                        )}
+                                        {(ev.data?.early_leave_minutes > 0 || ev.data?.early_leave_penalty > 0) && (
+                                          <span className="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 flex items-center gap-1">
+                                            <ClockIcon className="h-3 w-3" />
+                                            {ev.data.early_leave_minutes > 0 && `Về sớm ${ev.data.early_leave_minutes} phút`}
+                                            {ev.data.early_leave_penalty > 0 && ` • Phạt ${ev.data.early_leave_penalty.toLocaleString('vi-VN')}đ`}
+                                          </span>
+                                        )}
+                                      </div>
                                       {ev.data?.status && ev.data.status !== 'APPROVED' && (
                                         <p>
                                           Trạng thái:{' '}
@@ -2588,14 +2552,10 @@ const AttendanceManagement: React.FC = () => {
                         {/* Card 1: Giải trình đơn */}
                         <button
                           type="button"
-                          disabled={!hasAttendanceData}
                           onClick={() =>
-                            hasAttendanceData &&
                             handleContextSelect('explanation')
                           }
-                          className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${!hasAttendanceData
-                            ? 'opacity-50 cursor-not-allowed border-gray-200'
-                            : selectedContext === 'explanation'
+                          className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${selectedContext === 'explanation'
                               ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
                               : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
                             }`}
@@ -2628,22 +2588,20 @@ const AttendanceManagement: React.FC = () => {
                               <p className="mt-1 text-sm text-gray-500 leading-relaxed">
                                 Giải trình các vi phạm hoặc lý do công việc (Còn {attendanceStats?.remaining_explanations || 0}/{attendanceStats?.max_explanations_per_month || 3} lần)
                               </p>
-                              {!hasAttendanceData ? (
-                                <p className="mt-1 text-xs text-red-500">
-                                  Cần có dữ liệu chấm công để giải trình
+                              {!hasAttendanceData && (
+                                <p className="mt-1 text-xs text-amber-500 font-medium">
+                                  Vắng mặt: Có thể làm đơn Công tác, Quên chấm, Ngày đầu
                                 </p>
-                              ) : (
-                                (attendanceStats?.remaining_explanations || 0) <= 0 && (
-                                  <p className="mt-1 text-xs text-amber-600 font-medium italic">
-                                    Hết lượt giải trình vi phạm. (Công tác/Ngày đầu vẫn được duyệt)
-                                  </p>
-                                )
+                              )}
+                              {hasAttendanceData && (attendanceStats?.remaining_explanations || 0) <= 0 && (
+                                <p className="mt-1 text-xs text-amber-600 font-medium italic">
+                                  Hết lượt giải trình vi phạm. (Công tác/Ngày đầu vẫn được duyệt)
+                                </p>
                               )}
                             </div>
                           </div>
                           {/* Selected indicator */}
-                          {selectedContext === 'explanation' &&
-                            hasAttendanceData && (
+                          {selectedContext === 'explanation' && (
                               <div className="absolute top-3 right-3">
                                 <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
                                   <svg
@@ -2914,6 +2872,8 @@ const AttendanceManagement: React.FC = () => {
                                     if (reason.id === 'late_minutes' && e.explanation_type === 'LATE') return true;
                                     if (reason.id === 'early_leave_minutes' && e.explanation_type === 'EARLY_LEAVE') return true;
                                     if (reason.id === 'incomplete_attendance' && e.explanation_type === 'INCOMPLETE_ATTENDANCE') return true;
+                                    if (reason.id === 'business_trip' && e.explanation_type === 'BUSINESS_TRIP') return true;
+                                    if (reason.id === 'first_day' && e.explanation_type === 'FIRST_DAY') return true;
                                     return false;
                                   });
                                   if (alreadyExplained) return false;
@@ -2921,10 +2881,18 @@ const AttendanceManagement: React.FC = () => {
 
                                   if (reason.id === 'late_minutes') return !isIncomplete && (detail?.late_minutes || 0) > 0;
                                   if (reason.id === 'early_leave_minutes') return !isIncomplete && (detail?.early_leave_minutes || 0) > 0;
-                                  if (reason.id === 'incomplete_attendance') return isIncomplete;
+                                  if (reason.id === 'incomplete_attendance') return isIncomplete || !detail || detail.status === 'ABSENT';
                                   // Công tác và Ngày đầu chỉ hiện khi Vắng mặt hoặc chưa có dữ liệu
-                                  if (['business_trip', 'first_day'].includes(reason.id)) {
+                                  if (reason.id === 'first_day') {
                                     return !detail || detail.status === 'ABSENT';
+                                  }
+                                  if (reason.id === 'business_trip') {
+                                    // Hiển thị đi công tác khi vắng mặt HOẶC khi có vi phạm (muộn/sớm/quên chấm)
+                                    return !detail ||
+                                      detail.status === 'ABSENT' ||
+                                      (detail?.late_minutes || 0) > 0 ||
+                                      (detail?.early_leave_minutes || 0) > 0 ||
+                                      detail?.status === 'INCOMPLETE_ATTENDANCE';
                                   }
                                   return true;
                                 });
@@ -3084,7 +3052,7 @@ const AttendanceManagement: React.FC = () => {
                                             phút
                                           </span>
                                         </div>
-                                        {penaltyAmount > 0 && (
+                                        {(attendanceDetails[0].late_penalty || 0) > 0 && (
                                           <div className="mt-2 pt-2 border-t border-yellow-200 space-y-1">
                                             <div className="flex items-center justify-between">
                                               <span className="text-xs font-bold text-red-600 uppercase tracking-tighter">Số tiền phạt:</span>
@@ -3131,7 +3099,7 @@ const AttendanceManagement: React.FC = () => {
                                             phút
                                           </span>
                                         </div>
-                                        {penaltyAmount > 0 && (
+                                        {(attendanceDetails[0].early_leave_penalty || 0) > 0 && (
                                           <div className="mt-2 pt-2 border-t border-yellow-200 space-y-1">
                                             <div className="flex items-center justify-between">
                                               <span className="text-xs font-bold text-red-600 uppercase tracking-tighter">Số tiền phạt:</span>
@@ -3179,7 +3147,7 @@ const AttendanceManagement: React.FC = () => {
                             htmlFor="explanation-note"
                             className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                           >
-                            Ghi chú giải trình
+                            Ghi chú giải trình (bắt buộc)
                           </label>
                           <textarea
                             id="explanation-note"
@@ -3354,7 +3322,7 @@ const AttendanceManagement: React.FC = () => {
                                 htmlFor="overtime-note"
                                 className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                               >
-                                Ghi chú tăng ca
+                                Ghi chú tăng ca (bắt buộc)
                               </label>
                               <textarea
                                 id="overtime-note"
@@ -3504,7 +3472,7 @@ const AttendanceManagement: React.FC = () => {
                                 htmlFor="extra-hours-note"
                                 className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                               >
-                                Ghi chú làm thêm giờ
+                                Ghi chú làm thêm giờ (bắt buộc)
                               </label>
                               <textarea
                                 id="extra-hours-note"
@@ -3647,7 +3615,7 @@ const AttendanceManagement: React.FC = () => {
                               htmlFor="night-shift-note"
                               className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                             >
-                              Ghi chú trực tối
+                              Ghi chú trực tối (bắt buộc)
                             </label>
                             <textarea
                               id="night-shift-note"
@@ -3781,7 +3749,7 @@ const AttendanceManagement: React.FC = () => {
                                 htmlFor="live-note"
                                 className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                               >
-                                Ghi chú live
+                                Ghi chú live (bắt buộc)
                               </label>
                               <textarea
                                 id="live-note"
@@ -3858,7 +3826,7 @@ const AttendanceManagement: React.FC = () => {
                             htmlFor="first-day-note"
                             className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                           >
-                            Ghi chú
+                            Ghi chú (bắt buộc)
                           </label>
                           <textarea
                             id="first-day-note"
@@ -3883,7 +3851,7 @@ const AttendanceManagement: React.FC = () => {
                             htmlFor="business-trip-note"
                             className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                           >
-                            Ghi chú
+                            Ghi chú (bắt buộc)
                           </label>
                           <textarea
                             id="business-trip-note"
@@ -3908,7 +3876,7 @@ const AttendanceManagement: React.FC = () => {
                             htmlFor="online-work-note"
                             className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                           >
-                            Ghi chú làm việc online
+                            Ghi chú làm việc online (bắt buộc)
                           </label>
                           <textarea
                             id="online-work-note"
@@ -4079,7 +4047,7 @@ const AttendanceManagement: React.FC = () => {
                           htmlFor="online-work-note"
                           className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                         >
-                          Ghi chú
+                          Ghi chú (tùy chọn)
                         </label>
                         <textarea
                           id="online-work-note"
@@ -4131,7 +4099,8 @@ const AttendanceManagement: React.FC = () => {
                       ((selectedContext === 'explanation' ||
                         selectedContext === 'registration') &&
                         !selectedReason) ||
-                      !isRegistrationTimeValid()
+                      !isRegistrationTimeValid() ||
+                      (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave')
                     }
                     className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-transparent shadow-lg text-base font-semibold transition-all duration-200 ${isSubmitting
                       ? 'bg-purple-400 text-white cursor-wait'
@@ -4139,7 +4108,8 @@ const AttendanceManagement: React.FC = () => {
                         (selectedContext === 'monthly_leave' ||
                           selectedContext === 'online_work')) ||
                         (selectedContext && selectedReason)) &&
-                        isRegistrationTimeValid()
+                        isRegistrationTimeValid() &&
+                        (formNote?.trim() || selectedReason === 'incomplete_attendance' || selectedContext === 'monthly_leave')
                         ? 'text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transform hover:scale-[1.02]'
                         : 'text-gray-400 bg-gray-200 cursor-not-allowed'
                       }`}
