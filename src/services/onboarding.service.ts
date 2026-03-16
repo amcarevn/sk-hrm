@@ -79,8 +79,8 @@ export interface OnboardingProcess {
   id_card_back_url?: string;
   diploma_file?: string;
   diploma_file_url?: string;
-
-  // Notes
+  citizen_id_file?: string;
+  citizen_id_file_url?: string;
   notes?: string;
 
   // System

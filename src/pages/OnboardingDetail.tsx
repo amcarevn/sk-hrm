@@ -131,6 +131,8 @@ type OnboardingDetail = {
   id_card_back_url?: string | null;
   diploma_file?: string | null;
   diploma_file_url?: string | null;
+  citizen_id_file?: string | null;
+  citizen_id_file_url?: string | null;
   // Status flags
   employee_info_completed?: boolean;
   employee_info_completed_at?: string | null;
@@ -491,7 +493,7 @@ const OnboardingDetail: React.FC = () => {
               </div>
             </div>
 
-            {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file) && (
+            {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file || onboarding.citizen_id_file || onboarding.citizen_id_file_url) && (
               <div className="bg-white rounded-lg border p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center">
                   <span className="mr-2">📎</span>
@@ -503,6 +505,7 @@ const OnboardingDetail: React.FC = () => {
                     { key: 'id_card_front', label: 'CCCD mặt trước', url: onboarding.id_card_front_url || onboarding.id_card_front },
                     { key: 'id_card_back', label: 'CCCD mặt sau', url: onboarding.id_card_back_url || onboarding.id_card_back },
                     { key: 'diploma_file', label: 'Bằng cấp', url: onboarding.diploma_file_url || onboarding.diploma_file },
+                    { key: 'citizen_id_file', label: 'File CMND/CCCD', url: onboarding.citizen_id_file_url || onboarding.citizen_id_file },
                   ] as { key: string; label: string; url: string | null | undefined }[])
                     .filter(f => f.url)
                     .map(f => {
