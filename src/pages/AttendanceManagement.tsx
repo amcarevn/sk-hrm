@@ -69,7 +69,6 @@ const AttendanceManagement: React.FC = () => {
 
   // === Lịch sử đơn tháng ===
   const [showRequestHistoryDrawer, setShowRequestHistoryDrawer] = useState(false);
-  const [requestHistoryLoading, setRequestHistoryLoading] = useState(false);
   const [monthlyRequestHistory, setMonthlyRequestHistory] = useState<{
     explanations: any[];
     registrations: any[];
@@ -576,8 +575,6 @@ const AttendanceManagement: React.FC = () => {
         );
         if (!isMounted.current) return;
 
-        await fetchMonthlyRequestHistory(currentEmployee, currentDate, true);
-
         // fetchCalendarData sẽ KHÔNG được gọi ở đây nữa để tránh Duplicate 
         // Thay vào đó dùng dữ liệu từ AttendanceCalendar truyền lên
       } catch (err) {
@@ -738,66 +735,56 @@ const AttendanceManagement: React.FC = () => {
         total_early_leave_minutes: totalEarly,
       });
     }
-  };
 
-  // Fetch lịch sử đơn trong tháng hiện tại
-  const fetchMonthlyRequestHistory = async (emp?: Employee | null, date?: Date, silent = false) => {
-    const employee = emp ?? currentEmployee;
-    if (!employee) return;
-    setRequestHistoryLoading(true);
-    try {
-      const today = date ?? currentDate ?? new Date();
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const startDate = fmt(firstDay);
-      const endDate = fmt(lastDay);
+    // Trích xuất lịch sử đơn từ calendarArray thay vì gọi 3 API rời rạc
+    const explanations: any[] = [];
+    const registrations: any[] = [];
+    const onlineWorks: any[] = [];
+    const leaveRequests: any[] = [];
 
-      // Gọi song song 3 endpoint: giải trình, đăng ký công, online work
-      const [explanationsRes, registrationsRes, onlineWorksRes] = await Promise.all([
-        attendanceService.getAttendanceExplanations({
-          employee_id: employee.id,
-          month: today.getMonth() + 1,
-          year: today.getFullYear(),
-          page_size: 100,
-          ordering: '-created_at',
-        }),
-        attendanceService.getRegistrationRequests({
-          employee_id: employee.id,
-          start_date: startDate,
-          end_date: endDate,
-          page_size: 100,
-        }),
-        attendanceService.getOnlineWorkRequests({
-          employee_id: employee.id,
-          start_date: startDate,
-          end_date: endDate,
-          page_size: 100,
-        }),
-      ]);
+    calendarArray.forEach((day: any) => {
+      const dayRegs = day.registrations || [];
+      dayRegs.forEach((r: any) => {
+        const type = (r.event_type || '').toUpperCase();
+        // Fallback or use event_date from data, or day.date as fallback
+        const details = r.data || r;
+        
+        const item = { ...details };
+        if (!item.created_at && day.date) {
+            item.created_at = new Date(day.date).toISOString(); // fake created_at for sorting if missing
+        }
 
-      const allExplanations: any[] = explanationsRes.results || [];
-      const explanations = allExplanations.filter(e => e.explanation_type !== 'LEAVE');
-      const leaveRequests = allExplanations.filter(e => e.explanation_type === 'LEAVE');
-      const registrations: any[] = registrationsRes?.results || [];
-      const onlineWorks = Array.isArray(onlineWorksRes)
-        ? onlineWorksRes
-        : onlineWorksRes?.results || [];
-
-      setMonthlyRequestHistory({
-        explanations,
-        registrations,
-        onlineWorks,
-        leaveRequests,
+        if (type === 'EXPLANATION') {
+          if (details.explanation_type === 'LEAVE') {
+            leaveRequests.push(item);
+          } else {
+            explanations.push(item);
+          }
+        } else if (type === 'ONLINE_WORK') {
+          onlineWorks.push(item);
+        } else {
+          registrations.push(item);
+        }
       });
-    } catch (error) {
-      console.error('Error fetching monthly request history:', error);
-    } finally {
-      setRequestHistoryLoading(false);
-    }
+    });
+
+    // Sắp xếp các mảng theo thời gian giảm dần
+    const sortByParam = (a: any, b: any) => new Date(b.created_at || b.event_date || 0).getTime() - new Date(a.created_at || a.event_date || 0).getTime();
+    
+    explanations.sort(sortByParam);
+    registrations.sort(sortByParam);
+    onlineWorks.sort(sortByParam);
+    leaveRequests.sort(sortByParam);
+
+    setMonthlyRequestHistory({
+      explanations,
+      registrations,
+      onlineWorks,
+      leaveRequests,
+    });
   };
 
-  // Refresh all data on page
+  // Cập nhật dữ liệu
   const refreshAllData = async () => {
     if (currentEmployee) {
       console.log('🔄 [REFRESH] Synchronous data refresh triggered...');
@@ -811,7 +798,6 @@ const AttendanceManagement: React.FC = () => {
             currentEmployee.id,
             true
           ),
-          fetchMonthlyRequestHistory(currentEmployee, currentDate, true),
           // Nếu đang mở Modal chi tiết ngày, fetch lại chi tiết ngày đó
           selectedDate ? fetchAttendanceDetailsForDate(selectedDate) : Promise.resolve(),
         ]);
@@ -1241,7 +1227,6 @@ const AttendanceManagement: React.FC = () => {
           onClick={() => {
             setShowRequestHistoryDrawer(true);
             setHistoryActiveTab('all');
-            fetchMonthlyRequestHistory();
           }}
           className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white border border-purple-200 text-purple-700 rounded-xl shadow-sm hover:bg-purple-50 hover:border-purple-300 hover:shadow-md transition-all duration-200 font-medium text-sm"
         >
@@ -4561,12 +4546,7 @@ const AttendanceManagement: React.FC = () => {
 
                   {/* Content */}
                   <div className="flex-1 overflow-y-auto">
-                    {requestHistoryLoading ? (
-                      <div className="flex flex-col items-center justify-center h-48 gap-3">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
-                        <p className="text-sm text-gray-500">Đang tải lịch sử đơn...</p>
-                      </div>
-                    ) : (() => {
+                    {(() => {
                       // Tổng hợp danh sách theo tab
                       const allItems = [
                         ...(historyActiveTab === 'all' || historyActiveTab === 'explanation'
@@ -4725,8 +4705,7 @@ const AttendanceManagement: React.FC = () => {
                   <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
                     <button
                       onClick={() => {
-                        setRequestHistoryLoading(true);
-                        fetchMonthlyRequestHistory();
+                        refreshAllData();
                       }}
                       className="w-full flex items-center justify-center gap-2 py-2 text-sm text-purple-600 font-medium hover:text-purple-700 transition-colors"
                     >

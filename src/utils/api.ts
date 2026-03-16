@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 export const API_BASE_URL = 'https://backend-hrm.amcare.vn';
 //export const API_BASE_URL = 'https://app-uat.amcare.vn';
-//export const API_BASE_URL = 'http://localhost:8000';
+//port const API_BASE_URL = 'http://localhost:8000';
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -215,6 +215,7 @@ export interface AuthResponse {
     refreshToken: string;
   };
 }
+let profilePromise: Promise<{ user: User }> | null = null;
 
 // Authentication API
 export const authAPI = {
@@ -292,78 +293,90 @@ export const authAPI = {
   },
 
   getProfile: async (): Promise<{ user: User }> => {
-    const response: AxiosResponse<any> =
-      await managementApi.get('/api/users/profile/');
-    
-    // Debug: Log the full response from backend
-    console.log('authAPI.getProfile - Full response:', response.data);
-    console.log('authAPI.getProfile - Employee profile:', response.data.employee_profile);
-    console.log('authAPI.getProfile - HRM user:', response.data.hrm_user);
-    
-    // The API returns user fields directly at the top level, not wrapped in a 'user' object
-    const userData = response.data;
-    
-    // If employee_profile or hrm_user are not in the response, try to get them from nested structure
-    // or use the data from login response stored in localStorage
-    let employeeProfile = userData.employee_profile;
-    let hrmUser = userData.hrm_user;
-    
-    // If not found in direct response, check nested structures
-    if (!employeeProfile && userData.user && userData.user.employee_profile) {
-      employeeProfile = userData.user.employee_profile;
+    if (profilePromise) {
+      return profilePromise;
     }
-    if (!hrmUser && userData.user && userData.user.hrm_user) {
-      hrmUser = userData.user.hrm_user;
-    }
-    
-    // If still not found, try to get from localStorage (from login response)
-    if (!employeeProfile || !hrmUser) {
+
+    profilePromise = (async () => {
       try {
-        const loginData = localStorage.getItem('login_response');
-        if (loginData) {
-          const parsedLoginData = JSON.parse(loginData);
-          if (!employeeProfile && parsedLoginData.employee_profile) {
-            employeeProfile = parsedLoginData.employee_profile;
-          }
-          if (!hrmUser && parsedLoginData.hrm_user) {
-            hrmUser = parsedLoginData.hrm_user;
+        const response: AxiosResponse<any> =
+          await managementApi.get('/api/users/profile/');
+        
+        // Debug: Log the full response from backend
+        console.log('authAPI.getProfile - Full response:', response.data);
+        console.log('authAPI.getProfile - Employee profile:', response.data.employee_profile);
+        console.log('authAPI.getProfile - HRM user:', response.data.hrm_user);
+        
+        // The API returns user fields directly at the top level, not wrapped in a 'user' object
+        const userData = response.data;
+        
+        // If employee_profile or hrm_user are not in the response, try to get them from nested structure
+        // or use the data from login response stored in localStorage
+        let employeeProfile = userData.employee_profile;
+        let hrmUser = userData.hrm_user;
+        
+        // If not found in direct response, check nested structures
+        if (!employeeProfile && userData.user && userData.user.employee_profile) {
+          employeeProfile = userData.user.employee_profile;
+        }
+        if (!hrmUser && userData.user && userData.user.hrm_user) {
+          hrmUser = userData.user.hrm_user;
+        }
+        
+        // If still not found, try to get from localStorage (from login response)
+        if (!employeeProfile || !hrmUser) {
+          try {
+            const loginData = localStorage.getItem('login_response');
+            if (loginData) {
+              const parsedLoginData = JSON.parse(loginData);
+              if (!employeeProfile && parsedLoginData.employee_profile) {
+                employeeProfile = parsedLoginData.employee_profile;
+              }
+              if (!hrmUser && parsedLoginData.hrm_user) {
+                hrmUser = parsedLoginData.hrm_user;
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing login data from localStorage:', e);
           }
         }
-      } catch (e) {
-        console.error('Error parsing login data from localStorage:', e);
+        
+        const user: User = {
+          id: userData.user_id?.toString() || userData.id?.toString() || '',
+          username: userData.username || '',
+          email: userData.email || '',
+          firstName: userData.first_name || '',
+          lastName: userData.last_name || '',
+          phone: userData.phone_number || userData.username || '',
+          role: userData.role || 'user',
+          isActive: userData.is_active !== undefined ? userData.is_active : true,
+          lastLoginAt: new Date().toISOString(),
+          loginCount: 0,
+          emailVerified: false,
+          phoneVerified: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          is_super_admin: userData.is_super_admin || false,
+          // Spread TRƯỚC
+          ...userData,
+          // Set SAU để không bị userData ghi đè
+          employee_profile: employeeProfile,
+          hrm_user: hrmUser,
+        };
+        
+        console.log('authAPI.getProfile - Processed user:', user);
+        console.log('authAPI.getProfile - Processed employee_profile:', user.employee_profile);
+        console.log('authAPI.getProfile - Processed hrm_user:', user.hrm_user);
+        
+        // Clear promise after resolving so next requests trigger new fetch
+        profilePromise = null;
+        return { user };
+      } catch (error) {
+        profilePromise = null;
+        throw error;
       }
-    }
-    
-    const user: User = {
-      id: userData.user_id?.toString() || userData.id?.toString() || '',
-      username: userData.username || '',
-      email: userData.email || '',
-      firstName: userData.first_name || '',
-      lastName: userData.last_name || '',
-      phone: userData.phone_number || userData.username || '',
-      role: userData.role || 'user',
-      isActive: userData.is_active !== undefined ? userData.is_active : true,
-      lastLoginAt: new Date().toISOString(),
-      loginCount: 0,
-      emailVerified: false,
-      phoneVerified: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      is_super_admin: userData.is_super_admin || false,
-      // Spread TRƯỚC
-      ...userData,
-      // Set SAU để không bị userData ghi đè
-      employee_profile: employeeProfile,
-      hrm_user: hrmUser,
-    };
-    
-    console.log('authAPI.getProfile - Processed user:', user);
-    console.log('authAPI.getProfile - Processed employee_profile:', user.employee_profile);
-    console.log('authAPI.getProfile - Processed hrm_user:', user.hrm_user);
-    
-    return {
-      user,
-    };
+    })();
+    return profilePromise;
   },
 
   logout: async (): Promise<void> => {
@@ -1810,6 +1823,8 @@ export interface EmployeeUpdateData {
   is_hr?: boolean;
 }
 
+let mePromise: Promise<Employee> | null = null;
+
 // Employees API
 export const employeesAPI = {
   list: async (params?: {
@@ -1864,8 +1879,17 @@ export const employeesAPI = {
   },
 
   me: async (): Promise<Employee> => {
-    const response: AxiosResponse<Employee> = await managementApi.get('/api-hrm/employees/me/');
-    return response.data;
+    if (mePromise) return mePromise;
+
+    mePromise = (async () => {
+      try {
+        const response: AxiosResponse<Employee> = await managementApi.get('/api-hrm/employees/me/');
+        return response.data;
+      } finally {
+        mePromise = null;
+      }
+    })();
+    return mePromise;
   },
 
   create: async (data: EmployeeCreateData): Promise<Employee> => {

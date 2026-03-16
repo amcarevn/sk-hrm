@@ -1,5 +1,8 @@
 import { managementApi } from '../utils/api';
 
+let attendanceStatsPromises: Record<string, Promise<AttendanceStats>> = {};
+let calendarViewPromises: Record<string, Promise<CalendarViewData>> = {};
+
 export interface AttendanceEvent {
   id: number;
   event_type: string;
@@ -295,26 +298,47 @@ class AttendanceService {
     start_date?: string;
     end_date?: string;
   }): Promise<AttendanceStats> {
-    try {
-      const response = await managementApi.get('/api-hrm/attendance/stats/', { params });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching attendance stats:', error);
-      throw error;
+    const cacheKey = JSON.stringify(params || {});
+    if (cacheKey in attendanceStatsPromises) {
+      return attendanceStatsPromises[cacheKey];
     }
+    
+    attendanceStatsPromises[cacheKey] = (async () => {
+      try {
+        const response = await managementApi.get('/api-hrm/attendance/stats/', { params });
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching attendance stats:', error);
+        throw error;
+      } finally {
+        setTimeout(() => { delete attendanceStatsPromises[cacheKey]; }, 100);
+      }
+    })();
+    return attendanceStatsPromises[cacheKey];
   }
 
   /**
    * Lấy dữ liệu lịch chấm công
    */
   async getCalendarView(params?: CalendarViewParams): Promise<CalendarViewData> {
-    try {
-      const response = await managementApi.get('/api-hrm/attendance/calendar-view/', { params });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching calendar view:', error);
-      throw error;
+    const cacheKey = JSON.stringify(params || {});
+    if (cacheKey in calendarViewPromises) {
+      return calendarViewPromises[cacheKey];
     }
+    
+    calendarViewPromises[cacheKey] = (async () => {
+      try {
+        const response = await managementApi.get('/api-hrm/attendance/calendar-view/', { params });
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching calendar view:', error);
+        throw error;
+      } finally {
+        // clear cache slightly later to deduplicate very close concurrent requests
+        setTimeout(() => { delete calendarViewPromises[cacheKey]; }, 100);
+      }
+    })();
+    return calendarViewPromises[cacheKey];
   }
 
   /**
