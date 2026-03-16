@@ -307,7 +307,7 @@ const Approvals: React.FC = () => {
 
       // Lọc dữ liệu theo phòng ban nếu không phải Admin/HR
       let filteredWfItems = pendingWfItems;
-      if (!activeAdmin && !activeHR) {
+      if (!activeAdmin) {
         if (!userDeptCode) {
           console.warn('⚠️ [APPROVALS] NO DEPT CODE found. Manager cannot see items.');
           filteredWfItems = [];
@@ -655,7 +655,7 @@ const Approvals: React.FC = () => {
 
       const isMyDept = request.department_code === myDeptCode;
       
-      return isAdminUser || isHRUser || isMyDept;
+      return isAdminUser || isMyDept;
     }
 
     // For explanations and leaves, use the dedicated logic
@@ -2043,7 +2043,7 @@ const Approvals: React.FC = () => {
         </div>
 
         {/* BẢNG YÊU CẦU CHỜ DUYỆT RIÊNG BIỆT CHO QUẢN LÝ (Viết ở dưới theo yêu cầu) */}
-        {activeTab === 'pending' && !loading && (isAdmin || isHR || isManagement) && (
+        {activeTab === 'pending' && !loading && (isAdmin || isManagement) && (
           <div className="mt-12 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex items-center justify-between mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
               <div className="flex items-center gap-4">
