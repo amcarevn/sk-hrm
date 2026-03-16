@@ -93,6 +93,7 @@ export interface AttendanceCalendarProps {
   employeeId?: number;
   departmentId?: number;
   refreshTrigger?: number;
+  onDataLoaded?: (data: { calendar: any[]; summary: any }) => void;
 }
 
 const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
@@ -103,6 +104,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   employeeId,
   departmentId,
   refreshTrigger,
+  onDataLoaded,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date(year, month, 1));
   const [attendanceData, setAttendanceData] = useState<AttendanceDay[]>([]);
@@ -380,6 +382,14 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       });
 
       setAttendanceData(transformedData);
+      
+      // Notify parent of the data (to avoid duplicate API calls in parent)
+      if (onDataLoaded) {
+        onDataLoaded({
+          calendar: calendarDays,
+          summary: (responseData as any)?.data?.summary || (responseData as any)?.summary || null
+        });
+      }
     } catch (error) {
       console.error('Error fetching calendar data:', error);
       setAttendanceData([]);

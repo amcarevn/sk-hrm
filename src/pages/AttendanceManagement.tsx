@@ -6,7 +6,7 @@ import {
   AttendanceRecord,
   AttendanceEvent,
 } from '../services/attendance.service';
-import { employeesAPI, Employee, managementApi } from '../utils/api';
+import { employeesAPI, Employee } from '../utils/api';
 import {
   XMarkIcon,
   DocumentPlusIcon,
@@ -42,9 +42,6 @@ const AttendanceManagement: React.FC = () => {
   const [showSupplementaryRequestModal, setShowSupplementaryRequestModal] =
     useState(false);
   const [attendanceStats, setAttendanceStats] = useState<any>(null);
-  const [attendanceRecords, setAttendanceRecords] = useState<
-    AttendanceRecord[]
-  >([]);
   const [loading, setLoading] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
   const isManagementUser = !!(currentEmployee?.position?.is_management || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'HR');
@@ -53,17 +50,19 @@ const AttendanceManagement: React.FC = () => {
   >([]);
 
   console.log('attendanceDetails', attendanceDetails);
-  const [attendanceSummary, setAttendanceSummary] = useState<any>(null);
   const [fetchingDetails, setFetchingDetails] = useState(false);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [approvedExplanations, setApprovedExplanations] = useState<any[]>([]);
+  const isMounted = React.useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
   const [allExplanations, setAllExplanations] = useState<any[]>([]);
   const [approvedRegistrations, setApprovedRegistrations] = useState<any[]>([]);
-  const [approvedLeaveRequests, setApprovedLeaveRequests] = useState<any[]>([]);
-  const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
   const [monthlyWorkCredits, setMonthlyWorkCredits] = useState<any>(null);
   const [penaltyAmount, setPenaltyAmount] = useState<number>(0);
-  const [workCreditsLoading, setWorkCreditsLoading] = useState(false);
   const [refreshDataTrigger, setRefreshDataTrigger] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -116,17 +115,6 @@ const AttendanceManagement: React.FC = () => {
     HALF_DAY: 'Nửa ngày',
     INCOMPLETE_ATTENDANCE: 'Quên chấm công',
   };
-
-  const EXPECTED_STATUS_MAP: Record<string, string> = {
-    ...ATTENDANCE_STATUS_MAP,
-    PRESENT: 'Đủ công',
-  };
-
-  const getOriginalStatusText = (status: string): string =>
-    ATTENDANCE_STATUS_MAP[status] || status;
-
-  const getExpectedStatusText = (status: string): string =>
-    EXPECTED_STATUS_MAP[status] || status;
 
   // Mapping loại đơn giải trình/đăng ký sang tiếng Việt
   const EXPLANATION_TYPE_MAP: Record<string, string> = {
@@ -540,7 +528,7 @@ const AttendanceManagement: React.FC = () => {
     }
   };
   // ===================== END STEP-BASED FORM STATE =====================
-  const [calendarData, setCalendarData] = useState<any[]>([]);
+  /* Removed calendarData state */
   const [calendarSummary, setCalendarSummary] = useState<{
     total_work_days: number;
     full_days: number;
@@ -572,30 +560,33 @@ const AttendanceManagement: React.FC = () => {
     if (!currentEmployee) return;
 
     const fetchAllData = async () => {
-      // Set loading only for the first time or when specifically needed
-      if (initialLoading) {
-        setLoading(true);
-      }
+      if (!currentEmployee || !isMounted.current) return;
+      if (initialLoading) setLoading(true);
 
       try {
-        await Promise.all([
-          fetchAttendanceStats(currentEmployee),
-          fetchAttendanceRecords(currentEmployee),
-          fetchMonthlyWorkCredits(
-            currentDate.getMonth() + 1,
-            currentDate.getFullYear(),
-            currentEmployee.id
-          ),
-          fetchCalendarData(
-            currentDate.getMonth() + 1,
-            currentDate.getFullYear(),
-            currentEmployee.id
-          ),
-          fetchMonthlyRequestHistory(currentEmployee, currentDate),
-        ]);
+        // Tối ưu hóa: Gọi tuần tự (Sequential Await) theo ý USER
+        await fetchAttendanceStats(currentEmployee, true);
+        if (!isMounted.current) return;
+
+        await fetchMonthlyWorkCredits(
+          currentDate.getMonth() + 1,
+          currentDate.getFullYear(),
+          currentEmployee.id,
+          true
+        );
+        if (!isMounted.current) return;
+
+        await fetchMonthlyRequestHistory(currentEmployee, currentDate, true);
+        
+        // fetchCalendarData sẽ KHÔNG được gọi ở đây nữa để tránh Duplicate 
+        // Thay vào đó dùng dữ liệu từ AttendanceCalendar truyền lên
+      } catch (err) {
+        console.error('Error fetching all data:', err);
       } finally {
-        setLoading(false);
-        setInitialLoading(false);
+        if (isMounted.current) {
+          setLoading(false);
+          setInitialLoading(false);
+        }
       }
     };
 
@@ -614,9 +605,9 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
-  const fetchAttendanceStats = async (employee?: Employee | null) => {
+  const fetchAttendanceStats = async (employee?: Employee | null, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const today = currentDate || new Date();
       const firstDayOfMonth = new Date(
         today.getFullYear(),
@@ -685,55 +676,19 @@ const AttendanceManagement: React.FC = () => {
     } catch (error) {
       console.error('❌ [STATS] Error fetching attendance stats:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
-  const fetchAttendanceRecords = async (employee?: Employee | null) => {
-    try {
-      const today = currentDate || new Date();
-      const firstDayOfMonth = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        1
-      );
-      const lastDayOfMonth = new Date(
-        today.getFullYear(),
-        today.getMonth() + 1,
-        0
-      );
-
-      // Reuse the formatDateLocal function from fetchAttendanceStats
-      const formatDateLocal = (date: Date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      };
-
-      // Use employee parameter or currentEmployee from state
-      const targetEmployee = employee || currentEmployee;
-
-      const response = await attendanceService.getAttendanceRecords({
-        start_date: formatDateLocal(firstDayOfMonth),
-        end_date: formatDateLocal(lastDayOfMonth),
-        employee_id: targetEmployee?.id,
-        department_id: targetEmployee?.department?.id,
-        page_size: 50,
-      });
-      setAttendanceRecords(response.results);
-    } catch (error) {
-      console.error('Error fetching attendance records:', error);
-    }
-  };
+  /* Removed fetchAttendanceRecords function */
 
   const fetchMonthlyWorkCredits = async (
     month?: number,
     year?: number,
-    employeeId?: number
+    employeeId?: number,
+    silent = false
   ) => {
     try {
-      setWorkCreditsLoading(true);
       const today = new Date();
       const params = {
         month: month || today.getMonth() + 1,
@@ -745,55 +700,25 @@ const AttendanceManagement: React.FC = () => {
       setMonthlyWorkCredits(response);
     } catch (error) {
       console.error('Error fetching monthly work credits:', error);
-    } finally {
-      setWorkCreditsLoading(false);
     }
   };
 
-  const fetchCalendarData = async (
-    month?: number,
-    year?: number,
-    employeeId?: number
-  ) => {
-    try {
-      const today = currentDate || new Date();
-      const params = {
-        year: year || today.getFullYear(),
-        month: month || today.getMonth() + 1,
-        employee_id: employeeId || currentEmployee?.id,
-      };
-
-      const response = await attendanceService.getCalendarView(params);
-
-      // Support new API format: { success: true, data: { calendar: [...], summary: {...} } }
-      // and old format: { calendar_data: [...] }
-      const calendarArray =
-        (response as any)?.data?.calendar ||
-        (response as any)?.calendar_data ||
-        [];
-      setCalendarData(calendarArray);
-
-      // Extract summary from new API format
-      let summary = (response as any)?.data?.summary;
-      if (summary) {
-        // Calculate total late and early minutes manually from calendar data
-        const totalLate = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.late_minutes || 0), 0);
-        const totalEarly = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.early_leave_minutes || 0), 0);
-
-        setCalendarSummary({
-          ...summary,
-          total_late_minutes: totalLate,
-          total_early_leave_minutes: totalEarly,
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching calendar data:', error);
-      setCalendarData([]);
+  // Xử lý dữ liệu trả về từ AttendanceCalendar (Tránh gọi API 2 lần)
+  const handleCalendarDataLoaded = (data: { calendar: any[]; summary: any }) => {
+    const { calendar: calendarArray, summary } = data;
+    if (summary) {
+      const totalLate = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.late_minutes || 0), 0);
+      const totalEarly = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.early_leave_minutes || 0), 0);
+      setCalendarSummary({
+        ...summary,
+        total_late_minutes: totalLate,
+        total_early_leave_minutes: totalEarly,
+      });
     }
   };
 
   // Fetch lịch sử đơn trong tháng hiện tại
-  const fetchMonthlyRequestHistory = async (emp?: Employee | null, date?: Date) => {
+  const fetchMonthlyRequestHistory = async (emp?: Employee | null, date?: Date, silent = false) => {
     const employee = emp ?? currentEmployee;
     if (!employee) return;
     setRequestHistoryLoading(true);
@@ -852,23 +777,22 @@ const AttendanceManagement: React.FC = () => {
   // Refresh all data on page
   const refreshAllData = async () => {
     if (currentEmployee) {
-      console.log('🔄 [REFRESH] Refreshing all attendance data...');
-      await Promise.all([
-        fetchAttendanceStats(currentEmployee),
-        fetchAttendanceRecords(currentEmployee),
-        fetchMonthlyWorkCredits(
+      console.log('🔄 [REFRESH] Synchronous data refresh triggered...');
+      setLoading(true);
+      try {
+        await fetchAttendanceStats(currentEmployee, true);
+        await fetchMonthlyWorkCredits(
           currentDate.getMonth() + 1,
           currentDate.getFullYear(),
-          currentEmployee.id
-        ),
-        fetchCalendarData(
-          currentDate.getMonth() + 1,
-          currentDate.getFullYear(),
-          currentEmployee.id
-        ),
-        fetchMonthlyRequestHistory(currentEmployee, currentDate),
-      ]);
-      setRefreshDataTrigger((prev) => prev + 1);
+          currentEmployee.id,
+          true
+        );
+        await fetchMonthlyRequestHistory(currentEmployee, currentDate, true);
+        // RefreshTrigger sẽ điều khiển AttendanceCalendar tự fetch
+        setRefreshDataTrigger((prev) => prev + 1);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -878,11 +802,8 @@ const AttendanceManagement: React.FC = () => {
     setFetchingDetails(true);
 
     // Set approved requests từ dayData ngay lập tức (không reset về mảng rỗng)
-    setApprovedExplanations(dayData?.approvedExplanations || []);
     setAllExplanations(dayData?.allExplanations || []);
     setApprovedRegistrations(dayData?.approvedRegistrations || []);
-    setApprovedLeaveRequests(dayData?.approvedLeaveRequests || []);
-    setOnlineWorkRequests(dayData?.approvedOnlineWorks || []);
     setPenaltyAmount(dayData?.engine_context?.penalty_amount || 0);
 
     try {
@@ -903,69 +824,9 @@ const AttendanceManagement: React.FC = () => {
 
       setAttendanceDetails(response.results);
 
-      // Calculate summary
-      if (response.results.length > 0) {
-        const summary = {
-          totalHours: response.results.reduce(
-            (sum: number, record: AttendanceRecord) =>
-              sum + (record.working_hours || 0),
-            0
-          ),
-          presentCount: response.results.filter(
-            (record: AttendanceRecord) => record.status === 'PRESENT'
-          ).length,
-          lateCount: response.results.filter(
-            (record: AttendanceRecord) => record.status === 'LATE'
-          ).length,
-          earlyLeaveCount: response.results.filter(
-            (record: AttendanceRecord) => record.status === 'EARLY_LEAVE'
-          ).length,
-          absentCount: response.results.filter(
-            (record: AttendanceRecord) => record.status === 'ABSENT'
-          ).length,
-          halfDayCount: response.results.filter(
-            (record: AttendanceRecord) => record.status === 'HALF_DAY'
-          ).length,
-          incompleteCount: response.results.filter(
-            (record: AttendanceRecord) =>
-              record.status === 'INCOMPLETE_ATTENDANCE'
-          ).length,
-          totalShifts: response.results.length,
-          workCoefficient: dayData?.engine_context?.work_credit ?? 0,
-          totalLateMinutes:
-            dayData?.lateMinutes ??
-            response.results.reduce(
-              (sum: number, r: any) => sum + (r.late_minutes || 0),
-              0
-            ),
-          totalEarlyLeaveMinutes:
-            dayData?.earlyLeaveMinutes ??
-            response.results.reduce(
-              (sum: number, r: any) => sum + (r.early_leave_minutes || 0),
-              0
-            ),
-        };
-        setAttendanceSummary(summary);
-      } else {
-        // Default summary if no records
-        setAttendanceSummary({
-          totalHours: 0,
-          presentCount: 0,
-          lateCount: 0,
-          earlyLeaveCount: 0,
-          absentCount: 0,
-          halfDayCount: 0,
-          incompleteCount: 0,
-          totalShifts: 0,
-          workCoefficient: 0,
-          totalLateMinutes: 0,
-          totalEarlyLeaveMinutes: 0,
-        });
-      }
     } catch (error) {
       console.error('Error fetching attendance details:', error);
       setAttendanceDetails([]);
-      setAttendanceSummary(null);
     } finally {
       setFetchingDetails(false);
     }
@@ -974,9 +835,7 @@ const AttendanceManagement: React.FC = () => {
   const handleCloseModal = () => {
     setShowAttendanceModal(false);
     setSelectedDate(null);
-    setApprovedExplanations([]);
     setAllExplanations([]);
-    setApprovedLeaveRequests([]);
   };
 
   const handleOpenSupplementaryRequest = () => {
@@ -1723,6 +1582,7 @@ const AttendanceManagement: React.FC = () => {
           onMonthChange={(date: Date) => setCurrentDate(date)}
           employeeId={currentEmployee?.id}
           refreshTrigger={refreshDataTrigger}
+          onDataLoaded={handleCalendarDataLoaded}
         />
       </div>
 
