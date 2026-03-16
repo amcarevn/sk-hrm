@@ -577,7 +577,7 @@ const AttendanceManagement: React.FC = () => {
         if (!isMounted.current) return;
 
         await fetchMonthlyRequestHistory(currentEmployee, currentDate, true);
-        
+
         // fetchCalendarData sẽ KHÔNG được gọi ở đây nữa để tránh Duplicate 
         // Thay vào đó dùng dữ liệu từ AttendanceCalendar truyền lên
       } catch (err) {
@@ -592,6 +592,29 @@ const AttendanceManagement: React.FC = () => {
 
     fetchAllData();
   }, [currentEmployee?.id, currentDate.getMonth(), currentDate.getFullYear()]);
+
+  // Effect 3: Đồng bộ allExplanations và approvedRegistrations khi monthlyRequestHistory hoặc selectedDate thay đổi
+  // Điều này đảm bảo khi nhấn Làm đơn bổ sung lần nữa (hoặc đang mở), dữ liệu lọc sẽ luôn mới nhất
+  useEffect(() => {
+    if (selectedDate && currentEmployee) {
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
+      // Lọc giải trình của ngày đang chọn
+      const dayExplanations = monthlyRequestHistory.explanations.filter(e => 
+        e.attendance_date === dateStr || (e.event_date && e.event_date === dateStr)
+      );
+      setAllExplanations(dayExplanations);
+
+      // Lọc đăng ký của ngày đang chọn
+      const dayRegistrations = monthlyRequestHistory.registrations.filter(r => 
+        r.attendance_date === dateStr || (r.event_date && r.event_date === dateStr)
+      );
+      setApprovedRegistrations(dayRegistrations.filter(r => r.status === 'APPROVED'));
+    }
+  }, [monthlyRequestHistory, selectedDate, currentEmployee?.id]);
 
   const fetchCurrentEmployee = async (): Promise<Employee | null> => {
     try {
@@ -780,14 +803,19 @@ const AttendanceManagement: React.FC = () => {
       console.log('🔄 [REFRESH] Synchronous data refresh triggered...');
       setLoading(true);
       try {
-        await fetchAttendanceStats(currentEmployee, true);
-        await fetchMonthlyWorkCredits(
-          currentDate.getMonth() + 1,
-          currentDate.getFullYear(),
-          currentEmployee.id,
-          true
-        );
-        await fetchMonthlyRequestHistory(currentEmployee, currentDate, true);
+        await Promise.all([
+          fetchAttendanceStats(currentEmployee, true),
+          fetchMonthlyWorkCredits(
+            currentDate.getMonth() + 1,
+            currentDate.getFullYear(),
+            currentEmployee.id,
+            true
+          ),
+          fetchMonthlyRequestHistory(currentEmployee, currentDate, true),
+          // Nếu đang mở Modal chi tiết ngày, fetch lại chi tiết ngày đó
+          selectedDate ? fetchAttendanceDetailsForDate(selectedDate) : Promise.resolve(),
+        ]);
+
         // RefreshTrigger sẽ điều khiển AttendanceCalendar tự fetch
         setRefreshDataTrigger((prev) => prev + 1);
       } finally {
@@ -796,17 +824,9 @@ const AttendanceManagement: React.FC = () => {
     }
   };
 
-  const handleDateClick = async (date: Date, dayData?: any) => {
-    setSelectedDate(date);
-    setShowAttendanceModal(true);
-    setFetchingDetails(true);
-
-    // Set approved requests từ dayData ngay lập tức (không reset về mảng rỗng)
-    setAllExplanations(dayData?.allExplanations || []);
-    setApprovedRegistrations(dayData?.approvedRegistrations || []);
-    setPenaltyAmount(dayData?.engine_context?.penalty_amount || 0);
-
+  const fetchAttendanceDetailsForDate = async (date: Date) => {
     try {
+      setFetchingDetails(true);
       // Format date to YYYY-MM-DD in local timezone
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -824,12 +844,36 @@ const AttendanceManagement: React.FC = () => {
 
       setAttendanceDetails(response.results);
 
+      // Cập nhật lại penaltyAmount từ record mới nhất nếu có
+      if (response.results && response.results.length > 0) {
+        const record = response.results[0];
+        // Ưu tiên dùng dữ liệu từ engine nếu có (engine_summary hoặc engine_context thường được map vào record ở BE)
+        // Nếu không có trường penalty tổng, ta cộng late + early
+        const newPenalty = (record.late_penalty || 0) + (record.early_leave_penalty || 0);
+        setPenaltyAmount(newPenalty);
+      }
+      
+      return response.results;
     } catch (error) {
       console.error('Error fetching attendance details:', error);
       setAttendanceDetails([]);
+      return [];
     } finally {
       setFetchingDetails(false);
     }
+  };
+
+  const handleDateClick = async (date: Date, dayData?: any) => {
+    setSelectedDate(date);
+    setShowAttendanceModal(true);
+
+    // Set approved requests từ dayData ngay lập tức (không reset về mảng rỗng)
+    setAllExplanations(dayData?.allExplanations || []);
+    setApprovedRegistrations(dayData?.approvedRegistrations || []);
+    setPenaltyAmount(dayData?.engine_context?.penalty_amount || 0);
+
+    // Fetch chi tiết bản ghi (bao gồm Lịch sử sự kiện)
+    await fetchAttendanceDetailsForDate(date);
   };
 
   const handleCloseModal = () => {
@@ -1042,17 +1086,16 @@ const AttendanceManagement: React.FC = () => {
           status: 'PENDING',
         };
 
-        // Thêm thông tin loại quên chấm công kèm giờ cụ thể
-        if (selectedReason === 'incomplete_attendance') {
-          const checkinPart = forgotCheckinTime ? ` lúc ${forgotCheckinTime}` : '';
-          const checkoutPart = forgotCheckoutTime ? ` lúc ${forgotCheckoutTime}` : '';
-          const typeLabel =
-            forgotPunchType === 'checkin'
-              ? `Quên check-in${checkinPart}`
-              : forgotPunchType === 'checkout'
-                ? `Quên check-out${checkoutPart}`
-                : `Quên cả vào${checkinPart ? ` (${forgotCheckinTime})` : ''} và ra${checkoutPart ? ` (${forgotCheckoutTime})` : ''}`;
-          explanationData.reason = `[${typeLabel}] ${finalReason}`;
+        // Gửi kèm tiền phạt và số phút của vi phạm tương ứng (Snapshot data)
+        const record = attendanceDetails[0];
+        if (record) {
+          if (explanationType === 'LATE') {
+            explanationData.late_penalty = record.late_penalty;
+            explanationData.late_minutes = record.late_minutes;
+          } else if (explanationType === 'EARLY_LEAVE') {
+            explanationData.early_leave_penalty = record.early_leave_penalty;
+            explanationData.early_leave_minutes = record.early_leave_minutes;
+          }
         }
 
         result = await attendanceService.createAttendanceExplanation(explanationData);
@@ -1062,6 +1105,16 @@ const AttendanceManagement: React.FC = () => {
           ? 'Đơn nghỉ phép tháng đã được gửi thành công!'
           : 'Đơn bổ sung công đã được gửi thành công!';
         showNotify('success', 'Thành công', successMsg);
+
+        // Nếu là đơn giải trình, không đóng modal mà reset về bước 2 (Chọn lý do)
+        // để người dùng có thể làm tiếp các đơn khác (ví dụ xong đi muộn còn về sớm)
+        if (selectedContext === 'explanation') {
+          const prevContext = selectedContext;
+          resetSupplementaryForm();
+          setSelectedContext(prevContext);
+          setCurrentStep(2);
+          return; // Dừng lại ở đây, không gọi handleClose...
+        }
       }
 
       handleCloseSupplementaryRequest();
@@ -2106,7 +2159,16 @@ const AttendanceManagement: React.FC = () => {
 
                             // Clean redundant prefixes from reason (e.g., "Tăng ca: abc" -> "abc")
                             const rawReason = ev.explanation || ev.data?.reason || ev.notes || '';
-                            let cleanedReason = rawReason;
+                            let cleanedReason = rawReason.trim();
+                            
+                            // Bóc các tiền tố trong ngoặc vuông [] (ví dụ: [Đi muộn: 5 phút] Lý do -> Lý do)
+                            if (cleanedReason.startsWith('[')) {
+                              const closingBracketIndex = cleanedReason.indexOf(']');
+                              if (closingBracketIndex !== -1) {
+                                cleanedReason = cleanedReason.substring(closingBracketIndex + 1).replace(/^[\:\-\s]+/, '').trim();
+                              }
+                            }
+
                             const prefixes = [
                               ...Object.values(EXPLANATION_TYPE_MAP),
                               'Tăng ca', 'Làm thêm giờ', 'Trực tối', 'Live', 'Livestream',
@@ -2186,8 +2248,26 @@ const AttendanceManagement: React.FC = () => {
                                   {ev.event_type === 'explanation' && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
                                       {cleanedReason && (
-                                        <p>Lý do: {cleanedReason}</p>
+                                        <p className="text-gray-900 font-medium">Lý do: {cleanedReason}</p>
                                       )}
+                                      
+                                      {/* Hiển thị chi tiết vi phạm nếu có trong dữ liệu đơn */}
+                                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 font-semibold">
+                                        {(ev.data?.late_minutes > 0 || ev.data?.late_penalty > 0) && (
+                                          <span className="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 flex items-center gap-1">
+                                            <ClockIcon className="h-3 w-3" />
+                                            {ev.data.late_minutes > 0 && `Đi muộn ${ev.data.late_minutes} phút`}
+                                            {ev.data.late_penalty > 0 && ` • Phạt ${ev.data.late_penalty.toLocaleString('vi-VN')}đ`}
+                                          </span>
+                                        )}
+                                        {(ev.data?.early_leave_minutes > 0 || ev.data?.early_leave_penalty > 0) && (
+                                          <span className="text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 flex items-center gap-1">
+                                            <ClockIcon className="h-3 w-3" />
+                                            {ev.data.early_leave_minutes > 0 && `Về sớm ${ev.data.early_leave_minutes} phút`}
+                                            {ev.data.early_leave_penalty > 0 && ` • Phạt ${ev.data.early_leave_penalty.toLocaleString('vi-VN')}đ`}
+                                          </span>
+                                        )}
+                                      </div>
                                       {ev.data?.status && ev.data.status !== 'APPROVED' && (
                                         <p>
                                           Trạng thái:{' '}
@@ -2944,7 +3024,7 @@ const AttendanceManagement: React.FC = () => {
                                             phút
                                           </span>
                                         </div>
-                                        {penaltyAmount > 0 && (
+                                        {(attendanceDetails[0].late_penalty || 0) > 0 && (
                                           <div className="mt-2 pt-2 border-t border-yellow-200 space-y-1">
                                             <div className="flex items-center justify-between">
                                               <span className="text-xs font-bold text-red-600 uppercase tracking-tighter">Số tiền phạt:</span>
@@ -2991,7 +3071,7 @@ const AttendanceManagement: React.FC = () => {
                                             phút
                                           </span>
                                         </div>
-                                        {penaltyAmount > 0 && (
+                                        {(attendanceDetails[0].early_leave_penalty || 0) > 0 && (
                                           <div className="mt-2 pt-2 border-t border-yellow-200 space-y-1">
                                             <div className="flex items-center justify-between">
                                               <span className="text-xs font-bold text-red-600 uppercase tracking-tighter">Số tiền phạt:</span>

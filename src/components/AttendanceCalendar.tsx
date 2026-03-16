@@ -398,10 +398,6 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     }
   };
 
-  useEffect(() => {
-    fetchCalendarData();
-  }, [currentDate, employeeId, departmentId]);
-
   // Navigation
   const goToPreviousMonth = () => {
     const newDate = new Date(

@@ -476,6 +476,14 @@ const Approvals: React.FC = () => {
     if (!rawReason) return '';
     let clean = rawReason.trim();
 
+    // 0. Bóc các tiền tố trong ngoặc vuông [] (ví dụ: [Đi muộn: 5 phút])
+    if (clean.startsWith('[')) {
+      const closingBracketIndex = clean.indexOf(']');
+      if (closingBracketIndex !== -1) {
+        clean = clean.substring(closingBracketIndex + 1).replace(/^[\:\-\s]+/, '').trim();
+      }
+    }
+
     // Danh sách các tiền tố cần bóc tách
     const prefixes = [
       itemTypeLabel,
@@ -2109,12 +2117,12 @@ const Approvals: React.FC = () => {
                                               <div className="flex items-center gap-2">
                                                 {item.late_minutes > 0 && (
                                                   <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2 py-0.5 border border-amber-100/50 rounded-lg">
-                                                    <span className="text-[10px] font-black uppercase tracking-tighter">Muộn {item.late_minutes} phút</span>
+                                                    <span className="text-[10px] font-black  tracking-tighter">Đi muộn {item.late_minutes} phút</span>
                                                   </div>
                                                 )}
                                                 {item.early_leave_minutes > 0 && (
-                                                  <div className="flex items-center gap-1.5 bg-rose-50 text-rose-700 px-2 py-0.5 border border-rose-100/50 rounded-lg">
-                                                    <span className="text-[10px] font-black uppercase tracking-tighter">Sớm {item.early_leave_minutes} phút</span>
+                                                  <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2 py-0.5 border border-amber-100/50 rounded-lg">
+                                                    <span className="text-[10px] font-black  tracking-tighter">Về sớm {item.early_leave_minutes} phút</span>
                                                   </div>
                                                 )}
                                               </div>
@@ -2123,7 +2131,7 @@ const Approvals: React.FC = () => {
                                             )}
                                             {item.penalty_amount > 0 && (
                                               <div className="text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100/30 w-fit font-mono tracking-tighter">
-                                                -{(item.penalty_amount || 0).toLocaleString('vi-VN')}VNĐ
+                                                - {(item.penalty_amount || 0).toLocaleString('vi-VN')}VNĐ
                                               </div>
                                             )}
                                           </div>
@@ -2257,11 +2265,11 @@ const Approvals: React.FC = () => {
                                         <div className="flex flex-wrap gap-1.5 justify-end">
                                           {item.late_minutes > 0 && (
                                             <span className="text-[10px] font-black text-amber-700 bg-amber-100/60 px-2.5 py-1 rounded-lg border border-amber-200/50 flex items-center gap-1.5 whitespace-nowrap">
-                                              Muộn {item.late_minutes} phút
+                                              Đi muộn {item.late_minutes} phút
                                             </span>
                                           )}
                                           {item.early_leave_minutes > 0 && (
-                                            <span className="text-[10px] font-black text-rose-700 bg-rose-100/60 px-2.5 py-1 rounded-lg border border-rose-200/50 flex items-center gap-1.5 whitespace-nowrap">
+                                            <span className="text-[10px] font-black text-amber-700 bg-amber-100/60 px-2.5 py-1 rounded-lg border border-amber-200/50 flex items-center gap-1.5 whitespace-nowrap">
                                               Về sớm {item.early_leave_minutes} phút
                                             </span>
                                           )}
