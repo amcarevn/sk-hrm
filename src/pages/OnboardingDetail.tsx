@@ -14,6 +14,8 @@ import {
   ExclamationTriangleIcon,
   PlusIcon,
   UserCircleIcon,
+  EyeIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
@@ -62,12 +64,14 @@ type OnboardingDocument = {
   document_type: 'CONTRACT' | 'REGULATION' | 'HANDBOOK' | 'FORM' | 'TRAINING' | 'SAFETY' | 'POLICY' | 'OTHER';
   description: string;
   file: string;
+  file_url?: string;
   is_required: boolean;
   requires_signature: boolean;
   is_read: boolean;
   is_signed: boolean;
   signed_at: string | null;
   signature_file: string | null;
+  signature_file_url?: string;
   uploaded_at: string;
   uploaded_by: number | null;
   uploaded_by_name: string | null;
@@ -120,9 +124,15 @@ type OnboardingDetail = {
   tax_dependents?: number;
   // Uploaded files
   cv_file?: string | null;
+  cv_file_url?: string | null;
   id_card_front?: string | null;
+  id_card_front_url?: string | null;
   id_card_back?: string | null;
+  id_card_back_url?: string | null;
   diploma_file?: string | null;
+  diploma_file_url?: string | null;
+  citizen_id_file?: string | null;
+  citizen_id_file_url?: string | null;
   // Status flags
   employee_info_completed?: boolean;
   employee_info_completed_at?: string | null;
@@ -175,6 +185,14 @@ const getStatusBadge = (status: string) => {
 // MAIN COMPONENT
 // ============================================
 
+// Detect file type from a URL or S3 key
+const getFileType = (url: string): 'image' | 'pdf' | 'other' => {
+  const clean = url.split('?')[0].toLowerCase();
+  if (clean.match(/\.(jpg|jpeg|png|gif|webp|bmp|tiff?)$/)) return 'image';
+  if (clean.endsWith('.pdf')) return 'pdf';
+  return 'other';
+};
+
 const OnboardingDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -187,6 +205,8 @@ const OnboardingDetail: React.FC = () => {
   const [onboarding, setOnboarding] = useState<OnboardingDetail | null>(null);
   const [employeeProfile, setEmployeeProfile] = useState<SuperAdminEmployee | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'tasks' | 'documents' | 'contracts'>('info');
+  const [previewFile, setPreviewFile] = useState<{ url: string; label: string; type: 'image' | 'pdf' } | null>(null);
+  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (isEmployee) setActiveTab('documents');
@@ -473,69 +493,75 @@ const OnboardingDetail: React.FC = () => {
               </div>
             </div>
 
-            {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file) && (
+            {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file || onboarding.citizen_id_file || onboarding.citizen_id_file_url) && (
               <div className="bg-white rounded-lg border p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center">
                   <span className="mr-2">📎</span>
                   Hồ sơ đính kèm
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {onboarding.cv_file && (
-                    <div>
-                      <label className="text-sm text-gray-600">CV</label>
-                      <a
-                        href={onboarding.cv_file}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
-                      >
-                        <DocumentTextIcon className="w-4 h-4 mr-1" />
-                        Xem CV
-                      </a>
-                    </div>
-                  )}
-                  {onboarding.id_card_front && (
-                    <div>
-                      <label className="text-sm text-gray-600">CCCD mặt trước</label>
-                      <a
-                        href={onboarding.id_card_front}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
-                      >
-                        <DocumentTextIcon className="w-4 h-4 mr-1" />
-                        Xem ảnh
-                      </a>
-                    </div>
-                  )}
-                  {onboarding.id_card_back && (
-                    <div>
-                      <label className="text-sm text-gray-600">CCCD mặt sau</label>
-                      <a
-                        href={onboarding.id_card_back}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
-                      >
-                        <DocumentTextIcon className="w-4 h-4 mr-1" />
-                        Xem ảnh
-                      </a>
-                    </div>
-                  )}
-                  {onboarding.diploma_file && (
-                    <div>
-                      <label className="text-sm text-gray-600">Bằng cấp</label>
-                      <a
-                        href={onboarding.diploma_file}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center mt-1 text-blue-600 hover:text-blue-800 underline text-sm"
-                      >
-                        <DocumentTextIcon className="w-4 h-4 mr-1" />
-                        Xem tài liệu
-                      </a>
-                    </div>
-                  )}
+                  {([
+                    { key: 'cv_file', label: 'CV', url: onboarding.cv_file_url || onboarding.cv_file },
+                    { key: 'id_card_front', label: 'CCCD mặt trước', url: onboarding.id_card_front_url || onboarding.id_card_front },
+                    { key: 'id_card_back', label: 'CCCD mặt sau', url: onboarding.id_card_back_url || onboarding.id_card_back },
+                    { key: 'diploma_file', label: 'Bằng cấp', url: onboarding.diploma_file_url || onboarding.diploma_file },
+                    { key: 'citizen_id_file', label: 'File CMND/CCCD', url: onboarding.citizen_id_file_url || onboarding.citizen_id_file },
+                  ] as { key: string; label: string; url: string | null | undefined }[])
+                    .filter(f => f.url)
+                    .map(f => {
+                      const fileUrl = f.url as string;
+                      const fileType = getFileType(fileUrl);
+                      const isImage = fileType === 'image' && !imgErrors[f.key];
+                      return (
+                        <div key={f.key} className="border rounded-lg overflow-hidden">
+                          {/* Thumbnail / preview strip */}
+                          {isImage ? (
+                            <div
+                              className="h-32 bg-gray-100 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity overflow-hidden"
+                              onClick={() => setPreviewFile({ url: fileUrl, label: f.label, type: 'image' })}
+                            >
+                              <img
+                                src={fileUrl}
+                                alt={f.label}
+                                className="object-cover w-full h-full"
+                                onError={() => setImgErrors(prev => ({ ...prev, [f.key]: true }))}
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              className="h-32 bg-red-50 flex flex-col items-center justify-center cursor-pointer hover:bg-red-100 transition-colors"
+                              onClick={() => setPreviewFile({ url: fileUrl, label: f.label, type: fileType === 'image' ? 'image' : 'pdf' })}
+                            >
+                              <DocumentTextIcon className="w-10 h-10 text-red-500 mb-1" />
+                              <span className="text-xs text-red-600 font-medium">PDF</span>
+                            </div>
+                          )}
+                          {/* Label + actions */}
+                          <div className="p-2 bg-white flex items-center justify-between">
+                            <label className="text-xs text-gray-600 font-medium truncate">{f.label}</label>
+                            <div className="flex gap-1 flex-shrink-0">
+                              <button
+                                onClick={() => setPreviewFile({ url: fileUrl, label: f.label, type: fileType === 'image' ? 'image' : 'pdf' })}
+                                className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors"
+                                title="Xem trước"
+                              >
+                                <EyeIcon className="w-4 h-4" />
+                              </button>
+                              <a
+                                href={fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+                                title="Mở tab mới"
+                              >
+                                <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  }
                 </div>
               </div>
             )}
@@ -1099,6 +1125,61 @@ const OnboardingDetail: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* File Preview Modal — admin only */}
+      {previewFile && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+          onClick={() => setPreviewFile(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b">
+              <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                <DocumentTextIcon className="w-5 h-5 text-blue-600" />
+                {previewFile.label}
+              </h4>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewFile.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                  Mở tab mới
+                </a>
+                <button
+                  onClick={() => setPreviewFile(null)}
+                  className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Preview content */}
+            <div className="flex-1 overflow-auto flex items-center justify-center bg-gray-100 min-h-0">
+              {previewFile.type === 'image' ? (
+                <img
+                  src={previewFile.url}
+                  alt={previewFile.label}
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <iframe
+                  src={previewFile.url}
+                  title={previewFile.label}
+                  className="w-full h-full min-h-[70vh]"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

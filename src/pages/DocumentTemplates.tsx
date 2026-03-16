@@ -25,6 +25,7 @@ type DocumentTemplate = {
   document_type_display: string;
   description: string;
   file: string;
+  file_url?: string;
   is_required: boolean;
   requires_signature: boolean;
   is_active: boolean;
@@ -455,7 +456,7 @@ const DocumentTemplates: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
                         <button
-                          onClick={() => window.open(template.file, '_blank')}
+                          onClick={() => window.open(template.file_url || template.file, '_blank')}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
                           title="Xem file"
                         >

@@ -48,7 +48,9 @@ type EmployeeContract = {
   template: number | null;
   template_name: string | null;
   generated_file: string | null;
+  generated_file_url?: string | null;
   signed_file: string | null;
+  signed_file_url?: string | null;
   employee_signed_at: string | null;
   hr_signed_at: string | null;
   start_date: string | null;
@@ -260,7 +262,7 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
 
                   {contract.generated_file && (
                     <a
-                      href={contract.generated_file}
+                      href={contract.generated_file_url || contract.generated_file}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 px-3 py-1.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100 text-sm"

@@ -25,12 +25,14 @@ type OnboardingDocument = {
   document_type: 'CONTRACT' | 'REGULATION' | 'HANDBOOK' | 'FORM' | 'TRAINING' | 'SAFETY' | 'POLICY' | 'OTHER';
   description: string;
   file: string;
+  file_url?: string;
   is_required: boolean;
   requires_signature: boolean;
   is_read: boolean;
   is_signed: boolean;
   signed_at: string | null;
   signature_file: string | null;
+  signature_file_url?: string;
   uploaded_at: string;
   uploaded_by: number | null;
   uploaded_by_name: string | null;
@@ -45,6 +47,7 @@ type DocumentTemplate = {
   document_type_display: string;
   description: string;
   file: string;
+  file_url?: string;
   is_required: boolean;
   requires_signature: boolean;
   is_active: boolean;
@@ -254,8 +257,13 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
     }
   };
 
-  const handleViewDocument = (fileUrl: string) => {
-    window.open(fileUrl, '_blank');
+  const handleViewDocument = (doc: OnboardingDocument) => {
+    const url = doc.file_url || doc.file;
+    if (!url) {
+      showError('Không có file để xem');
+      return;
+    }
+    window.open(url, '_blank');
   };
 
   const toggleTemplateSelection = (templateId: number) => {
@@ -435,7 +443,7 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({
                 {/* Action Buttons */}
                 <div className="flex flex-col gap-2 flex-shrink-0">
                   <button
-                    onClick={() => handleViewDocument(doc.file)}
+                    onClick={() => handleViewDocument(doc)}
                     className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
                   >
                     <EyeIcon className="w-4 h-4" />

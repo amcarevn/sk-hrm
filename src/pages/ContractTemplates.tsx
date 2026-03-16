@@ -31,6 +31,7 @@ type ContractTemplate = {
   description: string;
   status: 'ACTIVE' | 'INACTIVE';
   file: string | null;
+  file_url?: string | null;
   created_by_name: string;
   created_at: string;
   updated_at: string;
@@ -252,7 +253,7 @@ export default function ContractTemplates() {
                     <div className="flex items-center gap-2 justify-end">
                       {t.file && (
                         <a
-                          href={t.file}
+                          href={t.file_url || t.file}
                           download
                           className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                           title="Tải file"
