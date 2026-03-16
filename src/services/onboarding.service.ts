@@ -286,6 +286,21 @@ export const onboardingService = {
   },
 
   /**
+   * Cập nhật một phần onboarding qua super-admin API (PATCH)
+   */
+  superAdminPartialUpdate: async (
+    onboardingId: number,
+    data: Partial<CreateOnboardingRequest>
+  ): Promise<OnboardingProcess> => {
+    const response: AxiosResponse<OnboardingProcess> = await managementApi.patch(
+      `/api-hrm/super-admin/onboarding/`,
+      data,
+      { params: { onboarding_id: onboardingId } }
+    );
+    return response.data;
+  },
+
+  /**
    * Xóa onboarding
    */
   delete: async (id: number): Promise<void> => {
