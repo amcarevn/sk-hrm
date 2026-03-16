@@ -251,7 +251,7 @@ const AttendanceManagement: React.FC = () => {
 
     if (!selectedReason) return false;
 
-    const MIN_HOURS = 2; // Default minimum for most registrations
+    const MIN_HOURS = 0.5; // Default minimum for most registrations (30 minutes)
 
     switch (selectedReason) {
       case 'overtime':
@@ -280,7 +280,7 @@ const AttendanceManagement: React.FC = () => {
   const getRegistrationTimeError = (): string | null => {
     if (selectedContext !== 'registration') return null;
 
-    const MIN_HOURS = 2;
+    const MIN_HOURS = 0.5;
     let hasTime = false;
     let duration = 0;
 
@@ -307,7 +307,7 @@ const AttendanceManagement: React.FC = () => {
 
     if (!hasTime) return null; // Don't show error until user selects times
     if (duration <= 0) return 'Giờ kết thúc phải sau giờ bắt đầu';
-    if (duration < MIN_HOURS) return `Tối thiểu ${MIN_HOURS} tiếng`;
+    if (duration < MIN_HOURS) return 'Tối thiểu 30 phút';
     return null;
   };
 
@@ -910,6 +910,15 @@ const AttendanceManagement: React.FC = () => {
       return;
     }
 
+    if (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave') {
+      showNotify(
+        'error',
+        'Thiếu ghi chú',
+        'Vui lòng nhập ghi chú/lý do trước khi gửi đơn.'
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Get original status from attendance details
@@ -1086,6 +1095,11 @@ const AttendanceManagement: React.FC = () => {
           status: 'PENDING',
         };
 
+        if (explanationType === 'INCOMPLETE_ATTENDANCE') {
+          explanationData.actual_check_in = forgotCheckinTime;
+          explanationData.actual_check_out = forgotCheckoutTime;
+        }
+
         // Gửi kèm tiền phạt và số phút của vi phạm tương ứng (Snapshot data)
         const record = attendanceDetails[0];
         if (record) {
@@ -1095,6 +1109,16 @@ const AttendanceManagement: React.FC = () => {
           } else if (explanationType === 'EARLY_LEAVE') {
             explanationData.early_leave_penalty = record.early_leave_penalty;
             explanationData.early_leave_minutes = record.early_leave_minutes;
+          } else if (explanationType === 'BUSINESS_TRIP') {
+            // Đối với đi công tác, gửi kèm tất cả vi phạm hiện có để BE xử lý miễn giảm snapshot
+            if (record.late_minutes > 0) {
+              explanationData.late_penalty = record.late_penalty;
+              explanationData.late_minutes = record.late_minutes;
+            }
+            if (record.early_leave_minutes > 0) {
+              explanationData.early_leave_penalty = record.early_leave_penalty;
+              explanationData.early_leave_minutes = record.early_leave_minutes;
+            }
           }
         }
 
@@ -2528,14 +2552,10 @@ const AttendanceManagement: React.FC = () => {
                         {/* Card 1: Giải trình đơn */}
                         <button
                           type="button"
-                          disabled={!hasAttendanceData}
                           onClick={() =>
-                            hasAttendanceData &&
                             handleContextSelect('explanation')
                           }
-                          className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${!hasAttendanceData
-                            ? 'opacity-50 cursor-not-allowed border-gray-200'
-                            : selectedContext === 'explanation'
+                          className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${selectedContext === 'explanation'
                               ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
                               : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
                             }`}
@@ -2568,22 +2588,20 @@ const AttendanceManagement: React.FC = () => {
                               <p className="mt-1 text-sm text-gray-500 leading-relaxed">
                                 Giải trình các vi phạm hoặc lý do công việc (Còn {attendanceStats?.remaining_explanations || 0}/{attendanceStats?.max_explanations_per_month || 3} lần)
                               </p>
-                              {!hasAttendanceData ? (
-                                <p className="mt-1 text-xs text-red-500">
-                                  Cần có dữ liệu chấm công để giải trình
+                              {!hasAttendanceData && (
+                                <p className="mt-1 text-xs text-amber-500 font-medium">
+                                  Vắng mặt: Có thể làm đơn Công tác, Quên chấm, Ngày đầu
                                 </p>
-                              ) : (
-                                (attendanceStats?.remaining_explanations || 0) <= 0 && (
-                                  <p className="mt-1 text-xs text-amber-600 font-medium italic">
-                                    Hết lượt giải trình vi phạm. (Công tác/Ngày đầu vẫn được duyệt)
-                                  </p>
-                                )
+                              )}
+                              {hasAttendanceData && (attendanceStats?.remaining_explanations || 0) <= 0 && (
+                                <p className="mt-1 text-xs text-amber-600 font-medium italic">
+                                  Hết lượt giải trình vi phạm. (Công tác/Ngày đầu vẫn được duyệt)
+                                </p>
                               )}
                             </div>
                           </div>
                           {/* Selected indicator */}
-                          {selectedContext === 'explanation' &&
-                            hasAttendanceData && (
+                          {selectedContext === 'explanation' && (
                               <div className="absolute top-3 right-3">
                                 <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
                                   <svg
@@ -2854,6 +2872,8 @@ const AttendanceManagement: React.FC = () => {
                                     if (reason.id === 'late_minutes' && e.explanation_type === 'LATE') return true;
                                     if (reason.id === 'early_leave_minutes' && e.explanation_type === 'EARLY_LEAVE') return true;
                                     if (reason.id === 'incomplete_attendance' && e.explanation_type === 'INCOMPLETE_ATTENDANCE') return true;
+                                    if (reason.id === 'business_trip' && e.explanation_type === 'BUSINESS_TRIP') return true;
+                                    if (reason.id === 'first_day' && e.explanation_type === 'FIRST_DAY') return true;
                                     return false;
                                   });
                                   if (alreadyExplained) return false;
@@ -2861,10 +2881,18 @@ const AttendanceManagement: React.FC = () => {
 
                                   if (reason.id === 'late_minutes') return !isIncomplete && (detail?.late_minutes || 0) > 0;
                                   if (reason.id === 'early_leave_minutes') return !isIncomplete && (detail?.early_leave_minutes || 0) > 0;
-                                  if (reason.id === 'incomplete_attendance') return isIncomplete;
+                                  if (reason.id === 'incomplete_attendance') return isIncomplete || !detail || detail.status === 'ABSENT';
                                   // Công tác và Ngày đầu chỉ hiện khi Vắng mặt hoặc chưa có dữ liệu
-                                  if (['business_trip', 'first_day'].includes(reason.id)) {
+                                  if (reason.id === 'first_day') {
                                     return !detail || detail.status === 'ABSENT';
+                                  }
+                                  if (reason.id === 'business_trip') {
+                                    // Hiển thị đi công tác khi vắng mặt HOẶC khi có vi phạm (muộn/sớm/quên chấm)
+                                    return !detail ||
+                                      detail.status === 'ABSENT' ||
+                                      (detail?.late_minutes || 0) > 0 ||
+                                      (detail?.early_leave_minutes || 0) > 0 ||
+                                      detail?.status === 'INCOMPLETE_ATTENDANCE';
                                   }
                                   return true;
                                 });
@@ -3119,7 +3147,7 @@ const AttendanceManagement: React.FC = () => {
                             htmlFor="explanation-note"
                             className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                           >
-                            Ghi chú giải trình
+                            Ghi chú giải trình (bắt buộc)
                           </label>
                           <textarea
                             id="explanation-note"
@@ -3294,7 +3322,7 @@ const AttendanceManagement: React.FC = () => {
                                 htmlFor="overtime-note"
                                 className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                               >
-                                Ghi chú tăng ca
+                                Ghi chú tăng ca (bắt buộc)
                               </label>
                               <textarea
                                 id="overtime-note"
@@ -3444,7 +3472,7 @@ const AttendanceManagement: React.FC = () => {
                                 htmlFor="extra-hours-note"
                                 className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                               >
-                                Ghi chú làm thêm giờ
+                                Ghi chú làm thêm giờ (bắt buộc)
                               </label>
                               <textarea
                                 id="extra-hours-note"
@@ -3587,7 +3615,7 @@ const AttendanceManagement: React.FC = () => {
                               htmlFor="night-shift-note"
                               className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                             >
-                              Ghi chú trực tối
+                              Ghi chú trực tối (bắt buộc)
                             </label>
                             <textarea
                               id="night-shift-note"
@@ -3721,7 +3749,7 @@ const AttendanceManagement: React.FC = () => {
                                 htmlFor="live-note"
                                 className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                               >
-                                Ghi chú live
+                                Ghi chú live (bắt buộc)
                               </label>
                               <textarea
                                 id="live-note"
@@ -3798,7 +3826,7 @@ const AttendanceManagement: React.FC = () => {
                             htmlFor="first-day-note"
                             className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                           >
-                            Ghi chú
+                            Ghi chú (bắt buộc)
                           </label>
                           <textarea
                             id="first-day-note"
@@ -3823,7 +3851,7 @@ const AttendanceManagement: React.FC = () => {
                             htmlFor="business-trip-note"
                             className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                           >
-                            Ghi chú
+                            Ghi chú (bắt buộc)
                           </label>
                           <textarea
                             id="business-trip-note"
@@ -3848,7 +3876,7 @@ const AttendanceManagement: React.FC = () => {
                             htmlFor="online-work-note"
                             className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                           >
-                            Ghi chú làm việc online
+                            Ghi chú làm việc online (bắt buộc)
                           </label>
                           <textarea
                             id="online-work-note"
@@ -4019,7 +4047,7 @@ const AttendanceManagement: React.FC = () => {
                           htmlFor="online-work-note"
                           className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                         >
-                          Ghi chú
+                          Ghi chú (tùy chọn)
                         </label>
                         <textarea
                           id="online-work-note"
@@ -4071,7 +4099,8 @@ const AttendanceManagement: React.FC = () => {
                       ((selectedContext === 'explanation' ||
                         selectedContext === 'registration') &&
                         !selectedReason) ||
-                      !isRegistrationTimeValid()
+                      !isRegistrationTimeValid() ||
+                      (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave')
                     }
                     className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-transparent shadow-lg text-base font-semibold transition-all duration-200 ${isSubmitting
                       ? 'bg-purple-400 text-white cursor-wait'
@@ -4079,7 +4108,8 @@ const AttendanceManagement: React.FC = () => {
                         (selectedContext === 'monthly_leave' ||
                           selectedContext === 'online_work')) ||
                         (selectedContext && selectedReason)) &&
-                        isRegistrationTimeValid()
+                        isRegistrationTimeValid() &&
+                        (formNote?.trim() || selectedReason === 'incomplete_attendance' || selectedContext === 'monthly_leave')
                         ? 'text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transform hover:scale-[1.02]'
                         : 'text-gray-400 bg-gray-200 cursor-not-allowed'
                       }`}
