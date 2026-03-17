@@ -183,6 +183,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       case 'LIVE':
       case 'LIVESTREAM':
         return 'livestream';
+      case 'OFF_DUTY': return 'ra trực';
       default: return 'đơn';
     }
   };
@@ -312,7 +313,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         const approvedRegistrations = registrations
           .filter((r: any) => {
             const t = (r.event_type || '').toUpperCase();
-            return ['OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM', 'ONLINE_WORK'].includes(t) && r.data?.status === 'APPROVED';
+            return ['OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM', 'ONLINE_WORK', 'OFF_DUTY'].includes(t) && r.data?.status === 'APPROVED';
           })
           .map((r: any) => r);
 
@@ -324,7 +325,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         const hasApprovedRegistration = approvedRegistrations.length > 0;
         const pendingRequests = registrations.filter((r: any) => {
           const t = (r.event_type || '').toUpperCase();
-          return ['EXPLANATION', 'OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM', 'ONLINE_WORK', 'LEAVE'].includes(t) &&
+          return ['EXPLANATION', 'OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM', 'ONLINE_WORK', 'LEAVE', 'OFF_DUTY'].includes(t) &&
                  r.data?.status === 'PENDING';
         });
 
@@ -336,7 +337,13 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         const early = dayItem.engine_context?.early_leave_minutes || 0;
 
         let summaryText = dayItem.status_badge;
-        if (isForgotCC && !summaryText) {
+        
+        // Ưu tiên hiển thị "Ra trực" nếu có đơn đã duyệt
+        const approvedOffDuty = approvedRegistrations.find((r: any) => (r.event_type || '').toUpperCase() === 'OFF_DUTY');
+        
+        if (approvedOffDuty) {
+          summaryText = 'Đã duyệt ra trực';
+        } else if (isForgotCC && !summaryText) {
           summaryText = 'Quên chấm công';
         } else if (!summaryText && hasApprovedExplanations) {
           summaryText = approvedExplanations[0].reason || 'Có đơn đã duyệt';
@@ -344,7 +351,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
         // Determine display color: priority Green > Purple > others
         let displayColor = getDayStatusDisplayColor(dayItem.day_status);
-        if (dayItem.engine_context?.work_credit >= 1.0) {
+        if (approvedOffDuty) {
+          displayColor = 'green'; // Ra trực luôn hiển thị màu xanh
+        } else if (dayItem.engine_context?.work_credit >= 1.0) {
           displayColor = 'green';
         } else if (isForgotCC) {
           // Change color to green/orange if there's credit, but default to green for "màu có mặt"
@@ -509,8 +518,15 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     }
 
     // Priority 2: Approved requests
+    // Ưu tiên: Ra trực → màu xanh lá
+    const hasApprovedOffDuty = (day.approvedRegistrations || []).some((r: any) => (r.event_type || '').toUpperCase() === 'OFF_DUTY');
+    if (hasApprovedOffDuty) {
+      return 'bg-green-100 text-green-700 ring-1 ring-green-400 font-bold';
+    }
+
+    // Priority 2: Approved requests → màu xanh lá
     if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration || day.dayStatusSummary?.has_approved_online_work) {
-      return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300 font-medium';
+      return 'bg-green-100 text-green-700 ring-1 ring-green-400 font-medium';
     }
 
     // Priority 3: Incomplete/Forgot CC (Purple) - More critical than just being late
@@ -531,16 +547,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     }
 
     if (day.dayStatusSummary?.display_color === 'green') {
-      if (day.dayStatusSummary?.has_approved_leave) {
-        return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300';
-      }
-      return 'bg-green-100 text-green-700 ring-1 ring-green-300';
+      return 'bg-green-100 text-green-700 ring-1 ring-green-400';
     }
     if (day.dayStatusSummary?.display_color === 'orange' || credit >= 0.5) {
       return 'bg-orange-100 text-orange-700 ring-1 ring-orange-300';
-    }
-    if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration || day.dayStatusSummary?.has_approved_online_work) {
-      return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300';
     }
     const hasIncomplete = day.engine_context?.is_incomplete;
     if (hasIncomplete) return 'bg-purple-100 text-purple-700 ring-1 ring-purple-300';
@@ -570,6 +580,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
     // Nếu có đơn đã duyệt, hiển thị chi tiết duyệt đơn gì
     if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration || day.dayStatusSummary?.has_approved_online_work) {
+      // Ưu tiên: Ra trực
+      const offDutyReg = (day.approvedRegistrations || []).find((r: any) => (r.event_type || '').toUpperCase() === 'OFF_DUTY');
+      if (offDutyReg) return 'Đã duyệt ra trực';
+
       // Ưu tiên hiện đơn giải trình
       const approvedExpls = day.approvedExplanations || [];
       if (approvedExpls.length > 0) {

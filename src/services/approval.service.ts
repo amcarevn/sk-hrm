@@ -129,6 +129,32 @@ class ApprovalService {
     }
   }
 
+  // Duyệt monthly leave request
+  async approveMonthlyLeaveRequest(leaveId: number, note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post(`/api-hrm/monthly-leave-requests/${leaveId}/approve/`, {
+        approval_note: note || ''
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error approving monthly leave request:', error);
+      throw error;
+    }
+  }
+
+  // Từ chối monthly leave request
+  async rejectMonthlyLeaveRequest(leaveId: number, note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post(`/api-hrm/monthly-leave-requests/${leaveId}/reject/`, {
+        approval_note: note || ''
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting monthly leave request:', error);
+      throw error;
+    }
+  }
+
   // Lấy thống kê attendance explanations
   async getAttendanceExplanationStats(): Promise<any> {
     try {
@@ -140,15 +166,38 @@ class ApprovalService {
     }
   }
 
-  // Lấy danh sách leave requests chờ duyệt (tạm thời chưa có API)
-  async getPendingLeaveRequests(): Promise<any[]> {
+  // Lấy danh sách monthly leave requests theo trạng thái
+  async getMonthlyLeaveRequestsByStatus(status: string, params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
     try {
-      // TODO: Tạo API endpoint cho leave requests
-      return [];
+      const response = await managementApi.get('/api-hrm/monthly-leave-requests/', {
+        params: {
+          status: status,
+          ordering: '-created_at',
+          day: params?.day && params.day !== 0 ? params.day : undefined,
+          month: params?.month,
+          year: params?.year
+        }
+      });
+      return response.data.results || [];
     } catch (error) {
-      console.error('Error fetching pending leave requests:', error);
+      console.error(`Error fetching ${status} monthly leave requests:`, error);
       throw error;
     }
+  }
+
+  // Lấy danh sách leave requests chờ duyệt
+  async getPendingLeaveRequests(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getMonthlyLeaveRequestsByStatus('PENDING', params);
+  }
+
+  // Lấy danh sách leave requests đã duyệt
+  async getApprovedLeaveRequests(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getMonthlyLeaveRequestsByStatus('APPROVED', params);
+  }
+
+  // Lấy danh sách leave requests đã từ chối
+  async getRejectedLeaveRequests(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getMonthlyLeaveRequestsByStatus('REJECTED', params);
   }
 
   // Lấy danh sách registration requests theo trạng thái
@@ -316,15 +365,12 @@ class ApprovalService {
     total_pending: number;
   }> {
     try {
-      const [allAttendanceExplanations, onlineWorkRequests, registrationRequests] = await Promise.all([
+      const [attendanceExplanations, leaveRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
         this.getPendingAttendanceExplanations(params),
+        this.getPendingLeaveRequests(params),
         this.getPendingOnlineWorkRequests(params),
         this.getPendingRegistrationRequests(params)
       ]);
-
-      // Tách đơn nghỉ phép (LEAVE) ra khỏi danh sách giải trình
-      const attendanceExplanations = allAttendanceExplanations.filter(e => e.explanation_type !== 'LEAVE');
-      const leaveRequests = allAttendanceExplanations.filter(e => e.explanation_type === 'LEAVE');
 
       const total_pending = attendanceExplanations.length + leaveRequests.length + onlineWorkRequests.length + registrationRequests.length;
 
@@ -352,14 +398,12 @@ class ApprovalService {
     total_approved: number;
   }> {
     try {
-      const [allAttendanceExplanations, onlineWorkRequests, registrationRequests] = await Promise.all([
+      const [attendanceExplanations, leaveRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
         this.getApprovedAttendanceExplanations(params),
+        this.getApprovedLeaveRequests(params),
         this.getApprovedOnlineWorkRequests(params),
         this.getApprovedRegistrationRequests(params)
       ]);
-
-      const attendanceExplanations = allAttendanceExplanations.filter(e => e.explanation_type !== 'LEAVE');
-      const leaveRequests = allAttendanceExplanations.filter(e => e.explanation_type === 'LEAVE');
 
       const total_approved = attendanceExplanations.length + leaveRequests.length + onlineWorkRequests.length + registrationRequests.length;
 
@@ -387,14 +431,12 @@ class ApprovalService {
     total_rejected: number;
   }> {
     try {
-      const [allAttendanceExplanations, onlineWorkRequests, registrationRequests] = await Promise.all([
+      const [attendanceExplanations, leaveRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
         this.getRejectedAttendanceExplanations(params),
+        this.getRejectedLeaveRequests(params),
         this.getRejectedOnlineWorkRequests(params),
         this.getRejectedRegistrationRequests(params)
       ]);
-
-      const attendanceExplanations = allAttendanceExplanations.filter(e => e.explanation_type !== 'LEAVE');
-      const leaveRequests = allAttendanceExplanations.filter(e => e.explanation_type === 'LEAVE');
 
       const total_rejected = attendanceExplanations.length + leaveRequests.length + onlineWorkRequests.length + registrationRequests.length;
 
@@ -517,6 +559,20 @@ class ApprovalService {
       return response.data;
     } catch (error) {
       console.error('Error in bulk approving attendance explanations:', error);
+      throw error;
+    }
+  }
+
+  // Duyệt hàng loạt đơn nghỉ phép tháng
+  async bulkApproveMonthlyLeaveRequests(ids: number[], note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/monthly-leave-requests/bulk_approve/', {
+        ids,
+        approval_note: note || 'Duyệt nhanh hàng loạt'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in bulk approving monthly leave requests:', error);
       throw error;
     }
   }

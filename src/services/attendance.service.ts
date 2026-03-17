@@ -606,6 +606,91 @@ class AttendanceService {
   }
 
   /**
+   * ==================== MONTHLY LEAVE REQUESTS (Nghỉ phép tháng) ====================
+   */
+
+  /**
+   * Lấy danh sách đơn nghỉ phép tháng
+   */
+  async getMonthlyLeaveRequests(params?: {
+    employee_id?: number;
+    month?: number;
+    year?: number;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+    page_size?: number;
+    ordering?: string;
+  }): Promise<{ count: number; results: any[] }> {
+    try {
+      const response = await managementApi.get('/api-hrm/monthly-leave-requests/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching monthly leave requests:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Tạo đơn nghỉ phép tháng mới
+   */
+  async createMonthlyLeaveRequest(data: {
+    employee_id: number;
+    attendance_date: string;
+    reason: string;
+    expected_status: string; // HALF_DAY or PRESENT (Full day)
+    original_status?: string;
+  }): Promise<any> {
+    try {
+      const payload = {
+        ...data,
+        explanation_type: 'LEAVE',
+        original_status: data.original_status || 'ABSENT',
+      };
+      const response = await managementApi.post('/api-hrm/monthly-leave-requests/', payload);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating monthly leave request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Xóa đơn nghỉ phép tháng
+   */
+  async deleteMonthlyLeaveRequest(leaveId: number): Promise<any> {
+    try {
+      const response = await managementApi.delete(`/api-hrm/monthly-leave-requests/${leaveId}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting monthly leave request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy hạn mức nghỉ phép tháng (Quota)
+   */
+  async getMonthlyLeaveQuota(params: {
+    employee_id?: number;
+    month?: number;
+    year?: number;
+  }): Promise<{
+    total_quota: number;
+    used: number;
+    remaining: number;
+  }> {
+    try {
+      const response = await managementApi.get('/api-hrm/monthly-leave-requests/remaining_quota/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching monthly leave quota:', error);
+      throw error;
+    }
+  }
+
+
+  /**
    * Tạo giải trình chấm công (Đơn bổ sung công)
    */
   async createAttendanceExplanation(data: {
@@ -810,7 +895,7 @@ class AttendanceService {
   async createRegistrationRequest(data: {
     employee_id: number;
     attendance_date: string;
-    registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE';
+    registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE' | 'OFF_DUTY';
     start_time?: string;
     end_time?: string;
     reason: string;
@@ -837,7 +922,7 @@ export interface RegistrationRequest {
   employee_name: string;
   employee_id_code?: string;
   department_name?: string;
-  registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE';
+  registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE' | 'OFF_DUTY';
   registration_type_display: string;
   attendance_date: string;
   start_time: string | null;

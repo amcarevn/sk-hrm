@@ -113,25 +113,32 @@ const AttendanceManagement: React.FC = () => {
     ABSENT: 'Vắng mặt',
     HALF_DAY: 'Nửa ngày',
     INCOMPLETE_ATTENDANCE: 'Quên chấm công',
+    LEAVE: 'Nghỉ phép tháng',
   };
 
   // Mapping loại đơn giải trình/đăng ký sang tiếng Việt
   const EXPLANATION_TYPE_MAP: Record<string, string> = {
-    LATE: 'Giải trình đi muộn',
-    EARLY_LEAVE: 'Giải trình về sớm',
-    INCOMPLETE_ATTENDANCE: 'Giải trình quên chấm công',
-    BUSINESS_TRIP: 'Giải trình đi công tác',
-    FIRST_DAY: 'Giải trình ngày đầu đi làm',
+    explanation: 'Đơn giải trình',
+    registration: 'Đơn đăng ký',
+    LATE: 'Đơn giải trình đi muộn',
+    EARLY_LEAVE: 'Đơn giải trình về sớm',
+    INCOMPLETE_ATTENDANCE: 'Đơn giải trình quên chấm công',
+    BUSINESS_TRIP: 'Đơn giải trình đi công tác',
+    FIRST_DAY: 'Đơn giải trình ngày đầu đi làm',
     OVERTIME: 'Đơn đăng ký tăng ca',
     EXTRA_HOURS: 'Đơn đăng ký làm thêm giờ',
     NIGHT_SHIFT: 'Đơn đăng ký trực tối',
     LIVE: 'Đơn đăng ký Live',
-    LEAVE: 'Nghỉ phép tháng',
+    LEAVE: 'Đơn nghỉ phép tháng',
     ONLINE_WORK: 'Đơn làm việc online',
+    OFF_DUTY: 'Đơn đăng ký ra trực',
   };
 
-  const getExplanationTypeLabel = (type: string): string =>
-    EXPLANATION_TYPE_MAP[type] || type;
+  const getExplanationTypeLabel = (type: string): string => {
+    if (!type) return '';
+    const upperType = type.toUpperCase();
+    return EXPLANATION_TYPE_MAP[upperType] || EXPLANATION_TYPE_MAP[type] || type;
+  };
 
   // Mapping nguồn dữ liệu chấm công sang tiếng Việt
   const IMPORT_SOURCE_MAP: Record<string, string> = {
@@ -155,7 +162,7 @@ const AttendanceManagement: React.FC = () => {
     | 'first_day'
     | 'business_trip'
     | 'incomplete_attendance';
-  type RegistrationReason = 'overtime' | 'extra_hours' | 'night_shift' | 'live';
+  type RegistrationReason = 'overtime' | 'extra_hours' | 'night_shift' | 'live' | 'off_duty';
   type OnlineWorkReason = 'morning' | 'afternoon' | 'full_day';
   type LeaveReason = 'morning' | 'afternoon' | 'full_day';
   type ReasonType = ExplanationReason | RegistrationReason | OnlineWorkReason | LeaveReason | null;
@@ -336,6 +343,7 @@ const AttendanceManagement: React.FC = () => {
       { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' },
       { id: 'night_shift', label: 'Trực tối', icon: 'moon' },
       { id: 'live', label: 'Live', icon: 'video' },
+      { id: 'off_duty', label: 'Ra trực', icon: 'briefcase' },
     ];
 
   const onlineWorkReasons: {
@@ -912,7 +920,7 @@ const AttendanceManagement: React.FC = () => {
       return;
     }
 
-    if (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave') {
+    if (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave' && selectedReason !== 'off_duty') {
       showNotify(
         'error',
         'Thiếu ghi chú',
@@ -1057,14 +1065,17 @@ const AttendanceManagement: React.FC = () => {
           await refreshAllData();
           showNotify('success', 'Thành công', 'Đơn làm thêm giờ đã được gửi thành công!');
         } else {
-          // 3. Các loại đăng ký khác (Trực tối, Live)
-          const otherRegMap: Record<string, 'NIGHT_SHIFT' | 'LIVE'> = {
+          // 3. Các loại đăng ký khác (Trực tối, Live, Ra trực)
+          const otherRegMap: Record<string, 'NIGHT_SHIFT' | 'LIVE' | 'OFF_DUTY'> = {
             night_shift: 'NIGHT_SHIFT',
             live: 'LIVE',
+            off_duty: 'OFF_DUTY',
           };
           const regType = otherRegMap[selectedReason as string] || 'NIGHT_SHIFT';
-          const startTime = selectedReason === 'night_shift' ? nightShiftStartTime : liveStartTime;
-          const endTime = selectedReason === 'night_shift' ? nightShiftEndTime : liveEndTime;
+          const startTime = selectedReason === 'night_shift' ? nightShiftStartTime : 
+                           (selectedReason === 'live' ? liveStartTime : (selectedReason === 'off_duty' ? '08:30' : ''));
+          const endTime = selectedReason === 'night_shift' ? nightShiftEndTime : 
+                         (selectedReason === 'live' ? liveEndTime : (selectedReason === 'off_duty' ? '17:30' : ''));
 
           const otherRegData = {
             employee_id: currentEmployee.id,
@@ -1072,12 +1083,12 @@ const AttendanceManagement: React.FC = () => {
             registration_type: regType,
             start_time: startTime,
             end_time: endTime,
-            reason: finalReason,
+            reason: finalReason || 'Đơn ra trực',
             status: 'PENDING' as const,
           };
           result = await attendanceService.createRegistrationRequest(otherRegData);
           await refreshAllData();
-          showNotify('success', 'Thành công', `Đơn đăng ký ${selectedReason === 'live' ? 'Live' : 'trực tối'} đã gửi thành công!`);
+          showNotify('success', 'Thành công', `Đơn ${selectedReason === 'off_duty' ? 'Ra trực' : (selectedReason === 'live' ? 'Live' : 'trực tối')} đã gửi thành công!`);
         }
       } else {
         // Giải trình (LATE, EARLY_LEAVE, INCOMPLETE_ATTENDANCE, BUSINESS_TRIP, FIRST_DAY)
@@ -1139,12 +1150,20 @@ const AttendanceManagement: React.FC = () => {
           }
         }
 
-        result = await attendanceService.createAttendanceExplanation(explanationData);
+        if (selectedContext === 'monthly_leave') {
+          result = await attendanceService.createMonthlyLeaveRequest({
+            employee_id: currentEmployee.id,
+            attendance_date: dateStr,
+            reason: finalReason,
+            expected_status: expectedStatus,
+            original_status: originalStatus,
+          });
+        } else {
+          result = await attendanceService.createAttendanceExplanation(explanationData);
+        }
 
         await refreshAllData();
-        const successMsg = selectedContext === 'monthly_leave'
-          ? `Đơn ${reasonLabel} đã được gửi thành công!`
-          : 'Đơn bổ sung công đã được gửi thành công!';
+        const successMsg = `Đơn ${reasonLabel || (selectedContext === 'monthly_leave' ? 'nghỉ phép tháng' : 'giải trình')} đã được gửi thành công!`;
         showNotify('success', 'Thành công', successMsg);
 
         // Nếu là đơn giải trình, không đóng modal mà reset về bước 2 (Chọn lý do)
@@ -2094,6 +2113,7 @@ const AttendanceManagement: React.FC = () => {
                             'livestream',
                             'explanation',
                             'online_work',
+                            'off_duty',
                           ].includes(ev.event_type)
                         ) {
                           if (ev.data?.direct_manager_approved_by_name) {
@@ -2109,7 +2129,7 @@ const AttendanceManagement: React.FC = () => {
                                   ev.data.direct_manager_approved_by_name,
                                 status: 'APPROVED',
                                 registration_type:
-                                  ev.data.registration_type || ev.event_type,
+                                  ev.data.explanation_type || ev.data.registration_type || ev.event_type,
                               },
                             });
                           }
@@ -2130,7 +2150,7 @@ const AttendanceManagement: React.FC = () => {
                                 approved_by_name: ev.data.hr_approved_by_name,
                                 status: 'APPROVED',
                                 registration_type:
-                                  ev.data.registration_type || ev.event_type,
+                                  ev.data.explanation_type || ev.data.registration_type || ev.event_type,
                               },
                             });
                           }
@@ -2148,22 +2168,30 @@ const AttendanceManagement: React.FC = () => {
                       (r) => r.check_in || r.check_out
                     );
                     const filteredEvents = sortedEvents.filter((ev) => {
-                      if (ev.event_type === 'attendance' && !hasAnyPunch)
-                        return false;
+                      if (ev.event_type === 'attendance') {
+                        if (!hasAnyPunch) return false;
+                        // Bỏ các bản ghi chấm công (event_type === 'attendance') không có thông tin status hoặc import_source, đó là các log rác/thừa
+                        if (!ev.data?.status && !ev.data?.import_source) return false;
+                      }
                       return true;
                     });
 
                     if (filteredEvents.length === 0) return null;
-                    const eventTypeLabel: Record<string, string> = {
-                      attendance: 'Chấm công',
-                      explanation: 'Giải trình',
-                      explanation_approval: 'Phê duyệt giải trình',
-                      request_approval: 'Phê duyệt đơn',
-                      registration_approval: 'Phê duyệt đăng ký',
-                      overtime: 'Tăng ca',
-                      livestream: 'Livestream',
-                      online_work: 'Làm việc online',
-                    };
+                      const eventTypeLabel: Record<string, string> = {
+                        attendance: 'Chấm công',
+                        explanation: 'Giải trình',
+                        explanation_approval: 'Phê duyệt giải trình',
+                        request_approval: 'Phê duyệt đơn',
+                        registration_approval: 'Phê duyệt đăng ký',
+                        overtime: 'Tăng ca',
+                        extra_hours: 'Làm thêm giờ',
+                        night_shift: 'Trực tối',
+                        live: 'Live',
+                        livestream: 'Livestream',
+                        online_work: 'Làm việc online',
+                        off_duty: 'Đơn đăng ký ra trực',
+                        leave: 'Nghỉ phép tháng',
+                      };
                     const statusLabel: Record<string, string> = {
                       ...ATTENDANCE_STATUS_MAP,
                       APPROVED: 'Đã duyệt',
@@ -2177,7 +2205,7 @@ const AttendanceManagement: React.FC = () => {
                     const isApproved = (ev: AttendanceEvent) => {
                       if (
                         (ev.event_type === 'explanation' ||
-                          ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work'].includes(ev.event_type) ||
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty'].includes(ev.event_type) ||
                           ev.event_type === 'registration_approval') &&
                         ev.data?.status === 'APPROVED'
                       )
@@ -2193,7 +2221,7 @@ const AttendanceManagement: React.FC = () => {
                     const isRejected = (ev: AttendanceEvent) => {
                       if (
                         (ev.event_type === 'explanation' ||
-                          ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'request_approval', 'registration_approval'].includes(ev.event_type)) &&
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty', 'request_approval', 'registration_approval'].includes(ev.event_type)) &&
                         ev.data?.status === 'REJECTED'
                       )
                         return true;
@@ -2268,20 +2296,22 @@ const AttendanceManagement: React.FC = () => {
                                           ? (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE') ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800'
                                           : (ev.event_type === 'explanation_approval' || ev.event_type === 'registration_approval')
                                             ? 'bg-indigo-100 text-indigo-800'
-                                            : (['overtime', 'extra_hours', 'night_shift', 'live', 'online_work'].includes(ev.event_type))
+                                            : (['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty'].includes(ev.event_type))
                                               ? 'bg-amber-100 text-amber-800'
                                               : 'bg-indigo-100 text-indigo-800'
                                         }`}
                                     >
                                       {ev.event_type === 'explanation'
                                         ? (getExplanationTypeLabel(ev.data?.explanation_type) || 'Giải trình')
-                                        : (ev.event_type === 'live' || ['overtime', 'extra_hours', 'night_shift', 'online_work'].includes(ev.event_type))
-                                          ? (getExplanationTypeLabel(ev.data?.registration_type || ev.data?.event_type || ev.event_type) || (ev.event_type === 'live' ? 'Đơn đăng ký Live' : 'Đơn đăng ký'))
-                                          : (ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') && (ev.data?.explanation_type || ev.data?.registration_type)
-                                            ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data?.explanation_type || ev.data?.registration_type)}`
-                                            : ev.event_type === 'registration_approval' && ev.data?.registration_type
-                                              ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data.registration_type)}`
-                                              : (eventTypeLabel[ev.event_type] || ev.event_type)}
+                                        : (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE' || ev.event_type === 'monthly_leave')
+                                          ? 'Nghỉ phép tháng'
+                                          : (ev.event_type === 'live' || ['overtime', 'extra_hours', 'night_shift', 'online_work', 'off_duty'].includes(ev.event_type))
+                                            ? (getExplanationTypeLabel(ev.data?.registration_type || ev.data?.event_type || ev.event_type) || (ev.event_type === 'live' ? 'Đơn đăng ký Live' : 'Đơn đăng ký'))
+                                            : (ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') && (ev.data?.explanation_type || ev.data?.registration_type)
+                                              ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data?.explanation_type || ev.data?.registration_type)}`
+                                              : ev.event_type === 'registration_approval' && (ev.data?.registration_type || ev.data?.explanation_type)
+                                                ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data.registration_type || ev.data.explanation_type)}`
+                                                : (eventTypeLabel[ev.event_type] || ev.event_type)}
                                     </span>
                                     {approved && (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 whitespace-nowrap">
@@ -2299,14 +2329,15 @@ const AttendanceManagement: React.FC = () => {
                                       )}
                                     </time>
                                   </div>
-                                  {ev.event_type === 'attendance' && (
+                                  {ev.event_type === 'attendance' && (ev.data?.status || ev.data?.import_source) && (
                                     <p className="text-xs text-gray-600">
-                                      Trạng thái:{' '}
-                                      {ev.event_type === 'attendance' && ev.data?.status
-                                        ? 'Có mặt'
-                                        : (statusLabel[ev.data?.status] ?? ev.data?.status)}
+                                      {ev.data?.status ? (
+                                        <span>
+                                          Trạng thái: Có mặt
+                                        </span>
+                                      ) : null}
                                       {ev.data?.import_source && (
-                                        <span className="ml-2 text-gray-400">
+                                        <span className={ev.data?.status ? "ml-2 text-gray-400" : "text-gray-400"}>
                                           ({IMPORT_SOURCE_MAP[ev.data.import_source] || ev.data.import_source})
                                         </span>
                                       )}
@@ -2387,12 +2418,12 @@ const AttendanceManagement: React.FC = () => {
                                       )}
                                     </div>
                                   )}
-                                  {['overtime', 'extra_hours', 'night_shift', 'live'].includes(ev.event_type) && (
+                                  {['overtime', 'extra_hours', 'night_shift', 'live', 'off_duty', 'online_work'].includes(ev.event_type) && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {(ev.check_in || ev.check_out) && (
+                                      {!['off_duty', 'online_work'].includes(ev.event_type) && (ev.check_in || ev.check_out || ev.data?.start_time || ev.data?.end_time) && (
                                         <p>
-                                          Thời gian: {ev.check_in ?? '--'} —{' '}
-                                          {ev.check_out ?? '--'}
+                                          Thời gian: {ev.check_in || ev.data?.start_time || '--'} —{' '}
+                                          {ev.check_out || ev.data?.end_time || '--'}
                                         </p>
                                       )}
                                       {cleanedReason && (
@@ -2405,6 +2436,11 @@ const AttendanceManagement: React.FC = () => {
                                           Trạng thái:{' '}
                                           {statusLabel[ev.data.status] ??
                                             ev.data.status}
+                                        </p>
+                                      )}
+                                      {ev.data?.request_code && (
+                                        <p className="font-mono text-gray-500">
+                                          {ev.data.request_code}
                                         </p>
                                       )}
                                     </div>
@@ -2698,7 +2734,7 @@ const AttendanceManagement: React.FC = () => {
                                 Đơn đăng ký
                               </h4>
                               <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                                Tăng ca, làm thêm giờ, trực tối, làm tối, live
+                                Tăng ca, làm thêm giờ, trực tối, live, ra trực
                               </p>
                             </div>
                           </div>
@@ -4162,7 +4198,7 @@ const AttendanceManagement: React.FC = () => {
                         selectedContext === 'online_work') &&
                         !selectedReason) ||
                       !isRegistrationTimeValid() ||
-                      (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave')
+                      (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave' && selectedReason !== 'off_duty')
                     }
                     className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-transparent shadow-lg text-base font-semibold transition-all duration-200 ${isSubmitting
                       ? 'bg-purple-400 text-white cursor-wait'
@@ -4171,7 +4207,7 @@ const AttendanceManagement: React.FC = () => {
                           selectedContext === 'online_work')) ||
                         (selectedContext && selectedReason)) &&
                         isRegistrationTimeValid() &&
-                        (formNote?.trim() || selectedReason === 'incomplete_attendance' || selectedContext === 'monthly_leave')
+                        (formNote?.trim() || selectedReason === 'incomplete_attendance' || selectedContext === 'monthly_leave' || selectedReason === 'off_duty')
                         ? 'text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transform hover:scale-[1.02]'
                         : 'text-gray-400 bg-gray-200 cursor-not-allowed'
                       }`}
@@ -4440,9 +4476,10 @@ const AttendanceManagement: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Row: Time Range (for Overtime) */}
+                    {/* Row: Time Range (for Overtime, Extra Hours, Night Shift, Live) */}
                     {selectedContext === 'registration' &&
-                      selectedReason === 'overtime' && (
+                      selectedReason &&
+                      ['overtime', 'extra_hours', 'night_shift', 'live'].includes(selectedReason as any) && (
                         <div className="flex justify-between items-center p-2 bg-purple-50 rounded-xl">
                           <div className="flex items-center text-purple-700">
                             <svg
@@ -4463,7 +4500,13 @@ const AttendanceManagement: React.FC = () => {
                             </span>
                           </div>
                           <span className="text-sm font-black text-purple-800">
-                            {overtimeStartTime} — {overtimeEndTime}
+                            {selectedReason === 'extra_hours'
+                              ? `${extraHoursStartTime} — ${extraHoursEndTime}`
+                              : selectedReason === 'night_shift'
+                                ? `${nightShiftStartTime} — ${nightShiftEndTime}`
+                                : selectedReason === 'live'
+                                  ? `${liveStartTime} — ${liveEndTime}`
+                                  : `${overtimeStartTime} — ${overtimeEndTime}`}
                           </span>
                         </div>
                       )}
@@ -4672,11 +4715,14 @@ const AttendanceManagement: React.FC = () => {
                               if (item._type === 'explanation' && item.explanation_type === 'LEAVE') {
                                 return { label: 'Nghỉ phép tháng', bg: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20' };
                               }
+                              if (item._type === 'registration' && item.registration_type === 'OFF_DUTY') {
+                                return { label: 'Đăng ký ra trực', bg: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20' };
+                              }
                               return ({
                                 explanation: { label: 'Giải trình', bg: 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' },
                                 registration: { label: 'Đăng ký', bg: 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20' },
                                 online_work: { label: 'Làm việc online', bg: 'bg-teal-50 text-teal-700 ring-1 ring-teal-600/20' },
-                              } as Record<string, { label: string; bg: string }>)[item._type] || { label: item._type, bg: 'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20' };
+                              } as Record<string, { label: string; bg: string }>)[item._type] || { label: getExplanationTypeLabel(item._type), bg: 'bg-gray-50 text-gray-700 ring-1 ring-gray-600/20' };
                             })();
 
                             const dateStr = item.attendance_date || item.work_date || item.created_at;
@@ -4769,6 +4815,14 @@ const AttendanceManagement: React.FC = () => {
                                       <CalendarIcon className="h-4 w-4" />
                                       <span className="text-xs font-semibold">{displayDate}</span>
                                     </div>
+                                    {item.registration_type !== 'OFF_DUTY' && (item.start_time || item.end_time || item.check_in || item.check_out) && (
+                                      <div className="flex items-center gap-1.5 text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md">
+                                        <ClockIcon className="h-3.5 w-3.5" />
+                                        <span className="text-[11px] font-bold">
+                                          {item.start_time || item.check_in || '--'} — {item.end_time || item.check_out || '--'}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>

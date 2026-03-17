@@ -371,17 +371,26 @@ const Approvals: React.FC = () => {
   };
 
   const EXPLANATION_TYPE_MAP: Record<string, string> = {
-    LATE: 'Giải trình đi muộn',
-    EARLY_LEAVE: 'Giải trình về sớm',
-    INCOMPLETE_ATTENDANCE: 'Giải trình quên chấm công',
-    BUSINESS_TRIP: 'Giải trình đi công tác',
-    FIRST_DAY: 'Giải trình ngày đầu đi làm',
-    OTHER: 'Khác',
-    OVERTIME: 'Tăng ca',
-    EXTRA_HOURS: 'Làm thêm giờ',
-    NIGHT_SHIFT: 'Trực tối',
-    LIVE: 'Live',
-    LEAVE: 'Nghỉ phép tháng',
+    explanation: 'Đơn giải trình',
+    registration: 'Đơn đăng ký',
+    LATE: 'Đơn giải trình đi muộn',
+    EARLY_LEAVE: 'Đơn giải trình về sớm',
+    INCOMPLETE_ATTENDANCE: 'Đơn giải trình quên chấm công',
+    BUSINESS_TRIP: 'Đơn giải trình đi công tác',
+    FIRST_DAY: 'Đơn giải trình ngày đầu đi làm',
+    OTHER: 'Đơn giải trình khác',
+    OVERTIME: 'Đơn đăng ký tăng ca',
+    EXTRA_HOURS: 'Đơn đăng ký làm thêm giờ',
+    NIGHT_SHIFT: 'Đơn đăng ký trực tối',
+    LIVE: 'Đơn đăng ký Live',
+    LEAVE: 'Đơn đăng ký nghỉ phép',
+    OFF_DUTY: 'Đơn đăng ký ra trực',
+  };
+
+  const getExplanationTypeLabel = (type: string): string => {
+    if (!type) return '';
+    const upperType = type.toUpperCase();
+    return EXPLANATION_TYPE_MAP[upperType] || EXPLANATION_TYPE_MAP[type] || type;
   };
 
   // Mapping trạng thái chấm công sang tiếng Việt
@@ -410,20 +419,21 @@ const Approvals: React.FC = () => {
     EXPECTED_STATUS_MAP[status] || status;
 
   const getRequestTypeLabel = (req: any): string => {
-    if (req._itemType === 'ONLINE_WORK') return 'Làm việc online';
-    if (req.explanation_type === 'LEAVE' || req._itemType === 'LEAVE') return 'Nghỉ phép tháng';
-
-    // Đơn đăng ký (Tăng ca, Làm thêm giờ, Live, Trực tối)
-    if (req._itemType === 'REGISTRATION' || req._itemType === 'OVERTIME') {
+    let label = '';
+    if (req._itemType === 'ONLINE_WORK') label = 'làm việc online';
+    else if (req.explanation_type === 'LEAVE' || req._itemType === 'LEAVE') label = 'nghỉ phép tháng';
+    else if (req._itemType === 'REGISTRATION' || req._itemType === 'OVERTIME') {
       const type = req.registration_type || (req._itemType === 'OVERTIME' ? 'OVERTIME' : '');
-      return EXPLANATION_TYPE_MAP[type] || 'Đơn đăng ký';
+      label = getExplanationTypeLabel(type) || 'đơn đăng ký';
+    }
+    else if (req._itemType === 'WORK_FINALIZATION') label = 'chốt công tháng';
+    else {
+      label = req.explanation_type ? (getExplanationTypeLabel(req.explanation_level || req.explanation_type)) : 'đơn giải trình';
     }
 
-    if (req._itemType === 'WORK_FINALIZATION') return 'Chốt công tháng';
-
-    // Mặc định là đơn giải trình
-    const typeLabel = req.explanation_type ? (EXPLANATION_TYPE_MAP[req.explanation_type] || req.explanation_type) : 'Đơn giải trình';
-    return typeLabel;
+    if (!label) return 'Đơn';
+    // Đảm bảo viết hoa chữ cái đầu cho tiêu đề
+    return label.charAt(0).toUpperCase() + label.slice(1);
   };
 
   /**
@@ -750,6 +760,8 @@ const Approvals: React.FC = () => {
           await approvalService.approveRegistrationRequest(targetItem.id, note);
         } else if (isOnlineWork) {
           await approvalService.approveOnlineWorkRequest(targetItem.id, note);
+        } else if (targetItem._itemType === 'LEAVE') {
+          await approvalService.approveMonthlyLeaveRequest(targetItem.id, note);
         } else {
           await approvalService.approveAttendanceExplanation(targetItem.id, note);
         }
@@ -760,6 +772,8 @@ const Approvals: React.FC = () => {
           await approvalService.rejectRegistrationRequest(targetItem.id, note);
         } else if (isOnlineWork) {
           await approvalService.rejectOnlineWorkRequest(targetItem.id, note);
+        } else if (targetItem._itemType === 'LEAVE') {
+          await approvalService.rejectMonthlyLeaveRequest(targetItem.id, note);
         } else {
           await approvalService.rejectAttendanceExplanation(targetItem.id, note);
         }
@@ -791,6 +805,8 @@ const Approvals: React.FC = () => {
         await approvalService.deleteOnlineWorkRequest(targetItem.id);
       } else if (isRegistration || targetItem._itemType === 'OVERTIME') {
         await approvalService.deleteRegistrationRequest(targetItem.id);
+      } else if (targetItem._itemType === 'LEAVE') {
+        await attendanceService.deleteMonthlyLeaveRequest(targetItem.id);
       } else {
         await attendanceService.deleteAttendanceExplanation(targetItem.id);
       }
@@ -871,12 +887,14 @@ const Approvals: React.FC = () => {
       setIsBulkProcessing(true);
       const note = 'Duyệt nhanh hàng loạt';
 
-      const explanations = approvableItems.filter(i => i._itemType === 'EXPLANATION' || i._itemType === 'LEAVE');
+      const explanations = approvableItems.filter(i => i._itemType === 'EXPLANATION');
+      const leaveRequests = approvableItems.filter(i => i._itemType === 'LEAVE');
       const registrations = approvableItems.filter(i => i._itemType === 'REGISTRATION' || i._itemType === 'OVERTIME');
       const onlineWorks = approvableItems.filter(i => i._itemType === 'ONLINE_WORK');
 
       const promises = [];
       if (explanations.length > 0) promises.push(approvalService.bulkApproveAttendanceExplanations(explanations.map(i => i.id), note));
+      if (leaveRequests.length > 0) promises.push(approvalService.bulkApproveMonthlyLeaveRequests(leaveRequests.map(i => i.id), note));
       if (registrations.length > 0) promises.push(approvalService.bulkApproveRegistrationRequests(registrations.map(i => i.id), note));
       if (onlineWorks.length > 0) promises.push(approvalService.bulkApproveOnlineWorkRequests(onlineWorks.map(i => i.id), note));
 
@@ -1037,7 +1055,7 @@ const Approvals: React.FC = () => {
     // Nếu status = REJECTED mà chưa ai duyệt thì vòng 1 bị từ chối.
     const managerStatus = managerApproved
       ? 'Đã duyệt'
-      : explanation.status === 'REJECTED'
+      : (explanation.status === 'REJECTED' && (explanation.rejection_level === 'DIRECT_MANAGER' || (!explanation.rejection_level && !explanation.hr_rejected_by_name)))
         ? 'Đã từ chối'
         : 'Chưa duyệt';
 
@@ -1091,7 +1109,7 @@ const Approvals: React.FC = () => {
     if (!employeeIsHR) {
       const hrStatus = explanation.hr_approved
         ? 'Đã duyệt'
-        : (explanation.status === 'REJECTED' && managerApproved)
+        : (explanation.status === 'REJECTED' && (explanation.hr_rejected_by_name || explanation.rejection_level === 'HR' || managerApproved))
           ? 'Đã từ chối'
           : 'Chưa duyệt';
 
@@ -1120,10 +1138,11 @@ const Approvals: React.FC = () => {
           ? `${requestName} đã duyệt`
           : `${requestName} đã từ chối`;
       const finalApprover =
-        explanation.hr_rejected_by_name ||       // HR từ chối (SerializerMethodField mới)
-        explanation.hr_approved_by_name ||          // HR đã duyệt
-        explanation.approved_by_name ||          // Người xử lý cuối (DM từ chối vòng 1)
-        explanation.direct_manager_approved_by_name || // fallback: DM đã duyệt
+        explanation.hr_rejected_by_name ||       
+        explanation.hr_approved_by_name ||          
+        explanation.rejected_by_name ||          
+        explanation.approved_by_name ||          
+        explanation.direct_manager_approved_by_name || 
         'Hệ thống';
 
       workflow.push({
@@ -1153,7 +1172,7 @@ const Approvals: React.FC = () => {
     // Bước 1: Quản lý trực tiếp
     const managerStatus = request.direct_manager_approved
       ? 'Đã duyệt'
-      : request.direct_manager_rejected
+      : (request.status === 'REJECTED' && (request.rejection_level === 'DIRECT_MANAGER' || request.direct_manager_rejected || (!request.rejection_level && !request.hr_rejected_by_name)))
         ? 'Đã từ chối'
         : 'Chưa duyệt';
 
@@ -1203,17 +1222,15 @@ const Approvals: React.FC = () => {
     if (!employeeIsHR) {
       const hrStatus = request.hr_approved
         ? 'Đã duyệt'
-        : request.hr_rejected
+        : (request.status === 'REJECTED' && (request.hr_rejected_by_name || request.hr_rejected || request.rejection_level === 'HR' || request.direct_manager_approved))
           ? 'Đã từ chối'
-          : request.direct_manager_approved
-            ? 'Chưa duyệt'
-            : 'Chưa duyệt';
+          : 'Chưa duyệt';
 
       const hrApproverName =
         hrStatus === 'Đã duyệt'
           ? (request.hr_approved_by_name || 'Phòng Nhân sự')
           : hrStatus === 'Đã từ chối'
-            ? (request.hr_rejected_by_name || 'Phòng Nhân sự')
+            ? (request.hr_rejected_by_name || request.rejected_by_name || 'Phòng Nhân sự')
             : 'Phòng Nhân sự'; // Chưa duyệt → chưa biết ai sẽ duyệt
 
       workflow.push({
@@ -1234,9 +1251,11 @@ const Approvals: React.FC = () => {
           : `${requestName} đã từ chối`;
       const finalApprover =
         request.hr_rejected_by_name ||
+        request.rejected_by_name ||
         request.direct_manager_rejected_by_name ||
         request.hr_approved_by_name ||
         request.direct_manager_approved_by_name ||
+        request.approved_by_name ||
         'Hệ thống';
 
       workflow.push({
