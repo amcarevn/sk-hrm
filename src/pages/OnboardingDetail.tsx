@@ -16,6 +16,7 @@ import {
   UserCircleIcon,
   EyeIcon,
   ArrowTopRightOnSquareIcon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
@@ -182,6 +183,28 @@ const getStatusBadge = (status: string) => {
 };
 
 // ============================================
+// EDIT SECTION TYPES & CONSTANTS
+// ============================================
+
+type EditSection =
+  | 'candidate'
+  | 'job'
+  | 'personal'
+  | 'education'
+  | 'financial'
+  | 'emp_basic'
+  | 'emp_cccd'
+  | 'emp_salary';
+
+const CONTRACT_OPTIONS = [
+  { value: 'PROBATION', label: 'Thử việc' },
+  { value: 'DEFINITE', label: 'Có thời hạn' },
+  { value: 'INDEFINITE', label: 'Vô thời hạn' },
+  { value: 'SEASONAL', label: 'Theo mùa vụ' },
+  { value: 'PART_TIME', label: 'Bán thời gian' },
+];
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 
@@ -207,6 +230,9 @@ const OnboardingDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'info' | 'tasks' | 'documents' | 'contracts'>('info');
   const [previewFile, setPreviewFile] = useState<{ url: string; label: string; type: 'image' | 'pdf' } | null>(null);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+  const [editSection, setEditSection] = useState<EditSection | null>(null);
+  const [editData, setEditData] = useState<Record<string, any>>({});
+  const [editLoading, setEditLoading] = useState(false);
 
   useEffect(() => {
     if (isEmployee) setActiveTab('documents');
@@ -295,6 +321,34 @@ const OnboardingDetail: React.FC = () => {
     }
   };
 
+  const openEdit = (section: EditSection, initialData: Record<string, any>) => {
+    setEditSection(section);
+    setEditData(initialData);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!id || !editSection) return;
+    setEditLoading(true);
+    try {
+      if (['candidate', 'job', 'personal', 'education', 'financial'].includes(editSection)) {
+        await onboardingService.superAdminPartialUpdate(parseInt(id), editData);
+        await fetchOnboardingDetail();
+      } else {
+        const empId = employeeProfile?.employee_id;
+        if (!empId) throw new Error('Không tìm thấy mã nhân viên');
+        await employeesAPI.partialUpdateByEmployeeId(empId, editData);
+        const updated = await employeesAPI.getByEmployeeId(empId);
+        setEmployeeProfile(updated);
+      }
+      setEditSection(null);
+      showSuccess('Đã cập nhật thành công');
+    } catch (err: any) {
+      showError(err.response?.data?.message || 'Không thể cập nhật thông tin');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchOnboardingDetail();
   }, [id]);
@@ -309,9 +363,24 @@ const OnboardingDetail: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="bg-white rounded-lg border p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <span className="mr-2">👤</span>
-            Thông tin ứng viên
+          <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+            <span className="flex items-center">
+              <span className="mr-2">👤</span>
+              Thông tin ứng viên
+            </span>
+            {userRole === 'ADMIN' && (
+              <button
+                onClick={() => openEdit('candidate', {
+                  candidate_name: onboarding.candidate_name,
+                  candidate_email: onboarding.candidate_email,
+                  candidate_phone: onboarding.candidate_phone,
+                })}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                title="Sửa thông tin ứng viên"
+              >
+                <PencilIcon className="w-4 h-4" />
+              </button>
+            )}
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -334,9 +403,25 @@ const OnboardingDetail: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-lg border p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <span className="mr-2">💼</span>
-            Thông tin công việc
+          <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+            <span className="flex items-center">
+              <span className="mr-2">💼</span>
+              Thông tin công việc
+            </span>
+            {userRole === 'ADMIN' && (
+              <button
+                onClick={() => openEdit('job', {
+                  start_date: onboarding.start_date,
+                  expected_end_date: onboarding.expected_end_date ?? '',
+                  contract_type: onboarding.contract_type,
+                  probation_period_months: onboarding.probation_period_months ?? '',
+                })}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                title="Sửa thông tin công việc"
+              >
+                <PencilIcon className="w-4 h-4" />
+              </button>
+            )}
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -380,14 +465,29 @@ const OnboardingDetail: React.FC = () => {
         {userRole === 'ADMIN' && onboarding.employee_info_completed && (
           <>
             <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <span className="mr-2">🪪</span>
-                Thông tin cá nhân (nhân sự tự nhập)
-                {onboarding.employee_info_completed_at && (
-                  <span className="ml-3 text-xs font-normal text-gray-500">
-                    Hoàn thành lúc: {new Date(onboarding.employee_info_completed_at).toLocaleString('vi-VN')}
-                  </span>
-                )}
+              <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+                <span className="flex items-center">
+                  <span className="mr-2">🪪</span>
+                  Thông tin cá nhân (nhân sự tự nhập)
+                  {onboarding.employee_info_completed_at && (
+                    <span className="ml-3 text-xs font-normal text-gray-500">
+                      Hoàn thành lúc: {new Date(onboarding.employee_info_completed_at).toLocaleString('vi-VN')}
+                    </span>
+                  )}
+                </span>
+                <button
+                  onClick={() => openEdit('personal', {
+                    citizen_id: onboarding.citizen_id ?? '',
+                    date_of_birth: onboarding.date_of_birth ?? '',
+                    gender: onboarding.gender ?? '',
+                    permanent_address: onboarding.permanent_address ?? '',
+                    current_address: onboarding.current_address ?? '',
+                  })}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                  title="Sửa thông tin cá nhân"
+                >
+                  <PencilIcon className="w-4 h-4" />
+                </button>
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -426,9 +526,23 @@ const OnboardingDetail: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <span className="mr-2">🎓</span>
-                Trình độ học vấn
+              <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+                <span className="flex items-center">
+                  <span className="mr-2">🎓</span>
+                  Trình độ học vấn
+                </span>
+                <button
+                  onClick={() => openEdit('education', {
+                    education_level: onboarding.education_level ?? '',
+                    university: onboarding.university ?? '',
+                    major: onboarding.major ?? '',
+                    graduation_year: onboarding.graduation_year ?? '',
+                  })}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                  title="Sửa trình độ học vấn"
+                >
+                  <PencilIcon className="w-4 h-4" />
+                </button>
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -451,9 +565,26 @@ const OnboardingDetail: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <span className="mr-2">💳</span>
-                Thông tin tài chính & ngân hàng
+              <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+                <span className="flex items-center">
+                  <span className="mr-2">💳</span>
+                  Thông tin tài chính & ngân hàng
+                </span>
+                <button
+                  onClick={() => openEdit('financial', {
+                    salary: onboarding.salary ?? '',
+                    salary_note: onboarding.salary_note ?? '',
+                    bank_name: onboarding.bank_name ?? '',
+                    bank_account_number: onboarding.bank_account_number ?? '',
+                    bank_account_holder: onboarding.bank_account_holder ?? '',
+                    tax_code: onboarding.tax_code ?? '',
+                    tax_dependents: onboarding.tax_dependents ?? '',
+                  })}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                  title="Sửa thông tin tài chính"
+                >
+                  <PencilIcon className="w-4 h-4" />
+                </button>
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -592,9 +723,27 @@ const OnboardingDetail: React.FC = () => {
           <>
             {/* Account & Status */}
             <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <UserCircleIcon className="w-5 h-5 mr-2 text-indigo-600" />
-                Hồ sơ nhân viên hệ thống
+              <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+                <span className="flex items-center">
+                  <UserCircleIcon className="w-5 h-5 mr-2 text-indigo-600" />
+                  Hồ sơ nhân viên hệ thống
+                </span>
+                <button
+                  onClick={() => openEdit('emp_basic', {
+                    full_name: employeeProfile.full_name,
+                    gender: employeeProfile.gender,
+                    date_of_birth: employeeProfile.date_of_birth ?? '',
+                    phone_number: employeeProfile.phone_number ?? '',
+                    personal_email: employeeProfile.personal_email ?? '',
+                    employment_status: employeeProfile.employment_status,
+                    start_date: employeeProfile.start_date ?? '',
+                    end_date: employeeProfile.end_date ?? '',
+                  })}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                  title="Sửa hồ sơ nhân viên"
+                >
+                  <PencilIcon className="w-4 h-4" />
+                </button>
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -670,11 +819,26 @@ const OnboardingDetail: React.FC = () => {
             </div>
 
             {/* Identity (CCCD) */}
-            {(employeeProfile.cccd_number || employeeProfile.cccd_issue_date || employeeProfile.cccd_issue_place || employeeProfile.birth_place || employeeProfile.permanent_residence) && (
+            {(userRole === 'ADMIN' || (employeeProfile.cccd_number || employeeProfile.cccd_issue_date || employeeProfile.cccd_issue_place || employeeProfile.birth_place || employeeProfile.permanent_residence)) && (
               <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <span className="mr-2">🪪</span>
-                  Thông tin CCCD / Giấy tờ tùy thân
+                <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+                  <span className="flex items-center">
+                    <span className="mr-2">🪪</span>
+                    Thông tin CCCD / Giấy tờ tùy thân
+                  </span>
+                  <button
+                    onClick={() => openEdit('emp_cccd', {
+                      cccd_number: employeeProfile.cccd_number ?? '',
+                      cccd_issue_date: employeeProfile.cccd_issue_date ?? '',
+                      cccd_issue_place: employeeProfile.cccd_issue_place ?? '',
+                      birth_place: employeeProfile.birth_place ?? '',
+                      permanent_residence: employeeProfile.permanent_residence ?? '',
+                    })}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                    title="Sửa thông tin CCCD"
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                  </button>
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -712,11 +876,28 @@ const OnboardingDetail: React.FC = () => {
             )}
 
             {/* Salary & Contract */}
-            {(employeeProfile.basic_salary != null || employeeProfile.contract_type) && (
+            {(userRole === 'ADMIN' || (employeeProfile.basic_salary != null || employeeProfile.contract_type)) && (
               <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <span className="mr-2">💰</span>
-                  Lương & Hợp đồng
+                <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
+                  <span className="flex items-center">
+                    <span className="mr-2">💰</span>
+                    Lương & Hợp đồng
+                  </span>
+                  <button
+                    onClick={() => openEdit('emp_salary', {
+                      basic_salary: employeeProfile.basic_salary ?? '',
+                      contract_type: employeeProfile.contract_type ?? '',
+                      probation_months: employeeProfile.probation_months ?? '',
+                      probation_end_date: employeeProfile.probation_end_date ?? '',
+                      probation_salary_percentage: employeeProfile.probation_salary_percentage ?? '',
+                      bank_name: employeeProfile.bank_name ?? '',
+                      bank_account: employeeProfile.bank_account ?? '',
+                    })}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                    title="Sửa lương & hợp đồng"
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                  </button>
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   {employeeProfile.basic_salary != null && (
@@ -921,6 +1102,214 @@ const OnboardingDetail: React.FC = () => {
               <span className="font-medium">Quy trình đã hoàn thành</span>
             </div>
           )}
+        </div>
+      </div>
+    );
+  };
+
+  // ============================================
+  // EDIT MODAL
+  // ============================================
+
+  const renderEditModal = () => {
+    if (!editSection) return null;
+
+    const sectionTitles: Record<EditSection, string> = {
+      candidate: 'Sửa thông tin ứng viên',
+      job: 'Sửa thông tin công việc',
+      personal: 'Sửa thông tin cá nhân',
+      education: 'Sửa trình độ học vấn',
+      financial: 'Sửa thông tin tài chính & ngân hàng',
+      emp_basic: 'Sửa hồ sơ nhân viên hệ thống',
+      emp_cccd: 'Sửa thông tin CCCD / Giấy tờ tùy thân',
+      emp_salary: 'Sửa lương & hợp đồng',
+    };
+
+    const EditField = ({
+      label,
+      name,
+      type = 'text',
+      options,
+    }: {
+      label: string;
+      name: string;
+      type?: string;
+      options?: { value: string; label: string }[];
+    }) => {
+      const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const value = type === 'number' && e.target.value !== '' ? Number(e.target.value) : e.target.value;
+        setEditData(prev => ({ ...prev, [name]: value }));
+      };
+      const commonClass = 'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+      return (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+          {options ? (
+            <select value={editData[name] ?? ''} onChange={handleChange} className={commonClass}>
+              <option value="">-- Chọn --</option>
+              {options.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          ) : type === 'textarea' ? (
+            <textarea value={editData[name] ?? ''} onChange={handleChange} rows={3} className={commonClass} />
+          ) : (
+            <input type={type} value={editData[name] ?? ''} onChange={handleChange} className={commonClass} />
+          )}
+        </div>
+      );
+    };
+
+    const renderFields = () => {
+      switch (editSection) {
+        case 'candidate':
+          return (
+            <div className="space-y-4">
+              <EditField label="Họ và tên" name="candidate_name" />
+              <EditField label="Email" name="candidate_email" type="email" />
+              <EditField label="Số điện thoại" name="candidate_phone" />
+            </div>
+          );
+        case 'job':
+          return (
+            <div className="space-y-4">
+              <EditField label="Ngày bắt đầu" name="start_date" type="date" />
+              <EditField label="Ngày kết thúc dự kiến" name="expected_end_date" type="date" />
+              <EditField label="Loại hợp đồng" name="contract_type" options={CONTRACT_OPTIONS} />
+              <EditField label="Thời gian thử việc (tháng)" name="probation_period_months" type="number" />
+            </div>
+          );
+        case 'personal':
+          return (
+            <div className="space-y-4">
+              <EditField label="Số CMND / CCCD" name="citizen_id" />
+              <EditField label="Ngày sinh" name="date_of_birth" type="date" />
+              <EditField
+                label="Giới tính"
+                name="gender"
+                options={[
+                  { value: 'MALE', label: 'Nam' },
+                  { value: 'FEMALE', label: 'Nữ' },
+                  { value: 'OTHER', label: 'Khác' },
+                ]}
+              />
+              <EditField label="Địa chỉ thường trú" name="permanent_address" type="textarea" />
+              <EditField label="Địa chỉ hiện tại" name="current_address" type="textarea" />
+            </div>
+          );
+        case 'education':
+          return (
+            <div className="space-y-4">
+              <EditField label="Trình độ học vấn" name="education_level" />
+              <EditField label="Trường đại học / cao đẳng" name="university" />
+              <EditField label="Chuyên ngành" name="major" />
+              <EditField label="Năm tốt nghiệp" name="graduation_year" type="number" />
+            </div>
+          );
+        case 'financial':
+          return (
+            <div className="space-y-4">
+              <EditField label="Mức lương" name="salary" type="number" />
+              <EditField label="Ghi chú lương" name="salary_note" />
+              <EditField label="Ngân hàng" name="bank_name" />
+              <EditField label="Số tài khoản" name="bank_account_number" />
+              <EditField label="Chủ tài khoản" name="bank_account_holder" />
+              <EditField label="Mã số thuế" name="tax_code" />
+              <EditField label="Số người phụ thuộc" name="tax_dependents" type="number" />
+            </div>
+          );
+        case 'emp_basic':
+          return (
+            <div className="space-y-4">
+              <EditField label="Họ và tên" name="full_name" />
+              <EditField
+                label="Giới tính"
+                name="gender"
+                options={[
+                  { value: 'M', label: 'Nam' },
+                  { value: 'F', label: 'Nữ' },
+                  { value: 'O', label: 'Khác' },
+                ]}
+              />
+              <EditField label="Ngày sinh" name="date_of_birth" type="date" />
+              <EditField label="Số điện thoại" name="phone_number" />
+              <EditField label="Email cá nhân" name="personal_email" type="email" />
+              <EditField
+                label="Trạng thái làm việc"
+                name="employment_status"
+                options={[
+                  { value: 'ACTIVE', label: 'Đang làm việc' },
+                  { value: 'PROBATION', label: 'Thử việc' },
+                  { value: 'INACTIVE', label: 'Đã nghỉ' },
+                ]}
+              />
+              <EditField label="Ngày vào làm" name="start_date" type="date" />
+              <EditField label="Ngày kết thúc" name="end_date" type="date" />
+            </div>
+          );
+        case 'emp_cccd':
+          return (
+            <div className="space-y-4">
+              <EditField label="Số CCCD" name="cccd_number" />
+              <EditField label="Ngày cấp CCCD" name="cccd_issue_date" type="date" />
+              <EditField label="Nơi cấp CCCD" name="cccd_issue_place" />
+              <EditField label="Nơi sinh" name="birth_place" />
+              <EditField label="Địa chỉ thường trú" name="permanent_residence" type="textarea" />
+            </div>
+          );
+        case 'emp_salary':
+          return (
+            <div className="space-y-4">
+              <EditField label="Lương cơ bản" name="basic_salary" type="number" />
+              <EditField label="Loại hợp đồng" name="contract_type" options={CONTRACT_OPTIONS} />
+              <EditField label="Thời gian thử việc (tháng)" name="probation_months" type="number" />
+              <EditField label="Ngày kết thúc thử việc" name="probation_end_date" type="date" />
+              <EditField label="% lương thử việc" name="probation_salary_percentage" type="number" />
+              <EditField label="Ngân hàng" name="bank_name" />
+              <EditField label="Số tài khoản" name="bank_account" />
+            </div>
+          );
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <div
+        className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+        onClick={() => setEditSection(null)}
+      >
+        <div
+          className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b">
+            <h4 className="font-semibold text-gray-900">{sectionTitles[editSection]}</h4>
+            <button
+              onClick={() => setEditSection(null)}
+              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-5">
+            {renderFields()}
+          </div>
+          <div className="flex items-center justify-end gap-3 px-5 py-4 border-t">
+            <button
+              onClick={() => setEditSection(null)}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              disabled={editLoading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {editLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1180,6 +1569,9 @@ const OnboardingDetail: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Edit Modal */}
+      {renderEditModal()}
     </div>
   );
 };
