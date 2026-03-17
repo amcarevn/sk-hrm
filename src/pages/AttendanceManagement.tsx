@@ -156,7 +156,8 @@ const AttendanceManagement: React.FC = () => {
     | 'incomplete_attendance';
   type RegistrationReason = 'overtime' | 'extra_hours' | 'night_shift' | 'live';
   type OnlineWorkReason = 'online_work';
-  type ReasonType = ExplanationReason | RegistrationReason | OnlineWorkReason | null;
+  type LeaveReason = 'morning' | 'afternoon' | 'full_day';
+  type ReasonType = ExplanationReason | RegistrationReason | OnlineWorkReason | LeaveReason | null;
 
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [selectedContext, setSelectedContext] = useState<ContextType>(null);
@@ -344,12 +345,22 @@ const AttendanceManagement: React.FC = () => {
       { id: 'online_work', label: 'Làm việc online', icon: 'desktop' },
     ];
 
+  const monthlyLeaveReasons: {
+    id: LeaveReason;
+    label: string;
+    icon: string;
+  }[] = [
+      { id: 'morning', label: 'Nghỉ ca sáng', icon: 'calendar' },
+      { id: 'afternoon', label: 'Nghỉ ca chiều', icon: 'calendar' },
+      { id: 'full_day', label: 'Nghỉ cả ngày', icon: 'calendar' },
+    ];
+
   // Handle context selection
   const handleContextSelect = (context: ContextType) => {
     setSelectedContext(context);
     setSelectedReason(null); // Reset reason when context changes
-    // Only move to step 2 for contexts that have sub-reasons
-    if (context && (context === 'explanation' || context === 'registration' || context === 'online_work')) {
+    // Move to step 2 for contexts that have sub-reasons (including monthly_leave now)
+    if (context && (context === 'explanation' || context === 'registration' || context === 'online_work' || context === 'monthly_leave')) {
       setCurrentStep(2);
     }
   };
@@ -522,6 +533,8 @@ const AttendanceManagement: React.FC = () => {
             />
           </svg>
         );
+      case 'briefcase':
+        return <BriefcaseIcon className={iconClass} />;
       default:
         return null;
     }
@@ -929,21 +942,30 @@ const AttendanceManagement: React.FC = () => {
           registrationReasons.find((r) => r.id === selectedReason)?.label || '';
       } else if (selectedContext === 'online_work') {
         reasonLabel = 'Làm việc online';
+      } else if (selectedContext === 'monthly_leave') {
+        const leaveMap: Record<string, string> = {
+          morning: 'Nghỉ ca sáng',
+          afternoon: 'Nghỉ ca chiều',
+          full_day: 'Nghỉ cả ngày',
+        };
+        reasonLabel = leaveMap[selectedReason as string] || 'Nghỉ phép tháng';
       }
 
       let finalReason = formNote
         ? (reasonLabel ? `${reasonLabel}: ${formNote}` : formNote)
         : reasonLabel;
 
-      // Đặc biệt cho nghỉ phép: Nếu không có note thì để trống, có note thì lấy note
+      // Đặc biệt cho nghỉ phép: Ưu tiên note, nếu không có note thì dùng label (ca sáng/chiều)
       if (selectedContext === 'monthly_leave') {
-        finalReason = formNote || '';
+        finalReason = formNote || reasonLabel;
       }
 
       // Map expected status
       let expectedStatus = 'PRESENT';
       if (selectedContext === 'monthly_leave') {
-        expectedStatus = 'ABSENT'; // Or specific leave status if available
+        // Nếu nghỉ cả ngày thì expected là ABSENT (để BE tính 1 công)
+        // Nếu nghỉ ca sáng/chiều thì expected là HALF_DAY (để BE tính 0.5 công)
+        expectedStatus = selectedReason === 'full_day' ? 'ABSENT' : 'HALF_DAY';
       }
 
       let result;
@@ -1112,7 +1134,7 @@ const AttendanceManagement: React.FC = () => {
 
         await refreshAllData();
         const successMsg = selectedContext === 'monthly_leave'
-          ? 'Đơn nghỉ phép tháng đã được gửi thành công!'
+          ? `Đơn ${reasonLabel} đã được gửi thành công!`
           : 'Đơn bổ sung công đã được gửi thành công!';
         showNotify('success', 'Thành công', successMsg);
 
@@ -2694,7 +2716,10 @@ const AttendanceManagement: React.FC = () => {
                         {/* Card 3: Nghỉ phép tháng */}
                         {(() => {
                           const maxMonthlyLeave = 1;
-                          const usedMonthlyLeave = monthlyRequestHistory?.leaveRequests?.length || 0;
+                          // Tính tổng số ngày đã dùng: HALF_DAY = 0.5, ABSENT (hoặc khác) = 1.0
+                          const usedMonthlyLeave = (monthlyRequestHistory?.leaveRequests || []).reduce((total, req) => {
+                            return total + (req.expected_status === 'HALF_DAY' ? 0.5 : 1.0);
+                          }, 0);
                           const remainingMonthlyLeave = Math.max(0, maxMonthlyLeave - usedMonthlyLeave);
 
                           return (
@@ -2738,7 +2763,7 @@ const AttendanceManagement: React.FC = () => {
                                     Nghỉ phép tháng
                                   </h4>
                                   <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                                    Đăng ký nghỉ phép trong tháng (Còn {remainingMonthlyLeave}/{maxMonthlyLeave} lần)
+                                    Đăng ký nghỉ phép trong tháng (Còn {remainingMonthlyLeave}/{maxMonthlyLeave} ngày)
                                   </p>
                                   {remainingMonthlyLeave <= 0 && (
                                     <p className="mt-1 text-xs text-red-500">
@@ -2855,7 +2880,9 @@ const AttendanceManagement: React.FC = () => {
                     {/* === ReasonSelector (Step 2) === */}
                     {selectedContext &&
                       (selectedContext === 'explanation' ||
-                        selectedContext === 'registration') && (
+                        selectedContext === 'registration' ||
+                        selectedContext === 'monthly_leave' ||
+                        selectedContext === 'online_work') && (
                         <div className="space-y-4 mb-6 animate-fadeIn">
                           <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                             Chọn lý do cụ thể
@@ -2868,7 +2895,9 @@ const AttendanceManagement: React.FC = () => {
                                 ? explanationReasons
                                 : selectedContext === 'registration'
                                   ? registrationReasons
-                                  : onlineWorkReasons;
+                                  : selectedContext === 'monthly_leave'
+                                    ? monthlyLeaveReasons
+                                    : onlineWorkReasons;
 
                               // Lọc lý do cho Đơn giải trình dựa trên thực tế chấm công
                               if (selectedContext === 'explanation') {
@@ -4109,7 +4138,8 @@ const AttendanceManagement: React.FC = () => {
                       isSubmitting ||
                       !selectedContext ||
                       ((selectedContext === 'explanation' ||
-                        selectedContext === 'registration') &&
+                        selectedContext === 'registration' ||
+                        selectedContext === 'monthly_leave') &&
                         !selectedReason) ||
                       !isRegistrationTimeValid() ||
                       (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave')
@@ -4194,6 +4224,7 @@ const AttendanceManagement: React.FC = () => {
                           </strong>
                           {(selectedContext === 'explanation' ||
                             selectedContext === 'registration' ||
+                            selectedContext === 'monthly_leave' ||
                             selectedContext === 'online_work') &&
                             selectedReason && (
                               <>
@@ -4203,8 +4234,10 @@ const AttendanceManagement: React.FC = () => {
                                     ? explanationReasons
                                     : selectedContext === 'registration'
                                       ? registrationReasons
-                                      : onlineWorkReasons
-                                  ).find((r) => r.id === selectedReason)?.label
+                                      : selectedContext === 'monthly_leave'
+                                        ? monthlyLeaveReasons
+                                        : onlineWorkReasons
+                                  ).find((r: any) => r.id === selectedReason)?.label
                                 }
                               </>
                             )}
@@ -4316,8 +4349,10 @@ const AttendanceManagement: React.FC = () => {
                               ? explanationReasons
                               : selectedContext === 'registration'
                                 ? registrationReasons
-                                : onlineWorkReasons
-                            ).find((r) => r.id === selectedReason)?.label
+                                : selectedContext === 'monthly_leave'
+                                  ? monthlyLeaveReasons
+                                  : onlineWorkReasons
+                            ).find((r: any) => r.id === selectedReason)?.label
                           }
                         </span>
                       </div>
