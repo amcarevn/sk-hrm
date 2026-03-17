@@ -531,7 +531,7 @@ const Onboarding: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-6 overflow-hidden">
         {/* Table header */}
         <div className="flex justify-between items-center mb-4">
           <div>
@@ -612,7 +612,7 @@ const Onboarding: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="border rounded-lg overflow-x-auto mb-8">
+        <div className="border rounded-lg overflow-x-auto w-full mb-8">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
