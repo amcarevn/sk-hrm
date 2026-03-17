@@ -166,6 +166,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         case 'INCOMPLETE_ATTENDANCE': return 'quên chấm công';
         case 'BUSINESS_TRIP': return 'công tác';
         case 'FIRST_DAY': return 'ngày đầu đi làm';
+        case 'LEAVE': return 'nghỉ phép tháng';
         default: return 'giải trình';
       }
     }
@@ -178,10 +179,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       case 'EXTRA_HOURS': return 'làm thêm giờ';
       case 'NIGHT_SHIFT': return 'trực tối';
       case 'ONLINE_WORK': return 'làm việc online';
-      case 'LEAVE': return 'nghỉ phép';
+      case 'LEAVE': return 'nghỉ phép tháng';
       case 'LIVE':
       case 'LIVESTREAM':
-        return 'live';
+        return 'livestream';
       default: return 'đơn';
     }
   };
@@ -311,7 +312,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         const approvedRegistrations = registrations
           .filter((r: any) => {
             const t = (r.event_type || '').toUpperCase();
-            return ['OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM'].includes(t) && r.data?.status === 'APPROVED';
+            return ['OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM', 'ONLINE_WORK'].includes(t) && r.data?.status === 'APPROVED';
           })
           .map((r: any) => r);
 
@@ -348,8 +349,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         } else if (isForgotCC) {
           // Change color to green/orange if there's credit, but default to green for "màu có mặt"
           displayColor = dayItem.engine_context?.work_credit >= 0.5 ? 'green' : 'purple';
-        } else if (dayItem.status_badge === 'Nghỉ phép tháng') {
-          displayColor = 'green';
+        } else if (dayItem.status_badge === 'Nghỉ phép tháng' || hasApprovedOnlineWork) {
+          displayColor = dayItem.engine_context?.work_credit >= 1.0 ? 'green' : 'orange';
         }
 
         return {
@@ -508,7 +509,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     }
 
     // Priority 2: Approved requests
-    if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration) {
+    if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration || day.dayStatusSummary?.has_approved_online_work) {
       return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300 font-medium';
     }
 
@@ -538,7 +539,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     if (day.dayStatusSummary?.display_color === 'orange' || credit >= 0.5) {
       return 'bg-orange-100 text-orange-700 ring-1 ring-orange-300';
     }
-    if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration) {
+    if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration || day.dayStatusSummary?.has_approved_online_work) {
       return 'bg-blue-100 text-blue-700 ring-1 ring-blue-300';
     }
     const hasIncomplete = day.engine_context?.is_incomplete;
@@ -568,7 +569,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     }
 
     // Nếu có đơn đã duyệt, hiển thị chi tiết duyệt đơn gì
-    if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration) {
+    if (day.dayStatusSummary?.has_approved_explanation || day.dayStatusSummary?.has_approved_registration || day.dayStatusSummary?.has_approved_online_work) {
       // Ưu tiên hiện đơn giải trình
       const approvedExpls = day.approvedExplanations || [];
       if (approvedExpls.length > 0) {
@@ -589,7 +590,11 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         };
 
         // Trả về type đầu tiên tìm được
-        for (const t of types) {
+        for (const exp of approvedExpls) {
+          const t = exp.explanation_type;
+          if (t === 'LEAVE') {
+            return exp.expected_status === 'HALF_DAY' ? 'Duyệt nghỉ phép nửa ngày' : 'Duyệt nghỉ phép tháng';
+          }
           if (typeMap[t]) return typeMap[t];
         }
         return 'Đã duyệt GPT';
@@ -598,6 +603,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       // Sau đó tới các đơn đăng ký
       const reg = (day.approvedRegistrations || [])[0];
       if (reg) {
+        const type = (reg.event_type || '').toUpperCase();
+        if (type === 'ONLINE_WORK' && reg.data?.expected_status === 'HALF_DAY') {
+          return 'Đã duyệt làm online nửa ngày';
+        }
         const label = getRequestTypeLabel(reg);
         return 'Đã duyệt ' + label;
       }

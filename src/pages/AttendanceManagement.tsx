@@ -127,6 +127,7 @@ const AttendanceManagement: React.FC = () => {
     NIGHT_SHIFT: 'Đơn đăng ký trực tối',
     LIVE: 'Đơn đăng ký Live',
     LEAVE: 'Nghỉ phép tháng',
+    ONLINE_WORK: 'Đơn làm việc online',
   };
 
   const getExplanationTypeLabel = (type: string): string =>
@@ -155,7 +156,7 @@ const AttendanceManagement: React.FC = () => {
     | 'business_trip'
     | 'incomplete_attendance';
   type RegistrationReason = 'overtime' | 'extra_hours' | 'night_shift' | 'live';
-  type OnlineWorkReason = 'online_work';
+  type OnlineWorkReason = 'morning' | 'afternoon' | 'full_day';
   type LeaveReason = 'morning' | 'afternoon' | 'full_day';
   type ReasonType = ExplanationReason | RegistrationReason | OnlineWorkReason | LeaveReason | null;
 
@@ -342,7 +343,9 @@ const AttendanceManagement: React.FC = () => {
     label: string;
     icon: string;
   }[] = [
-      { id: 'online_work', label: 'Làm việc online', icon: 'desktop' },
+      { id: 'morning', label: 'Làm online sáng', icon: 'desktop' },
+      { id: 'afternoon', label: 'Làm online chiều', icon: 'desktop' },
+      { id: 'full_day', label: 'Làm online cả ngày', icon: 'desktop' },
     ];
 
   const monthlyLeaveReasons: {
@@ -941,7 +944,12 @@ const AttendanceManagement: React.FC = () => {
         reasonLabel =
           registrationReasons.find((r) => r.id === selectedReason)?.label || '';
       } else if (selectedContext === 'online_work') {
-        reasonLabel = 'Làm việc online';
+        const onlineMap: Record<string, string> = {
+          morning: 'Làm online sáng',
+          afternoon: 'Làm online chiều',
+          full_day: 'Làm online cả ngày',
+        };
+        reasonLabel = onlineMap[selectedReason as string] || 'Làm việc online';
       } else if (selectedContext === 'monthly_leave') {
         const leaveMap: Record<string, string> = {
           morning: 'Nghỉ ca sáng',
@@ -962,9 +970,9 @@ const AttendanceManagement: React.FC = () => {
 
       // Map expected status
       let expectedStatus = 'PRESENT';
-      if (selectedContext === 'monthly_leave') {
-        // Nếu nghỉ cả ngày thì expected là ABSENT (để BE tính 1 công)
-        // Nếu nghỉ ca sáng/chiều thì expected là HALF_DAY (để BE tính 0.5 công)
+      if (selectedContext === 'monthly_leave' || selectedContext === 'online_work') {
+        // Nếu làm/nghỉ cả ngày thì expected là ABSENT (để BE tính 1 công)
+        // Nếu làm/nghỉ ca sáng/chiều thì expected là HALF_DAY (để BE tính 0.5 công)
         expectedStatus = selectedReason === 'full_day' ? 'ABSENT' : 'HALF_DAY';
       }
 
@@ -973,9 +981,10 @@ const AttendanceManagement: React.FC = () => {
         const onlineWorkData = {
           employee_id: currentEmployee.id,
           work_date: dateStr, // Sử dụng work_date thay vì attendance_date
-          work_plan: formNote || 'Làm việc online', // Thêm work_plan
+          work_plan: formNote || reasonLabel, // Thêm work_plan
           reason: finalReason,
           status: 'PENDING',
+          expected_status: expectedStatus, // Thêm expected_status
         };
 
         console.log(
@@ -1594,9 +1603,8 @@ const AttendanceManagement: React.FC = () => {
 
           {/* === Hạn mức còn lại === */}
           {(() => {
-            const maxMonthlyLeave = 1;
-            const usedMonthlyLeave = monthlyRequestHistory?.leaveRequests?.length || 0;
-            const remainingMonthlyLeave = Math.max(0, maxMonthlyLeave - usedMonthlyLeave);
+            const maxMonthlyLeave = attendanceStats?.max_leave_per_month || 1;
+            const remainingMonthlyLeave = attendanceStats?.remaining_leave ?? 1;
 
             return (
               <div className="group bg-white p-4 rounded-xl border border-indigo-100 hover:shadow-md transition-all duration-300">
@@ -1610,15 +1618,14 @@ const AttendanceManagement: React.FC = () => {
                   <span className="text-2xl font-bold text-indigo-600">
                     {remainingMonthlyLeave}
                   </span>
-                  <span className="text-[10px] text-indigo-500 font-medium">/{maxMonthlyLeave} lần</span>
+                  <span className="text-[10px] text-indigo-500 font-medium">/{maxMonthlyLeave} ngày</span>
                 </div>
               </div>
             );
           })()}
 
-          {isManagementUser &&
-            (() => {
-              const maxOnline = attendanceStats?.max_online_work_per_month || 2;
+          {(() => {
+              const maxOnline = attendanceStats?.max_online_work_per_month || 3;
               const usedOnline = (attendanceStats?.max_online_work_per_month || 0) - (attendanceStats?.remaining_online_work || 0);
               const remainingOnline = Math.max(0, maxOnline - usedOnline);
 
@@ -2086,6 +2093,7 @@ const AttendanceManagement: React.FC = () => {
                             'live',
                             'livestream',
                             'explanation',
+                            'online_work',
                           ].includes(ev.event_type)
                         ) {
                           if (ev.data?.direct_manager_approved_by_name) {
@@ -2154,6 +2162,7 @@ const AttendanceManagement: React.FC = () => {
                       registration_approval: 'Phê duyệt đăng ký',
                       overtime: 'Tăng ca',
                       livestream: 'Livestream',
+                      online_work: 'Làm việc online',
                     };
                     const statusLabel: Record<string, string> = {
                       ...ATTENDANCE_STATUS_MAP,
@@ -2168,7 +2177,7 @@ const AttendanceManagement: React.FC = () => {
                     const isApproved = (ev: AttendanceEvent) => {
                       if (
                         (ev.event_type === 'explanation' ||
-                          ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(ev.event_type) ||
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work'].includes(ev.event_type) ||
                           ev.event_type === 'registration_approval') &&
                         ev.data?.status === 'APPROVED'
                       )
@@ -2184,7 +2193,7 @@ const AttendanceManagement: React.FC = () => {
                     const isRejected = (ev: AttendanceEvent) => {
                       if (
                         (ev.event_type === 'explanation' ||
-                          ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream', 'request_approval', 'registration_approval'].includes(ev.event_type)) &&
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'request_approval', 'registration_approval'].includes(ev.event_type)) &&
                         ev.data?.status === 'REJECTED'
                       )
                         return true;
@@ -2259,15 +2268,15 @@ const AttendanceManagement: React.FC = () => {
                                           ? (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE') ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800'
                                           : (ev.event_type === 'explanation_approval' || ev.event_type === 'registration_approval')
                                             ? 'bg-indigo-100 text-indigo-800'
-                                            : (['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(ev.event_type))
+                                            : (['overtime', 'extra_hours', 'night_shift', 'live', 'online_work'].includes(ev.event_type))
                                               ? 'bg-amber-100 text-amber-800'
                                               : 'bg-indigo-100 text-indigo-800'
                                         }`}
                                     >
                                       {ev.event_type === 'explanation'
                                         ? (getExplanationTypeLabel(ev.data?.explanation_type) || 'Giải trình')
-                                        : (ev.event_type === 'livestream' || ['overtime', 'extra_hours', 'night_shift', 'live'].includes(ev.event_type))
-                                          ? (getExplanationTypeLabel(ev.data?.registration_type) || (ev.event_type === 'livestream' ? 'Đơn đăng ký Livestream' : 'Đơn đăng ký'))
+                                        : (ev.event_type === 'live' || ['overtime', 'extra_hours', 'night_shift', 'online_work'].includes(ev.event_type))
+                                          ? (getExplanationTypeLabel(ev.data?.registration_type || ev.data?.event_type || ev.event_type) || (ev.event_type === 'live' ? 'Đơn đăng ký Live' : 'Đơn đăng ký'))
                                           : (ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') && (ev.data?.explanation_type || ev.data?.registration_type)
                                             ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data?.explanation_type || ev.data?.registration_type)}`
                                             : ev.event_type === 'registration_approval' && ev.data?.registration_type
@@ -2378,7 +2387,7 @@ const AttendanceManagement: React.FC = () => {
                                       )}
                                     </div>
                                   )}
-                                  {['overtime', 'extra_hours', 'night_shift', 'live', 'livestream'].includes(ev.event_type) && (
+                                  {['overtime', 'extra_hours', 'night_shift', 'live'].includes(ev.event_type) && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
                                       {(ev.check_in || ev.check_out) && (
                                         <p>
@@ -2431,8 +2440,8 @@ const AttendanceManagement: React.FC = () => {
                       const hasWorkViolationToDo = hasUnresolvedLate || hasUnresolvedEarly || hasUnresolvedIncomplete;
 
                       // Còn lượt nghỉ tháng?
-                      const usedMonthlyLeave = monthlyRequestHistory?.leaveRequests?.length || 0;
-                      const hasMonthlyLeaveRemaining = usedMonthlyLeave < 1;
+                      const remainingMonthlyLeave = attendanceStats?.remaining_leave ?? 1;
+                      const hasMonthlyLeaveRemaining = remainingMonthlyLeave > 0;
 
                       // Vẫn hiện nút nếu còn việc để làm (giải trình hoặc đăng ký khác)
                       if (hasWorkViolationToDo || hasMonthlyLeaveRemaining || approvedRegistrations.length === 0) {
@@ -2713,14 +2722,9 @@ const AttendanceManagement: React.FC = () => {
                           )}
                         </button>
 
-                        {/* Card 3: Nghỉ phép tháng */}
                         {(() => {
-                          const maxMonthlyLeave = 1;
-                          // Tính tổng số ngày đã dùng: HALF_DAY = 0.5, ABSENT (hoặc khác) = 1.0
-                          const usedMonthlyLeave = (monthlyRequestHistory?.leaveRequests || []).reduce((total, req) => {
-                            return total + (req.expected_status === 'HALF_DAY' ? 0.5 : 1.0);
-                          }, 0);
-                          const remainingMonthlyLeave = Math.max(0, maxMonthlyLeave - usedMonthlyLeave);
+                          const maxMonthlyLeave = attendanceStats?.max_leave_per_month || 1;
+                          const remainingMonthlyLeave = attendanceStats?.remaining_leave ?? 1;
 
                           return (
                             <button
@@ -2734,7 +2738,7 @@ const AttendanceManagement: React.FC = () => {
                                     ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
                                     : 'border-gray-200 hover:border-purple-400'
                                 }
-      ${!isManagementUser ? 'sm:col-span-2' : ''}
+      sm:col-span-1
     `}
                             >
                               <div className="flex items-start space-x-4">
@@ -2795,8 +2799,8 @@ const AttendanceManagement: React.FC = () => {
                         })()}
 
                         {/* Card 4: Làm việc online */}
-                        {isManagementUser && (() => {
-                          const maxOnline = attendanceStats?.max_online_work_per_month || 2;
+                        {(() => {
+                          const maxOnline = attendanceStats?.max_online_work_per_month || 3;
                           const usedOnline = (attendanceStats?.max_online_work_per_month || 0) - (attendanceStats?.remaining_online_work || 0);
                           const remainingOnline = Math.max(0, maxOnline - usedOnline);
 
@@ -2844,11 +2848,11 @@ const AttendanceManagement: React.FC = () => {
                                     Làm việc online
                                   </h4>
                                   <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                                    Đăng ký làm việc từ xa (Còn {remainingOnline}/{maxOnline} lần)
+                                    Đăng ký làm việc từ xa (Còn {remainingOnline}/{maxOnline} ngày)
                                   </p>
                                   {remainingOnline <= 0 && (
                                     <p className="mt-1 text-xs text-red-500">
-                                      Hết lượt đăng ký trong tháng
+                                      Hết hạn mức trong tháng
                                     </p>
                                   )}
                                 </div>
@@ -2938,6 +2942,22 @@ const AttendanceManagement: React.FC = () => {
                                   return true;
                                 });
                               }
+                              // Lọc lý do cho Nghỉ phép tháng
+                              if (selectedContext === 'monthly_leave') {
+                                const remaining = attendanceStats?.remaining_leave ?? 1;
+                                if (remaining < 1.0) {
+                                  return reasons.filter(r => r.id !== 'full_day');
+                                }
+                              }
+
+                              // Lọc lý do cho Làm việc online
+                              if (selectedContext === 'online_work') {
+                                const remaining = attendanceStats?.remaining_online_work ?? 3;
+                                if (remaining < 1.0) {
+                                  return reasons.filter(r => r.id !== 'full_day');
+                                }
+                              }
+
                               return reasons;
                             })().map((reason) => {
                               const isSelected = selectedReason === reason.id;
@@ -3911,7 +3931,7 @@ const AttendanceManagement: React.FC = () => {
 
                     {/* === Note Input for Online Work === */}
                     {selectedContext === 'online_work' &&
-                      selectedReason === 'online_work' && (
+                      selectedReason && (
                         <div className="space-y-3 mb-6 animate-fadeIn">
                           <label
                             htmlFor="online-work-note"
@@ -3931,6 +3951,27 @@ const AttendanceManagement: React.FC = () => {
                             Mô tả chi tiết để quản lý xem xét phê duyệt đơn làm
                             việc online của bạn.
                           </p>
+                        </div>
+                      )}
+
+                    {/* === Note Input for Monthly Leave === */}
+                    {selectedContext === 'monthly_leave' &&
+                      selectedReason && (
+                        <div className="space-y-3 mb-6 animate-fadeIn">
+                          <label
+                            htmlFor="monthly-leave-note"
+                            className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
+                          >
+                            Ghi chú nghỉ phép (tùy chọn)
+                          </label>
+                          <textarea
+                            id="monthly-leave-note"
+                            rows={4}
+                            value={formNote}
+                            onChange={(e) => setFormNote(e.target.value)}
+                            placeholder="Nhập lý do nghỉ phép tháng..."
+                            className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
+                          />
                         </div>
                       )}
 
@@ -4081,29 +4122,7 @@ const AttendanceManagement: React.FC = () => {
                         </div>
                       )}
 
-                    {/* === Note Input for Online Work === */}
-                    {selectedContext === 'online_work' && (
-                      <div className="space-y-3 mb-6 animate-fadeIn">
-                        <label
-                          htmlFor="online-work-note"
-                          className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
-                        >
-                          Ghi chú (tùy chọn)
-                        </label>
-                        <textarea
-                          id="online-work-note"
-                          rows={4}
-                          value={formNote}
-                          onChange={(e) => setFormNote(e.target.value)}
-                          placeholder="Nhập lý do làm việc online, công việc dự kiến hoàn thành..."
-                          className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
-                        />
-                        <p className="text-xs text-gray-500">
-                          Vui lòng mô tả chi tiết lý do và công việc sẽ thực hiện
-                          khi làm việc online
-                        </p>
-                      </div>
-                    )}
+
 
                     {/* Placeholder when no context selected */}
                     {!selectedContext && (
@@ -4139,7 +4158,8 @@ const AttendanceManagement: React.FC = () => {
                       !selectedContext ||
                       ((selectedContext === 'explanation' ||
                         selectedContext === 'registration' ||
-                        selectedContext === 'monthly_leave') &&
+                        selectedContext === 'monthly_leave' ||
+                        selectedContext === 'online_work') &&
                         !selectedReason) ||
                       !isRegistrationTimeValid() ||
                       (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave')
@@ -4556,9 +4576,7 @@ const AttendanceManagement: React.FC = () => {
                         { label: 'Giải trình', count: monthlyRequestHistory.explanations.length, color: 'bg-blue-400' },
                         { label: 'Nghỉ phép', count: monthlyRequestHistory.leaveRequests.length, color: 'bg-indigo-400' },
                         { label: 'Đăng ký', count: monthlyRequestHistory.registrations.length, color: 'bg-amber-400' },
-                        ...(isManagementUser
-                          ? [{ label: 'Làm việc online', count: monthlyRequestHistory.onlineWorks.length, color: 'bg-teal-400' }]
-                          : []),
+                        { label: 'Làm việc online', count: monthlyRequestHistory.onlineWorks.length, color: 'bg-teal-400' },
                       ].map((item) => (
                         <div key={item.label} className="flex items-center gap-1.5 bg-white bg-opacity-15 rounded-lg px-2.5 py-1">
                           <span className={`w-2 h-2 rounded-full ${item.color}`} />
@@ -4577,14 +4595,12 @@ const AttendanceManagement: React.FC = () => {
                           key: 'all',
                           label: 'Tất cả',
                           count: monthlyRequestHistory.explanations.length + monthlyRequestHistory.leaveRequests.length + monthlyRequestHistory.registrations.length
-                            + (isManagementUser ? monthlyRequestHistory.onlineWorks.length : 0),
+                            + monthlyRequestHistory.onlineWorks.length,
                         },
                         { key: 'explanation', label: 'Giải trình', count: monthlyRequestHistory.explanations.length },
                         { key: 'leave', label: 'Nghỉ phép', count: monthlyRequestHistory.leaveRequests.length },
                         { key: 'registration', label: 'Đăng ký', count: monthlyRequestHistory.registrations.length },
-                        ...(isManagementUser
-                          ? [{ key: 'online_work', label: 'Làm việc online', count: monthlyRequestHistory.onlineWorks.length }]
-                          : []),
+                        { key: 'online_work', label: 'Làm việc online', count: monthlyRequestHistory.onlineWorks.length },
                       ].map((tab) => (
                         <button
                           key={tab.key}
