@@ -56,7 +56,8 @@
     position_title: string;
     department_name: string;
     start_date: string;
-    token_status: 'not_generated' | 'active' | 'expired';
+    status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED';
+    token_status: 'not_generated' | 'active' | 'expired' | 'completed';
     employee_info_completed: boolean;
     progress_percentage: number;
     employee_form_url?: string;
@@ -79,11 +80,14 @@
 
     const [loading, setLoading] = useState(false);
     const [onboardings, setOnboardings] = useState<OnboardingRecord[]>([]);
-    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [totalCount, setTotalCount] = useState(0);
+    const [filterStatus, setFilterStatus] = useState<string>('');
+    const [filterMonth, setFilterMonth] = useState<number>(0);
+    const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
     const [createModalOpen, setCreateModalOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [rowsPerPage, setRowsPerPage] = useState(50);
     const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; msg: string } | null>(null);
 
     // Popover for "active" token actions
@@ -105,16 +109,27 @@
     };
 
     // ===== FETCH =====
-    useEffect(() => { fetchOnboardings(); }, []);
+    useEffect(() => { fetchOnboardings(); }, [page, rowsPerPage, filterStatus, filterMonth, filterYear]);
 
     const fetchOnboardings = async () => {
       setLoading(true);
       try {
-        const response = await fetch('/api-hrm/onboardings/', {
+        const params = new URLSearchParams({
+          page: String(page + 1),
+          page_size: String(rowsPerPage),
+        });
+        if (filterStatus) params.set('status', filterStatus);
+        if (filterMonth > 0) {
+          params.set('month', String(filterMonth));
+          params.set('year', String(filterYear));
+        }
+        const response = await fetch(`/api-hrm/onboardings/?${params}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         });
         const data = await response.json();
-        setOnboardings(Array.isArray(data) ? data : data.results ?? []);
+        const results: OnboardingRecord[] = Array.isArray(data) ? data : (data.results ?? []);
+        setOnboardings(results);
+        setTotalCount(data.count ?? results.length);
       } catch {
         showToast('error', 'Không thể tải danh sách onboarding');
       } finally {
@@ -235,20 +250,8 @@
 
     // ===== STATS =====
     const stats = {
-      total: onboardings.length,
-      waiting: onboardings.filter((o) => o.token_status === 'active').length,
-      completed: onboardings.filter((o) => o.employee_info_completed).length,
-      expired: onboardings.filter((o) => o.token_status === 'expired').length,
+      total: totalCount,
     };
-
-    // ===== FILTER =====
-    const filteredOnboardings = onboardings.filter((o) => {
-      if (statusFilter === 'completed') return o.employee_info_completed;
-      if (statusFilter === 'waiting') return o.token_status === 'active' && !o.employee_info_completed;
-      if (statusFilter === 'expired') return o.token_status === 'expired';
-      if (statusFilter === 'not_generated') return o.token_status === 'not_generated';
-      return true; // 'all'
-    });
 
     // ============================================
     // RENDER
@@ -290,23 +293,25 @@
         {/* Stats cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Tổng số', value: stats.total, color: 'text-gray-800', bg: 'bg-gray-50', filterKey: 'all' },
-            { label: 'Chờ điền thông tin', value: stats.waiting, color: 'text-blue-600', bg: 'bg-blue-50', filterKey: 'waiting' },
-            { label: 'Đã điền thông tin', value: stats.completed, color: 'text-green-600', bg: 'bg-green-50', filterKey: 'completed' },
-            { label: 'Token hết hạn', value: stats.expired, color: 'text-red-500', bg: 'bg-red-50', filterKey: 'expired' },
+            { label: 'Tổng số', value: stats.total, color: 'text-gray-800', bg: 'bg-gray-50', filterKey: '' },
+            { label: 'Nháp', value: null, color: 'text-yellow-600', bg: 'bg-yellow-50', filterKey: 'DRAFT' },
+            { label: 'Đang tiến hành', value: null, color: 'text-blue-600', bg: 'bg-blue-50', filterKey: 'IN_PROGRESS' },
+            { label: 'Hoàn thành', value: null, color: 'text-green-600', bg: 'bg-green-50', filterKey: 'COMPLETED' },
           ].map(({ label, value, color, bg, filterKey }) => (
             <div
               key={label}
               role="button"
               tabIndex={0}
               aria-label={`Lọc theo: ${label}`}
-              aria-pressed={statusFilter === filterKey}
+              aria-pressed={filterStatus === filterKey}
               className={`${bg} rounded-xl p-4 border text-center cursor-pointer transition-all hover:shadow-md
-                ${statusFilter === filterKey ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-100'}`}
-              onClick={() => { setStatusFilter(filterKey); setPage(0); }}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setStatusFilter(filterKey); setPage(0); } }}
+                ${filterStatus === filterKey ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-100'}`}
+              onClick={() => { setFilterStatus(filterKey); setPage(0); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setFilterStatus(filterKey); setPage(0); } }}
             >
-              <p className={`text-2xl font-bold ${color}`}>{value}</p>
+              {value !== null
+                ? <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                : <p className={`text-sm font-semibold ${color} mt-1`}>Lọc nhanh</p>}
               <p className="text-xs text-gray-500 mt-1">{label}</p>
             </div>
           ))}
@@ -314,34 +319,60 @@
 
         {/* Filter bar */}
         <div className="flex flex-wrap items-center gap-3 mb-3">
-          <FormControl size="small" sx={{ minWidth: 220 }}>
+          <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>
               <span className="flex items-center gap-1">
-                <FilterList sx={{ fontSize: 16 }} /> Lọc theo trạng thái
+                <FilterList sx={{ fontSize: 16 }} /> Trạng thái
               </span>
             </InputLabel>
             <Select
-              value={statusFilter}
-              label={<span className="flex items-center gap-1"><FilterList sx={{ fontSize: 16 }} /> Lọc theo trạng thái</span>}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+              value={filterStatus}
+              label={<span className="flex items-center gap-1"><FilterList sx={{ fontSize: 16 }} /> Trạng thái</span>}
+              onChange={(e) => { setFilterStatus(e.target.value); setPage(0); }}
             >
-              <MenuItem value="all">Tất cả trạng thái</MenuItem>
-              <MenuItem value="waiting">Chờ điền thông tin</MenuItem>
-              <MenuItem value="completed">Đã điền thông tin</MenuItem>
-              <MenuItem value="expired">Token hết hạn</MenuItem>
-              <MenuItem value="not_generated">Chưa tạo link</MenuItem>
+              <MenuItem value="">Tất cả trạng thái</MenuItem>
+              <MenuItem value="DRAFT">Nháp</MenuItem>
+              <MenuItem value="IN_PROGRESS">Đang tiến hành</MenuItem>
+              <MenuItem value="COMPLETED">Hoàn thành</MenuItem>
             </Select>
           </FormControl>
-          {statusFilter !== 'all' && (
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel>Tháng</InputLabel>
+            <Select
+              value={filterMonth}
+              label="Tháng"
+              onChange={(e) => { setFilterMonth(Number(e.target.value)); setPage(0); }}
+            >
+              <MenuItem value={0}>Tất cả tháng</MenuItem>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <MenuItem key={m} value={m}>Tháng {m}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {filterMonth > 0 && (
+            <FormControl size="small" sx={{ minWidth: 110 }}>
+              <InputLabel>Năm</InputLabel>
+              <Select
+                value={filterYear}
+                label="Năm"
+                onChange={(e) => { setFilterYear(Number(e.target.value)); setPage(0); }}
+              >
+                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                  <MenuItem key={y} value={y}>{y}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+          {(filterStatus !== '' || filterMonth > 0) && (
             <Button
               size="small" variant="outlined"
-              onClick={() => { setStatusFilter('all'); setPage(0); }}
+              onClick={() => { setFilterStatus(''); setFilterMonth(0); setPage(0); }}
             >
               Xóa bộ lọc
             </Button>
           )}
           <Typography variant="body2" color="text.secondary">
-            Hiển thị {filteredOnboardings.length} / {onboardings.length} onboarding
+            Tổng: {totalCount} onboarding
           </Typography>
         </div>
 
@@ -371,18 +402,13 @@
                 ) : onboardings.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#9ca3af' }}>
-                      Chưa có dữ liệu onboarding
-                    </TableCell>
-                  </TableRow>
-                ) : filteredOnboardings.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 6, color: '#9ca3af' }}>
-                      Không có onboarding nào khớp với bộ lọc
+                      {filterStatus || filterMonth > 0
+                        ? 'Không có onboarding nào khớp với bộ lọc'
+                        : 'Chưa có dữ liệu onboarding'}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredOnboardings
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  onboardings
                     .map((record) => (
                       <TableRow key={record.id} hover>
                         <TableCell>
@@ -441,12 +467,12 @@
           </TableContainer>
           <TablePagination
             component="div"
-            count={filteredOnboardings.length}
+            count={totalCount}
             page={page}
             onPageChange={(_, p) => setPage(p)}
             rowsPerPage={rowsPerPage}
             onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value)); setPage(0); }}
-            rowsPerPageOptions={[10, 25, 50]}
+            rowsPerPageOptions={[25, 50, 100]}
             labelRowsPerPage="Hàng/trang:"
             labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
           />
