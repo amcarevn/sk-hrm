@@ -348,15 +348,33 @@ const Onboarding: React.FC = () => {
   const { user } = useAuth();
   const isHR = user?.employee_profile?.is_hr === true || user?.hrm_user?.is_hr === true ||(user as any)?.is_super_admin === true || (user as any)?.role === 'admin';
   const [onboardings, setOnboardings] = useState<OnboardingItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // Filters & pagination
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterMonth, setFilterMonth] = useState<number>(0);
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
+
   const fetchOnboardings = async () => {
     setLoading(true);
     try {
-      const data = await onboardingService.list();
+      const params: Parameters<typeof onboardingService.list>[0] = {
+        page,
+        page_size: PAGE_SIZE,
+      };
+      if (filterStatus) params.status = filterStatus;
+      if (filterMonth > 0) {
+        params.month = filterMonth;
+        params.year = filterYear;
+      }
+      const data = await onboardingService.list(params);
       const items = Array.isArray(data) ? data : data.results ?? [];
+      setTotalCount(Array.isArray(data) ? items.length : (data.count ?? items.length));
       setOnboardings(
         items.map((item) => ({
           ...item,
@@ -376,7 +394,7 @@ const Onboarding: React.FC = () => {
 
   useEffect(() => {
     fetchOnboardings();
-  }, []);
+  }, [filterStatus, filterMonth, filterYear, page]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Bạn chắc chắn muốn xoá quy trình này?')) return;
@@ -515,11 +533,11 @@ const Onboarding: React.FC = () => {
 
       <div className="bg-white rounded-lg shadow p-6">
         {/* Table header */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Quy trình onboarding</h2>
             <p className="text-gray-500 text-sm">
-              Có {onboardings.length} ứng viên đang trong quá trình onboarding
+              Tổng: {totalCount} ứng viên đang trong quá trình onboarding
             </p>
           </div>
           {isHR && (
@@ -531,6 +549,66 @@ const Onboarding: React.FC = () => {
               Tạo quy trình mới
             </button>
           )}
+        </div>
+
+        {/* Filter bar */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          {/* Status filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="DRAFT">Nháp</option>
+            <option value="IN_PROGRESS">Đang thực hiện</option>
+            <option value="COMPLETED">Hoàn thành</option>
+          </select>
+
+          {/* Month filter */}
+          <select
+            value={filterMonth}
+            onChange={(e) => { setFilterMonth(Number(e.target.value)); setPage(1); }}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value={0}>Tất cả tháng</option>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>Tháng {m}</option>
+            ))}
+          </select>
+
+          {/* Year filter — only when month is selected */}
+          {filterMonth > 0 && (
+            <select
+              value={filterYear}
+              onChange={(e) => { setFilterYear(Number(e.target.value)); setPage(1); }}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          )}
+
+          {/* Clear filters */}
+          {(filterStatus !== '' || filterMonth > 0) && (
+            <button
+              onClick={() => { setFilterStatus(''); setFilterMonth(0); setPage(1); }}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600"
+            >
+              Xóa bộ lọc
+            </button>
+          )}
+
+          {/* Refresh */}
+          <button
+            onClick={() => fetchOnboardings()}
+            disabled={loading}
+            className="ml-auto px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600 flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Làm mới
+          </button>
         </div>
 
         {/* Table */}
@@ -630,6 +708,31 @@ const Onboarding: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalCount > PAGE_SIZE && (
+          <div className="flex items-center justify-between mt-4 mb-6">
+            <p className="text-sm text-gray-500">
+              Trang {page} / {Math.ceil(totalCount / PAGE_SIZE)} &nbsp;·&nbsp; Tổng {totalCount} bản ghi
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1 || loading}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-40"
+              >
+                ← Trước
+              </button>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= Math.ceil(totalCount / PAGE_SIZE) || loading}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-40"
+              >
+                Sau →
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Onboarding steps info */}
         <div className="bg-gray-50 p-6 rounded-lg">
