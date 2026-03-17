@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { approvalService } from '../services/approval.service';
 import { attendanceService } from '../services/attendance.service';
 import { workFinalizationApprovalService } from '../services/workFinalizationApproval.service';
@@ -33,8 +33,13 @@ const Approvals: React.FC = () => {
   const [filterRegistrationSubTypes, setFilterRegistrationSubTypes] = useState<string[]>([]);
   const [filterName, setFilterName] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
+  const [filterDay, setFilterDay] = useState<number>(new Date().getDate());
+  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [filterOnlyMine, setFilterOnlyMine] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
+  const isFetchingRef = useRef<boolean>(false);
+  const lastFetchParamsRef = useRef<string>('');
   const [selectedExplanation, setSelectedExplanation] = useState<any>(null);
   const [selectedOnlineWorkRequest, setSelectedOnlineWorkRequest] =
     useState<any>(null);
@@ -44,6 +49,7 @@ const Approvals: React.FC = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
   const [employeeFreqStats, setEmployeeFreqStats] = useState<any>(null);
+  const [expandedEmployees, setExpandedEmployees] = useState<string[]>([]);
   const [isFetchingStats, setIsFetchingStats] = useState(false);
 
   // Debug log cho Quota và dữ liệu được chọn
@@ -146,11 +152,20 @@ const Approvals: React.FC = () => {
 
   useEffect(() => {
     fetchAllData();
-  }, [activeTab]);
+  }, [activeTab, filterDay, filterMonth, filterYear]);
 
   const fetchAllData = async () => {
+    // Prevent concurrent calls with same params
+    const currentParams = `${activeTab}-${filterDay}-${filterMonth}-${filterYear}`;
+    if (isFetchingRef.current && lastFetchParamsRef.current === currentParams) {
+      return;
+    }
+    
     try {
+      isFetchingRef.current = true;
+      lastFetchParamsRef.current = currentParams;
       setLoading(true);
+      
       // Đảm bảo lấy thông tin nhân viên trước để có department_code phục vụ việc lọc
       const emp = await fetchCurrentEmployee();
 
@@ -169,6 +184,7 @@ const Approvals: React.FC = () => {
       console.error('Error fetching all data:', error);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -202,7 +218,7 @@ const Approvals: React.FC = () => {
 
   const fetchPendingRequests = async () => {
     try {
-      const result = await approvalService.getAllPendingRequests();
+      const result = await (approvalService as any).getAllPendingRequests({ day: filterDay, month: filterMonth, year: filterYear });
 
       // Chỉ set list data nếu đang ở tab pending
       if (activeTab === 'pending') {
@@ -236,8 +252,7 @@ const Approvals: React.FC = () => {
       const activeHR = isHRArg !== undefined ? isHRArg : isHR;
       const activeEmp = empContext || currentEmployee;
 
-      console.log('🚀 [APPROVALS] Bắt đầu lấy dữ liệu chốt công (mở rộng 3 tháng, không lọc status API)...');
-      const now = new Date();
+      console.log('🚀 [APPROVALS] Bắt đầu lấy dữ liệu chốt công cho tháng được chọn...');
 
       const fetchMonth = async (m: number, y: number) => {
         try {
@@ -251,31 +266,14 @@ const Approvals: React.FC = () => {
         }
       };
 
-      // Lấy tháng hiện tại
-      const m0 = now.getMonth() + 1;
-      const y0 = now.getFullYear();
+      // Chỉ lấy đúng tháng đang được chọn lọc
+      const m0 = filterMonth;
+      const y0 = filterYear;
 
-      // Lấy tháng trước
-      const d1 = new Date();
-      d1.setMonth(d1.getMonth() - 1);
-      const m1 = d1.getMonth() + 1;
-      const y1 = d1.getFullYear();
+      const res0 = await fetchMonth(m0, y0);
+      const combined = res0;
 
-      // Lấy tháng trước nữa
-      const d2 = new Date();
-      d2.setMonth(d2.getMonth() - 2);
-      const m2 = d2.getMonth() + 1;
-      const y2 = d2.getFullYear();
-
-      const [res0, res1, res2] = await Promise.all([
-        fetchMonth(m0, y0),
-        fetchMonth(m1, y1),
-        fetchMonth(m2, y2)
-      ]);
-
-      const combined = [...res0, ...res1, ...res2];
-
-      console.log('📦 [APPROVALS] Toàn bộ dữ liệu chốt công thô (3 tháng):', combined.length, combined);
+      console.log('📦 [APPROVALS] Dữ liệu chốt công:', combined.length, combined);
 
       const uniqueMap = new Map();
       combined.forEach(item => uniqueMap.set(item.id, item));
@@ -331,7 +329,8 @@ const Approvals: React.FC = () => {
 
   const fetchApprovedRequests = async () => {
     try {
-      const result = await approvalService.getAllApprovedRequests();
+      // Pass month/year filters if needed, but for now we filter on result or add to service
+      const result = await (approvalService as any).getAllApprovedRequests({ day: filterDay, month: filterMonth, year: filterYear });
 
       if (activeTab === 'approved') {
         setApprovedExplanations(result.attendance_explanations);
@@ -352,7 +351,7 @@ const Approvals: React.FC = () => {
 
   const fetchRejectedRequests = async () => {
     try {
-      const result = await approvalService.getAllRejectedRequests();
+      const result = await (approvalService as any).getAllRejectedRequests({ day: filterDay, month: filterMonth, year: filterYear });
 
       if (activeTab === 'rejected') {
         setRejectedExplanations(result.attendance_explanations);
@@ -576,7 +575,7 @@ const Approvals: React.FC = () => {
       const isCreatorSeniorManager =
         explanation.employee_is_senior_manager === true;
 
-      if (directManagerAlreadyApproved || isCreatorSeniorManager) {
+      if (directManagerAlreadyApproved || (isCreatorSeniorManager && !explanation.employee_manager_id)) {
         return true;
       }
 
@@ -607,34 +606,24 @@ const Approvals: React.FC = () => {
 
     const requesterId = req.employee_id ||
       (typeof req.employee === 'object' ? req.employee.id : req.employee);
-
     const isOwner = requesterId === currentEmployee.id;
 
-    // QUY TẮC MỚI: Chỉ người tạo đơn (Owner) mới có quyền Hủy đơn của chính mình
-    if (!isOwner) return false;
-
-    // Chỉ xóa được khi đơn còn ở trạng thái sơ thảo hoặc đang chờ xử lý
-    if (!['DRAFT', 'PENDING'].includes(req.status)) return false;
-
-    // ĐẶC BIỆT: Nếu bất kỳ cấp nào đã phê duyệt (QLTT hoặc HR) thì không được xóa (hủy) nữa 
-    // Tránh trường hợp đơn đã đi vào quy trình xử lý chuyên sâu
-    if (req.direct_manager_approved || req.hr_approved || req.status === 'APPROVED') {
-      return false;
+    // QUY TẮC MỚI: Admin, HR và Quản lý chỉ được phép xóa ở tab "Đã duyệt" để xử lý các trường hợp duyệt nhầm
+    if (activeTab === 'approved' && (isAdmin || isHR || isManagement)) {
+      return true;
     }
 
-    // Không xóa được khi có situation đã xử lý (chỉ áp dụng cho đơn giải trình)
-    const situationDetails = req.situation_details;
-    if (situationDetails && typeof situationDetails === 'object') {
-      for (const key of Object.keys(situationDetails)) {
-        const situation = situationDetails[key];
-        if (situation && typeof situation === 'object' &&
-          ['APPROVED', 'REJECTED'].includes(situation.status)) {
-          return false;
-        }
+    // Đối với người tạo đơn (Owner): Chỉ được xóa ở tab "Chờ duyệt" (hoặc đơn chưa được duyệt)
+    if (isOwner) {
+      // Nếu đã có cấp nào duyệt hoặc trạng thái là APPROVED thì không được xóa (hủy) nữa 
+      if (req.direct_manager_approved || req.hr_approved || req.status === 'APPROVED') {
+        return false;
       }
+      // Chỉ xóa được khi đơn còn ở trạng thái sơ thảo hoặc đang chờ xử lý
+      return ['DRAFT', 'PENDING'].includes(req.status);
     }
 
-    return true;
+    return false;
   };
 
   // Generic function to check if current user can approve any request type
@@ -712,7 +701,7 @@ const Approvals: React.FC = () => {
 
     // Bước 2: HR/Admin chỉ được duyệt SAU KHI QLTT đã duyệt
     if (isAdminUser || isHRUser || hasApprovalPermission) {
-      if (request.direct_manager_approved === true) {
+      if (request.direct_manager_approved === true || (request.employee_is_senior_manager && !request.employee_manager_id)) {
         return !request.hr_approved;
       }
     }
@@ -1315,7 +1304,7 @@ const Approvals: React.FC = () => {
     const registrations = activeTab === 'pending' ? pendingRegistrations : activeTab === 'approved' ? approvedRegistrations : rejectedRegistrations;
     const leaveRequests = activeTab === 'pending' ? pendingLeaveRequests : activeTab === 'approved' ? approvedLeaveRequests : rejectedLeaveRequests;
     const overtimeRequests = activeTab === 'pending' ? pendingOvertimeRequests : activeTab === 'approved' ? approvedOvertimeRequests : rejectedOvertimeRequests;
-    const onlineWorks = onlineWorkRequests; // Online work seems to be shared or handled differently in fetch
+    const onlineWorks = onlineWorkRequests;
 
     // 2. Map and filter
     const mappedExplanations = explanations
@@ -1324,10 +1313,7 @@ const Approvals: React.FC = () => {
 
     const mappedRegistrations = registrations
       .filter(matchesTextFilters)
-      .map(r => ({
-        ...r,
-        _itemType: 'REGISTRATION'
-      }));
+      .map(r => ({ ...r, _itemType: 'REGISTRATION' }));
 
     const mappedOnlineWorks = onlineWorks
       .filter(matchesTextFilters)
@@ -1371,7 +1357,6 @@ const Approvals: React.FC = () => {
         }
         if (filterTypes.includes('REGISTRATION') && (item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME')) {
           if (filterRegistrationSubTypes.length > 0) {
-            // Kiểm tra registration_type hoặc _itemType
             const type = item.registration_type || item._itemType;
             return filterRegistrationSubTypes.includes(type);
           }
@@ -1390,22 +1375,24 @@ const Approvals: React.FC = () => {
       return dateB - dateA;
     });
 
-    // 5. Group by Department -> Position for Accordion view
-    const groups: Record<string, Record<string, any[]>> = {};
+    // 5. Group by Department -> Position -> Employee for Accordion view
+    const groups: Record<string, Record<string, Record<string, any[]>>> = {};
     sorted.forEach(item => {
       const itemEmpId = item.employee_id || (typeof item.employee === 'object' ? item.employee?.id : item.employee);
       const isMine = itemEmpId === currentEmployee?.id;
 
       const dept = isMine ? 'Đơn của Tôi' : (item.employee_department || item.department_name || 'Khác');
       const pos = item.employee_position || item.position_name || 'Nhân viên';
+      const empName = item.employee_name || 'Không rõ';
 
       if (!groups[dept]) groups[dept] = {};
-      if (!groups[dept][pos]) groups[dept][pos] = [];
-      groups[dept][pos].push(item);
+      if (!groups[dept][pos]) groups[dept][pos] = {};
+      if (!groups[dept][pos][empName]) groups[dept][pos][empName] = [];
+      groups[dept][pos][empName].push(item);
     });
 
     // Ensure "Đơn của Tôi" is first if it exists
-    const finalGroups: Record<string, Record<string, any[]>> = {};
+    const finalGroups: Record<string, Record<string, Record<string, any[]>>> = {};
     if (groups['Đơn của Tôi']) {
       finalGroups['Đơn của Tôi'] = groups['Đơn của Tôi'];
     }
@@ -1425,21 +1412,31 @@ const Approvals: React.FC = () => {
     const groups = getGroupedRequests();
     let count = 0;
     Object.values(groups).forEach(posGroup => {
-      Object.values(posGroup).forEach(items => {
-        count += items.length;
+      Object.values(posGroup).forEach(empGroup => {
+        Object.values(empGroup).forEach(items => {
+          count += items.length;
+        });
       });
     });
     return count;
   };
 
 
-  const hasActiveFilters = filterTypes.length > 0 || filterName !== '' || filterDepartment !== '' || filterOnlyMine;
+  const now = new Date();
+  const currentDay = now.getDate();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+
+  const hasActiveFilters = filterTypes.length > 0 || filterName !== '' || filterDepartment !== '' || filterOnlyMine || filterDay !== currentDay || filterMonth !== currentMonth || filterYear !== currentYear;
 
   const clearAllFilters = () => {
     setFilterTypes([]);
     setFilterName('');
     setFilterDepartment('');
     setFilterOnlyMine(false);
+    setFilterDay(currentDay);
+    setFilterMonth(currentMonth);
+    setFilterYear(currentYear);
   };
 
   const getTotalFilteredCount = () => getTotalCount();
@@ -1636,145 +1633,108 @@ const Approvals: React.FC = () => {
         </div>
 
 
-
-        {/* Nhãn và Bộ lọc Search */}
+        {/* Bộ lọc */}
         <div className="bg-white border border-slate-100 rounded-[32px] p-4 sm:p-7 mb-8 shadow-sm">
           <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {/* Tên nhân viên */}
-              {(isAdmin || isHR || isManagement) && (
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" /></svg>
-                    Tìm nhân viên
-                  </label>
-                  <div className="relative group">
+            <div className="flex flex-col lg:flex-row lg:items-end gap-6">
+              {/* Cụm Tìm kiếm & Phòng ban */}
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                {/* Tên nhân viên */}
+                {(isAdmin || isHR || isManagement) && (
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" /></svg>
+                      Tìm nhân viên
+                    </label>
                     <input
                       type="text"
                       value={filterName}
                       onChange={e => setFilterName(e.target.value)}
                       placeholder="Nhập tên hoặc mã nhân viên..."
-                      className="w-full pl-4 pr-4 py-3 sm:py-3.5 text-sm font-bold border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 bg-slate-50/50 transition-all placeholder:text-slate-300 placeholder:font-medium"
+                      className="w-full px-4 py-2.5 text-sm font-bold border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 bg-slate-50/50 transition-all placeholder:text-slate-300 placeholder:font-medium h-[46px]"
                     />
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Phòng ban */}
-              {(isAdmin || isHR) && (
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                    Phòng ban
-                  </label>
-                  <div className="[&>div]:m-0">
-                    <SelectBox
-                      label=""
-                      value={filterDepartment}
-                      options={deptOptions}
-                      onChange={setFilterDepartment}
-                      placeholder="Chọn phòng ban cần xem"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Reset & Tùy chọn - Responsive Alignment */}
-              <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 mt-1 sm:mt-0">
-                <div className="flex items-center gap-3 w-full sm:w-auto h-full pt-0 sm:pt-6">
-                  {(isAdmin || isHR || isManagement) && (
-                    <label className={`flex-1 sm:flex-none flex items-center justify-center gap-2.5 cursor-pointer px-4 py-3 sm:py-3.5 rounded-2xl border transition-all duration-300 font-bold text-xs uppercase tracking-widest ${filterOnlyMine ? 'bg-rose-50 border-rose-200 text-rose-600 shadow-sm' : 'bg-white border-slate-100 text-slate-400 hover:bg-slate-50'
-                      }`}>
-                      <input
-                        type="checkbox"
-                        checked={filterOnlyMine}
-                        onChange={e => setFilterOnlyMine(e.target.checked)}
-                        className="hidden"
-                      />
-                      <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${filterOnlyMine ? 'bg-rose-600 text-white' : 'border-2 border-slate-200 bg-slate-50'}`}>
-                        {filterOnlyMine && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24 font-black"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                {/* Phòng ban */}
+                {(isAdmin || isHR) && (
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                      Phòng ban
+                    </label>
+                    <div className="h-[46px] flex items-center">
+                      <div className="w-full [&>div]:m-0">
+                        <SelectBox
+                          label=""
+                          value={filterDepartment}
+                          options={deptOptions}
+                          onChange={setFilterDepartment}
+                          placeholder="Tất cả phòng ban"
+                        />
                       </div>
-                      Đơn của tôi
-                    </label>
-                  )}
-
-                  {hasActiveFilters && (
-                    <button
-                      onClick={clearAllFilters}
-                      className="inline-flex items-center justify-center gap-2 px-5 py-3 sm:py-3.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg shadow-slate-100 group"
-                    >
-                      <svg className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                      Làm mới
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-
-        {/* Bộ lọc */}
-        <div className="bg-white border border-gray-100 rounded-3xl p-6 mb-8 shadow-sm">
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {/* Tên nhân viên */}
-              {(isAdmin || isHR || isManagement) && (
-                <div className="space-y-1.5 transition-transform duration-200">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 ml-1">Tìm nhân viên</label>
-                  <div className="relative group">
-                    <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-primary-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-                    </svg>
-                    <input
-                      type="text"
-                      value={filterName}
-                      onChange={e => setFilterName(e.target.value)}
-                      placeholder="Tên hoặc mã số..."
-                      className="w-full pl-10 pr-4 py-2 text-sm border border-gray-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary-100 focus:border-primary-400 bg-gray-50/50 transition-all"
-                    />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* Phòng ban */}
-              {(isAdmin || isHR) && (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 ml-1">Phòng ban</label>
-                  <SelectBox
-                    label=""
-                    value={filterDepartment}
-                    options={deptOptions}
-                    onChange={setFilterDepartment}
-                    placeholder="Tất cả phòng ban"
-                  />
-                </div>
-              )}
-
-              {/* Reset & Tùy chọn */}
-              <div className="flex items-end gap-3 md:col-span-2 xl:col-span-1">
-                <div className="flex flex-wrap items-center gap-3 w-full">
-                  {(isAdmin || isHR || isManagement) && (
-                    <label className="flex items-center gap-2 cursor-pointer group bg-rose-50/50 border border-rose-100/50 px-3 py-2 rounded-xl hover:bg-rose-50 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={filterOnlyMine}
-                        onChange={e => setFilterOnlyMine(e.target.checked)}
-                        className="w-4 h-4 rounded-md border-rose-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
-                      />
-                      <span className="text-xs font-semibold text-rose-700 uppercase tracking-tight">Đơn của tôi</span>
+              {/* Cụm Ngày, Tháng & Năm */}
+              <div className="w-full lg:w-[420px]">
+                <div className="flex gap-3">
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      Ngày
                     </label>
-                  )}
-
-                  {hasActiveFilters && (
-                    <button
-                      onClick={clearAllFilters}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs font-semibold transition-all group whitespace-nowrap"
-                    >
-                      <svg className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                      Làm mới
-                    </button>
-                  )}
+                    <div className="h-[46px] flex items-center">
+                      <div className="w-full">
+                        <SelectBox
+                          label=""
+                          value={filterDay.toString()}
+                          options={[
+                            { value: '0', label: 'Tất cả' },
+                            ...Array.from({ length: 31 }, (_, i) => ({ value: (i + 1).toString(), label: (i + 1).toString() }))
+                          ]}
+                          onChange={(val) => setFilterDay(parseInt(val))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      Tháng
+                    </label>
+                    <div className="h-[46px] flex items-center">
+                      <div className="w-full">
+                        <SelectBox
+                          label=""
+                          value={filterMonth.toString()}
+                          options={Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString(), label: (i + 1).toString() }))}
+                          onChange={(val) => setFilterMonth(parseInt(val))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      Năm
+                    </label>
+                    <div className="h-[46px] flex items-center">
+                      <div className="w-full">
+                        <SelectBox
+                          label=""
+                          value={filterYear.toString()}
+                          options={Array.from({ length: 5 }, (_, i) => {
+                            const y = 2026 + i;
+                            return { value: y.toString(), label: y.toString() };
+                          })}
+                          onChange={(val) => setFilterYear(parseInt(val))}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1782,10 +1742,37 @@ const Approvals: React.FC = () => {
             {/* Loại đơn Chips - Premium Design - Even Display */}
             <div className="border-t border-slate-50 mt-6 pt-5">
               <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" /></svg>
-                  Phân loại đơn:
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" /></svg>
+                    Phân loại đơn:
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Đơn của tôi Toggle */}
+                    <button
+                      onClick={() => setFilterOnlyMine(!filterOnlyMine)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border-2 ${filterOnlyMine
+                        ? 'bg-rose-500 text-white border-transparent shadow-lg shadow-rose-200'
+                        : 'bg-white text-slate-400 border-slate-100 hover:border-rose-200 hover:text-rose-500'
+                        }`}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                      Đơn của tôi
+                    </button>
+
+                    {/* Refresh Button */}
+                    <button
+                      onClick={() => {
+                        fetchAllData();
+                      }}
+                      className="p-2 sm:p-2.5 bg-white text-slate-400 border-2 border-slate-100 rounded-xl hover:border-indigo-200 hover:text-indigo-500 hover:rotate-180 transition-all duration-500 shadow-sm group"
+                    >
+                      <svg className="w-4 h-4 group-active:scale-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    </button>
+                  </div>
                 </div>
+
                 <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 sm:gap-3">
 
                   {/* Use a fixed height and whitespace-nowrap to ensure equality */}
@@ -1951,10 +1938,19 @@ const Approvals: React.FC = () => {
                 )}
               </div>
             </div>
-          ) : (
-            Object.entries(getGroupedRequests()).map(([deptName, posGroups]) => {
-              const isDeptExpanded = expandedDepartments.includes(deptName) || (Object.keys(getGroupedRequests()).length === 1);
-              const allItemsInDept = Object.values(posGroups).flat();
+          ) : (() => {
+            const groupedRequests = getGroupedRequests();
+            const deptEntries = Object.entries(groupedRequests);
+            const totalDepts = deptEntries.length;
+
+            return deptEntries.map(([deptName, posGroups]) => {
+              const isDeptExpanded = expandedDepartments.includes(deptName) || (totalDepts === 1);
+
+              // Correctly flatten 3-level groups: posGroups -> empGroups -> items
+              const allItemsInDept = Object.values(posGroups).reduce((acc: any[], empGroup: any) =>
+                acc.concat(...Object.values(empGroup)), []
+              );
+
               const pendingInDept = allItemsInDept.filter(r => r.status === 'PENDING' && canApproveRequest(r)).length;
 
               return (
@@ -2010,344 +2006,304 @@ const Approvals: React.FC = () => {
 
                   {/* Accordion Content - Positions */}
                   {isDeptExpanded && (
-                    <div className="p-2 space-y-4 bg-gray-50/30">
-                      {Object.entries(posGroups).map(([posName, items]) => {
-                        const pendingInPos = items.filter(r => r.status === 'PENDING' && canApproveRequest(r)).length;
+                    <div className="p-2 sm:p-4 space-y-6 bg-gray-50/30">
+                      {Object.entries(posGroups).map(([posName, empGroups]) => {
+                        const allItemsInPos = ([] as any[]).concat(...Object.values(empGroups));
+                        const pendingInPos = allItemsInPos.filter(r => r.status === 'PENDING' && canApproveRequest(r)).length;
 
                         return (
-                          <div key={posName} className="bg-white border border-gray-100 rounded-lg shadow-sm">
+                          <div key={posName} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden border-l-4 border-l-primary-500">
                             {/* Position Sub-Header */}
-                            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/50 border-b border-gray-100">
-                              <div className="flex items-center gap-2">
-                                <span className="w-1.5 h-4 bg-primary-500 rounded-full"></span>
-                                <h4 className="text-base font-bold text-gray-700 uppercase tracking-wider">
-                                  Vị trí: {posName}
-                                </h4>
-                                <span className="text-sm bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded ml-2">
-                                  {items.length} đơn
-                                </span>
+                            <div className="flex items-center justify-between px-5 py-4 bg-gray-50/50 border-b border-gray-100">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-primary-50 text-primary-600 rounded-lg">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                </div>
+                                <div>
+                                  <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest leading-none mb-1">
+                                    Vị trí: {posName}
+                                  </h4>
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                    Tổng: {allItemsInPos.length} đơn đang xử lý
+                                  </span>
+                                </div>
                               </div>
 
                               {pendingInPos > 0 && activeTab === 'pending' && (
                                 <button
-                                  onClick={() => handleBulkApproveItems(items, `vị trí ${posName}`)}
+                                  onClick={() => handleBulkApproveItems(allItemsInPos, `vị trí ${posName}`)}
                                   disabled={isBulkProcessing}
-                                  className="text-sm font-bold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 px-3 py-1 rounded transition-colors flex items-center gap-1"
+                                  className="text-[11px] font-black text-primary-600 hover:text-white bg-primary-50 hover:bg-primary-600 px-4 py-2 rounded-xl transition-all flex items-center gap-2 border border-primary-100 shadow-sm uppercase tracking-wider"
                                 >
                                   {isBulkProcessing ? <div className="w-3 h-3 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
-                                  Duyệt tất cả {posName}
+                                  Duyệt nhanh {allItemsInPos.length} đơn
                                 </button>
                               )}
                             </div>
 
-                            {/* Chế độ hiển thị Table trên Desktop - Desktop View ONLY */}
-                            <div className="hidden lg:block overflow-x-auto">
-                              <table className="min-w-full divide-y divide-slate-100">
-                                <thead className="bg-slate-50/30">
-                                  <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Loại đơn & Lý do</th>
-                                    <th className="px-6 py-3 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Nhân viên</th>
-                                    <th className="px-6 py-3 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Thời gian</th>
-                                    <th className="px-6 py-3 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Vi phạm & Phạt</th>
-                                    <th className="px-6 py-3 text-left text-xs font-extrabold text-slate-400 uppercase tracking-widest">Trạng thái</th>
-                                    <th className="px-6 py-3 text-right text-xs font-extrabold text-slate-400 uppercase tracking-widest">Hành động</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                  {items.map((item) => {
-                                    const isRegistration = item._itemType === 'REGISTRATION';
-                                    const isOnlineWork = item._itemType === 'ONLINE_WORK';
-                                    const isLeave = item._itemType === 'LEAVE';
-                                    const isOvertime = item._itemType === 'OVERTIME';
-                                    const itemKey = `${item._itemType}-${item.id}`;
-
-                                    return (
-                                      <tr key={itemKey} className="group hover:bg-indigo-50/20 transition-all duration-300">
-                                        <td className="px-6 py-5">
-                                          <div className="flex items-center space-x-4">
-                                            <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 group-hover:scale-110 shadow-sm ${item._itemType === 'LEAVE' ? 'bg-blue-100/50 text-blue-600 border border-blue-200/50' :
-                                              item._itemType === 'OVERTIME' ? 'bg-purple-100/50 text-purple-600 border border-purple-200/50' :
-                                                item._itemType === 'ONLINE_WORK' ? 'bg-teal-100/50 text-teal-600 border border-teal-200/50' :
-                                                  item._itemType === 'REGISTRATION' ? 'bg-indigo-100/50 text-indigo-600 border border-indigo-200/50' :
-                                                    'bg-amber-100/50 text-amber-600 border border-amber-200/50'
-                                              }`}>
-                                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={
-                                                  item._itemType === 'LEAVE' ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' :
-                                                    item._itemType === 'OVERTIME' ? 'M13 10V3L4 14h7v7l9-11h-7z' :
-                                                      item._itemType === 'ONLINE_WORK' ? 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' :
-                                                        item._itemType === 'REGISTRATION' ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' :
-                                                          'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
-                                                } />
-                                              </svg>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                              <div className="flex flex-wrap items-center gap-2 mb-1">
-                                                <div className="text-sm font-black text-slate-800 truncate uppercase tracking-tight group-hover:text-indigo-600 transition-colors">
-                                                  {getRequestTypeLabel(item)}
-                                                </div>
-                                                {renderRequestStatsBadge(item)}
-                                              </div>
-                                              {(() => {
-                                                const requestName = getRequestTypeLabel(item);
-                                                const cleanedReason = cleanReasonText(item.reason || item.work_plan || '', requestName);
-                                                return cleanedReason ? (
-                                                  <div className="text-[11px] text-slate-400 truncate max-w-[280px] font-medium" title={cleanedReason}>
-                                                    <span className="font-bold text-slate-300 mr-1 opacity-60 uppercase tracking-tighter">Lý do:</span>
-                                                    {cleanedReason}
-                                                  </div>
-                                                ) : null;
-                                              })()}
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td className="px-6 py-5 whitespace-nowrap">
-                                          <div className="text-sm font-black text-slate-800">{item.employee_name}</div>
-                                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.employee_code}</div>
-                                        </td>
-                                        <td className="px-6 py-5 whitespace-nowrap">
-                                          <div className="text-sm font-black text-slate-700">
-                                            {formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date || item.event_date || item.overtime_date)}
-                                          </div>
-                                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">Lúc: {formatDateTime(item.created_at).split(' ')[1]}</div>
-                                        </td>
-                                        <td className="px-6 py-5 whitespace-nowrap">
-                                          <div className="flex flex-col gap-1.5">
-                                            {(item.late_minutes > 0 || item.early_leave_minutes > 0) ? (
-                                              <div className="flex items-center gap-2">
-                                                {item.late_minutes > 0 && (
-                                                  <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2 py-0.5 border border-amber-100/50 rounded-lg">
-                                                    <span className="text-[10px] font-black  tracking-tighter">Đi muộn {item.late_minutes} phút</span>
-                                                  </div>
-                                                )}
-                                                {item.early_leave_minutes > 0 && (
-                                                  <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2 py-0.5 border border-amber-100/50 rounded-lg">
-                                                    <span className="text-[10px] font-black  tracking-tighter">Về sớm {item.early_leave_minutes} phút</span>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            ) : (
-                                              <span className="text-[10px] text-slate-300 font-bold uppercase tracking-widest italic opacity-40">N/A</span>
-                                            )}
-                                            {item.penalty_amount > 0 && (
-                                              <div className="text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100/30 w-fit font-mono tracking-tighter">
-                                                - {(item.penalty_amount || 0).toLocaleString('vi-VN')}VNĐ
-                                              </div>
-                                            )}
-                                          </div>
-                                        </td>
-                                        <td className="px-6 py-5 whitespace-nowrap">
-                                          {getStatusBadge(item)}
-                                        </td>
-                                        <td className="px-6 py-5 whitespace-nowrap text-right">
-                                          <div className="flex justify-end items-center gap-2">
-                                            {activeTab === 'pending' && canApproveRequest(item) && (
-                                              <>
-                                                <button
-                                                  onClick={() => openApproveModal(item)}
-                                                  className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm border border-emerald-100"
-                                                  title="Duyệt nhanh"
-                                                >
-                                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                                                </button>
-                                                <button
-                                                  onClick={() => openRejectModal(item)}
-                                                  className="p-2 text-rose-500 bg-rose-50 hover:bg-rose-600 hover:text-white rounded-xl transition-all shadow-sm border border-rose-100"
-                                                  title="Từ chối nhanh"
-                                                >
-                                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                </button>
-                                              </>
-                                            )}
-
-                                            <button
-                                              onClick={() => (isOnlineWork || isRegistration || isOvertime) ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
-                                              className="px-4 py-2 bg-slate-900 text-white hover:bg-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-slate-200"
-                                            >
-                                              Chi tiết
-                                            </button>
-
-                                            {canDeleteRequest(item) && (
-                                              <button
-                                                onClick={() => openDeleteModal(item)}
-                                                className="p-2 text-slate-300 hover:text-rose-600 transition-colors"
-                                              >
-                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                              </button>
-                                            )}
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-
-                            {/* Chế độ hiển thị Card trên Mobile - Premium Separated Cards */}
-                            <div className="lg:hidden space-y-6 p-4 sm:p-6 bg-slate-50/50">
-                              {items.map((item) => {
-                                const itemKey = `${item._itemType}-${item.id}`;
-                                const isOnlineWork = item._itemType === 'ONLINE_WORK';
-                                const isRegistration = item._itemType === 'REGISTRATION';
-                                const isOvertime = item._itemType === 'OVERTIME';
+                            {/* New Level: Employee Accordion */}
+                            <div className="p-4 space-y-4">
+                              {Object.entries(empGroups).map(([empName, items]) => {
+                                const accordionKey = `${deptName}-${posName}-${empName}`;
+                                const isEmpExpanded = expandedEmployees.includes(accordionKey);
+                                const pendingInEmp = items.filter(r => r.status === 'PENDING' && canApproveRequest(r)).length;
+                                const firstItem = items[0];
 
                                 return (
-                                  <div
-                                    key={itemKey}
-                                    onClick={() => (isOnlineWork || isRegistration || isOvertime) ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
-                                    className="p-5 sm:p-6 bg-white active:bg-slate-50 transition-all duration-300 relative overflow-hidden rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md"
-                                  >
-
-                                    <div className="flex justify-between items-start gap-3 mb-5">
-                                      <div className="flex items-center gap-3.5">
-                                        <div className={`flex-shrink-0 w-12 h-12 rounded-[20px] flex items-center justify-center shadow-lg transform rotate-2 ${item._itemType === 'LEAVE' ? 'bg-gradient-to-br from-blue-500 to-blue-700' :
-                                          item._itemType === 'OVERTIME' ? 'bg-gradient-to-br from-purple-500 to-purple-700' :
-                                            item._itemType === 'ONLINE_WORK' ? 'bg-gradient-to-br from-teal-500 to-teal-700' :
-                                              item._itemType === 'REGISTRATION' ? 'bg-gradient-to-br from-indigo-500 to-indigo-700' :
-                                                'bg-gradient-to-br from-amber-500 to-amber-700'
-                                          } text-white`}>
-                                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={
-                                              item._itemType === 'LEAVE' ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' :
-                                                item._itemType === 'OVERTIME' ? 'M13 10V3L4 14h7v7l9-11h-7z' :
-                                                  item._itemType === 'ONLINE_WORK' ? 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' :
-                                                    item._itemType === 'REGISTRATION' ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' :
-                                                      'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
-                                            } />
-                                          </svg>
-                                        </div>
-                                        <div>
-                                          <div className="flex items-baseline gap-2">
-                                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight leading-none mb-1 group-hover:text-indigo-600 transition-colors">
-                                              {getRequestTypeLabel(item)}
-                                            </h4>
-                                            {renderRequestStatsBadge(item)}
+                                  <div key={empName} className={`border rounded-2xl overflow-hidden transition-all duration-300 ${isEmpExpanded ? 'border-primary-100 ring-2 ring-primary-50 shadow-md' : 'border-gray-100 hover:border-primary-200'}`}>
+                                    {/* Employee Accordion Header */}
+                                    <div
+                                      className={`flex items-center justify-between px-5 py-4 cursor-pointer transition-colors ${isEmpExpanded ? 'bg-primary-50/40' : 'bg-white hover:bg-slate-50'}`}
+                                      onClick={() => {
+                                        setExpandedEmployees(prev =>
+                                          prev.includes(accordionKey)
+                                            ? prev.filter(k => k !== accordionKey)
+                                            : [...prev, accordionKey]
+                                        );
+                                      }}
+                                    >
+                                      <div className="flex items-center gap-4">
+                                        <div className="relative">
+                                          <div className="w-11 h-11 rounded-2xl bg-slate-900 flex items-center justify-center text-white text-sm font-black shadow-lg transform rotate-2">
+                                            {empName.charAt(0)}
                                           </div>
-                                          <div className="flex items-center gap-1.5 font-bold text-slate-400 text-[10px] uppercase tracking-[0.1em]">
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" /></svg>
-                                            {formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div onClick={(e) => e.stopPropagation()}>
-                                        {getStatusBadge(item)}
-                                      </div>
-                                    </div>
-
-                                    {/* Reason Subtext */}
-                                    {(() => {
-                                      const requestName = getRequestTypeLabel(item);
-                                      const cleanedReason = cleanReasonText(item.reason || item.work_plan || '', requestName);
-                                      return cleanedReason ? (
-                                        <div className="mb-4 px-4 py-3 bg-slate-50 border-l-4 border-slate-200 rounded-r-2xl">
-                                          <p className="text-[11px] text-slate-500 italic font-medium line-clamp-2">
-                                            "{cleanedReason}"
-                                          </p>
-                                        </div>
-                                      ) : null;
-                                    })()}
-
-                                    {/* Employee Info + Penalty */}
-                                    <div className="flex items-center justify-between p-3.5 bg-slate-100/40 rounded-3xl border border-white shadow-inner">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-2xl bg-slate-900 border-2 border-white flex items-center justify-center text-white text-[11px] font-black shadow-lg">
-                                          {item.employee_name?.charAt(0)}
-                                        </div>
-                                        <div>
-                                          <p className="text-xs font-black text-slate-800 leading-none mb-1">{item.employee_name}</p>
-                                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{item.employee_code}</p>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex flex-col items-end gap-1.5">
-                                        {/* Minutes first - Clearer text */}
-                                        <div className="flex flex-wrap gap-1.5 justify-end">
-                                          {item.late_minutes > 0 && (
-                                            <span className="text-[10px] font-black text-amber-700 bg-amber-100/60 px-2.5 py-1 rounded-lg border border-amber-200/50 flex items-center gap-1.5 whitespace-nowrap">
-                                              Đi muộn {item.late_minutes} phút
-                                            </span>
-                                          )}
-                                          {item.early_leave_minutes > 0 && (
-                                            <span className="text-[10px] font-black text-amber-700 bg-amber-100/60 px-2.5 py-1 rounded-lg border border-amber-200/50 flex items-center gap-1.5 whitespace-nowrap">
-                                              Về sớm {item.early_leave_minutes} phút
+                                          {pendingInEmp > 0 && activeTab === 'pending' && (
+                                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-white animate-bounce">
+                                              {pendingInEmp}
                                             </span>
                                           )}
                                         </div>
+                                        <div className="flex flex-col">
+                                          <div className="text-base font-black text-slate-800 leading-tight">
+                                            {empName}
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">MÃ NV: {firstItem.employee_code}</span>
+                                            <div className="flex items-center gap-1.5">
+                                              {items.filter(i => i._itemType === 'EXPLANATION').length > 0 && (
+                                                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-md text-[9px] font-black border border-amber-100 uppercase tracking-tighter">
+                                                  Giải trình: {(() => {
+                                                    const exp = items.find(i => i._itemType === 'EXPLANATION');
+                                                    const used = exp?.quota_used !== undefined ? exp.quota_used : items.filter(i => i._itemType === 'EXPLANATION' && i.status === 'APPROVED').length;
+                                                    return `${used}/3`;
+                                                  })()}
+                                                </span>
+                                              )}
+                                              {items.filter(i => i._itemType === 'LEAVE').length > 0 && (
+                                                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[9px] font-black border border-blue-100 uppercase tracking-tighter">
+                                                  Nghỉ phép: {(() => {
+                                                    const leave = items.find(i => i._itemType === 'LEAVE');
+                                                    const used = leave?.quota_used !== undefined ? leave.quota_used : items.filter(i => i._itemType === 'LEAVE' && i.status === 'APPROVED').length;
+                                                    return `${used}/1`;
+                                                  })()}
+                                                </span>
+                                              )}
+                                              {items.filter(i => i._itemType === 'ONLINE_WORK').length > 0 && (
+                                                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-teal-50 text-teal-600 rounded-md text-[9px] font-black border border-teal-100 uppercase tracking-tighter">
+                                                  Online: {(() => {
+                                                    const ow = items.find(i => i._itemType === 'ONLINE_WORK');
+                                                    const used = ow?.quota_used !== undefined ? ow.quota_used : items.filter(i => i._itemType === 'ONLINE_WORK' && i.status === 'APPROVED').length;
+                                                    return `${used}/2`;
+                                                  })()}
+                                                </span>
+                                              )}
+                                              {items.filter(i => i._itemType === 'REGISTRATION').length > 0 && (
+                                                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-black border border-indigo-100 uppercase tracking-tighter">
+                                                  Đăng ký: {(() => {
+                                                    const reg = items.find(i => i._itemType === 'REGISTRATION');
+                                                    if (reg && reg.quota_used !== undefined) {
+                                                      return reg.quota_used;
+                                                    }
+                                                    return 0;
+                                                  })()}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
 
-                                        {/* Penalty second - Larger & Clearer */}
-                                        {item.penalty_amount > 0 && (
-                                          <span className="text-[11px] font-black text-rose-600 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-100 shadow-sm flex items-center gap-1.5">
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                            -{(item.penalty_amount || 0).toLocaleString()} <span className="text-[9px]">VNĐ</span>
-                                          </span>
+                                      <div className="flex items-center gap-4">
+                                        {pendingInEmp > 0 && activeTab === 'pending' && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleBulkApproveItems(items, `nhân viên ${empName}`);
+                                            }}
+                                            disabled={isBulkProcessing}
+                                            className="flex text-[10px] font-black text-emerald-600 bg-white hover:bg-emerald-600 hover:text-white px-2 sm:px-4 py-2 rounded-xl border border-emerald-100 uppercase tracking-widest items-center gap-2 transition-all shadow-sm"
+                                            title={`Duyệt tất cả đơn của ${empName}`}
+                                          >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <span className="hidden sm:inline">Duyệt giúp {empName.split(' ').pop()}</span>
+                                          </button>
                                         )}
-                                      </div>
-
-                                    </div>
-
-                                    {/* Action Buttons */}
-                                    {activeTab === 'pending' && canApproveRequest(item) ? (
-                                      <div className="mt-5" onClick={(e) => e.stopPropagation()}>
-                                        <button
-                                          onClick={() => (isOnlineWork || isRegistration || isOvertime) ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
-                                          className="w-full mb-3 py-3.5 bg-slate-900 active:bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
-                                        >
-
-                                          XEM CHI TIẾT ĐƠN
-                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                                        </button>
-                                        <div className="flex gap-3">
-                                          <button
-                                            onClick={() => openApproveModal(item)}
-                                            className="flex-[2.5] py-4 bg-indigo-600 active:bg-indigo-700 active:scale-95 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-3"
-                                          >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                            PHÊ DUYỆT NHANH
-                                          </button>
-                                          <button
-                                            onClick={() => openRejectModal(item)}
-                                            className="flex-1 py-4 bg-white active:bg-rose-50 active:scale-95 border-2 border-rose-100 text-rose-500 rounded-2xl transition-all flex items-center justify-center"
-                                          >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                                          </button>
+                                        <div className={`p-2 rounded-full transition-transform duration-500 ${isEmpExpanded ? 'rotate-180 bg-primary-100 text-primary-600' : 'bg-slate-50 text-slate-400'}`}>
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                                         </div>
                                       </div>
+                                    </div>
 
-                                    ) : (
-                                      <button
-                                        onClick={() => (isOnlineWork || isRegistration || isOvertime) ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
-                                        className="w-full mt-5 py-4 bg-slate-900 active:bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-200"
-                                      >
-                                        XEM CHI TIẾT ĐƠN
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                                      </button>
-                                    )}
+                                    {/* Employee Accordion Content */}
+                                    {isEmpExpanded && (
+                                      <div className="bg-white">
+                                        {/* Desktop Table */}
+                                        <div className="hidden lg:block overflow-x-auto">
+                                          <table className="min-w-full divide-y divide-slate-100">
+                                            <thead className="bg-slate-50/50">
+                                              <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Loại đơn & Lý do</th>
+                                                <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Thời gian</th>
+                                                <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Vi phạm & Phạt</th>
+                                                <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Trạng thái</th>
+                                                <th className="px-6 py-3 text-center text-xs font-black text-slate-400 uppercase tracking-widest">Thao tác</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                              {items.map((item) => {
+                                                const itemKey = `${item._itemType}-${item.id}`;
+                                                return (
+                                                  <tr key={itemKey} className="group hover:bg-primary-50/30 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                      <div className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border ${item._itemType === 'LEAVE' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                          item._itemType === 'OVERTIME' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                            item._itemType === 'ONLINE_WORK' ? 'bg-teal-50 text-teal-600 border-teal-100' :
+                                                              item._itemType === 'REGISTRATION' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                                                                'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={
+                                                            item._itemType === 'LEAVE' ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' :
+                                                              item._itemType === 'OVERTIME' ? 'M13 10V3L4 14h7v7l9-11h-7z' :
+                                                                item._itemType === 'ONLINE_WORK' ? 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' :
+                                                                  item._itemType === 'REGISTRATION' ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' :
+                                                                    'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+                                                          } /></svg>
+                                                        </div>
+                                                        <div>
+                                                          <div className="text-sm font-black text-slate-800 uppercase tracking-tight">{getRequestTypeLabel(item)}</div>
+                                                          <div className="text-[11px] text-slate-400 italic line-clamp-1 max-w-[200px]">{cleanReasonText(item.reason || item.work_plan || '', getRequestTypeLabel(item))}</div>
+                                                        </div>
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                      <div className="text-sm font-black text-slate-700">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</div>
+                                                      <div className="text-[10px] font-bold text-slate-400 uppercase">Lúc: {formatDateTime(item.created_at).split(' ')[1]}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                      <div className="flex flex-col gap-1">
+                                                        {item.penalty_amount > 0 ? (
+                                                          <span className="text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100 w-fit">-{(item.penalty_amount).toLocaleString()}đ</span>
+                                                        ) : <span className="text-[10px] text-slate-300 font-bold italic">N/A</span>}
+                                                        {item.late_minutes > 0 && (
+                                                          <span className="text-[9px] font-bold text-amber-600 uppercase">Đi muộn: {item.late_minutes} phút</span>
+                                                        )}
+                                                        {item.early_leave_minutes > 0 && (
+                                                          <span className="text-[9px] font-bold text-amber-600 uppercase">Về sớm: {item.early_leave_minutes} phút</span>
+                                                        )}
+                                                      </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(item)}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                      <div className="flex justify-center gap-2">
+                                                        {activeTab === 'pending' && canApproveRequest(item) && (
+                                                          <>
+                                                            <button onClick={() => openApproveModal(item)} className="p-2 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all border border-emerald-100 shadow-sm"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg></button>
+                                                            <button onClick={() => openRejectModal(item)} className="p-2 text-rose-500 hover:bg-rose-600 hover:text-white rounded-xl transition-all border border-rose-100 shadow-sm"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                                                          </>
+                                                        )}
+                                                        <button
+                                                          onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
+                                                          className="w-24 py-2 bg-slate-900 text-white hover:bg-primary-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        >
+                                                          Chi tiết
+                                                        </button>
+                                                        {canDeleteRequest(item) && (
+                                                          <button
+                                                            onClick={() => openDeleteModal(item)}
+                                                            className="p-2 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all border border-rose-100 shadow-sm"
+                                                            title="Xóa đơn của bạn"
+                                                          >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              })}
+                                            </tbody>
+                                          </table>
+                                        </div>
 
-                                    {canDeleteRequest(item) && (
-                                      <div className="mt-6 pt-5 border-t border-slate-50 flex justify-center">
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); openDeleteModal(item); }}
-                                          className="group flex flex-col items-center gap-2 active:scale-90 transition-all duration-300"
-                                        >
-                                          <div className="w-14 h-14 bg-rose-500 rounded-full flex items-center justify-center shadow-lg shadow-rose-200 border-4 border-white transition-transform group-hover:rotate-6">
-                                            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                          </div>
-                                          <span className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em]">Hủy đơn này</span>
-                                        </button>
+                                        {/* Mobile Cards */}
+                                        <div className="lg:hidden p-4 space-y-4 bg-slate-50/50">
+                                          {items.map((item) => {
+                                            const itemKey = `${item._itemType}-${item.id}`;
+                                            return (
+                                              <div key={itemKey} className="p-4 bg-white rounded-[24px] border border-slate-100 shadow-sm active:scale-[0.98] transition-all">
+                                                <div className="flex justify-between items-start mb-4">
+                                                  <div className="flex items-center gap-3">
+                                                    <div className={`p-2.5 rounded-2xl shadow-md ${item._itemType === 'LEAVE' ? 'bg-blue-500' :
+                                                      item._itemType === 'OVERTIME' ? 'bg-purple-500' :
+                                                        item._itemType === 'ONLINE_WORK' ? 'bg-teal-500' :
+                                                          item._itemType === 'REGISTRATION' ? 'bg-indigo-500' :
+                                                            'bg-amber-500'} text-white`}>
+                                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={
+                                                        item._itemType === 'LEAVE' ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' :
+                                                          item._itemType === 'OVERTIME' ? 'M13 10V3L4 14h7v7l9-11h-7z' :
+                                                            item._itemType === 'ONLINE_WORK' ? 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' :
+                                                              item._itemType === 'REGISTRATION' ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' :
+                                                                'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
+                                                      } /></svg>
+                                                    </div>
+                                                    <div>
+                                                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{getRequestTypeLabel(item)}</h4>
+                                                      <p className="text-[10px] font-bold text-slate-400 uppercase">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</p>
+                                                    </div>
+                                                  </div>
+                                                  {getStatusBadge(item)}
+                                                </div>
+                                                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl">
+                                                  <div className="flex flex-col gap-1 max-w-[70%]">
+                                                    <div className="text-[11px] font-bold text-slate-500 italic line-clamp-1">"{cleanReasonText(item.reason || item.work_plan || '', getRequestTypeLabel(item))}"</div>
+                                                    {item.late_minutes > 0 && (
+                                                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">Đi muộn: {item.late_minutes}m</span>
+                                                    )}
+                                                    {item.early_leave_minutes > 0 && (
+                                                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">Về sớm: {item.early_leave_minutes}m</span>
+                                                    )}
+                                                  </div>
+                                                  {item.penalty_amount > 0 && <span className="text-[11px] font-black text-rose-600">-{item.penalty_amount.toLocaleString()}đ</span>}
+                                                </div>
+                                                <div className="flex gap-2 mt-4">
+                                                  <button onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)} className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider">Chi tiết</button>
+                                                  {activeTab === 'pending' && canApproveRequest(item) && (
+                                                    <button onClick={() => openApproveModal(item)} className="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-100"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></button>
+                                                  )}
+                                                  {canDeleteRequest(item) && (
+                                                    <button
+                                                      onClick={() => openDeleteModal(item)}
+                                                      className="p-3 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-100"
+                                                      title="Xóa đơn của bạn"
+                                                    >
+                                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                      </svg>
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
                                       </div>
                                     )}
-
-
-
                                   </div>
                                 );
                               })}
                             </div>
-
-
                           </div>
                         );
                       })}
@@ -2355,8 +2311,9 @@ const Approvals: React.FC = () => {
                   )}
                 </div>
               );
-            })
-          )}
+            });
+          })()
+          }
         </div>
 
         {/* BẢNG YÊU CẦU CHỜ DUYỆT RIÊNG BIỆT CHO QUẢN LÝ (Viết ở dưới theo yêu cầu) */}
@@ -2680,7 +2637,7 @@ const Approvals: React.FC = () => {
             {/* Modal Body - Responsive Content */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-50/30">
               <div className="bg-white border border-slate-200 rounded-[24px] sm:rounded-3xl overflow-hidden shadow-sm">
-                
+
                 {/* Desktop View (Table) */}
                 <div className="hidden lg:block overflow-x-auto">
                   <table className="min-w-full divide-y divide-slate-100">

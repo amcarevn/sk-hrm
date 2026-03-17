@@ -69,7 +69,6 @@ const AttendanceManagement: React.FC = () => {
 
   // === Lịch sử đơn tháng ===
   const [showRequestHistoryDrawer, setShowRequestHistoryDrawer] = useState(false);
-  const [requestHistoryLoading, setRequestHistoryLoading] = useState(false);
   const [monthlyRequestHistory, setMonthlyRequestHistory] = useState<{
     explanations: any[];
     registrations: any[];
@@ -576,8 +575,6 @@ const AttendanceManagement: React.FC = () => {
         );
         if (!isMounted.current) return;
 
-        await fetchMonthlyRequestHistory(currentEmployee, currentDate, true);
-
         // fetchCalendarData sẽ KHÔNG được gọi ở đây nữa để tránh Duplicate 
         // Thay vào đó dùng dữ liệu từ AttendanceCalendar truyền lên
       } catch (err) {
@@ -738,66 +735,56 @@ const AttendanceManagement: React.FC = () => {
         total_early_leave_minutes: totalEarly,
       });
     }
-  };
 
-  // Fetch lịch sử đơn trong tháng hiện tại
-  const fetchMonthlyRequestHistory = async (emp?: Employee | null, date?: Date, silent = false) => {
-    const employee = emp ?? currentEmployee;
-    if (!employee) return;
-    setRequestHistoryLoading(true);
-    try {
-      const today = date ?? currentDate ?? new Date();
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const startDate = fmt(firstDay);
-      const endDate = fmt(lastDay);
+    // Trích xuất lịch sử đơn từ calendarArray thay vì gọi 3 API rời rạc
+    const explanations: any[] = [];
+    const registrations: any[] = [];
+    const onlineWorks: any[] = [];
+    const leaveRequests: any[] = [];
 
-      // Gọi song song 3 endpoint: giải trình, đăng ký công, online work
-      const [explanationsRes, registrationsRes, onlineWorksRes] = await Promise.all([
-        attendanceService.getAttendanceExplanations({
-          employee_id: employee.id,
-          month: today.getMonth() + 1,
-          year: today.getFullYear(),
-          page_size: 100,
-          ordering: '-created_at',
-        }),
-        attendanceService.getRegistrationRequests({
-          employee_id: employee.id,
-          start_date: startDate,
-          end_date: endDate,
-          page_size: 100,
-        }),
-        attendanceService.getOnlineWorkRequests({
-          employee_id: employee.id,
-          start_date: startDate,
-          end_date: endDate,
-          page_size: 100,
-        }),
-      ]);
+    calendarArray.forEach((day: any) => {
+      const dayRegs = day.registrations || [];
+      dayRegs.forEach((r: any) => {
+        const type = (r.event_type || '').toUpperCase();
+        // Fallback or use event_date from data, or day.date as fallback
+        const details = r.data || r;
+        
+        const item = { ...details };
+        if (!item.created_at && day.date) {
+            item.created_at = new Date(day.date).toISOString(); // fake created_at for sorting if missing
+        }
 
-      const allExplanations: any[] = explanationsRes.results || [];
-      const explanations = allExplanations.filter(e => e.explanation_type !== 'LEAVE');
-      const leaveRequests = allExplanations.filter(e => e.explanation_type === 'LEAVE');
-      const registrations: any[] = registrationsRes?.results || [];
-      const onlineWorks = Array.isArray(onlineWorksRes)
-        ? onlineWorksRes
-        : onlineWorksRes?.results || [];
-
-      setMonthlyRequestHistory({
-        explanations,
-        registrations,
-        onlineWorks,
-        leaveRequests,
+        if (type === 'EXPLANATION') {
+          if (details.explanation_type === 'LEAVE') {
+            leaveRequests.push(item);
+          } else {
+            explanations.push(item);
+          }
+        } else if (type === 'ONLINE_WORK') {
+          onlineWorks.push(item);
+        } else {
+          registrations.push(item);
+        }
       });
-    } catch (error) {
-      console.error('Error fetching monthly request history:', error);
-    } finally {
-      setRequestHistoryLoading(false);
-    }
+    });
+
+    // Sắp xếp các mảng theo thời gian giảm dần
+    const sortByParam = (a: any, b: any) => new Date(b.created_at || b.event_date || 0).getTime() - new Date(a.created_at || a.event_date || 0).getTime();
+    
+    explanations.sort(sortByParam);
+    registrations.sort(sortByParam);
+    onlineWorks.sort(sortByParam);
+    leaveRequests.sort(sortByParam);
+
+    setMonthlyRequestHistory({
+      explanations,
+      registrations,
+      onlineWorks,
+      leaveRequests,
+    });
   };
 
-  // Refresh all data on page
+  // Cập nhật dữ liệu
   const refreshAllData = async () => {
     if (currentEmployee) {
       console.log('🔄 [REFRESH] Synchronous data refresh triggered...');
@@ -811,7 +798,6 @@ const AttendanceManagement: React.FC = () => {
             currentEmployee.id,
             true
           ),
-          fetchMonthlyRequestHistory(currentEmployee, currentDate, true),
           // Nếu đang mở Modal chi tiết ngày, fetch lại chi tiết ngày đó
           selectedDate ? fetchAttendanceDetailsForDate(selectedDate) : Promise.resolve(),
         ]);
@@ -1241,7 +1227,6 @@ const AttendanceManagement: React.FC = () => {
           onClick={() => {
             setShowRequestHistoryDrawer(true);
             setHistoryActiveTab('all');
-            fetchMonthlyRequestHistory();
           }}
           className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white border border-purple-200 text-purple-700 rounded-xl shadow-sm hover:bg-purple-50 hover:border-purple-300 hover:shadow-md transition-all duration-200 font-medium text-sm"
         >
@@ -2055,11 +2040,12 @@ const AttendanceManagement: React.FC = () => {
                     const allEvents: any[] = [];
                     attendanceDetails.forEach((r) => {
                       (r.events || []).forEach((ev) => {
-                        // Skip raw request approval events as we expand them manually below
+                        // Chỉ skip các approval event đã được "synthetic expansion" (vượt qua filter phía dưới)
+                        // Giữ lại các event REJECT để hiển thị chi tiết lý do từ chối
                         if (
                           ['request_approval', 'explanation_approval'].includes(
                             ev.event_type
-                          )
+                          ) && (ev.data?.action === 'APPROVE' || ev.data?.status === 'APPROVED')
                         )
                           return;
 
@@ -2142,6 +2128,7 @@ const AttendanceManagement: React.FC = () => {
                       attendance: 'Chấm công',
                       explanation: 'Giải trình',
                       explanation_approval: 'Phê duyệt giải trình',
+                      request_approval: 'Phê duyệt đơn',
                       registration_approval: 'Phê duyệt đăng ký',
                       overtime: 'Tăng ca',
                       livestream: 'Livestream',
@@ -2165,8 +2152,23 @@ const AttendanceManagement: React.FC = () => {
                       )
                         return true;
                       if (
-                        ev.event_type === 'explanation_approval' &&
-                        ev.data?.action === 'APPROVE'
+                        (ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') &&
+                        (ev.data?.action === 'APPROVE' || ev.data?.status === 'APPROVED')
+                      )
+                        return true;
+                      return false;
+                    };
+
+                    const isRejected = (ev: AttendanceEvent) => {
+                      if (
+                        (ev.event_type === 'explanation' ||
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream', 'request_approval', 'registration_approval'].includes(ev.event_type)) &&
+                        ev.data?.status === 'REJECTED'
+                      )
+                        return true;
+                      if (
+                        (ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') &&
+                        ev.data?.action === 'REJECT'
                       )
                         return true;
                       return false;
@@ -2180,6 +2182,7 @@ const AttendanceManagement: React.FC = () => {
                         <ol className="relative border-l border-gray-200 ml-3 space-y-4">
                           {filteredEvents.map((ev) => {
                             const approved = isApproved(ev);
+                            const rejected = isRejected(ev);
 
                             // Clean redundant prefixes from reason (e.g., "Tăng ca: abc" -> "abc")
                             const rawReason = ev.explanation || ev.data?.reason || ev.notes || '';
@@ -2213,13 +2216,17 @@ const AttendanceManagement: React.FC = () => {
                                 <div
                                   className={`absolute w-3 h-3 rounded-full mt-1.5 -left-1.5 border ${approved
                                     ? 'bg-green-500 border-green-300'
-                                    : 'bg-gray-300 border-gray-200'
+                                    : rejected
+                                      ? 'bg-red-500 border-red-300'
+                                      : 'bg-gray-300 border-gray-200'
                                     }`}
                                 />
                                 <div
                                   className={`p-3 rounded-lg border ${approved
                                     ? 'bg-green-50 border-green-200'
-                                    : 'bg-gray-50 border-gray-200'
+                                    : rejected
+                                      ? 'bg-red-50 border-red-200'
+                                      : 'bg-gray-50 border-gray-200'
                                     }`}
                                 >
                                   <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -2239,15 +2246,20 @@ const AttendanceManagement: React.FC = () => {
                                         ? (getExplanationTypeLabel(ev.data?.explanation_type) || 'Giải trình')
                                         : (ev.event_type === 'livestream' || ['overtime', 'extra_hours', 'night_shift', 'live'].includes(ev.event_type))
                                           ? (getExplanationTypeLabel(ev.data?.registration_type) || (ev.event_type === 'livestream' ? 'Đơn đăng ký Livestream' : 'Đơn đăng ký'))
-                                          : ev.event_type === 'explanation_approval' && ev.data?.explanation_type
-                                            ? `Phê duyệt ${getExplanationTypeLabel(ev.data.explanation_type)}`
+                                          : (ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') && (ev.data?.explanation_type || ev.data?.registration_type)
+                                            ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data?.explanation_type || ev.data?.registration_type)}`
                                             : ev.event_type === 'registration_approval' && ev.data?.registration_type
-                                              ? `Phê duyệt ${getExplanationTypeLabel(ev.data.registration_type)}`
+                                              ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data.registration_type)}`
                                               : (eventTypeLabel[ev.event_type] || ev.event_type)}
                                     </span>
                                     {approved && (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 whitespace-nowrap">
                                         ✓ Đã duyệt
+                                      </span>
+                                    )}
+                                    {rejected && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 whitespace-nowrap">
+                                        ✕ Từ chối
                                       </span>
                                     )}
                                     <time className="text-xs text-gray-500 ml-auto">
@@ -2306,16 +2318,16 @@ const AttendanceManagement: React.FC = () => {
                                       )}
                                     </div>
                                   )}
-                                  {ev.event_type === 'explanation_approval' && (
+                                  {(ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
                                       <p>
                                         {approvalLevelLabel[
-                                          ev.data?.approval_level
+                                          ev.data?.level || ev.data?.approval_level
                                         ] ??
-                                          ev.data?.approval_level ??
-                                          'Unknown'}
+                                          (ev.data?.level || ev.data?.approval_level) ??
+                                          'Hệ thống'}
                                         :{' '}
-                                        {ev.data?.approved_by_name}
+                                        {ev.data?.approver_name || ev.data?.approved_by_name}
                                       </p>
                                       {ev.data?.note && ev.data.note !== 'Đã duyệt' && (
                                         <p className="italic text-gray-500">
@@ -4561,12 +4573,7 @@ const AttendanceManagement: React.FC = () => {
 
                   {/* Content */}
                   <div className="flex-1 overflow-y-auto">
-                    {requestHistoryLoading ? (
-                      <div className="flex flex-col items-center justify-center h-48 gap-3">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
-                        <p className="text-sm text-gray-500">Đang tải lịch sử đơn...</p>
-                      </div>
-                    ) : (() => {
+                    {(() => {
                       // Tổng hợp danh sách theo tab
                       const allItems = [
                         ...(historyActiveTab === 'all' || historyActiveTab === 'explanation'
@@ -4725,8 +4732,7 @@ const AttendanceManagement: React.FC = () => {
                   <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
                     <button
                       onClick={() => {
-                        setRequestHistoryLoading(true);
-                        fetchMonthlyRequestHistory();
+                        refreshAllData();
                       }}
                       className="w-full flex items-center justify-center gap-2 py-2 text-sm text-purple-600 font-medium hover:text-purple-700 transition-colors"
                     >

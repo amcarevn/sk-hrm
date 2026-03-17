@@ -70,12 +70,15 @@ class ApprovalService {
   }
 
   // Lấy danh sách attendance explanations theo trạng thái
-  async getAttendanceExplanationsByStatus(status: string): Promise<any[]> {
+  async getAttendanceExplanationsByStatus(status: string, params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
     try {
       const response = await managementApi.get('/api-hrm/attendance-explanations/', {
         params: {
           status: status,
-          ordering: '-created_at'
+          ordering: '-created_at',
+          day: params?.day && params.day !== 0 ? params.day : undefined,
+          month: params?.month,
+          year: params?.year
         }
       });
       return response.data.results || [];
@@ -86,18 +89,18 @@ class ApprovalService {
   }
 
   // Lấy danh sách attendance explanations chờ duyệt
-  async getPendingAttendanceExplanations(): Promise<any[]> {
-    return this.getAttendanceExplanationsByStatus('PENDING');
+  async getPendingAttendanceExplanations(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getAttendanceExplanationsByStatus('PENDING', params);
   }
 
   // Lấy danh sách attendance explanations đã duyệt
-  async getApprovedAttendanceExplanations(): Promise<any[]> {
-    return this.getAttendanceExplanationsByStatus('APPROVED');
+  async getApprovedAttendanceExplanations(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getAttendanceExplanationsByStatus('APPROVED', params);
   }
 
   // Lấy danh sách attendance explanations đã từ chối
-  async getRejectedAttendanceExplanations(): Promise<any[]> {
-    return this.getAttendanceExplanationsByStatus('REJECTED');
+  async getRejectedAttendanceExplanations(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getAttendanceExplanationsByStatus('REJECTED', params);
   }
 
   // Duyệt attendance explanation
@@ -149,12 +152,15 @@ class ApprovalService {
   }
 
   // Lấy danh sách registration requests theo trạng thái
-  async getRegistrationRequestsByStatus(status: string): Promise<any[]> {
+  async getRegistrationRequestsByStatus(status: string, params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
     try {
       const response = await managementApi.get('/api-hrm/registration-requests/', {
         params: {
           status: status,
-          ordering: '-created_at'
+          ordering: '-created_at',
+          day: params?.day && params.day !== 0 ? params.day : undefined,
+          month: params?.month,
+          year: params?.year
         }
       });
       return Array.isArray(response.data) ? response.data : (response.data.results || []);
@@ -165,18 +171,18 @@ class ApprovalService {
   }
 
   // Lấy danh sách registration requests chờ duyệt
-  async getPendingRegistrationRequests(): Promise<any[]> {
-    return this.getRegistrationRequestsByStatus('PENDING');
+  async getPendingRegistrationRequests(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getRegistrationRequestsByStatus('PENDING', params);
   }
 
   // Lấy danh sách registration requests đã duyệt
-  async getApprovedRegistrationRequests(): Promise<any[]> {
-    return this.getRegistrationRequestsByStatus('APPROVED');
+  async getApprovedRegistrationRequests(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getRegistrationRequestsByStatus('APPROVED', params);
   }
 
   // Lấy danh sách registration requests đã từ chối
-  async getRejectedRegistrationRequests(): Promise<any[]> {
-    return this.getRegistrationRequestsByStatus('REJECTED');
+  async getRejectedRegistrationRequests(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getRegistrationRequestsByStatus('REJECTED', params);
   }
 
   // Duyệt registration request
@@ -205,7 +211,7 @@ class ApprovalService {
     }
   }
 
-  // Xóa registration request
+  // Từ chối registration request
   async deleteRegistrationRequest(requestId: number): Promise<void> {
     try {
       await managementApi.delete(`/api-hrm/registration-requests/${requestId}/`);
@@ -227,12 +233,15 @@ class ApprovalService {
   }
 
   // Lấy danh sách online work requests theo trạng thái
-  async getOnlineWorkRequestsByStatus(status: string): Promise<any[]> {
+  async getOnlineWorkRequestsByStatus(status: string, params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
     try {
       const response = await managementApi.get('/api-hrm/online-work-requests/', {
         params: {
           status: status,
-          ordering: '-created_at'
+          ordering: '-created_at',
+          day: params?.day && params.day !== 0 ? params.day : undefined,
+          month: params?.month,
+          year: params?.year
         }
       });
       console.log(`🔵 [APPROVAL SERVICE] Online work ${status} response:`, response.data);
@@ -245,18 +254,18 @@ class ApprovalService {
   }
 
   // Lấy danh sách online work requests chờ duyệt
-  async getPendingOnlineWorkRequests(): Promise<any[]> {
-    return this.getOnlineWorkRequestsByStatus('PENDING');
+  async getPendingOnlineWorkRequests(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getOnlineWorkRequestsByStatus('PENDING', params);
   }
 
   // Lấy danh sách online work requests đã duyệt
-  async getApprovedOnlineWorkRequests(): Promise<any[]> {
-    return this.getOnlineWorkRequestsByStatus('APPROVED');
+  async getApprovedOnlineWorkRequests(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getOnlineWorkRequestsByStatus('APPROVED', params);
   }
 
   // Lấy danh sách online work requests đã từ chối
-  async getRejectedOnlineWorkRequests(): Promise<any[]> {
-    return this.getOnlineWorkRequestsByStatus('REJECTED');
+  async getRejectedOnlineWorkRequests(params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    return this.getOnlineWorkRequestsByStatus('REJECTED', params);
   }
 
   // Duyệt online work request
@@ -298,7 +307,7 @@ class ApprovalService {
   }
 
   // Tổng hợp tất cả các loại đơn chờ duyệt
-  async getAllPendingRequests(): Promise<{
+  async getAllPendingRequests(params?: { day?: number; month?: number; year?: number }): Promise<{
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
@@ -308,9 +317,9 @@ class ApprovalService {
   }> {
     try {
       const [allAttendanceExplanations, onlineWorkRequests, registrationRequests] = await Promise.all([
-        this.getPendingAttendanceExplanations(),
-        this.getPendingOnlineWorkRequests(),
-        this.getPendingRegistrationRequests()
+        this.getPendingAttendanceExplanations(params),
+        this.getPendingOnlineWorkRequests(params),
+        this.getPendingRegistrationRequests(params)
       ]);
 
       // Tách đơn nghỉ phép (LEAVE) ra khỏi danh sách giải trình
@@ -334,7 +343,7 @@ class ApprovalService {
   }
 
   // Tổng hợp tất cả các loại đơn đã duyệt
-  async getAllApprovedRequests(): Promise<{
+  async getAllApprovedRequests(params?: { day?: number; month?: number; year?: number }): Promise<{
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
@@ -344,9 +353,9 @@ class ApprovalService {
   }> {
     try {
       const [allAttendanceExplanations, onlineWorkRequests, registrationRequests] = await Promise.all([
-        this.getApprovedAttendanceExplanations(),
-        this.getApprovedOnlineWorkRequests(),
-        this.getApprovedRegistrationRequests()
+        this.getApprovedAttendanceExplanations(params),
+        this.getApprovedOnlineWorkRequests(params),
+        this.getApprovedRegistrationRequests(params)
       ]);
 
       const attendanceExplanations = allAttendanceExplanations.filter(e => e.explanation_type !== 'LEAVE');
@@ -369,7 +378,7 @@ class ApprovalService {
   }
 
   // Tổng hợp tất cả các loại đơn đã từ chối
-  async getAllRejectedRequests(): Promise<{
+  async getAllRejectedRequests(params?: { day?: number; month?: number; year?: number }): Promise<{
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
@@ -379,9 +388,9 @@ class ApprovalService {
   }> {
     try {
       const [allAttendanceExplanations, onlineWorkRequests, registrationRequests] = await Promise.all([
-        this.getRejectedAttendanceExplanations(),
-        this.getRejectedOnlineWorkRequests(),
-        this.getRejectedRegistrationRequests()
+        this.getRejectedAttendanceExplanations(params),
+        this.getRejectedOnlineWorkRequests(params),
+        this.getRejectedRegistrationRequests(params)
       ]);
 
       const attendanceExplanations = allAttendanceExplanations.filter(e => e.explanation_type !== 'LEAVE');
@@ -415,15 +424,27 @@ class ApprovalService {
     }
   }
 
+  private currentEmployeePromise: Promise<any> | null = null;
+
   // Lấy thông tin employee của người dùng hiện tại
   async getCurrentEmployee(): Promise<any> {
-    try {
-      const response = await managementApi.get('/api-hrm/employees/me/');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching current employee:', error);
-      throw error;
+    if (this.currentEmployeePromise) {
+      return this.currentEmployeePromise;
     }
+
+    this.currentEmployeePromise = (async () => {
+      try {
+        const response = await managementApi.get('/api-hrm/employees/me/');
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching current employee:', error);
+        // Reset promise on error so next call can retry
+        this.currentEmployeePromise = null;
+        throw error;
+      }
+    })();
+
+    return this.currentEmployeePromise;
   }
 
   // Kiểm tra xem người dùng có phải là HR không
