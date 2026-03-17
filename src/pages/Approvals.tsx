@@ -575,7 +575,7 @@ const Approvals: React.FC = () => {
       const isCreatorSeniorManager =
         explanation.employee_is_senior_manager === true;
 
-      if (directManagerAlreadyApproved || isCreatorSeniorManager) {
+      if (directManagerAlreadyApproved || (isCreatorSeniorManager && !explanation.employee_manager_id)) {
         return true;
       }
 
@@ -701,7 +701,7 @@ const Approvals: React.FC = () => {
 
     // Bước 2: HR/Admin chỉ được duyệt SAU KHI QLTT đã duyệt
     if (isAdminUser || isHRUser || hasApprovalPermission) {
-      if (request.direct_manager_approved === true) {
+      if (request.direct_manager_approved === true || (request.employee_is_senior_manager && !request.employee_manager_id)) {
         return !request.hr_approved;
       }
     }
@@ -2194,8 +2194,11 @@ const Approvals: React.FC = () => {
                                                         {item.penalty_amount > 0 ? (
                                                           <span className="text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100 w-fit">-{(item.penalty_amount).toLocaleString()}đ</span>
                                                         ) : <span className="text-[10px] text-slate-300 font-bold italic">N/A</span>}
-                                                        {(item.late_minutes > 0 || item.early_leave_minutes > 0) && (
-                                                          <span className="text-[9px] font-bold text-amber-600 uppercase">Muộn/Sớm: {item.late_minutes || 0}/{item.early_leave_minutes || 0}m</span>
+                                                        {item.late_minutes > 0 && (
+                                                          <span className="text-[9px] font-bold text-amber-600 uppercase">Đi muộn: {item.late_minutes} phút</span>
+                                                        )}
+                                                        {item.early_leave_minutes > 0 && (
+                                                          <span className="text-[9px] font-bold text-amber-600 uppercase">Về sớm: {item.early_leave_minutes} phút</span>
                                                         )}
                                                       </div>
                                                     </td>
@@ -2263,7 +2266,15 @@ const Approvals: React.FC = () => {
                                                   {getStatusBadge(item)}
                                                 </div>
                                                 <div className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl">
-                                                  <div className="text-[11px] font-bold text-slate-500 italic max-w-[70%] line-clamp-1">"{cleanReasonText(item.reason || item.work_plan || '', getRequestTypeLabel(item))}"</div>
+                                                  <div className="flex flex-col gap-1 max-w-[70%]">
+                                                    <div className="text-[11px] font-bold text-slate-500 italic line-clamp-1">"{cleanReasonText(item.reason || item.work_plan || '', getRequestTypeLabel(item))}"</div>
+                                                    {item.late_minutes > 0 && (
+                                                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">Đi muộn: {item.late_minutes}m</span>
+                                                    )}
+                                                    {item.early_leave_minutes > 0 && (
+                                                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">Về sớm: {item.early_leave_minutes}m</span>
+                                                    )}
+                                                  </div>
                                                   {item.penalty_amount > 0 && <span className="text-[11px] font-black text-rose-600">-{item.penalty_amount.toLocaleString()}đ</span>}
                                                 </div>
                                                 <div className="flex gap-2 mt-4">

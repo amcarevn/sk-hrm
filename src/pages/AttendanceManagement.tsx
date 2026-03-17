@@ -2040,11 +2040,12 @@ const AttendanceManagement: React.FC = () => {
                     const allEvents: any[] = [];
                     attendanceDetails.forEach((r) => {
                       (r.events || []).forEach((ev) => {
-                        // Skip raw request approval events as we expand them manually below
+                        // Chỉ skip các approval event đã được "synthetic expansion" (vượt qua filter phía dưới)
+                        // Giữ lại các event REJECT để hiển thị chi tiết lý do từ chối
                         if (
                           ['request_approval', 'explanation_approval'].includes(
                             ev.event_type
-                          )
+                          ) && (ev.data?.action === 'APPROVE' || ev.data?.status === 'APPROVED')
                         )
                           return;
 
@@ -2127,6 +2128,7 @@ const AttendanceManagement: React.FC = () => {
                       attendance: 'Chấm công',
                       explanation: 'Giải trình',
                       explanation_approval: 'Phê duyệt giải trình',
+                      request_approval: 'Phê duyệt đơn',
                       registration_approval: 'Phê duyệt đăng ký',
                       overtime: 'Tăng ca',
                       livestream: 'Livestream',
@@ -2150,8 +2152,23 @@ const AttendanceManagement: React.FC = () => {
                       )
                         return true;
                       if (
-                        ev.event_type === 'explanation_approval' &&
-                        ev.data?.action === 'APPROVE'
+                        (ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') &&
+                        (ev.data?.action === 'APPROVE' || ev.data?.status === 'APPROVED')
+                      )
+                        return true;
+                      return false;
+                    };
+
+                    const isRejected = (ev: AttendanceEvent) => {
+                      if (
+                        (ev.event_type === 'explanation' ||
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'livestream', 'request_approval', 'registration_approval'].includes(ev.event_type)) &&
+                        ev.data?.status === 'REJECTED'
+                      )
+                        return true;
+                      if (
+                        (ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') &&
+                        ev.data?.action === 'REJECT'
                       )
                         return true;
                       return false;
@@ -2165,6 +2182,7 @@ const AttendanceManagement: React.FC = () => {
                         <ol className="relative border-l border-gray-200 ml-3 space-y-4">
                           {filteredEvents.map((ev) => {
                             const approved = isApproved(ev);
+                            const rejected = isRejected(ev);
 
                             // Clean redundant prefixes from reason (e.g., "Tăng ca: abc" -> "abc")
                             const rawReason = ev.explanation || ev.data?.reason || ev.notes || '';
@@ -2198,13 +2216,17 @@ const AttendanceManagement: React.FC = () => {
                                 <div
                                   className={`absolute w-3 h-3 rounded-full mt-1.5 -left-1.5 border ${approved
                                     ? 'bg-green-500 border-green-300'
-                                    : 'bg-gray-300 border-gray-200'
+                                    : rejected
+                                      ? 'bg-red-500 border-red-300'
+                                      : 'bg-gray-300 border-gray-200'
                                     }`}
                                 />
                                 <div
                                   className={`p-3 rounded-lg border ${approved
                                     ? 'bg-green-50 border-green-200'
-                                    : 'bg-gray-50 border-gray-200'
+                                    : rejected
+                                      ? 'bg-red-50 border-red-200'
+                                      : 'bg-gray-50 border-gray-200'
                                     }`}
                                 >
                                   <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -2224,15 +2246,20 @@ const AttendanceManagement: React.FC = () => {
                                         ? (getExplanationTypeLabel(ev.data?.explanation_type) || 'Giải trình')
                                         : (ev.event_type === 'livestream' || ['overtime', 'extra_hours', 'night_shift', 'live'].includes(ev.event_type))
                                           ? (getExplanationTypeLabel(ev.data?.registration_type) || (ev.event_type === 'livestream' ? 'Đơn đăng ký Livestream' : 'Đơn đăng ký'))
-                                          : ev.event_type === 'explanation_approval' && ev.data?.explanation_type
-                                            ? `Phê duyệt ${getExplanationTypeLabel(ev.data.explanation_type)}`
+                                          : (ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') && (ev.data?.explanation_type || ev.data?.registration_type)
+                                            ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data?.explanation_type || ev.data?.registration_type)}`
                                             : ev.event_type === 'registration_approval' && ev.data?.registration_type
-                                              ? `Phê duyệt ${getExplanationTypeLabel(ev.data.registration_type)}`
+                                              ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data.registration_type)}`
                                               : (eventTypeLabel[ev.event_type] || ev.event_type)}
                                     </span>
                                     {approved && (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 whitespace-nowrap">
                                         ✓ Đã duyệt
+                                      </span>
+                                    )}
+                                    {rejected && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 whitespace-nowrap">
+                                        ✕ Từ chối
                                       </span>
                                     )}
                                     <time className="text-xs text-gray-500 ml-auto">
@@ -2291,16 +2318,16 @@ const AttendanceManagement: React.FC = () => {
                                       )}
                                     </div>
                                   )}
-                                  {ev.event_type === 'explanation_approval' && (
+                                  {(ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
                                       <p>
                                         {approvalLevelLabel[
-                                          ev.data?.approval_level
+                                          ev.data?.level || ev.data?.approval_level
                                         ] ??
-                                          ev.data?.approval_level ??
-                                          'Unknown'}
+                                          (ev.data?.level || ev.data?.approval_level) ??
+                                          'Hệ thống'}
                                         :{' '}
-                                        {ev.data?.approved_by_name}
+                                        {ev.data?.approver_name || ev.data?.approved_by_name}
                                       </p>
                                       {ev.data?.note && ev.data.note !== 'Đã duyệt' && (
                                         <p className="italic text-gray-500">
