@@ -299,12 +299,12 @@ export const onboardingService = {
    */
   superAdminPartialUpdate: async (
     onboardingId: number,
-    data: Partial<CreateOnboardingRequest>
+    data: Record<string, any>
   ): Promise<OnboardingProcess> => {
     const response: AxiosResponse<OnboardingProcess> = await managementApi.patch(
       `/api-hrm/super-admin/onboarding/`,
       data,
-      { params: { onboarding_id: onboardingId } }
+      { params: { id: onboardingId } }
     );
     return response.data;
   },
