@@ -472,18 +472,41 @@ const Onboarding: React.FC = () => {
 
   const renderTokenActions = (item: OnboardingItem) => {
     const isLoading = tokenLoading === item.id;
+    const resendEmailButton = item.candidate_email ? (
+      <button
+        onClick={() => handleResendWelcomeEmail(item)}
+        disabled={isLoading}
+        className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 disabled:opacity-50"
+        title="Gửi lại email chào mừng với thông tin đăng nhập"
+      >
+        {isLoading ? (
+          <ArrowPathIcon className="w-3 h-3 animate-spin" />
+        ) : (
+          <EnvelopeIcon className="w-3 h-3" />
+        )}
+        Gửi lại email
+      </button>
+    ) : null;
 
     // Task 1 đã được duyệt → Đã điền thông tin
     if (item.task1_status === 'COMPLETED') {
-      return <TokenBadge status="completed" completed />;
+      return (
+        <div className="flex flex-col gap-1.5">
+          <TokenBadge status="completed" completed />
+          {resendEmailButton}
+        </div>
+      );
     }
 
     // Nhân viên đã điền nhưng chờ quản lý duyệt
     if (item.employee_info_completed && item.task1_status === 'IN_PROGRESS') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-          <ClockIcon className="w-3 h-3" /> Chờ duyệt thông tin
-        </span>
+        <div className="flex flex-col gap-1.5">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+            <ClockIcon className="w-3 h-3" /> Chờ duyệt thông tin
+          </span>
+          {resendEmailButton}
+        </div>
       );
     }
 
@@ -491,22 +514,7 @@ const Onboarding: React.FC = () => {
       <div className="flex flex-col gap-1.5">
         <TokenBadge status={item.token_status} />
 
-        {/* ✅ THÊM NÚT GỬI LẠI EMAIL */}
-        {item.candidate_email && (
-          <button
-            onClick={() => handleResendWelcomeEmail(item)}
-            disabled={isLoading}
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 disabled:opacity-50"
-            title="Gửi lại email chào mừng với thông tin đăng nhập"
-          >
-            {isLoading ? (
-              <ArrowPathIcon className="w-3 h-3 animate-spin" />
-            ) : (
-              <EnvelopeIcon className="w-3 h-3" />
-            )}
-            Gửi lại email
-          </button>
-        )}
+        {resendEmailButton}
 
         {(!item.token_status || item.token_status === 'not_generated' || item.token_status === 'expired') && (
           <button
