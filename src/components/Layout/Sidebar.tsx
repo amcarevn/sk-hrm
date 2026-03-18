@@ -22,6 +22,7 @@ import {
   ShieldCheckIcon,
   TableCellsIcon,
   DocumentTextIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -58,6 +59,12 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard/employees',
     icon: UserIcon,
     roles: ['ADMIN', 'USER',],
+  },
+  {
+    name: 'Reset mật khẩu',
+    href: '/dashboard/password-reset',
+    icon: KeyIcon,
+    roles: ['ADMIN', 'HR'],
   },
   {
     name: 'Phân quyền',

@@ -75,6 +75,7 @@ import { EmployeeOnboardingForm } from "./pages/EmployeeOnboardingForm";
 import WorkFinalization from './pages/WorkFinalization';
 import WorkFinalizationApprovals from './pages/WorkFinalizationApprovals';
 import ContractTemplates from './pages/ContractTemplates';
+import PasswordReset from './pages/PasswordReset';
 
 function App() {
   return (
@@ -804,6 +805,17 @@ function App() {
             element={
               <EmployeeOnboardingForm />
             } 
+          />
+          {/* Password Reset Route */}
+          <Route
+            path="/dashboard/password-reset"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PasswordReset />
+                </Layout>
+              </ProtectedRoute>
+            }
           />
         </Routes>
       </AuthProvider>
