@@ -3990,26 +3990,7 @@ const AttendanceManagement: React.FC = () => {
                         </div>
                       )}
 
-                    {/* === Note Input for Monthly Leave === */}
-                    {selectedContext === 'monthly_leave' &&
-                      selectedReason && (
-                        <div className="space-y-3 mb-6 animate-fadeIn">
-                          <label
-                            htmlFor="monthly-leave-note"
-                            className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
-                          >
-                            Ghi chú nghỉ phép (tùy chọn)
-                          </label>
-                          <textarea
-                            id="monthly-leave-note"
-                            rows={4}
-                            value={formNote}
-                            onChange={(e) => setFormNote(e.target.value)}
-                            placeholder="Nhập lý do nghỉ phép tháng..."
-                            className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
-                          />
-                        </div>
-                      )}
+
 
                     {/* === Detailed Options for Incomplete Attendance === */}
                     {selectedContext === 'explanation' &&

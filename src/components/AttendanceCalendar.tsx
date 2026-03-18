@@ -358,8 +358,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         } else if (isForgotCC) {
           // Change color to green/orange if there's credit, but default to green for "màu có mặt"
           displayColor = dayItem.engine_context?.work_credit >= 0.5 ? 'green' : 'purple';
-        } else if (dayItem.status_badge === 'Nghỉ phép tháng' || hasApprovedOnlineWork) {
-          displayColor = dayItem.engine_context?.work_credit >= 1.0 ? 'green' : 'orange';
+        } else if (dayItem.status_badge === 'Nghỉ phép tháng' || hasApprovedOnlineWork || hasApprovedExplanations) {
+          displayColor = dayItem.engine_context?.work_credit >= 1.0 ? 'green' : (dayItem.engine_context?.work_credit >= 0.5 ? 'orange' : displayColor);
         }
 
         return {
