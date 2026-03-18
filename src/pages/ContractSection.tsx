@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_BASE_URL } from '../utils/api';
+import { managementApi } from '../utils/api';  // ✅ Import managementApi
 import {
   DocumentTextIcon,
   PlusIcon,
@@ -82,30 +82,24 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
     notes: '',
   });
 
-  const getAuthHeader = () => {
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-    return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-  };
-
+  // ✅ Dùng managementApi
   const fetchContracts = async () => {
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api-hrm/employee-contracts/?onboarding_id=${onboardingId}`,
-        { headers: getAuthHeader() }
-      );
-      const data = await res.json();
+      const { data } = await managementApi.get('/api-hrm/employee-contracts/', {
+        params: { onboarding_id: onboardingId }
+      });
       setContracts(Array.isArray(data) ? data : data.results || []);
     } catch (e) {
       console.error('Error fetching contracts:', e);
     }
   };
 
+  // ✅ Dùng managementApi
   const fetchTemplates = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/contract-templates/?status=ACTIVE`, {
-        headers: getAuthHeader(),
+      const { data } = await managementApi.get('/api-hrm/contract-templates/', {
+        params: { status: 'ACTIVE' }
       });
-      const data = await res.json();
       setTemplates(Array.isArray(data) ? data : data.results || []);
     } catch (e) {
       console.error('Error fetching templates:', e);
@@ -117,79 +111,69 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
     Promise.all([fetchContracts(), fetchTemplates()]).finally(() => setLoading(false));
   }, [onboardingId]);
 
+  // ✅ Dùng managementApi
   const handleAddContract = async () => {
     if (!employeeId) return alert('Chưa có hồ sơ nhân viên');
     try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/employee-contracts/`, {
-        method: 'POST',
-        headers: getAuthHeader(),
-        body: JSON.stringify({
-          onboarding_process: onboardingId,
-          employee: employeeId,
-          contract_type: newContract.contract_type,
-          template: newContract.template || null,
-          start_date: newContract.start_date || null,
-          end_date: newContract.end_date || null,
-          notes: newContract.notes,
-        }),
+      await managementApi.post('/api-hrm/employee-contracts/', {
+        onboarding_process: onboardingId,
+        employee: employeeId,
+        contract_type: newContract.contract_type,
+        template: newContract.template || null,
+        start_date: newContract.start_date || null,
+        end_date: newContract.end_date || null,
+        notes: newContract.notes,
       });
-      if (!res.ok) throw new Error('Lỗi tạo hợp đồng');
       await fetchContracts();
       setShowAddModal(false);
       setNewContract({ contract_type: 'PROBATION', template: '', start_date: '', end_date: '', notes: '' });
     } catch (e: any) {
-      alert(e.message);
+      alert(e.response?.data?.detail || 'Lỗi tạo hợp đồng');
     }
   };
 
+  // ✅ Dùng managementApi
   const handleDelete = async (contractId: number) => {
     if (!confirm('Bạn có chắc muốn xóa hợp đồng này?')) return;
     setDeleting(contractId);
     try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/employee-contracts/${contractId}/`, {
-        method: 'DELETE',
-        headers: getAuthHeader(),
-      });
-      if (!res.ok) throw new Error('Xóa thất bại');
+      await managementApi.delete(`/api-hrm/employee-contracts/${contractId}/`);
       await fetchContracts();
     } catch (e: any) {
-      alert(e.message);
+      alert(e.response?.data?.detail || 'Xóa thất bại');
     } finally {
       setDeleting(null);
     }
   };
 
+  // ✅ Dùng managementApi
   const handleMarkSigned = async (contractId: number) => {
     if (!confirm('Xác nhận đánh dấu hợp đồng này là đã ký?')) return;
     setMarkingSigned(contractId);
     try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/employee-contracts/${contractId}/`, {
-        method: 'PATCH',
-        headers: getAuthHeader(),
-        body: JSON.stringify({ status: 'SIGNED', hr_signed_at: new Date().toISOString() }),
+      await managementApi.patch(`/api-hrm/employee-contracts/${contractId}/`, {
+        status: 'SIGNED',
+        hr_signed_at: new Date().toISOString()
       });
-      if (!res.ok) throw new Error('Cập nhật thất bại');
       await fetchContracts();
     } catch (e: any) {
-      alert(e.message);
+      alert(e.response?.data?.detail || 'Cập nhật thất bại');
     } finally {
       setMarkingSigned(null);
     }
   };
 
+  // ✅ Dùng managementApi
   const handleGeneratePDF = async (contractId: number) => {
     setGenerating(contractId);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api-hrm/employee-contracts/${contractId}/generate_pdf/`,
-        { method: 'POST', headers: getAuthHeader() }
+      const { data } = await managementApi.post(
+        `/api-hrm/employee-contracts/${contractId}/generate_pdf/`
       );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Lỗi tạo PDF');
       alert('Đã tạo file hợp đồng thành công');
       await fetchContracts();
     } catch (e: any) {
-      alert(e.message);
+      alert(e.response?.data?.message || e.response?.data?.detail || 'Lỗi tạo PDF');
     } finally {
       setGenerating(null);
     }

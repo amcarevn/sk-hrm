@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../utils/api';
+import { managementApi } from '../utils/api';
 import {
   DocumentTextIcon,
   PlusIcon,
@@ -54,16 +55,13 @@ export default function ContractTemplates() {
   });
 
   const getAuthHeader = () => {
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    const token = localStorage.getItem('accessToken');
     return { Authorization: `Bearer ${token}` };
   };
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/contract-templates/`, {
-        headers: getAuthHeader(),
-      });
-      const data = await res.json();
+      const { data } = await managementApi.get('/api-hrm/contract-templates/');
       setTemplates(Array.isArray(data) ? data : data.results || []);
     } catch (e) {
       console.error('Error fetching templates:', e);
@@ -89,23 +87,19 @@ export default function ContractTemplates() {
       formData.append('status', form.status);
       formData.append('file', form.file);
 
-      const res = await fetch(`${API_BASE_URL}/api-hrm/contract-templates/`, {
-        method: 'POST',
-        headers: getAuthHeader(),
-        body: formData,
+      // ✅ Dùng managementApi thay vì fetch
+      await managementApi.post('/api-hrm/contract-templates/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(JSON.stringify(err));
-      }
 
       await fetchTemplates();
       setShowAddModal(false);
       setForm({ name: '', contract_type: 'PROBATION', description: '', status: 'ACTIVE', file: null });
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (e: any) {
-      alert('Lỗi upload: ' + e.message);
+      alert('Lỗi upload: ' + (e.response?.data?.detail || e.message));
     } finally {
       setUploading(false);
     }
@@ -114,15 +108,12 @@ export default function ContractTemplates() {
   const handleToggleStatus = async (template: ContractTemplate) => {
     const newStatus = template.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/contract-templates/${template.id}/`, {
-        method: 'PATCH',
-        headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+      await managementApi.patch(`/api-hrm/contract-templates/${template.id}/`, {
+        status: newStatus,
       });
-      if (!res.ok) throw new Error('Cập nhật thất bại');
       await fetchTemplates();
     } catch (e: any) {
-      alert(e.message);
+      alert(e.response?.data?.detail || 'Cập nhật thất bại');
     }
   };
 
@@ -130,19 +121,15 @@ export default function ContractTemplates() {
     if (!confirm('Bạn có chắc muốn xóa template này?')) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/contract-templates/${id}/`, {
-        method: 'DELETE',
-        headers: getAuthHeader(),
-      });
-      if (!res.ok) throw new Error('Xóa thất bại');
+      await managementApi.delete(`/api-hrm/contract-templates/${id}/`);
       await fetchTemplates();
     } catch (e: any) {
-      alert(e.message);
+      alert(e.response?.data?.detail || 'Xóa thất bại');
     } finally {
       setDeletingId(null);
     }
   };
-
+  
   const PLACEHOLDER_DOCS = [
     { key: '{{ho_ten}}', desc: 'Họ và tên nhân viên' },
     { key: '{{ngay_sinh}}', desc: 'Ngày sinh' },
