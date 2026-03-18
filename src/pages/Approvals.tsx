@@ -39,6 +39,7 @@ const Approvals: React.FC = () => {
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const isFetchingRef = useRef<boolean>(false);
   const lastFetchParamsRef = useRef<string>('');
+  const lastFetchTimeRef = useRef<number>(0);
   const [selectedExplanation, setSelectedExplanation] = useState<any>(null);
   const [selectedOnlineWorkRequest, setSelectedOnlineWorkRequest] =
     useState<any>(null);
@@ -109,17 +110,16 @@ const Approvals: React.FC = () => {
     currentEmployee?.user?.is_staff ||
     currentEmployee?.user?.is_superuser;
 
-  const isHR = (user as any)?.hrm_user?.department_code === 'HCNS' ||
-    (user as any)?.employee_profile?.department_code === 'HCNS' ||
-    user?.role?.toUpperCase() === 'HR' ||
-    currentEmployee?.is_hr ||
-    currentEmployee?.position?.title?.toUpperCase().includes('HR') ||
-    currentEmployee?.department?.code === 'HCNS';
+  // Chỉ dùng cờ is_hr, KHÔNG check department_code hay position title
+  const isHR = currentEmployee?.is_hr === true || user?.role?.toUpperCase() === 'HR';
 
-  const isManagement = currentEmployee?.position?.is_management ||
-    currentEmployee?.is_manager ||
-    Number(currentEmployee?.management_level) >= 1 ||
+  // is_manager: BE now returns computed field (position.is_management or is dept manager)
+  const isManagement = currentEmployee?.is_manager === true ||
+    currentEmployee?.position?.is_management === true ||
     false;
+
+  // Là manager của phòng ban (department.manager_id === currentEmployee.id)
+  const isDepartmentManager = currentEmployee?.department?.manager_id === currentEmployee?.id;
 
   const currentItem = selectedExplanation || selectedOnlineWorkRequest;
   const isViewingExp = currentItem?._itemType === 'EXPLANATION' || (!currentItem?._itemType && currentItem?.explanation_type && currentItem?.explanation_type !== 'LEAVE');
@@ -141,6 +141,27 @@ const Approvals: React.FC = () => {
     allRequestsForDepList.map(r => r.employee_department || r.department_name).filter(Boolean)
   )).sort();
 
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
+  const [showRefreshToast, setShowRefreshToast] = useState(false);
+
+  // Skeleton component for better UX
+  const SkeletonItem = () => (
+    <div className="animate-pulse bg-white border border-slate-100 rounded-[32px] p-6 mb-4 shadow-sm">
+      <div className="flex items-center gap-4 mb-4">
+        <div className="w-12 h-12 bg-slate-200 rounded-2xl"></div>
+        <div className="space-y-2 flex-1">
+          <div className="h-4 bg-slate-200 rounded w-1/4"></div>
+          <div className="h-3 bg-slate-100 rounded w-1/6"></div>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-16 bg-slate-50 rounded-2xl border border-slate-100/50"></div>
+        ))}
+      </div>
+    </div>
+  );
+
   const deptOptions = [
     { value: '', label: 'Tất cả phòng ban' },
     ...uniqueDepts.map(dept => ({ value: dept as string, label: dept as string }))
@@ -149,61 +170,7 @@ const Approvals: React.FC = () => {
 
 
 
-  useEffect(() => {
-    fetchAllData();
-  }, [activeTab, filterMonth, filterYear]);
-
-  const fetchAllData = async () => {
-    // Prevent concurrent calls with same params
-    const currentParams = `${activeTab}-${filterMonth}-${filterYear}`;
-    if (isFetchingRef.current && lastFetchParamsRef.current === currentParams) {
-      return;
-    }
-
-    try {
-      isFetchingRef.current = true;
-      lastFetchParamsRef.current = currentParams;
-      setLoading(true);
-
-      // Đảm bảo lấy thông tin nhân viên trước để có department_code phục vụ việc lọc
-      const emp = await fetchCurrentEmployee();
-
-      // Khai báo lại các biến quyền dựa trên dữ liệu mới nhất
-      const currentIsAdmin = emp?.user?.is_staff || emp?.user?.is_superuser || (user as any)?.is_superuser || (user as any)?.is_staff || user?.role?.toUpperCase() === 'ADMIN';
-      const currentIsHR = emp?.is_hr || emp?.department?.code === 'HCNS' || (user as any)?.hrm_user?.department_code === 'HCNS' || user?.role?.toUpperCase() === 'HR';
-
-      // Gọi fetch cho các trang để lấy dữ liệu
-      await Promise.all([
-        fetchPendingRequests(),
-        fetchApprovedRequests(),
-        fetchRejectedRequests(),
-        fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR),
-      ]);
-    } catch (error) {
-      console.error('Error fetching all data:', error);
-    } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
-    }
-  };
-
-  const fetchRequests = async () => {
-    if (activeTab === 'pending') {
-      const emp = await fetchCurrentEmployee();
-      const currentIsAdmin = emp?.user?.is_staff || emp?.user?.is_superuser || (user as any)?.is_superuser || (user as any)?.is_staff || user?.role?.toUpperCase() === 'ADMIN';
-      const currentIsHR = emp?.is_hr || emp?.department?.code === 'HCNS' || (user as any)?.hrm_user?.department_code === 'HCNS' || user?.role?.toUpperCase() === 'HR';
-
-      await Promise.all([
-        fetchPendingRequests(),
-        fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR)
-      ]);
-    } else if (activeTab === 'approved') {
-      await fetchApprovedRequests();
-    } else if (activeTab === 'rejected') {
-      await fetchRejectedRequests();
-    }
-  };
-
+  // Move fetch helpers here (above useEffect)
   const fetchCurrentEmployee = async () => {
     try {
       const employee = await approvalService.getCurrentEmployee();
@@ -222,8 +189,6 @@ const Approvals: React.FC = () => {
       // Chỉ set list data nếu đang ở tab pending
       if (activeTab === 'pending') {
         const allExplanations = result.attendance_explanations;
-        console.log('✅ [APPROVALS] Attendance explanations:', allExplanations.length);
-        console.log('✅ [APPROVALS] Registration requests:', (result.registration_requests || []).length);
         setAttendanceExplanations(allExplanations);
         setPendingRegistrations(result.registration_requests || []);
         setPendingLeaveRequests(result.leave_requests || []);
@@ -241,94 +206,12 @@ const Approvals: React.FC = () => {
         total_pending: result.total_pending || 0,
       }));
     } catch (error) {
-      console.error('❌ [APPROVALS] Error fetching pending requests:', error);
-    }
-  };
-
-  const fetchWorkFinalizationData = async (empContext?: any, isAdminArg?: boolean, isHRArg?: boolean) => {
-    try {
-      const activeAdmin = isAdminArg !== undefined ? isAdminArg : isAdmin;
-      const activeHR = isHRArg !== undefined ? isHRArg : isHR;
-      const activeEmp = empContext || currentEmployee;
-
-      console.log('🚀 [APPROVALS] Bắt đầu lấy dữ liệu chốt công cho tháng được chọn...');
-
-      const fetchMonth = async (m: number, y: number) => {
-        try {
-          console.log(`📡 [FETCH] Checking month ${m}/${y}...`);
-          const res = await workFinalizationApprovalService.list({ year: y, month: m });
-          console.log(`📥 [FETCH SUCCESS] month ${m}/${y}:`, res);
-          return res.results || [];
-        } catch (err: any) {
-          console.error(`❌ [FETCH ERROR] month ${m}/${y}:`, err.response?.data || err.message, "Status:", err.response?.status);
-          return [];
-        }
-      };
-
-      // Chỉ lấy đúng tháng đang được chọn lọc
-      const m0 = filterMonth;
-      const y0 = filterYear;
-
-      const res0 = await fetchMonth(m0, y0);
-      const combined = res0;
-
-      console.log('📦 [APPROVALS] Dữ liệu chốt công:', combined.length, combined);
-
-      const uniqueMap = new Map();
-      combined.forEach(item => uniqueMap.set(item.id, item));
-
-      // Lấy các đơn PENDING hoặc APPROVED (để Admin theo dõi)
-      const pendingWfItems = Array.from(uniqueMap.values())
-        .filter(item => item.status === 'PENDING' || item.status === 'APPROVED')
-        .map(item => ({
-          ...item,
-          _itemType: 'WORK_FINALIZATION',
-          employee_name: `Phòng ${item.department_name || item.department_code}`,
-          employee_code: item.department_code,
-          reason: item.note || `Chốt công tháng ${item.month}/${item.year}`
-        }));
-
-      const userDeptCode = activeEmp?.department?.code ||
-        activeEmp?.hrm_user?.department_code ||
-        activeEmp?.employee_profile?.department_code ||
-        (user as any)?.department_code ||
-        (user as any)?.employee_profile?.department_code;
-
-      console.log('🔍 [APPROVALS] Filtering Context:', {
-        user: user?.username,
-        activeAdmin,
-        activeHR,
-        userDeptCode,
-        totalPendingBeforeDeptFilter: pendingWfItems.length
-      });
-
-      // Lọc dữ liệu theo phòng ban nếu không phải Admin/HR
-      let filteredWfItems = pendingWfItems;
-      if (!activeAdmin) {
-        if (!userDeptCode) {
-          console.warn('⚠️ [APPROVALS] NO DEPT CODE found. Manager cannot see items.');
-          filteredWfItems = [];
-        } else {
-          filteredWfItems = pendingWfItems.filter(item => {
-            const itemDept = item.department_code?.toString().trim().toUpperCase();
-            const userDept = userDeptCode.toString().trim().toUpperCase();
-            const match = itemDept === userDept;
-            console.log(`⚖️ [FILTER CHECK] Item Dept: "${itemDept}" vs User Dept: "${userDept}" => Match: ${match}`);
-            return match;
-          });
-        }
-      }
-
-      console.log('✅ [APPROVALS] Final Display Data:', filteredWfItems.length, filteredWfItems);
-      setWorkFinalizationApprovals(filteredWfItems);
-    } catch (wfError) {
-      console.error('❌ [APPROVALS] Lỗi khi lấy dữ liệu chốt công:', wfError);
+      console.error('× [APPROVALS] Error fetching pending requests:', error);
     }
   };
 
   const fetchApprovedRequests = async () => {
     try {
-      // Pass month/year filters if needed, but for now we filter on result or add to service
       const result = await (approvalService as any).getAllApprovedRequests({ day: 0, month: filterMonth, year: filterYear });
 
       if (activeTab === 'approved') {
@@ -368,6 +251,126 @@ const Approvals: React.FC = () => {
       console.error('Error fetching rejected requests:', error);
     }
   };
+
+  const fetchWorkFinalizationData = async (empContext?: any, isAdminArg?: boolean, isHRArg?: boolean) => {
+    try {
+      const activeAdmin = isAdminArg !== undefined ? isAdminArg : isAdmin;
+      const activeHR = isHRArg !== undefined ? isHRArg : isHR;
+      const activeEmp = empContext || currentEmployee;
+
+      const fetchMonth = async (m: number, y: number) => {
+        try {
+          const res = await workFinalizationApprovalService.list({ year: y, month: m });
+          return res.results || [];
+        } catch (err: any) {
+          return [];
+        }
+      };
+
+      const m0 = filterMonth;
+      const y0 = filterYear;
+      const res0 = await fetchMonth(m0, y0);
+      const combined = res0;
+
+      const uniqueMap = new Map();
+      combined.forEach(item => uniqueMap.set(item.id, item));
+
+      const pendingWfItems = Array.from(uniqueMap.values())
+        .filter(item => item.status === 'PENDING' || item.status === 'APPROVED')
+        .map(item => ({
+          ...item,
+          _itemType: 'WORK_FINALIZATION',
+          employee_name: `Phòng ${item.department_name || item.department_code}`,
+          employee_code: item.department_code,
+          reason: item.note || `Chốt công tháng ${item.month}/${item.year}`
+        }));
+
+      const userDeptCode = activeEmp?.department?.code ||
+        activeEmp?.hrm_user?.department_code ||
+        activeEmp?.employee_profile?.department_code ||
+        (user as any)?.department_code ||
+        (user as any)?.employee_profile?.department_code;
+
+      let filteredWfItems = pendingWfItems;
+      if (!activeAdmin) {
+        if (!userDeptCode) {
+          filteredWfItems = [];
+        } else {
+          filteredWfItems = pendingWfItems.filter(item => {
+            const itemDept = item.department_code?.toString().trim().toUpperCase();
+            const userDept = userDeptCode.toString().trim().toUpperCase();
+            return itemDept === userDept;
+          });
+        }
+      }
+
+      setWorkFinalizationApprovals(filteredWfItems);
+    } catch (wfError) {
+      console.error('× [APPROVALS] Error fetching work finalization data:', wfError);
+    }
+  };
+
+  const fetchAllData = async () => {
+    const currentParams = `${activeTab}-${filterMonth}-${filterYear}`;
+    const nowValue = Date.now();
+    
+    if (isFetchingRef.current && lastFetchParamsRef.current === currentParams && (nowValue - lastFetchTimeRef.current < 1000)) {
+      return;
+    }
+
+    try {
+      isFetchingRef.current = true;
+      const prevFetchTime = lastFetchTimeRef.current;
+      lastFetchTimeRef.current = nowValue;
+      lastFetchParamsRef.current = currentParams;
+      setLoading(true);
+
+      const emp = await fetchCurrentEmployee();
+      const currentIsAdmin = emp?.user?.is_staff || emp?.user?.is_superuser || (user as any)?.is_superuser || (user as any)?.is_staff || user?.role?.toUpperCase() === 'ADMIN';
+      const currentIsHR = emp?.is_hr === true || user?.role?.toUpperCase() === 'HR';
+
+      await Promise.all([
+        fetchPendingRequests(),
+        fetchApprovedRequests(),
+        fetchRejectedRequests(),
+        fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR),
+      ]);
+      
+      setLastRefreshedAt(new Date());
+      // Chỉ hiện toast nếu là refresh thủ công/focus sau khi đã có dữ liệu (không hiện lần đầu)
+      if (prevFetchTime > 0 && nowValue - prevFetchTime > 1000) { 
+          setShowRefreshToast(true);
+          setTimeout(() => setShowRefreshToast(false), 3000);
+      }
+    } catch (error) {
+      console.error('❌ [APPROVALS] Error fetching all data:', error);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
+    }
+  };
+
+  const fetchRequests = async () => {
+    await fetchAllData();
+  };
+
+  useEffect(() => {
+    fetchAllData();
+    
+    const handleFocus = () => {
+      fetchAllData();
+    };
+    window.addEventListener('focus', handleFocus);
+    
+    const refreshInterval = setInterval(() => {
+      fetchAllData();
+    }, 120000); 
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(refreshInterval);
+    };
+  }, [activeTab, filterMonth, filterYear]);
 
   const EXPLANATION_TYPE_MAP: Record<string, string> = {
     explanation: 'Đơn giải trình',
@@ -548,12 +551,8 @@ const Approvals: React.FC = () => {
     // Kiểm tra quyền dựa trên vai trò và cấp bậc
     const isAdminUser =
       currentEmployee.user?.is_staff || currentEmployee.user?.is_superuser;
-    const isHRUser =
-      currentEmployee.is_hr ||
-      currentEmployee.position?.title?.includes('HR') ||
-      currentEmployee.position?.title?.includes('Nhân sự') ||
-      currentEmployee.department?.name?.includes('HR') ||
-      currentEmployee.department?.name?.includes('Nhân sự');
+    // Chỉ dùng cờ is_hr
+    const isHRUser = currentEmployee.is_hr === true;
 
     // Kiểm tra quyền can_approve_attendance từ permissions
     const hasApprovalPermission =
@@ -603,17 +602,6 @@ const Approvals: React.FC = () => {
       // Nếu chưa thỏa mãn các điều kiện trên, HR chưa được duyệt
       return false;
     }
-
-    // Kiểm tra nếu là trưởng phòng của nhân viên
-    if (explanation.employee_department_manager_id === currentEmployee.id) {
-      return true;
-    }
-
-    // Kiểm tra nếu là quản lý cấp cao hơn
-    if (currentEmployee.is_manager && currentEmployee.management_level >= 2) {
-      return true;
-    }
-
     return false;
   };
 
@@ -664,10 +652,8 @@ const Approvals: React.FC = () => {
         (user as any)?.is_superuser ||
         (user as any)?.is_staff;
 
-      const isHRUser =
-        currentEmployee.is_hr ||
-        currentEmployee.position?.title?.toUpperCase().includes('HR') ||
-        currentEmployee.department?.code === 'HCNS';
+      // Chỉ dùng cờ is_hr
+      const isHRUser = currentEmployee.is_hr === true;
 
       const myDeptCode = currentEmployee.department?.code ||
         currentEmployee.hrm_user?.department_code ||
@@ -691,12 +677,8 @@ const Approvals: React.FC = () => {
 
     // Check user roles
     const isAdminUser = currentEmployee.user?.is_staff || currentEmployee.user?.is_superuser;
-    const isHRUser =
-      currentEmployee.is_hr ||
-      currentEmployee.position?.title?.includes('HR') ||
-      currentEmployee.position?.title?.includes('Nhân sự') ||
-      currentEmployee.department?.name?.includes('HR') ||
-      currentEmployee.department?.name?.includes('Nhân sự');
+    // Chỉ dùng cờ is_hr
+    const isHRUser = currentEmployee.is_hr === true;
     const isDirectManager = request.employee_manager_id === currentEmployee.id;
     const hasApprovalPermission = currentEmployee.permissions?.can_approve_attendance || false;
 
@@ -793,7 +775,7 @@ const Approvals: React.FC = () => {
       setActionModalOpen(false);
       setTargetItem(null);
       setApprovalNote('');
-      fetchRequests(); // Refresh data
+      fetchAllData(); // Refresh FULL data including stats AND counts in other tabs
     } catch (error: any) {
       console.error(`Error ${actionType}:`, error);
       const msg = error.response?.data?.error || error.response?.data?.detail || 'Thao tác thất bại';
@@ -824,7 +806,7 @@ const Approvals: React.FC = () => {
 
       setDeleteModalOpen(false);
       setTargetItem(null);
-      fetchRequests();
+      fetchAllData();
     } catch (error: any) {
       console.error('Error deleting:', error);
       const msg = error.response?.data?.error || error.response?.data?.detail || 'Xóa thất bại';
@@ -1086,33 +1068,7 @@ const Approvals: React.FC = () => {
       note: explanation.approval_note || '',
     });
 
-    // Bước 2: Trưởng phòng (nếu có)
-    const hasDeptManager =
-      explanation.employee_department_manager_name &&
-      explanation.employee_department_manager_name !== 'None';
-    let deptManagerStatus = 'Chưa duyệt';
 
-    if (hasDeptManager) {
-      if (explanation.status === 'APPROVED') {
-        deptManagerStatus = 'Đã duyệt';
-      } else if (explanation.status === 'REJECTED') {
-        // Nếu Quản lý trực tiếp chưa duyệt mà đơn bị từ chối -> TP không liên quan
-        if (!managerApproved) {
-          deptManagerStatus = 'Chưa duyệt';
-        } else {
-          deptManagerStatus = 'Đã từ chối';
-        }
-      }
-
-      workflow.push({
-        step: currentStep++,
-        role: 'Trưởng phòng',
-        approver: (deptManagerStatus === 'Đã từ chối' ? explanation.rejected_by_name : explanation.employee_department_manager_name),
-        status: deptManagerStatus,
-        date: explanation.approved_at || (deptManagerStatus === 'Đã từ chối' ? explanation.rejected_at : null),
-        note: explanation.approval_note || '',
-      });
-    }
 
     // Bước 3: Nhân sự HR
     // CHỈ HIỂN THỊ bước HR nếu người làm đơn KHÔNG PHẢI HR
@@ -1124,9 +1080,14 @@ const Approvals: React.FC = () => {
           ? 'Đã từ chối'
           : 'Chưa duyệt';
 
-      const hrApproverName = hrStatus === 'Đã từ chối'
-        ? (explanation.hr_rejected_by_name || explanation.rejected_by_name || 'Phòng Nhân sự')
-        : (explanation.hr_approved_by_name || 'Phòng Nhân sự');
+      const hrApproverName = hrStatus === 'Đã duyệt'
+        ? (explanation.hr_approved_by_name || 'Nhân sự HR')
+        : hrStatus === 'Đã từ chối'
+          ? (explanation.hr_rejected_by_name ||
+             explanation.rejected_by_name ||
+             explanation.approved_by_name ||
+             'Nhân sự HR')
+          : 'Nhân sự HR'; // Chưa duyệt
 
       workflow.push({
         step: currentStep++,
@@ -1205,29 +1166,6 @@ const Approvals: React.FC = () => {
       note: request.direct_manager_note || '',
     });
 
-    // Bước 2: Trưởng phòng (nếu có)
-    const hasDeptManager =
-      request.employee_department_manager_name &&
-      request.employee_department_manager_name !== 'None';
-    if (hasDeptManager) {
-      const deptManagerStatus =
-        request.status === 'PENDING'
-          ? 'Chưa duyệt'
-          : request.status === 'APPROVED'
-            ? 'Đã duyệt'
-            : request.status === 'REJECTED'
-              ? 'Đã từ chối'
-              : 'Chưa duyệt';
-
-      workflow.push({
-        step: currentStep++,
-        role: 'Trưởng phòng',
-        approver: request.employee_department_manager_name,
-        status: deptManagerStatus,
-        date: request.approved_at || null,
-        note: request.hr_note || request.direct_manager_note || '',
-      });
-    }
 
     // Bước 3: Nhân sự HR
     if (!employeeIsHR) {
@@ -1239,10 +1177,13 @@ const Approvals: React.FC = () => {
 
       const hrApproverName =
         hrStatus === 'Đã duyệt'
-          ? (request.hr_approved_by_name || 'Phòng Nhân sự')
+          ? (request.hr_approved_by_name || 'Nhân sự HR')
           : hrStatus === 'Đã từ chối'
-            ? (request.hr_rejected_by_name || request.rejected_by_name || 'Phòng Nhân sự')
-            : 'Phòng Nhân sự'; // Chưa duyệt → chưa biết ai sẽ duyệt
+            ? (request.hr_rejected_by_name ||
+               request.rejected_by_name ||
+               request.approved_by_name ||
+               'Nhân sự HR')
+            : 'Nhân sự HR'; // Chưa duyệt
 
       workflow.push({
         step: currentStep++,
@@ -1377,6 +1318,51 @@ const Approvals: React.FC = () => {
       });
     }
 
+    // Nếu không phải superadmin hoặc HR thật sự: chỉ hiển thị đơn của nhân viên mà mình là QLTT trực tiếp
+    const isTrueSuperAdmin = (user as any)?.is_superuser || currentEmployee?.user?.is_superuser;
+    const isTrueHR = currentEmployee?.is_hr === true || user?.role?.toUpperCase() === 'HR';
+
+    console.log('🔍 [APPROVAL FILTER] === User Identity ===', {
+      currentEmployeeId: currentEmployee?.id,
+      currentEmployeeName: currentEmployee?.full_name || currentEmployee?.user?.username,
+      // Quyền hệ thống
+      isTrueSuperAdmin,
+      isTrueHR,
+      isAdmin_computed: isAdmin,
+      isHR_computed: isHR,
+      // Trường phòng ban / quản lý
+      is_manager: currentEmployee?.is_manager,
+      management_level: currentEmployee?.management_level,
+      position_is_management: currentEmployee?.position?.is_management,
+      position_title: currentEmployee?.position?.title,
+      department_code: currentEmployee?.department?.code,
+      department_name: currentEmployee?.department?.name,
+      // Trưởng phòng ban?
+      is_department_head: currentEmployee?.is_department_head,
+      department_head_id: currentEmployee?.department?.head?.id,
+      department_head_name: currentEmployee?.department?.head?.full_name || currentEmployee?.department?.head?.name,
+      // Raw currentEmployee để debug đầy đủ
+      raw_department: currentEmployee?.department,
+    });
+
+    console.log('🔍 [APPROVAL FILTER] === Sample Items ===',
+      all.slice(0, 5).map(i => ({
+        name: i.employee_name,
+        employee_manager_id: i.employee_manager_id,
+        employee_manager_name: i.employee_manager_name,
+        employee_department: i.employee_department || i.department_name,
+      }))
+    );
+
+    if (!isTrueSuperAdmin && !isTrueHR && currentEmployee) {
+      all = all.filter(item => {
+        const itemEmpId = item.employee_id || (typeof item.employee === 'object' ? item.employee?.id : item.employee);
+        const isMine = itemEmpId === currentEmployee.id;
+        const isMyDirectReport = item.employee_manager_id === currentEmployee.id;
+        return isMine || isMyDirectReport;
+      });
+    }
+
     if (filterTypes.length > 0) {
       all = all.filter(item => {
         if (filterTypes.includes('EXPLANATION') && item._itemType === 'EXPLANATION') {
@@ -1484,6 +1470,8 @@ const Approvals: React.FC = () => {
 
   const clearAllFilters = () => {
     setFilterTypes([]);
+    setFilterExplanationSubTypes([]);
+    setFilterRegistrationSubTypes([]);
     setFilterName('');
     setFilterDepartment('');
     setFilterOnlyMine(false);
@@ -1491,12 +1479,42 @@ const Approvals: React.FC = () => {
     setFilterYear(currentYear);
   };
 
+  const clearTypeFilters = () => {
+    setFilterTypes([]);
+    setFilterExplanationSubTypes([]);
+    setFilterRegistrationSubTypes([]);
+  };
+
   const getTotalFilteredCount = () => getTotalCount();
 
   return (
-    <div className="w-full">
+    <div className="w-full relative pb-20">
+      {/* Cập nhật nhanh - Floating indicator */}
+      <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[60] transition-all duration-500 transform ${showRefreshToast ? 'translate-y-0 opacity-100' : '-translate-y-12 opacity-0 pointer-events-none'}`}>
+        <div className="bg-slate-900 text-white px-6 py-2.5 rounded-full shadow-2xl flex items-center gap-3 border border-slate-700/50 backdrop-blur-md">
+          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+          <span className="text-xs font-black uppercase tracking-widest">Đã cập nhật dữ liệu mới</span>
+        </div>
+      </div>
+
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Phê duyệt</h1>
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">
+            Cập nhật lần cuối: {lastRefreshedAt.toLocaleTimeString('vi-VN')}
+          </p>
+        </div>
+        
+        {/* Floating Refresh FAB for Mobile */}
+        <button 
+          onClick={fetchAllData}
+          className={`fixed bottom-6 right-6 sm:hidden z-50 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center border-4 border-white transition-all active:scale-90 ${loading ? 'animate-pulse' : ''}`}
+        >
+          <svg className={`w-6 h-6 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+        </button>
+      </div>
+
       <div className="mb-4 sm:mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Phê duyệt</h1>
         <p className="text-base sm:text-lg text-gray-600 mt-1 sm:mt-2">
           Duyệt các đơn xin nghỉ phép, làm thêm giờ, giải trình chấm công và các
           yêu cầu khác.
@@ -1781,6 +1799,17 @@ const Approvals: React.FC = () => {
                   <div className="flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-slate-400">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" /></svg>
                     Phân loại đơn:
+                    {(filterTypes.length > 0 || filterExplanationSubTypes.length > 0 || filterRegistrationSubTypes.length > 0) && (
+                      <button
+                        onClick={clearTypeFilters}
+                        className="ml-1 flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-500 border border-transparent hover:border-rose-200 text-[9px] font-black uppercase tracking-widest transition-all duration-200 group"
+                      >
+                        <svg className="w-2.5 h-2.5 group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        Xoá bộ lọc
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1896,10 +1925,10 @@ const Approvals: React.FC = () => {
             {filterTypes.includes('REGISTRATION') && (
               <div className="border-t border-slate-50 mt-4 pt-4 animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="flex flex-col gap-3">
-                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                  <div className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
                     Chi tiết đăng ký:
-                  </span>
+                  </div>
                   <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2">
 
                     {[
@@ -1907,6 +1936,7 @@ const Approvals: React.FC = () => {
                       { value: 'EXTRA_HOURS', label: 'Làm thêm', icon: 'M12 4v16m8-8H4' },
                       { value: 'NIGHT_SHIFT', label: 'Trực tối', icon: 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z' },
                       { value: 'LIVE', label: 'Live stream', icon: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' },
+                      { value: 'OFF_DUTY', label: 'Vào/Ra trực', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' },
                     ].map(sub => {
                       const isSubActive = filterRegistrationSubTypes.includes(sub.value);
                       return (
@@ -1936,12 +1966,10 @@ const Approvals: React.FC = () => {
 
 
         <div className="space-y-4">
-          {loading ? (
-            <div className="bg-white border rounded-xl overflow-hidden p-12 text-center shadow-sm">
-              <div className="flex justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-              </div>
-              <p className="mt-4 text-gray-500 font-medium">Đang tải dữ liệu...</p>
+          {loading && Object.keys(getGroupedRequests()).length === 0 ? (
+            <div className="space-y-6">
+              <SkeletonItem />
+              <SkeletonItem />
             </div>
           ) : Object.keys(getGroupedRequests()).length === 0 ? (
             <div className="bg-white border rounded-xl overflow-hidden p-12 text-center shadow-sm">
@@ -1978,15 +2006,15 @@ const Approvals: React.FC = () => {
             const deptEntries = Object.entries(groupedRequests);
             const totalDepts = deptEntries.length;
 
-            return deptEntries.map(([deptName, posGroups]) => {
+            return deptEntries.map(([deptName, posGroups]: [string, any]) => {
               const isDeptExpanded = expandedDepartments.includes(deptName) || (totalDepts === 1);
 
               // Correctly flatten 3-level groups: posGroups -> empGroups -> items
-              const allItemsInDept = Object.values(posGroups).reduce((acc: any[], empGroup: any) =>
-                acc.concat(...Object.values(empGroup)), []
+              const allItemsInDept = Object.values(posGroups as Record<string, any>).reduce((acc: any[], empGroup: any) =>
+                acc.concat(...Object.values(empGroup as Record<string, any>)), []
               );
 
-              const pendingInDept = allItemsInDept.filter(r => r.status === 'PENDING' && canApproveRequest(r)).length;
+              const pendingInDept = allItemsInDept.filter((r: any) => r.status === 'PENDING' && canApproveRequest(r)).length;
 
               return (
                 <div key={deptName} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow mb-4">
@@ -2042,9 +2070,9 @@ const Approvals: React.FC = () => {
                   {/* Accordion Content - Positions */}
                   {isDeptExpanded && (
                     <div className="p-2 sm:p-4 space-y-6 bg-gray-50/30">
-                      {Object.entries(posGroups).map(([posName, empGroups]) => {
-                        const allItemsInPos = ([] as any[]).concat(...Object.values(empGroups));
-                        const pendingInPos = allItemsInPos.filter(r => r.status === 'PENDING' && canApproveRequest(r)).length;
+                      {Object.entries(posGroups as Record<string, any>).map(([posName, empGroups]: [string, any]) => {
+                        const allItemsInPos = ([] as any[]).concat(...Object.values(empGroups as Record<string, any>));
+                        const pendingInPos = allItemsInPos.filter((r: any) => r.status === 'PENDING' && canApproveRequest(r)).length;
 
                         return (
                           <div key={posName} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden border-l-4 border-l-primary-500">
@@ -2078,10 +2106,10 @@ const Approvals: React.FC = () => {
 
                             {/* New Level: Employee Accordion */}
                             <div className="p-4 space-y-4">
-                              {Object.entries(empGroups).map(([empName, items]) => {
+                              {Object.entries(empGroups as Record<string, any>).map(([empName, items]: [string, any[]]) => {
                                 const accordionKey = `${deptName}-${posName}-${empName}`;
                                 const isEmpExpanded = expandedEmployees.includes(accordionKey);
-                                const pendingInEmp = items.filter(r => r.status === 'PENDING' && canApproveRequest(r)).length;
+                                const pendingInEmp = (items || []).filter((r: any) => r.status === 'PENDING' && canApproveRequest(r)).length;
                                 const firstItem = items[0];
 
                                 return (

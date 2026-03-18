@@ -230,6 +230,7 @@ const WorkFinalization: React.FC = () => {
         { header: 'Công Thực Tế', key: 'cong_thuc_te', width: 14 },
         { header: 'Tổng Công', key: 'tong_cong', width: 12 },
         { header: 'Nghỉ Phép', key: 'nghi_phep', width: 12 },
+        { header: 'Làm Việc Online', key: 'lam_viec_online', width: 14 },
         { header: 'Tổng Phạt', key: 'tong_phat', width: 14 },
         { header: 'Tăng Ca', key: 'tang_ca', width: 10 },
         { header: 'Làm Tối', key: 'lam_toi', width: 10 },
@@ -727,16 +728,17 @@ const WorkFinalization: React.FC = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
                     {[
                       { label: 'Công thử việc', value: String(finalizedRec.cong_thu_viec), cardCls: 'bg-blue-50', labelCls: 'text-blue-700', valCls: 'text-blue-800 font-bold' },
-                      { label: 'Công chính thức', value: String(finalizedRec.cong_chinh_thuc), cardCls: 'bg-indigo-50', labelCls: 'text-indigo-700', valCls: 'text-indigo-800 font-bold' },
-                      { label: 'Công thực tế', value: String(finalizedRec.cong_thuc_te), cardCls: 'bg-green-50', labelCls: 'text-green-700', valCls: 'text-green-800 font-bold' },
-                      { label: 'Tổng công', value: String(finalizedRec.tong_cong), cardCls: 'bg-emerald-50', labelCls: 'text-emerald-700', valCls: 'text-emerald-800 font-extrabold' },
-                      { label: 'Nghỉ phép tháng', value: String(finalizedRec.nghi_phep), cardCls: 'bg-indigo-50/50', labelCls: 'text-indigo-700', valCls: 'text-indigo-800 font-bold' },
-                      { label: 'Tổng phạt', value: `${formatNumber(finalizedRec.tong_phat)}đ`, cardCls: 'bg-red-50', labelCls: 'text-red-700', valCls: 'text-red-800 font-bold' },
+                      { label: 'Công chính thức', value: `${finalizedRec.cong_chinh_thuc} công`, cardCls: 'bg-indigo-50', labelCls: 'text-indigo-700', valCls: 'text-indigo-800 font-bold' },
+                      { label: 'Công thực tế', value: `${finalizedRec.cong_thuc_te} công`, cardCls: 'bg-green-50', labelCls: 'text-green-700', valCls: 'text-green-800 font-bold' },
+                      { label: 'Tổng công', value: `${finalizedRec.tong_cong} công`, cardCls: 'bg-emerald-50', labelCls: 'text-emerald-700', valCls: 'text-emerald-800 font-extrabold' },
+                      { label: 'Nghỉ phép tháng', value: `${finalizedRec.nghi_phep} ngày`, cardCls: 'bg-indigo-50/50', labelCls: 'text-indigo-700', valCls: 'text-indigo-800 font-bold' },
+                      { label: 'Làm việc online', value: `${finalizedRec.lam_viec_online ?? 0} ngày`, cardCls: 'bg-cyan-50', labelCls: 'text-cyan-700', valCls: 'text-cyan-800 font-bold' },
                       { label: 'Tăng ca', value: `${finalizedRec.tang_ca} giờ`, cardCls: 'bg-orange-50', labelCls: 'text-orange-700', valCls: 'text-orange-800 font-bold' },
                       { label: 'Trực tối', value: `${finalizedRec.truc_toi} buổi`, cardCls: 'bg-purple-50', labelCls: 'text-purple-700', valCls: 'text-purple-800 font-bold' },
                       { label: 'Làm thêm giờ', value: `${finalizedRec.lam_them_gio} giờ`, cardCls: 'bg-yellow-50', labelCls: 'text-yellow-700', valCls: 'text-yellow-800 font-bold' },
                       { label: 'Live', value: `${finalizedRec.live} ca`, cardCls: 'bg-pink-50', labelCls: 'text-pink-700', valCls: 'text-pink-800 font-bold' },
                       { label: 'PC Gửi xe', value: `${formatNumber(finalizedRec.phu_cap_gui_xe)}đ`, cardCls: 'bg-teal-50', labelCls: 'text-teal-700', valCls: 'text-teal-800 font-bold' },
+                      { label: 'Tổng phạt', value: `${formatNumber(finalizedRec.tong_phat)}đ`, cardCls: 'bg-red-50', labelCls: 'text-red-700', valCls: 'text-red-800 font-bold' },
                     ].map((item) => (
                       <div key={item.label} className={`${item.cardCls} rounded-lg p-3`}>
                         <p className={`text-xs font-medium ${item.labelCls}`}>{item.label}</p>
