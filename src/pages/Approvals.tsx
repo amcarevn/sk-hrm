@@ -33,7 +33,6 @@ const Approvals: React.FC = () => {
   const [filterRegistrationSubTypes, setFilterRegistrationSubTypes] = useState<string[]>([]);
   const [filterName, setFilterName] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
-  const [filterDay, setFilterDay] = useState<number>(new Date().getDate());
   const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [filterOnlyMine, setFilterOnlyMine] = useState(false);
@@ -152,20 +151,20 @@ const Approvals: React.FC = () => {
 
   useEffect(() => {
     fetchAllData();
-  }, [activeTab, filterDay, filterMonth, filterYear]);
+  }, [activeTab, filterMonth, filterYear]);
 
   const fetchAllData = async () => {
     // Prevent concurrent calls with same params
-    const currentParams = `${activeTab}-${filterDay}-${filterMonth}-${filterYear}`;
+    const currentParams = `${activeTab}-${filterMonth}-${filterYear}`;
     if (isFetchingRef.current && lastFetchParamsRef.current === currentParams) {
       return;
     }
-    
+
     try {
       isFetchingRef.current = true;
       lastFetchParamsRef.current = currentParams;
       setLoading(true);
-      
+
       // Đảm bảo lấy thông tin nhân viên trước để có department_code phục vụ việc lọc
       const emp = await fetchCurrentEmployee();
 
@@ -218,7 +217,7 @@ const Approvals: React.FC = () => {
 
   const fetchPendingRequests = async () => {
     try {
-      const result = await (approvalService as any).getAllPendingRequests({ day: filterDay, month: filterMonth, year: filterYear });
+      const result = await (approvalService as any).getAllPendingRequests({ day: 0, month: filterMonth, year: filterYear });
 
       // Chỉ set list data nếu đang ở tab pending
       if (activeTab === 'pending') {
@@ -330,7 +329,7 @@ const Approvals: React.FC = () => {
   const fetchApprovedRequests = async () => {
     try {
       // Pass month/year filters if needed, but for now we filter on result or add to service
-      const result = await (approvalService as any).getAllApprovedRequests({ day: filterDay, month: filterMonth, year: filterYear });
+      const result = await (approvalService as any).getAllApprovedRequests({ day: 0, month: filterMonth, year: filterYear });
 
       if (activeTab === 'approved') {
         setApprovedExplanations(result.attendance_explanations);
@@ -351,7 +350,7 @@ const Approvals: React.FC = () => {
 
   const fetchRejectedRequests = async () => {
     try {
-      const result = await (approvalService as any).getAllRejectedRequests({ day: filterDay, month: filterMonth, year: filterYear });
+      const result = await (approvalService as any).getAllRejectedRequests({ day: 0, month: filterMonth, year: filterYear });
 
       if (activeTab === 'rejected') {
         setRejectedExplanations(result.attendance_explanations);
@@ -371,17 +370,26 @@ const Approvals: React.FC = () => {
   };
 
   const EXPLANATION_TYPE_MAP: Record<string, string> = {
-    LATE: 'Giải trình đi muộn',
-    EARLY_LEAVE: 'Giải trình về sớm',
-    INCOMPLETE_ATTENDANCE: 'Giải trình quên chấm công',
-    BUSINESS_TRIP: 'Giải trình đi công tác',
-    FIRST_DAY: 'Giải trình ngày đầu đi làm',
-    OTHER: 'Khác',
-    OVERTIME: 'Tăng ca',
-    EXTRA_HOURS: 'Làm thêm giờ',
-    NIGHT_SHIFT: 'Trực tối',
-    LIVE: 'Live',
-    LEAVE: 'Nghỉ phép tháng',
+    explanation: 'Đơn giải trình',
+    registration: 'Đơn đăng ký',
+    LATE: 'Đơn giải trình đi muộn',
+    EARLY_LEAVE: 'Đơn giải trình về sớm',
+    INCOMPLETE_ATTENDANCE: 'Đơn giải trình quên chấm công',
+    BUSINESS_TRIP: 'Đơn giải trình đi công tác',
+    FIRST_DAY: 'Đơn giải trình ngày đầu đi làm',
+    OTHER: 'Đơn giải trình khác',
+    OVERTIME: 'Đơn đăng ký tăng ca',
+    EXTRA_HOURS: 'Đơn đăng ký làm thêm giờ',
+    NIGHT_SHIFT: 'Đơn đăng ký trực tối',
+    LIVE: 'Đơn đăng ký Live',
+    LEAVE: 'Đơn đăng ký nghỉ phép',
+    OFF_DUTY: 'Đơn đăng ký ra trực',
+  };
+
+  const getExplanationTypeLabel = (type: string): string => {
+    if (!type) return '';
+    const upperType = type.toUpperCase();
+    return EXPLANATION_TYPE_MAP[upperType] || EXPLANATION_TYPE_MAP[type] || type;
   };
 
   // Mapping trạng thái chấm công sang tiếng Việt
@@ -410,20 +418,21 @@ const Approvals: React.FC = () => {
     EXPECTED_STATUS_MAP[status] || status;
 
   const getRequestTypeLabel = (req: any): string => {
-    if (req._itemType === 'ONLINE_WORK') return 'Làm việc online';
-    if (req.explanation_type === 'LEAVE' || req._itemType === 'LEAVE') return 'Nghỉ phép tháng';
-
-    // Đơn đăng ký (Tăng ca, Làm thêm giờ, Live, Trực tối)
-    if (req._itemType === 'REGISTRATION' || req._itemType === 'OVERTIME') {
+    let label = '';
+    if (req._itemType === 'ONLINE_WORK') label = 'làm việc online';
+    else if (req.explanation_type === 'LEAVE' || req._itemType === 'LEAVE') label = 'nghỉ phép tháng';
+    else if (req._itemType === 'REGISTRATION' || req._itemType === 'OVERTIME') {
       const type = req.registration_type || (req._itemType === 'OVERTIME' ? 'OVERTIME' : '');
-      return EXPLANATION_TYPE_MAP[type] || 'Đơn đăng ký';
+      label = getExplanationTypeLabel(type) || 'đơn đăng ký';
+    }
+    else if (req._itemType === 'WORK_FINALIZATION') label = 'chốt công tháng';
+    else {
+      label = req.explanation_type ? (getExplanationTypeLabel(req.explanation_level || req.explanation_type)) : 'đơn giải trình';
     }
 
-    if (req._itemType === 'WORK_FINALIZATION') return 'Chốt công tháng';
-
-    // Mặc định là đơn giải trình
-    const typeLabel = req.explanation_type ? (EXPLANATION_TYPE_MAP[req.explanation_type] || req.explanation_type) : 'Đơn giải trình';
-    return typeLabel;
+    if (!label) return 'Đơn';
+    // Đảm bảo viết hoa chữ cái đầu cho tiêu đề
+    return label.charAt(0).toUpperCase() + label.slice(1);
   };
 
   /**
@@ -448,9 +457,21 @@ const Approvals: React.FC = () => {
     let max = 0;
     let label = '';
 
-    if (isOnline) { used = owUsed; max = mOnl; label = 'Online'; }
-    else if (isLeave) { used = lUsed; max = mLea; label = 'Phép'; }
-    else { used = qUsed; max = mExp; label = 'Giải trình'; }
+    if (isOnline) {
+      used = owUsed;
+      max = mOnl;
+      label = 'Online';
+    }
+    else if (isLeave) {
+      used = lUsed;
+      max = mLea;
+      label = 'Phép';
+    }
+    else {
+      used = qUsed;
+      max = mExp;
+      label = 'Giải trình';
+    }
 
     const ratio = max > 0 ? used / max : 0;
 
@@ -750,6 +771,8 @@ const Approvals: React.FC = () => {
           await approvalService.approveRegistrationRequest(targetItem.id, note);
         } else if (isOnlineWork) {
           await approvalService.approveOnlineWorkRequest(targetItem.id, note);
+        } else if (targetItem._itemType === 'LEAVE') {
+          await approvalService.approveMonthlyLeaveRequest(targetItem.id, note);
         } else {
           await approvalService.approveAttendanceExplanation(targetItem.id, note);
         }
@@ -760,6 +783,8 @@ const Approvals: React.FC = () => {
           await approvalService.rejectRegistrationRequest(targetItem.id, note);
         } else if (isOnlineWork) {
           await approvalService.rejectOnlineWorkRequest(targetItem.id, note);
+        } else if (targetItem._itemType === 'LEAVE') {
+          await approvalService.rejectMonthlyLeaveRequest(targetItem.id, note);
         } else {
           await approvalService.rejectAttendanceExplanation(targetItem.id, note);
         }
@@ -791,6 +816,8 @@ const Approvals: React.FC = () => {
         await approvalService.deleteOnlineWorkRequest(targetItem.id);
       } else if (isRegistration || targetItem._itemType === 'OVERTIME') {
         await approvalService.deleteRegistrationRequest(targetItem.id);
+      } else if (targetItem._itemType === 'LEAVE') {
+        await attendanceService.deleteMonthlyLeaveRequest(targetItem.id);
       } else {
         await attendanceService.deleteAttendanceExplanation(targetItem.id);
       }
@@ -871,12 +898,14 @@ const Approvals: React.FC = () => {
       setIsBulkProcessing(true);
       const note = 'Duyệt nhanh hàng loạt';
 
-      const explanations = approvableItems.filter(i => i._itemType === 'EXPLANATION' || i._itemType === 'LEAVE');
+      const explanations = approvableItems.filter(i => i._itemType === 'EXPLANATION');
+      const leaveRequests = approvableItems.filter(i => i._itemType === 'LEAVE');
       const registrations = approvableItems.filter(i => i._itemType === 'REGISTRATION' || i._itemType === 'OVERTIME');
       const onlineWorks = approvableItems.filter(i => i._itemType === 'ONLINE_WORK');
 
       const promises = [];
       if (explanations.length > 0) promises.push(approvalService.bulkApproveAttendanceExplanations(explanations.map(i => i.id), note));
+      if (leaveRequests.length > 0) promises.push(approvalService.bulkApproveMonthlyLeaveRequests(leaveRequests.map(i => i.id), note));
       if (registrations.length > 0) promises.push(approvalService.bulkApproveRegistrationRequests(registrations.map(i => i.id), note));
       if (onlineWorks.length > 0) promises.push(approvalService.bulkApproveOnlineWorkRequests(onlineWorks.map(i => i.id), note));
 
@@ -1037,7 +1066,7 @@ const Approvals: React.FC = () => {
     // Nếu status = REJECTED mà chưa ai duyệt thì vòng 1 bị từ chối.
     const managerStatus = managerApproved
       ? 'Đã duyệt'
-      : explanation.status === 'REJECTED'
+      : (explanation.status === 'REJECTED' && (explanation.rejection_level === 'DIRECT_MANAGER' || (!explanation.rejection_level && !explanation.hr_rejected_by_name)))
         ? 'Đã từ chối'
         : 'Chưa duyệt';
 
@@ -1091,7 +1120,7 @@ const Approvals: React.FC = () => {
     if (!employeeIsHR) {
       const hrStatus = explanation.hr_approved
         ? 'Đã duyệt'
-        : (explanation.status === 'REJECTED' && managerApproved)
+        : (explanation.status === 'REJECTED' && (explanation.hr_rejected_by_name || explanation.rejection_level === 'HR' || managerApproved))
           ? 'Đã từ chối'
           : 'Chưa duyệt';
 
@@ -1120,10 +1149,11 @@ const Approvals: React.FC = () => {
           ? `${requestName} đã duyệt`
           : `${requestName} đã từ chối`;
       const finalApprover =
-        explanation.hr_rejected_by_name ||       // HR từ chối (SerializerMethodField mới)
-        explanation.hr_approved_by_name ||          // HR đã duyệt
-        explanation.approved_by_name ||          // Người xử lý cuối (DM từ chối vòng 1)
-        explanation.direct_manager_approved_by_name || // fallback: DM đã duyệt
+        explanation.hr_rejected_by_name ||
+        explanation.hr_approved_by_name ||
+        explanation.rejected_by_name ||
+        explanation.approved_by_name ||
+        explanation.direct_manager_approved_by_name ||
         'Hệ thống';
 
       workflow.push({
@@ -1153,7 +1183,7 @@ const Approvals: React.FC = () => {
     // Bước 1: Quản lý trực tiếp
     const managerStatus = request.direct_manager_approved
       ? 'Đã duyệt'
-      : request.direct_manager_rejected
+      : (request.status === 'REJECTED' && (request.rejection_level === 'DIRECT_MANAGER' || request.direct_manager_rejected || (!request.rejection_level && !request.hr_rejected_by_name)))
         ? 'Đã từ chối'
         : 'Chưa duyệt';
 
@@ -1203,17 +1233,15 @@ const Approvals: React.FC = () => {
     if (!employeeIsHR) {
       const hrStatus = request.hr_approved
         ? 'Đã duyệt'
-        : request.hr_rejected
+        : (request.status === 'REJECTED' && (request.hr_rejected_by_name || request.hr_rejected || request.rejection_level === 'HR' || request.direct_manager_approved))
           ? 'Đã từ chối'
-          : request.direct_manager_approved
-            ? 'Chưa duyệt'
-            : 'Chưa duyệt';
+          : 'Chưa duyệt';
 
       const hrApproverName =
         hrStatus === 'Đã duyệt'
           ? (request.hr_approved_by_name || 'Phòng Nhân sự')
           : hrStatus === 'Đã từ chối'
-            ? (request.hr_rejected_by_name || 'Phòng Nhân sự')
+            ? (request.hr_rejected_by_name || request.rejected_by_name || 'Phòng Nhân sự')
             : 'Phòng Nhân sự'; // Chưa duyệt → chưa biết ai sẽ duyệt
 
       workflow.push({
@@ -1234,9 +1262,11 @@ const Approvals: React.FC = () => {
           : `${requestName} đã từ chối`;
       const finalApprover =
         request.hr_rejected_by_name ||
+        request.rejected_by_name ||
         request.direct_manager_rejected_by_name ||
         request.hr_approved_by_name ||
         request.direct_manager_approved_by_name ||
+        request.approved_by_name ||
         'Hệ thống';
 
       workflow.push({
@@ -1421,20 +1451,42 @@ const Approvals: React.FC = () => {
     return count;
   };
 
+  const getTabCount = (type: string) => {
+    let requests: any[] = [];
+    if (type === 'EXPLANATION') {
+      requests = activeTab === 'pending' ? attendanceExplanations : activeTab === 'approved' ? approvedExplanations : rejectedExplanations;
+    } else if (type === 'REGISTRATION') {
+      const regs = activeTab === 'pending' ? pendingRegistrations : activeTab === 'approved' ? approvedRegistrations : rejectedRegistrations;
+      const ots = activeTab === 'pending' ? pendingOvertimeRequests : activeTab === 'approved' ? approvedOvertimeRequests : rejectedOvertimeRequests;
+      requests = [...regs, ...ots];
+    } else if (type === 'LEAVE') {
+      requests = activeTab === 'pending' ? pendingLeaveRequests : activeTab === 'approved' ? approvedLeaveRequests : rejectedLeaveRequests;
+    } else if (type === 'ONLINE_WORK') {
+      requests = onlineWorkRequests || [];
+    }
+
+    let filtered = requests.filter(matchesTextFilters);
+    if (filterOnlyMine) {
+      filtered = filtered.filter(item => {
+        const itemEmpId = item.employee_id || (typeof item.employee === 'object' ? item.employee?.id : item.employee);
+        return itemEmpId === currentEmployee?.id;
+      });
+    }
+    return filtered.length;
+  };
+
 
   const now = new Date();
-  const currentDay = now.getDate();
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
-  const hasActiveFilters = filterTypes.length > 0 || filterName !== '' || filterDepartment !== '' || filterOnlyMine || filterDay !== currentDay || filterMonth !== currentMonth || filterYear !== currentYear;
+  const hasActiveFilters = filterTypes.length > 0 || filterName !== '' || filterDepartment !== '' || filterOnlyMine || filterMonth !== currentMonth || filterYear !== currentYear;
 
   const clearAllFilters = () => {
     setFilterTypes([]);
     setFilterName('');
     setFilterDepartment('');
     setFilterOnlyMine(false);
-    setFilterDay(currentDay);
     setFilterMonth(currentMonth);
     setFilterYear(currentYear);
   };
@@ -1555,10 +1607,10 @@ const Approvals: React.FC = () => {
         {/* Thẻ Thống kê - Responsive Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 mb-8">
           {[
-            { type: 'EXPLANATION', label: 'Giải trình', fullLabel: 'Đơn giải trình', count: stats.pending_explanation, color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-            { type: 'REGISTRATION', label: 'Đăng ký', fullLabel: 'Đơn đăng ký', count: (stats.pending_registration || 0) + (stats.pending_overtime || 0), color: 'indigo', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
-            { type: 'LEAVE', label: 'Nghỉ phép', fullLabel: 'Nghỉ phép tháng', count: stats.pending_leave, color: 'blue', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-            { type: 'ONLINE_WORK', label: 'Online', fullLabel: 'Làm việc online', count: stats.pending_online_work, color: 'teal', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' }
+            { type: 'EXPLANATION', label: 'Giải trình', fullLabel: 'Đơn giải trình', count: getTabCount('EXPLANATION'), color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+            { type: 'REGISTRATION', label: 'Đăng ký', fullLabel: 'Đơn đăng ký', count: getTabCount('REGISTRATION'), color: 'indigo', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
+            { type: 'LEAVE', label: 'Nghỉ phép tháng', fullLabel: 'Nghỉ phép tháng', count: getTabCount('LEAVE'), color: 'blue', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { type: 'ONLINE_WORK', label: 'Làm việc online', fullLabel: 'Làm việc online', count: getTabCount('ONLINE_WORK'), color: 'teal', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' }
           ].map((item) => (
             <button
               key={item.type}
@@ -1576,7 +1628,9 @@ const Approvals: React.FC = () => {
                   </svg>
                 </div>
                 <div className={`flex items-center gap-1 sm:hidden ${filterTypes.includes(item.type) ? `text-${item.color}-600` : 'text-slate-300'}`}>
-                  <span className="text-[10px] font-black uppercase tracking-tighter">Chờ</span>
+                  <span className="text-[10px] font-black uppercase tracking-tighter">
+                    {activeTab === 'pending' ? 'Chờ' : activeTab === 'approved' ? 'Duyệt' : 'Từ chối'}
+                  </span>
                 </div>
               </div>
 
@@ -1679,27 +1733,8 @@ const Approvals: React.FC = () => {
               </div>
 
               {/* Cụm Ngày, Tháng & Năm */}
-              <div className="w-full lg:w-[420px]">
+              <div className="w-full lg:w-[320px]">
                 <div className="flex gap-3">
-                  <div className="flex-1 flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                      Ngày
-                    </label>
-                    <div className="h-[46px] flex items-center">
-                      <div className="w-full">
-                        <SelectBox
-                          label=""
-                          value={filterDay.toString()}
-                          options={[
-                            { value: '0', label: 'Tất cả' },
-                            ...Array.from({ length: 31 }, (_, i) => ({ value: (i + 1).toString(), label: (i + 1).toString() }))
-                          ]}
-                          onChange={(val) => setFilterDay(parseInt(val))}
-                        />
-                      </div>
-                    </div>
-                  </div>
                   <div className="flex-1 flex flex-col gap-2">
                     <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -1777,10 +1812,10 @@ const Approvals: React.FC = () => {
 
                   {/* Use a fixed height and whitespace-nowrap to ensure equality */}
                   {[
-                    { value: 'EXPLANATION', label: 'Giải trình', count: stats.pending_explanation, color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-                    { value: 'REGISTRATION', label: 'Đăng ký', count: (stats.pending_registration || 0) + (stats.pending_overtime || 0), color: 'indigo', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
-                    { value: 'LEAVE', label: 'Nghỉ phép', count: stats.pending_leave, color: 'blue', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-                    { value: 'ONLINE_WORK', label: 'Làm việc', count: stats.pending_online_work, color: 'teal', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+                    { value: 'EXPLANATION', label: 'Giải trình', count: getTabCount('EXPLANATION'), color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+                    { value: 'REGISTRATION', label: 'Đăng ký', count: getTabCount('REGISTRATION'), color: 'indigo', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
+                    { value: 'LEAVE', label: 'Nghỉ phép tháng', count: getTabCount('LEAVE'), color: 'blue', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+                    { value: 'ONLINE_WORK', label: 'Làm việc online', count: getTabCount('ONLINE_WORK'), color: 'teal', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
                   ].map(opt => {
                     const isActive = filterTypes.includes(opt.value);
                     const colorConfigs: Record<string, any> = {
@@ -2084,27 +2119,31 @@ const Approvals: React.FC = () => {
                                                 <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-md text-[9px] font-black border border-amber-100 uppercase tracking-tighter">
                                                   Giải trình: {(() => {
                                                     const exp = items.find(i => i._itemType === 'EXPLANATION');
-                                                    const used = exp?.quota_used !== undefined ? exp.quota_used : items.filter(i => i._itemType === 'EXPLANATION' && i.status === 'APPROVED').length;
-                                                    return `${used}/3`;
-                                                  })()}
+                                                    if (exp?.quota_used !== undefined) return exp.quota_used;
+                                                    return items.filter(i => i._itemType === 'EXPLANATION' && i.status === 'APPROVED').length;
+                                                  })()}/3
                                                 </span>
                                               )}
                                               {items.filter(i => i._itemType === 'LEAVE').length > 0 && (
                                                 <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[9px] font-black border border-blue-100 uppercase tracking-tighter">
-                                                  Nghỉ phép: {(() => {
+                                                  Nghỉ phép tháng: {(() => {
                                                     const leave = items.find(i => i._itemType === 'LEAVE');
-                                                    const used = leave?.quota_used !== undefined ? leave.quota_used : items.filter(i => i._itemType === 'LEAVE' && i.status === 'APPROVED').length;
-                                                    return `${used}/1`;
-                                                  })()}
+                                                    if (leave?.quota_used !== undefined) return leave.quota_used;
+                                                    return items
+                                                      .filter(i => i._itemType === 'LEAVE' && i.status === 'APPROVED')
+                                                      .reduce((acc, curr) => acc + (Number(curr.leave_amount) || (curr.explanation_type === 'HALF_DAY' ? 0.5 : 1)), 0);
+                                                  })()}/1
                                                 </span>
                                               )}
                                               {items.filter(i => i._itemType === 'ONLINE_WORK').length > 0 && (
                                                 <span className="flex items-center gap-1 px-1.5 py-0.5 bg-teal-50 text-teal-600 rounded-md text-[9px] font-black border border-teal-100 uppercase tracking-tighter">
-                                                  Online: {(() => {
+                                                  Làm việc online: {(() => {
                                                     const ow = items.find(i => i._itemType === 'ONLINE_WORK');
-                                                    const used = ow?.quota_used !== undefined ? ow.quota_used : items.filter(i => i._itemType === 'ONLINE_WORK' && i.status === 'APPROVED').length;
-                                                    return `${used}/2`;
-                                                  })()}
+                                                    if (ow?.quota_used !== undefined) return ow.quota_used;
+                                                    return items
+                                                      .filter(i => i._itemType === 'ONLINE_WORK' && i.status === 'APPROVED')
+                                                      .reduce((acc, curr) => acc + (Number(curr.work_amount) || (curr.explanation_type === 'HALF_DAY' || curr.registration_type === 'HALF_DAY' ? 0.5 : 1)), 0);
+                                                  })()}/3
                                                 </span>
                                               )}
                                               {items.filter(i => i._itemType === 'REGISTRATION').length > 0 && (
@@ -3155,14 +3194,14 @@ const Approvals: React.FC = () => {
 
                       {/* Item 2: Online */}
                       {(isViewingOnl || statsCount === 0) && (
-                        <div className={`p-3 rounded-xl border transition-all ${((employeeFreqStats?.statistics?.approved_online_work ?? 0) >= (employeeFreqStats?.statistics?.max_online_work_per_month ?? 2)) ? 'bg-amber-50/60 border-amber-100' : 'bg-white border-teal-100/30'}`}>
-                          <p className="text-[11px] text-gray-400 font-black uppercase mb-1.5">Online</p>
+                        <div className={`p-3 rounded-xl border transition-all ${((employeeFreqStats?.statistics?.approved_online_work ?? 0) >= (employeeFreqStats?.statistics?.max_online_work_per_month ?? 3)) ? 'bg-amber-50/60 border-amber-100' : 'bg-white border-teal-100/30'}`}>
+                          <p className="text-[11px] text-gray-400 font-black uppercase mb-1.5">Làm việc online</p>
                           <div className="flex justify-between items-end">
                             <p className="text-base font-black text-gray-900 leading-none">
                               {employeeFreqStats?.statistics?.approved_online_work ?? 0}
-                              <span className="text-xs text-gray-400 font-bold ml-0.5">/2</span>
+                              <span className="text-xs text-gray-400 font-bold ml-0.5">/3</span>
                             </p>
-                            <span className={`text-[11px] font-black px-1.5 py-0.5 rounded-full ${((employeeFreqStats?.statistics?.approved_online_work ?? 0) >= (employeeFreqStats?.statistics?.max_online_work_per_month ?? 2)) ? 'bg-amber-100 text-amber-600' : 'bg-teal-100 text-teal-600'}`}>
+                            <span className={`text-[11px] font-black px-1.5 py-0.5 rounded-full ${((employeeFreqStats?.statistics?.approved_online_work ?? 0) >= (employeeFreqStats?.statistics?.max_online_work_per_month ?? 3)) ? 'bg-amber-100 text-amber-600' : 'bg-teal-100 text-teal-600'}`}>
                               Lần
                             </span>
                           </div>
