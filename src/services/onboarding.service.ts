@@ -384,7 +384,16 @@ export const onboardingService = {
       await managementApi.post(`/api-hrm/onboardings/${id}/send-employee-email/`);
     return response.data;
   },
-
+  /**
+   * Gửi lại email chào mừng cho nhân viên
+   */
+  resendWelcomeEmail: async (
+    id: number
+  ): Promise<{ success: boolean; message: string }> => {
+    const response: AxiosResponse<{ success: boolean; message: string }> =
+      await managementApi.post(`/api-hrm/onboardings/${id}/resend_welcome_email/`);  // ← Đổi - thành _
+    return response.data;
+  },
   /**
    * Kiểm tra trạng thái điền form của nhân viên
    */
