@@ -60,11 +60,18 @@ const EmployeeListItem = React.memo(({
             <p className="text-xs text-gray-500 font-mono">
               {emp.employee_id}
             </p>
-            {emp.department && (
-              <p className="text-xs text-gray-400 truncate">
-                {emp.department.name}
-              </p>
-            )}
+            <div className="flex flex-col">
+              {emp.department && (
+                <p className="text-xs text-gray-400 truncate">
+                  {emp.department.name}
+                </p>
+              )}
+              {emp.position && (
+                <p className="text-[10px] text-indigo-400 font-medium truncate">
+                  {emp.position.title}
+                </p>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex-shrink-0 flex flex-col items-end gap-1">
@@ -777,6 +784,7 @@ const WorkFinalization: React.FC = () => {
                     <p className="text-xs text-gray-500 font-mono">
                       {selectedEmployee.employee_id}
                       {selectedEmployee.department && ` · ${selectedEmployee.department.name}`}
+                      {selectedEmployee.position && ` · ${selectedEmployee.position.title}`}
                     </p>
                   </div>
                 </div>
