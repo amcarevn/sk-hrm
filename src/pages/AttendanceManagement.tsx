@@ -187,8 +187,8 @@ const AttendanceManagement: React.FC = () => {
   const [extraHoursEndTime, setExtraHoursEndTime] = useState('');
 
   // Night Shift (Trực tối) state - for sales department
-  const [nightShiftStartTime, setNightShiftStartTime] = useState('');
-  const [nightShiftEndTime, setNightShiftEndTime] = useState('');
+  const [nightShiftStartTime, setNightShiftStartTime] = useState<string | null>(null);
+  const [nightShiftEndTime, setNightShiftEndTime] = useState<string | null>(null);
 
   // Live state - for TikTok department
   const [liveStartTime, setLiveStartTime] = useState('');
@@ -227,8 +227,8 @@ const AttendanceManagement: React.FC = () => {
   // Calculate night shift duration
   const calculateNightShiftDuration = () => {
     if (!nightShiftStartTime || !nightShiftEndTime) return 0;
-    const [startHour, startMin] = nightShiftStartTime.split(':').map(Number);
-    const [endHour, endMin] = nightShiftEndTime.split(':').map(Number);
+    const [startHour, startMin] = (nightShiftStartTime as string).split(':').map(Number);
+    const [endHour, endMin] = (nightShiftEndTime as string).split(':').map(Number);
     const startMinutes = startHour * 60 + startMin;
     const endMinutes = endHour * 60 + endMin;
     const diffMinutes = endMinutes - startMinutes;
@@ -362,7 +362,7 @@ const AttendanceManagement: React.FC = () => {
       { id: 'morning', label: 'Làm online sáng', icon: 'desktop' },
       { id: 'afternoon', label: 'Làm online chiều', icon: 'desktop' },
       { id: 'full_day', label: 'Làm online cả ngày', icon: 'desktop' },
-      { id: 'checkpage', label: 'Làm online checkpage', icon: 'desktop' },
+      // { id: 'checkpage', label: 'Làm online checkpage', icon: 'desktop' },
     ];
 
   const monthlyLeaveReasons: {
@@ -412,8 +412,8 @@ const AttendanceManagement: React.FC = () => {
     setOvertimeEndTime('');
     setExtraHoursStartTime('');
     setExtraHoursEndTime('');
-    setNightShiftStartTime('');
-    setNightShiftEndTime('');
+    setNightShiftStartTime(null);
+    setNightShiftEndTime(null);
     setLiveStartTime('');
     setLiveEndTime('');
     setForgotPunchType('checkin');
@@ -3084,7 +3084,7 @@ const AttendanceManagement: React.FC = () => {
                                   </button>
                                   {isNonQuota && (
                                     <div className="absolute -top-2 -right-1 bg-indigo-500 text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter opacity-0 group-hover/chip:opacity-100 transition-opacity whitespace-nowrap">
-                                      Không mất lượt giải trình
+                                      Không mất lượt
                                     </div>
                                   )}
                                 </div>
