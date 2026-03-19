@@ -403,19 +403,32 @@ const AttendanceUpload: React.FC = () => {
       const result = await attendanceService.uploadAttendanceFile(selectedFile);
 
       // Create upload history entry
+      const details = result.details ?? {};
+      const totalRecords = details.total_records ?? 0;
+      const importedRecords = details.imported_records ?? 0;
+      const duplicateRecords = details.duplicate_records ?? 0;
       const newUpload = {
         id: uploadHistory.length + 1,
         filename: selectedFile.name,
         uploadedAt: new Date().toLocaleString('vi-VN'),
         status: 'success' as const,
-        records: result.imported_records || result.total_records || 0,
+        records: totalRecords,
         user: user?.username || 'Unknown'
       };
 
       setUploadHistory([newUpload, ...uploadHistory]);
+      let successText = `Upload file "${selectedFile.name}" thành công! Tổng ${totalRecords} dòng`;
+      if (importedRecords > 0 && duplicateRecords > 0) {
+        successText += ` (${importedRecords} mới, ${duplicateRecords} cập nhật)`;
+      } else if (importedRecords > 0) {
+        successText += ` (${importedRecords} mới)`;
+      } else if (duplicateRecords > 0) {
+        successText += ` (${duplicateRecords} cập nhật)`;
+      }
+      successText += '.';
       setUploadMessage({
         type: 'success',
-        text: `Upload file "${selectedFile.name}" thành công! Đã import ${newUpload.records} bản ghi chấm công.`
+        text: successText
       });
       setSelectedFile(null);
 
