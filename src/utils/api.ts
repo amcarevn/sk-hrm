@@ -2720,7 +2720,18 @@ export const companyConfigAPI = {
     const response: AxiosResponse = await managementApi.get(`/api-hrm/shift-configs/${shiftConfigId}/assign-options/`);
     return response.data;
   },
-
+  
+  removeEmployeeFromShift: async (
+    shiftConfigId: number,
+    employeeId: number
+  ): Promise<{ message: string }> => {
+    const response: AxiosResponse<{ message: string }> = await managementApi.post(
+      `/api-hrm/shift-configs/${shiftConfigId}/remove-employee/`,
+      { employee_id: employeeId }
+    );
+    return response.data;
+  },
+ 
   assignShiftConfig: async (
     shiftConfigId: number,
     data: {
