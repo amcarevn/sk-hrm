@@ -343,7 +343,7 @@ const AttendanceManagement: React.FC = () => {
       { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' },
       { id: 'night_shift', label: 'Trực tối', icon: 'moon' },
       { id: 'live', label: 'Live', icon: 'video' },
-      { id: 'off_duty', label: 'Ra trực', icon: 'briefcase' },
+      { id: 'off_duty', label: 'Vào/Ra trực', icon: 'briefcase' },
     ];
 
   const onlineWorkReasons: {
@@ -1083,12 +1083,12 @@ const AttendanceManagement: React.FC = () => {
             registration_type: regType,
             start_time: startTime,
             end_time: endTime,
-            reason: finalReason || 'Đơn ra trực',
+            reason: finalReason || 'Đơn Vào/Ra trực',
             status: 'PENDING' as const,
           };
           result = await attendanceService.createRegistrationRequest(otherRegData);
           await refreshAllData();
-          showNotify('success', 'Thành công', `Đơn ${selectedReason === 'off_duty' ? 'Ra trực' : (selectedReason === 'live' ? 'Live' : 'trực tối')} đã gửi thành công!`);
+          showNotify('success', 'Thành công', `Đơn ${selectedReason === 'off_duty' ? 'Vào/Ra trực' : (selectedReason === 'live' ? 'Live' : 'trực tối')} đã gửi thành công!`);
         }
       } else {
         // Giải trình (LATE, EARLY_LEAVE, INCOMPLETE_ATTENDANCE, BUSINESS_TRIP, FIRST_DAY)
@@ -2189,7 +2189,7 @@ const AttendanceManagement: React.FC = () => {
                         live: 'Live',
                         livestream: 'Livestream',
                         online_work: 'Làm việc online',
-                        off_duty: 'Đơn đăng ký ra trực',
+                        off_duty: 'Đơn đăng ký Vào/Ra trực',
                         leave: 'Nghỉ phép tháng',
                       };
                     const statusLabel: Record<string, string> = {
@@ -2734,7 +2734,7 @@ const AttendanceManagement: React.FC = () => {
                                 Đơn đăng ký
                               </h4>
                               <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                                Tăng ca, làm thêm giờ, trực tối, live, ra trực
+                                Tăng ca, làm thêm giờ, trực tối, live, Vào/Ra trực
                               </p>
                             </div>
                           </div>
@@ -4084,6 +4084,8 @@ const AttendanceManagement: React.FC = () => {
                               </div>
                               <div className="bg-purple-50 p-3 flex gap-2">
                                 {[
+                                  { value: '07:30', label: '7h30', desc: 'Sáng' },
+                                  { value: '08:00', label: '8h00', desc: 'Sáng' },
                                   { value: '08:30', label: '8h30', desc: 'Sáng' },
                                   { value: '13:00', label: '13h00', desc: 'Chiều' },
                                   { value: '17:30', label: '17h30', desc: 'Tối' },
@@ -4117,7 +4119,10 @@ const AttendanceManagement: React.FC = () => {
                               <div className="bg-orange-50 p-3 flex gap-2">
                                 {[
                                   { value: '12:00', label: '12h00', desc: 'Trưa' },
+                                  { value: '16:30', label: '16h30', desc: 'Chiều' },
+                                  { value: '17:00', label: '17h00', desc: 'Chiều' },
                                   { value: '17:30', label: '17h30', desc: 'Chiều' },
+                                  { value: '21:00', label: '21h00', desc: 'Tối' },
                                 ].map((opt) => {
                                   const sel = forgotCheckoutTime === opt.value;
                                   return (
@@ -4697,7 +4702,7 @@ const AttendanceManagement: React.FC = () => {
                                 return { label: 'Nghỉ phép tháng', bg: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20' };
                               }
                               if (item._type === 'registration' && item.registration_type === 'OFF_DUTY') {
-                                return { label: 'Đăng ký ra trực', bg: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20' };
+                                return { label: 'Đăng ký Vào/Ra trực', bg: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20' };
                               }
                               return ({
                                 explanation: { label: 'Giải trình', bg: 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20' },

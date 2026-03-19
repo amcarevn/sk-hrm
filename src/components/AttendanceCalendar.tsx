@@ -5,7 +5,11 @@ import {
   ClockIcon,
   BoltIcon,
   ExclamationCircleIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  XMarkIcon,
+  CheckCircleIcon,
+  ClockIcon as ClockOutlineIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/solid';
 import { attendanceService } from '../services/attendance.service';
 
@@ -110,6 +114,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   const [attendanceData, setAttendanceData] = useState<AttendanceDay[]>([]);
   const [engineSummary, setEngineSummary] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+
+  // Dialog state for day detail
+  const [dialogDay, setDialogDay] = useState<AttendanceDay | null>(null);
 
   // DEBUG: Log engine summary when it changes
   useEffect(() => {
@@ -666,6 +673,307 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     return 'bg-slate-50 border-slate-200';
   };
 
+  // ===== Day Detail Dialog =====
+  const getDayFullLabel = (date: Date) => {
+    const dayNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+    return `${dayNames[date.getDay()]}, ngày ${date.getDate()} tháng ${date.getMonth() + 1} năm ${date.getFullYear()}`;
+  };
+
+  const getRequestLabel = (reg: any): { title: string; icon: string; color: string } => {
+    const type = (reg.event_type || '').toUpperCase();
+    const data = reg.data || {};
+    const expType = (data.explanation_type || '').toUpperCase();
+    const regType = (data.registration_type || type).toUpperCase();
+
+    if (type === 'EXPLANATION') {
+      const labelMap: Record<string, { title: string; icon: string; color: string }> = {
+        LATE:                  { title: 'Giải trình đi muộn',       icon: '⏰', color: 'yellow' },
+        EARLY_LEAVE:           { title: 'Giải trình về sớm',        icon: '🚪', color: 'yellow' },
+        INCOMPLETE_ATTENDANCE: { title: 'Giải trình quên chấm công', icon: '🔔', color: 'purple' },
+        BUSINESS_TRIP:         { title: 'Giải trình công tác',      icon: '✈️', color: 'blue'   },
+        FIRST_DAY:             { title: 'Giải trình ngày đầu',      icon: '🌟', color: 'blue'   },
+        LEAVE:                 { title: 'Giải trình nghỉ phép',     icon: '🌴', color: 'green'  },
+      };
+      return labelMap[expType] || { title: 'Giải trình', icon: '📝', color: 'gray' };
+    }
+    const typeMap: Record<string, { title: string; icon: string; color: string }> = {
+      OVERTIME:   { title: 'Tăng ca',          icon: '⚡', color: 'orange' },
+      EXTRA_HOURS:{ title: 'Làm thêm giờ',     icon: '⏱️', color: 'orange' },
+      NIGHT_SHIFT:{ title: 'Trực tối',          icon: '🌙', color: 'indigo' },
+      LIVE:       { title: 'Livestream',        icon: '🎥', color: 'pink'   },
+      LIVESTREAM: { title: 'Livestream',        icon: '🎥', color: 'pink'   },
+      ONLINE_WORK:{ title: 'Làm việc online',   icon: '💻', color: 'teal'  },
+      LEAVE:      { title: 'Nghỉ phép tháng',   icon: '📅', color: 'green'  },
+      OFF_DUTY:   { title: 'Ra trực',           icon: '🏃', color: 'green'  },
+    };
+    return typeMap[regType] || { title: 'Đơn', icon: '📄', color: 'gray' };
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch ((status || '').toUpperCase()) {
+      case 'APPROVED': return { label: 'Đã duyệt', cls: 'bg-green-100 text-green-700 border border-green-200' };
+      case 'PENDING':  return { label: 'Chờ duyệt', cls: 'bg-yellow-100 text-yellow-700 border border-yellow-200' };
+      case 'REJECTED': return { label: 'Bị từ chối', cls: 'bg-red-100 text-red-700 border border-red-200' };
+      default:         return { label: status || '—', cls: 'bg-gray-100 text-gray-600 border border-gray-200' };
+    }
+  };
+
+  const colorMap: Record<string, string> = {
+    yellow: 'bg-yellow-50 border-yellow-200',
+    purple: 'bg-purple-50 border-purple-200',
+    orange: 'bg-orange-50 border-orange-200',
+    indigo: 'bg-indigo-50 border-indigo-200',
+    blue:   'bg-blue-50 border-blue-200',
+    pink:   'bg-pink-50   border-pink-200',
+    teal:   'bg-teal-50   border-teal-200',
+    green:  'bg-green-50  border-green-200',
+    gray:   'bg-gray-50   border-gray-200',
+  };
+
+  const DayDetailDialog = () => {
+    if (!dialogDay) return null;
+    const day = dialogDay;
+    const allRegs = (day.registrations || []).filter((r: any) => {
+      const t = (r.event_type || '').toUpperCase();
+      return [
+        'EXPLANATION','OVERTIME','EXTRA_HOURS','NIGHT_SHIFT',
+        'LIVE','LIVESTREAM','ONLINE_WORK','LEAVE','OFF_DUTY',
+      ].includes(t);
+    });
+
+    const isMorningTime = (time: string | null) => !!time && parseInt(time.split(':')[0]) < 12;
+    const isAfternoonTime = (time: string | null) => !!time && parseInt(time.split(':')[0]) >= 12;
+
+    const morningIn  = isMorningTime(day.morningData?.check_in)   ? day.morningData?.check_in   : '';
+    const morningOut = isMorningTime(day.morningData?.check_out)  ? day.morningData?.check_out  : '';
+    const afternoonIn  = isAfternoonTime(day.afternoonData?.check_in)  ? day.afternoonData?.check_in  : '';
+    const afternoonOut = isAfternoonTime(day.afternoonData?.check_out) ? day.afternoonData?.check_out : '';
+    const eveningIn  = day.eveningData?.check_in  || '';
+    const eveningOut = day.eveningData?.check_out || '';
+
+    const shifts = [
+      { label: 'Sáng',  status: day.morning,    inn: morningIn,   out: morningOut   },
+      { label: 'Chiều', status: day.afternoon,  inn: afternoonIn, out: afternoonOut },
+      { label: 'Tối',   status: day.evening,    inn: eveningIn,   out: eveningOut   },
+    ].filter(s => s.inn || s.out || s.status === 'holiday');
+
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+        onClick={() => setDialogDay(null)}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+            <div>
+              <p className="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-0.5">Chi tiết ngày</p>
+              <h3 className="text-base font-bold text-gray-900">{getDayFullLabel(day.date)}</h3>
+            </div>
+            <button
+              onClick={() => setDialogDay(null)}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors mt-0.5"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="px-5 py-4 space-y-5">
+
+            {/* Work credit summary */}
+            <div className={`flex items-center gap-3 p-3 rounded-xl border ${getDayBadgeStyle(day)} bg-opacity-30`}>
+              <span className="text-xl">
+                {day.is_holiday ? '🎉' : day.is_leave ? '🌴' : day.engine_context?.work_credit >= 1 ? '✅' : day.engine_context?.work_credit >= 0.5 ? '🟡' : '❌'}
+              </span>
+              <div className="flex-1">
+                <p className={`text-sm font-bold ${getDayBadgeStyle(day).includes('green') ? 'text-green-700' : getDayBadgeStyle(day).includes('red') ? 'text-red-700' : 'text-gray-700'}`}>
+                  {getDayBadgeText(day)}
+                </p>
+                {day.engine_context?.work_credit !== undefined && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Hệ số công: <span className="font-bold text-green-600">{day.engine_context.work_credit} công</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Shifts / Check-in Check-out */}
+            {shifts.length > 0 && (
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Chấm công</p>
+                <div className="space-y-2">
+                  {shifts.map((shift, i) => (
+                    <div key={i} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5 border border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(shift.status)}`} />
+                        <span className="text-sm font-semibold text-gray-700">{shift.label}</span>
+                      </div>
+                      <div className="flex items-center gap-2 font-mono text-sm text-gray-800">
+                        {shift.inn && (
+                          <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-lg font-bold text-xs">
+                            Vào {shift.inn}
+                          </span>
+                        )}
+                        {shift.out && (
+                          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-lg font-bold text-xs">
+                            Ra {shift.out}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Late / Early / Penalty */}
+            {(Number(day.engine_context?.late_minutes) > 0 ||
+              Number(day.engine_context?.early_leave_minutes) > 0 ||
+              (day.engine_context?.penalty_amount || 0) > 0) && (
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Vi phạm</p>
+                <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 space-y-2">
+                  {Number(day.engine_context?.late_minutes) > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-yellow-800 font-semibold">
+                        <ClockIcon className="h-4 w-4 text-yellow-500" /> Đi muộn
+                      </div>
+                      <span className="font-bold text-yellow-900 bg-yellow-100 px-2 py-0.5 rounded-lg text-xs">
+                        {day.engine_context.late_minutes} phút
+                      </span>
+                    </div>
+                  )}
+                  {Number(day.engine_context?.early_leave_minutes) > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-yellow-800 font-semibold">
+                        <ClockIcon className="h-4 w-4 text-yellow-500" /> Về sớm
+                      </div>
+                      <span className="font-bold text-yellow-900 bg-yellow-100 px-2 py-0.5 rounded-lg text-xs">
+                        {day.engine_context.early_leave_minutes} phút
+                      </span>
+                    </div>
+                  )}
+                  {(day.engine_context?.penalty_amount || 0) > 0 && (
+                    <div className="flex items-center justify-between text-sm border-t border-yellow-200 pt-2 mt-1">
+                      <div className="flex items-center gap-2 text-red-700 font-bold">
+                        <BoltIcon className="h-4 w-4 text-red-500" /> Tiền phạt
+                      </div>
+                      <span className="font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-lg text-xs">
+                        {(day.engine_context.penalty_amount || 0).toLocaleString('vi-VN')} VNĐ
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* All requests submitted this day */}
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                Đơn đã gửi {allRegs.length > 0 ? `(${allRegs.length})` : ''}
+              </p>
+              {allRegs.length === 0 ? (
+                <div className="text-center py-6 rounded-xl border border-dashed border-gray-200 bg-gray-50">
+                  <DocumentTextIcon className="h-8 w-8 text-gray-300 mx-auto mb-1" />
+                  <p className="text-sm text-gray-400">Không có đơn nào trong ngày này</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {allRegs.map((reg: any, i: number) => {
+                    const info = getRequestLabel(reg);
+                    const data = reg.data || {};
+                    const statusBadge = getStatusBadge(data.status);
+                    const cardCls = colorMap[info.color] || 'bg-gray-50 border-gray-200';
+                    return (
+                      <div key={i} className={`rounded-xl border px-4 py-3 ${cardCls}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{info.icon}</span>
+                            <span className="text-sm font-bold text-gray-800">{info.title}</span>
+                          </div>
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${statusBadge.cls}`}>
+                            {statusBadge.label}
+                          </span>
+                        </div>
+                        {/* Detail fields */}
+                        <div className="mt-2.5">
+                          {/* Short Info Rows */}
+                          <div className="space-y-1 text-xs text-gray-600 mb-2">
+                            {data.start_time && (
+                              <p><span className="font-semibold text-gray-700">Thời gian bắt đầu:</span> {data.start_time}</p>
+                            )}
+                            {data.end_time && (
+                              <p><span className="font-semibold text-gray-700">Thời gian kết thúc:</span> {data.end_time}</p>
+                            )}
+                            {data.hours && (
+                              <p><span className="font-semibold text-gray-700">Số giờ:</span> {data.hours}h</p>
+                            )}
+                            {data.expected_status && (
+                              <p><span className="font-semibold text-gray-700">Hình thức:</span>{' '}
+                                {({
+                                  PRESENT:              'Đủ công',
+                                  FULL_DAY:             'Cả ngày',
+                                  HALF_DAY:             'Nửa ngày',
+                                  ABSENT:               'Vắng mặt',
+                                  LATE:                 'Đi muộn',
+                                  EARLY_LEAVE:          'Về sớm',
+                                  LATE_EARLY:           'Đi muộn & Về sớm',
+                                  FORGOT_CC:            'Quên chấm công',
+                                  INCOMPLETE_ATTENDANCE:'Thiếu công',
+                                  LEAVE:                'Nghỉ phép',
+                                  HOLIDAY:              'Ngày lễ',
+                                  BUSINESS_TRIP:        'Công tác',
+                                  ONLINE_WORK:          'Làm việc online',
+                                  OVERTIME:             'Tăng ca',
+                                  NIGHT_SHIFT:          'Trực tối',
+                                  EXTRA_HOURS:          'Làm thêm giờ',
+                                } as Record<string, string>)[data.expected_status] || data.expected_status}
+                              </p>
+                            )}
+                            {data.approved_by_name && (
+                              <p className="text-green-700"><span className="font-semibold">Duyệt bởi:</span> {data.approved_by_name}</p>
+                            )}
+                          </div>
+                          
+                          {/* Long Text Blocks */}
+                          <div className="space-y-2">
+                            {data.reason && (
+                              <div className="bg-white/60 border border-gray-100 rounded-md p-2 text-xs">
+                                <span className="font-semibold text-gray-700 block mb-0.5">Lý do:</span>
+                                <p className="text-gray-600 italic leading-relaxed">
+                                  {data.reason.replace(/^(Làm online sáng|Làm online chiều|Làm online cả ngày|Làm việc online):\s*/i, '')}
+                                </p>
+                              </div>
+                            )}
+                            {data.note && (
+                              <div className="bg-blue-50/50 border border-blue-50/50 rounded-md p-2 text-xs">
+                                <span className="font-semibold text-blue-800 block mb-0.5">Ghi chú:</span>
+                                <p className="text-blue-700 italic leading-relaxed">{data.note}</p>
+                              </div>
+                            )}
+                            {data.rejected_reason && (
+                              <div className="bg-red-50/50 border border-red-100 rounded-md p-2 text-xs">
+                                <span className="font-semibold text-red-700 block mb-0.5">Lý do từ chối:</span>
+                                <p className="text-red-700 italic leading-relaxed">{data.rejected_reason}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
@@ -683,6 +991,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   }
 
   return (
+    <>
+    {/* Day Detail Dialog */}
+    <DayDetailDialog />
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
       {/* Calendar header */}
       <div className="flex justify-between items-center px-2.5 py-3 md:px-6 md:py-4 border-b border-gray-100">
@@ -823,7 +1134,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               return (
                 <div
                   key={index}
-                  onClick={() => onDateClick && onDateClick(day.date, day)}
+                  onClick={() => {
+                    setDialogDay(day);
+                    if (onDateClick) onDateClick(day.date, day);
+                  }}
                   className={`group relative flex flex-col rounded-xl p-2 transition-all duration-200 cursor-pointer min-h-[120px]
                     hover:shadow-lg hover:-translate-y-0.5
                     ${isToday
@@ -984,7 +1298,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             return (
               <div
                 key={index}
-                onClick={() => onDateClick && onDateClick(day.date, day)}
+                onClick={() => {
+                  setDialogDay(day);
+                  if (onDateClick) onDateClick(day.date, day);
+                }}
                 className={`flex flex-col gap-4 p-4 rounded-[20px] cursor-pointer transition-all shadow-sm border
                   ${isToday
                     ? 'ring-2 ring-primary-500 bg-primary-50/50'
@@ -1162,6 +1479,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
 

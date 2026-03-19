@@ -27,6 +27,7 @@ export interface WorkFinalizationRecord {
   live: number;
   phu_cap_gui_xe: number;
   nghi_phep: number;
+  lam_viec_online?: number;
   year: number;
   month: number;
   finalized_at: string;
