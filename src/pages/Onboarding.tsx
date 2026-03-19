@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import onboardingService from '../services/onboarding.service';
 import { useAuth } from '../contexts/AuthContext';
+import Pagination from '../components/Pagination';
 
 // ============================================
 // TYPES
@@ -24,6 +25,7 @@ type TokenStatus = 'not_generated' | 'active' | 'expired' | 'completed';
 type OnboardingItem = {
   id: number;
   onboarding_code?: string | null;
+  employee_id?: string | null;        // ✅ thêm mã nhân viên
   candidate_name: string;
   candidate_email?: string | null;
   position?: { id: number; title: string; code: string } | null;
@@ -133,12 +135,10 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
   });
   const [errors, setErrors] = useState<Partial<Record<keyof CreateOnboardingForm, string>>>({});
 
-  // Fetch danh sách nhân viên cho dropdown manager
   useEffect(() => {
     const fetchManagers = async () => {
       setLoadingEmployees(true);
       try {
-        // 1. Lấy danh sách tất cả vị trí quản lý
         const posData = await positionsAPI.list({ is_management: true, page_size: 100 });
         const managementPositions = posData.results ?? [];
         if (managementPositions.length === 0) {
@@ -146,7 +146,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
           setLoadingEmployees(false);
           return;
         }
-        // 2. Lấy danh sách nhân viên có vị trí quản lý
         const empRequests = managementPositions.map((pos) =>
           employeesAPI.list({ position: pos.id, page_size: 1000 })
         );
@@ -195,8 +194,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
       if (form.direct_manager_id) {
         payload.direct_manager_id = parseInt(form.direct_manager_id);
       }
-
-      const data = await onboardingService.create(payload);
+      await onboardingService.create(payload);
       alert(`✅ Tạo quy trình thành công!\n`);
       onSuccess();
     } catch (e: any) {
@@ -204,8 +202,8 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
       const errData = e.response?.data || {};
       let msg = 'Tạo quy trình thất bại. Vui lòng thử lại.';
       if (errData.non_field_errors) {
-        msg = Array.isArray(errData.non_field_errors) 
-          ? errData.non_field_errors[0] 
+        msg = Array.isArray(errData.non_field_errors)
+          ? errData.non_field_errors[0]
           : errData.non_field_errors;
       } else if (typeof errData === 'string') {
         msg = errData;
@@ -236,7 +234,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-xl shadow-2xl flex flex-col">
-
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2">
@@ -255,8 +252,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4">
-
-          {/* Info banner */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
             <p className="font-medium mb-1">📋 Quy trình 2 bước:</p>
             <ol className="list-decimal list-inside space-y-0.5">
@@ -340,32 +335,39 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
 };
 
 // ============================================
-// MAIN COMPONENT (giữ nguyên 100% từ file gốc)
+// MAIN COMPONENT
 // ============================================
 
 const Onboarding: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isHR = user?.employee_profile?.is_hr === true || user?.hrm_user?.is_hr === true ||(user as any)?.is_super_admin === true || (user as any)?.role === 'admin';
+  const isHR =
+    user?.employee_profile?.is_hr === true ||
+    user?.hrm_user?.is_hr === true ||
+    (user as any)?.is_super_admin === true ||
+    (user as any)?.role === 'admin';
+
   const [onboardings, setOnboardings] = useState<OnboardingItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Filters & pagination
+  // Filters
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterMonth, setFilterMonth] = useState<number>(0);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
-  const [page, setPage] = useState(1);
-  const PAGE_SIZE = 50;
+
+  // ✅ Pagination — dùng cùng pattern với EmployeeList
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   const fetchOnboardings = async () => {
     setLoading(true);
     try {
       const params: Parameters<typeof onboardingService.list>[0] = {
-        page,
-        page_size: PAGE_SIZE,
+        page: currentPage,
+        page_size: itemsPerPage,
       };
       if (filterStatus) params.status = filterStatus;
       if (filterMonth > 0) {
@@ -394,7 +396,7 @@ const Onboarding: React.FC = () => {
 
   useEffect(() => {
     fetchOnboardings();
-  }, [filterStatus, filterMonth, filterYear, page]);
+  }, [filterStatus, filterMonth, filterYear, currentPage, itemsPerPage]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Bạn chắc chắn muốn xoá quy trình này?')) return;
@@ -438,16 +440,13 @@ const Onboarding: React.FC = () => {
       setTokenLoading(null);
     }
   };
+
   const handleResendWelcomeEmail = async (item: OnboardingItem) => {
     if (!item.candidate_email) {
       alert('Ứng viên chưa có email. Vui lòng cập nhật thông tin trước.');
       return;
     }
-    
-    if (!confirm(`Gửi lại email chào mừng đến ${item.candidate_email}?`)) {
-      return;
-    }
-    
+    if (!confirm(`Gửi lại email chào mừng đến ${item.candidate_email}?`)) return;
     setTokenLoading(item.id);
     try {
       await onboardingService.resendWelcomeEmail(item.id);
@@ -459,6 +458,7 @@ const Onboarding: React.FC = () => {
       setTokenLoading(null);
     }
   };
+
   const handleCopyLink = async (item: OnboardingItem) => {
     const url = item.employee_form_url;
     if (!url) { alert('Chưa có link. Hãy tạo link trước.'); return; }
@@ -488,7 +488,6 @@ const Onboarding: React.FC = () => {
       </button>
     ) : null;
 
-    // Task 1 đã được duyệt → Đã điền thông tin
     if (item.task1_status === 'COMPLETED') {
       return (
         <div className="flex flex-col gap-1.5">
@@ -498,7 +497,6 @@ const Onboarding: React.FC = () => {
       );
     }
 
-    // Nhân viên đã điền nhưng chờ quản lý duyệt
     if (item.employee_info_completed && item.task1_status === 'IN_PROGRESS') {
       return (
         <div className="flex flex-col gap-1.5">
@@ -513,9 +511,7 @@ const Onboarding: React.FC = () => {
     return (
       <div className="flex flex-col gap-1.5">
         <TokenBadge status={item.token_status} />
-
         {resendEmailButton}
-
         {(!item.token_status || item.token_status === 'not_generated' || item.token_status === 'expired') && (
           <button
             onClick={() => handleGenerateToken(item)}
@@ -526,7 +522,6 @@ const Onboarding: React.FC = () => {
             {item.token_status === 'expired' ? 'Tạo lại link' : 'Tạo link'}
           </button>
         )}
-
         {item.token_status === 'active' && (
           <button
             onClick={() => handleCopyLink(item)}
@@ -598,10 +593,9 @@ const Onboarding: React.FC = () => {
 
         {/* Filter bar */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
-          {/* Status filter */}
           <select
             value={filterStatus}
-            onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+            onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Tất cả trạng thái</option>
@@ -610,10 +604,9 @@ const Onboarding: React.FC = () => {
             <option value="COMPLETED">Hoàn thành</option>
           </select>
 
-          {/* Month filter */}
           <select
             value={filterMonth}
-            onChange={(e) => { setFilterMonth(Number(e.target.value)); setPage(1); }}
+            onChange={(e) => { setFilterMonth(Number(e.target.value)); setCurrentPage(1); }}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value={0}>Tất cả tháng</option>
@@ -622,11 +615,10 @@ const Onboarding: React.FC = () => {
             ))}
           </select>
 
-          {/* Year filter — only when month is selected */}
           {filterMonth > 0 && (
             <select
               value={filterYear}
-              onChange={(e) => { setFilterYear(Number(e.target.value)); setPage(1); }}
+              onChange={(e) => { setFilterYear(Number(e.target.value)); setCurrentPage(1); }}
               className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
@@ -635,17 +627,15 @@ const Onboarding: React.FC = () => {
             </select>
           )}
 
-          {/* Clear filters */}
           {(filterStatus !== '' || filterMonth > 0) && (
             <button
-              onClick={() => { setFilterStatus(''); setFilterMonth(0); setPage(1); }}
+              onClick={() => { setFilterStatus(''); setFilterMonth(0); setCurrentPage(1); }}
               className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600"
             >
               Xóa bộ lọc
             </button>
           )}
 
-          {/* Refresh */}
           <button
             onClick={() => fetchOnboardings()}
             disabled={loading}
@@ -657,11 +647,12 @@ const Onboarding: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="border rounded-lg overflow-x-auto w-full mb-8">
+        <div className="border rounded-lg overflow-x-auto w-full">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {['Mã onboarding', 'Ứng viên', 'Vị trí', 'Phòng ban', 'Ngày bắt đầu', 'Trạng thái', 'Tiến độ', 'Link nhân viên', 'Thao tác'].map((h) => (
+                {/* ✅ Đổi "Mã onboarding" → "Mã NV" */}
+                {['Mã NV', 'Ứng viên', 'Vị trí', 'Phòng ban', 'Ngày bắt đầu', 'Trạng thái', 'Tiến độ', 'Link nhân viên', 'Thao tác'].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
@@ -695,8 +686,11 @@ const Onboarding: React.FC = () => {
                   const progress = getProgressPercentage(item.progress_percentage);
                   return (
                     <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 text-sm text-blue-600 font-medium whitespace-nowrap">
-                        {item.onboarding_code || 'N/A'}
+                      {/* ✅ Hiển thị employee_id hoặc onboarding_code */}
+                      <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">
+                        <span className="font-medium">
+                          {item.employee_id || item.onboarding_code || '—'}
+                        </span>
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">
                         <div className="font-medium">{item.full_name || item.candidate_name}</div>
@@ -754,30 +748,17 @@ const Onboarding: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination */}
-        {totalCount > PAGE_SIZE && (
-          <div className="flex items-center justify-between mt-4 mb-6">
-            <p className="text-sm text-gray-500">
-              Trang {page} / {Math.ceil(totalCount / PAGE_SIZE)} &nbsp;·&nbsp; Tổng {totalCount} bản ghi
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1 || loading}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-40"
-              >
-                ← Trước
-              </button>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page >= Math.ceil(totalCount / PAGE_SIZE) || loading}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-40"
-              >
-                Sau →
-              </button>
-            </div>
-          </div>
-        )}
+        {/* ✅ Pagination — dùng component Pagination giống EmployeeList */}
+        <div className="mt-4 mb-6">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(totalCount / itemsPerPage)}
+            totalItems={totalCount}
+            itemsPerPage={itemsPerPage}
+            onPageChange={(page: number) => setCurrentPage(page)}
+            onItemsPerPageChange={(size: number) => { setItemsPerPage(size); setCurrentPage(1); }}
+          />
+        </div>
 
         {/* Onboarding steps info */}
         <div className="bg-gray-50 p-6 rounded-lg">
