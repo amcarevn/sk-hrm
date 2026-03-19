@@ -67,7 +67,7 @@ const ShiftConfiguration: React.FC = () => {
     try {
       const response = await companyConfigAPI.listShiftConfigs({
         page: currentPage,
-        page_size: 10,
+        page_size: 50,
       });
       setShifts(response.results);
       setTotalPages(Math.ceil(response.count / 10));

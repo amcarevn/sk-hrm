@@ -40,7 +40,7 @@ const LeavePolicyList: React.FC = () => {
       setLoading(true);
       const params: any = {
         page,
-        page_size: 20,
+        page_size: 50,
         ordering: '-effective_from',
       };
 

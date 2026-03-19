@@ -849,7 +849,7 @@ const AttendanceManagement: React.FC = () => {
         end_date: dateStr,
         employee_id: currentEmployee?.id,
         department_id: currentEmployee?.department?.id,
-        page_size: 10,
+        page_size: 50,
       });
 
       setAttendanceDetails(response.results);
