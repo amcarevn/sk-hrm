@@ -243,7 +243,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
+          <nav className="flex-1 overflow-y-auto space-y-1 px-2 py-4">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
               return (
@@ -352,7 +352,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
               )}
             </button>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
+          <nav className="flex-1 overflow-y-auto space-y-1 px-2 py-4">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
               return (
