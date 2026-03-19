@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowDownTrayIcon,
@@ -11,12 +11,104 @@ import {
   BoltIcon,
   ClipboardDocumentCheckIcon,
   MagnifyingGlassIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { departmentsAPI, employeesAPI, Department, Employee } from '../utils/api';
 import { workFinalizationService, WorkFinalizationRecord } from '../services/workFinalization.service';
 import type { FinalizeAllResponse, FinalizeDepartmentResponse } from '../services/workFinalization.service';
 import AttendanceCalendar from '../components/AttendanceCalendar';
+
+// --- Optimizations: Global Helpers & Memoized Sub-components ---
+
+const formatNumber = (value: number | null) => {
+  if (value === null || value === undefined) return '—';
+  return value.toLocaleString('vi-VN');
+};
+
+const EmployeeListItem = React.memo(({
+  emp,
+  rec,
+  isSelected,
+  isBeingFinalized,
+  onSelect,
+  onFinalize
+}: {
+  emp: Employee;
+  rec?: WorkFinalizationRecord;
+  isSelected: boolean;
+  isBeingFinalized: boolean;
+  onSelect: (emp: Employee) => void;
+  onFinalize: (emp: Employee) => void;
+}) => {
+  return (
+    <li
+      onClick={() => onSelect(emp)}
+      className={`px-3 py-3 cursor-pointer hover:bg-indigo-50 transition-colors ${
+        isSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+            <UserIcon className="h-4 w-4 text-indigo-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {emp.full_name}
+            </p>
+            <p className="text-xs text-gray-500 font-mono">
+              {emp.employee_id}
+            </p>
+            {emp.department && (
+              <p className="text-xs text-gray-400 truncate">
+                {emp.department.name}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex-shrink-0 flex flex-col items-end gap-1">
+          {rec ? (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+              <CheckCircleIcon className="w-3 h-3 mr-0.5" />
+              Đã chốt
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+              Chưa chốt
+            </span>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onFinalize(emp);
+            }}
+            disabled={isBeingFinalized}
+            className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded disabled:opacity-50 disabled:cursor-not-allowed ${
+              rec
+                ? 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
+                : 'text-white bg-indigo-600 hover:bg-indigo-700'
+            }`}
+          >
+            {isBeingFinalized ? (
+              <ArrowPathIcon className="w-3 h-3 animate-spin" />
+            ) : rec ? (
+              'Chốt lại'
+            ) : (
+              'Chốt công'
+            )}
+          </button>
+        </div>
+      </div>
+      {rec && (
+        <div className="mt-2 flex gap-3 text-xs text-gray-500">
+          <span>Công: <strong className="text-gray-700">{rec.tong_cong}</strong></span>
+          <span>Phạt: <strong className="text-red-600">{formatNumber(rec.tong_phat)}đ</strong></span>
+        </div>
+      )}
+    </li>
+  );
+});
 
 const WorkFinalization: React.FC = () => {
   const { user } = useAuth();
@@ -27,6 +119,15 @@ const WorkFinalization: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -49,17 +150,24 @@ const WorkFinalization: React.FC = () => {
   // Load departments once
   useEffect(() => {
     departmentsAPI
-      .list({ page_size: 200 })
+      .list({ page_size: 1000 })
       .then((res) => setDepartments(res.results))
       .catch(() => { });
   }, []);
 
   // Load employees when dept filter changes
   const loadEmployees = useCallback(async () => {
+    if (!selectedDepartment && !debouncedSearchTerm) {
+      setEmployees([]);
+      return;
+    }
     setLoadingEmployees(true);
     try {
-      const params: any = { page_size: 200 };
-      if (selectedDepartment) params.department = Number(selectedDepartment);
+      const params: any = { page_size: 1000 };
+      if (selectedDepartment && selectedDepartment !== 'all') {
+        params.department = Number(selectedDepartment);
+      }
+      if (debouncedSearchTerm) params.search = debouncedSearchTerm;
       const res = await employeesAPI.list(params);
       setEmployees(res.results);
     } catch {
@@ -67,7 +175,7 @@ const WorkFinalization: React.FC = () => {
     } finally {
       setLoadingEmployees(false);
     }
-  }, [selectedDepartment]);
+  }, [selectedDepartment, debouncedSearchTerm]);
 
   useEffect(() => {
     loadEmployees();
@@ -75,11 +183,17 @@ const WorkFinalization: React.FC = () => {
 
   // Load finalization records for the selected month/year/dept
   const loadRecords = useCallback(async () => {
+    if (!selectedDepartment) {
+      setRecords([]);
+      return;
+    }
     setLoadingRecords(true);
     setError(null);
     try {
       const params: any = { year: selectedYear, month: selectedMonth };
-      if (selectedDepartment) params.department_id = Number(selectedDepartment);
+      if (selectedDepartment !== 'all') {
+        params.department_id = Number(selectedDepartment);
+      }
       const res = await workFinalizationService.list(params);
       setRecords(res.results);
     } catch (err: any) {
@@ -93,25 +207,22 @@ const WorkFinalization: React.FC = () => {
     }
   }, [selectedYear, selectedMonth, selectedDepartment]);
 
-  // Derived state: filtered employees based on search term
-  const filteredEmployees = employees.filter((emp) => {
-    const search = searchTerm.toLowerCase().trim();
-    if (!search) return true;
-    return (
-      emp.full_name.toLowerCase().includes(search) ||
-      emp.employee_id.toLowerCase().includes(search)
-    );
-  });
-
   useEffect(() => {
     loadRecords();
   }, [loadRecords]);
 
-  // Returns the finalization record for an employee (by employee_id / ma_nv)
-  const getFinalizedRecord = (emp: Employee): WorkFinalizationRecord | undefined =>
-    records.find((r) => r.ma_nv === emp.employee_id);
+  // Memoized records map for O(1) lookup performance
+  const recordsMap = useMemo(() => {
+    const map = new Map<string, WorkFinalizationRecord>();
+    records.forEach((r) => map.set(r.ma_nv, r));
+    return map;
+  }, [records]);
 
-  const handleFinalize = async (emp: Employee) => {
+  const handleSelectEmployee = useCallback((emp: Employee) => {
+    setSelectedEmployee(emp);
+  }, []);
+
+  const handleFinalize = useCallback(async (emp: Employee) => {
     setFinalizing(emp.employee_id);
     setError(null);
     setSuccessMsg(null);
@@ -133,7 +244,7 @@ const WorkFinalization: React.FC = () => {
     } finally {
       setFinalizing(null);
     }
-  };
+  }, [selectedYear, selectedMonth, loadRecords]);
 
   const handleFinalizeAll = async () => {
     if (!window.confirm(`Bạn có chắc muốn chốt công cho toàn bộ nhân viên tháng ${selectedMonth}/${selectedYear}?`)) {
@@ -347,10 +458,9 @@ const WorkFinalization: React.FC = () => {
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
-  const formatNumber = (value: number | null) => {
-    if (value === null || value === undefined) return '—';
-    return value.toLocaleString('vi-VN');
-  };
+  const finalizedRec = useMemo(() =>
+    selectedEmployee ? recordsMap.get(selectedEmployee.employee_id) : undefined
+  , [selectedEmployee, recordsMap]);
 
   if (userRole !== 'ADMIN' && userRole !== 'HR') {
     return (
@@ -359,8 +469,6 @@ const WorkFinalization: React.FC = () => {
       </div>
     );
   }
-
-  const finalizedRec = selectedEmployee ? getFinalizedRecord(selectedEmployee) : undefined;
 
   return (
     <div className="space-y-4">
@@ -542,7 +650,8 @@ const WorkFinalization: React.FC = () => {
               }}
               className="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             >
-              <option value="">Tất cả phòng ban</option>
+              <option value="">Chưa chọn phòng ban</option>
+              <option value="all">Tất cả phòng ban</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -559,10 +668,24 @@ const WorkFinalization: React.FC = () => {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSelectedEmployee(null);
+                }}
                 placeholder="Tên hoặc mã NV..."
-                className="block w-full pl-10 pr-3 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="block w-full pl-10 pr-10 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedEmployee(null);
+                  }}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  <XMarkIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                </button>
+              )}
             </div>
           </div>
           <div className="flex items-end">
@@ -586,105 +709,30 @@ const WorkFinalization: React.FC = () => {
               Danh sách nhân sự
             </span>
             <span className="text-xs text-gray-500">
-              {searchTerm ? `${filteredEmployees.length}/` : ''}{employees.length} NV · {records.length} đã chốt
+              {employees.length} NV · {records.length} đã chốt
             </span>
           </div>
           {loadingEmployees ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
             </div>
-          ) : filteredEmployees.length === 0 ? (
+          ) : employees.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-sm text-gray-400 p-4 text-center">
               {searchTerm ? 'Không tìm thấy kết quả phù hợp' : 'Không có nhân viên nào'}
             </div>
           ) : (
             <ul className="flex-1 overflow-y-auto divide-y divide-gray-100">
-              {filteredEmployees.map((emp) => {
-                const rec = getFinalizedRecord(emp);
-                const isFinalized = !!rec;
-                const isSelected = selectedEmployee?.id === emp.id;
-                const isBeingFinalized = finalizing === emp.employee_id;
-                return (
-                  <li
-                    key={emp.id}
-                    onClick={() => setSelectedEmployee(emp)}
-                    className={`px-3 py-3 cursor-pointer hover:bg-indigo-50 transition-colors ${isSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''
-                      }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                          <UserIcon className="h-4 w-4 text-indigo-600" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {emp.full_name}
-                          </p>
-                          <p className="text-xs text-gray-500 font-mono">
-                            {emp.employee_id}
-                          </p>
-                          {emp.department && (
-                            <p className="text-xs text-gray-400 truncate">
-                              {emp.department.name}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                        {isFinalized ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                            <CheckCircleIcon className="w-3 h-3 mr-0.5" />
-                            Đã chốt
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                            Chưa chốt
-                          </span>
-                        )}
-                        {!isFinalized && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleFinalize(emp);
-                            }}
-                            disabled={isBeingFinalized}
-                            className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isBeingFinalized ? (
-                              <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                            ) : (
-                              'Chốt công'
-                            )}
-                          </button>
-                        )}
-                        {isFinalized && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleFinalize(emp);
-                            }}
-                            disabled={isBeingFinalized}
-                            className="inline-flex items-center px-2 py-0.5 text-xs font-medium text-indigo-700 bg-indigo-50 rounded hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isBeingFinalized ? (
-                              <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                            ) : (
-                              'Chốt lại'
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {/* Show summary if finalized */}
-                    {isFinalized && rec && (
-                      <div className="mt-2 flex gap-3 text-xs text-gray-500">
-                        <span>Công: <strong className="text-gray-700">{rec.tong_cong}</strong></span>
-                        <span>Phạt: <strong className="text-red-600">{formatNumber(rec.tong_phat)}đ</strong></span>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
+              {employees.map((emp) => (
+                <EmployeeListItem
+                  key={emp.id}
+                  emp={emp}
+                  rec={recordsMap.get(emp.employee_id)}
+                  isSelected={selectedEmployee?.id === emp.id}
+                  isBeingFinalized={finalizing === emp.employee_id}
+                  onSelect={handleSelectEmployee}
+                  onFinalize={handleFinalize}
+                />
+              ))}
             </ul>
           )}
         </div>
