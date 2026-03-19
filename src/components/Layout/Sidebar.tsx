@@ -110,6 +110,12 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN'],
   },
   {
+    name: 'Cấu hình ca làm',
+    href: '/dashboard/shift-configuration',
+    icon: ClockIcon,
+    roles: ['ADMIN', 'HR'],
+  },
+  {
     name: 'Phê duyệt',
     href: '/dashboard/approvals',
     icon: CheckCircleIcon,

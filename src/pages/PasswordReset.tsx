@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MagnifyingGlassIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { employeesAPI, departmentsAPI, managementApi } from '../utils/api';
+import Pagination from '../components/Pagination';
 
 interface Employee {
   id: number;
@@ -35,17 +36,40 @@ export default function PasswordReset() {
   const [resetting, setResetting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [departments, setDepartments] = useState<any[]>([]);
+  // Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Fetch employees on component mount
   useEffect(() => {
-    fetchEmployees();
     fetchDepartments();
   }, []);
 
-  // Filter employees whenever filters change
+  // Fetch employees whenever page, itemsPerPage, or employee_id filter change
   useEffect(() => {
-    applyFilters();
-  }, [filters, employees]);
+    fetchEmployees();
+  }, [currentPage, itemsPerPage, filters.employee_id]);
+
+  // Client-side filter for full_name and department on current page
+  useEffect(() => {
+    let filtered = employees;
+
+    if (filters.full_name) {
+      filtered = filtered.filter(emp =>
+        emp.full_name?.toLowerCase().includes(filters.full_name.toLowerCase())
+      );
+    }
+
+    if (filters.department) {
+      filtered = filtered.filter(emp =>
+        emp.department?.code === filters.department
+      );
+    }
+
+    setFilteredEmployees(filtered);
+    setSelectedEmployee(null);
+  }, [employees, filters.full_name, filters.department]);
 
   // ========================================
   // FIX: Sửa lại fetchEmployees function
@@ -55,16 +79,26 @@ export default function PasswordReset() {
       setLoading(true);
       setMessage(null);
       
-      console.log('🔄 Fetching employees...');
+      console.log('🔄 Fetching employees...', { page: currentPage, page_size: itemsPerPage });
       
-      // ✅ ĐÚNG: Sử dụng employeesAPI từ utils/api.ts với endpoint /api-hrm/employees/
-      const response = await employeesAPI.list({
-        page_size: 1000,
-      });
+      // ✅ ĐÚNG: Sử dụng employeesAPI từ utils/api.ts với endpoint /api-hrm/employees/ và phân trang
+      const params: any = {
+        page: currentPage,
+        page_size: itemsPerPage,
+      };
+      
+      // Thêm search parameters nếu có filter
+      if (filters.employee_id) {
+        params.search = filters.employee_id;
+      }
+      
+      const response = await employeesAPI.list(params);
       
       console.log('📊 Response data:', response);
       console.log('✅ Employees loaded:', response.results);
       setEmployees(response.results);
+      setTotalCount(response.count);
+      setFilteredEmployees(response.results);
       
     } catch (error: any) {
       console.error('❌ Error fetching employees:', error);
@@ -103,41 +137,16 @@ export default function PasswordReset() {
     }
   };
 
-  // ========================================
-  // Apply filters to employees
-  // ========================================
-  const applyFilters = () => {
-    let filtered = employees;
-
-    if (filters.employee_id) {
-      filtered = filtered.filter(emp =>
-        emp.employee_id.toLowerCase().includes(filters.employee_id.toLowerCase())
-      );
-    }
-
-    if (filters.full_name) {
-      filtered = filtered.filter(emp =>
-        emp.full_name?.toLowerCase().includes(filters.full_name.toLowerCase())
-      );
-    }
-
-    if (filters.department) {
-      filtered = filtered.filter(emp =>
-        emp.department?.code === filters.department
-      );
-    }
-
-    console.log('🔍 Filtered employees:', filtered);
-    setFilteredEmployees(filtered);
-    setSelectedEmployee(null);
-  };
-
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFilters(prev => ({
       ...prev,
       [name]: value,
     }));
+    // Reset to first page only when employee_id (server-side filter) changes
+    if (name === 'employee_id') {
+      setCurrentPage(1);
+    }
   };
 
   const handleResetPassword = async (employee: Employee) => {
@@ -164,8 +173,8 @@ export default function PasswordReset() {
         text: `✅ Đã reset mật khẩu thành công cho ${employee.full_name}. Hệ thống đã gửi email thông tin tài khoản mới.`,
       });
 
-      // Refresh employee list
-      fetchEmployees();
+      // Refresh employee list and go back to first page
+      setCurrentPage(1);
       setSelectedEmployee(null);
 
     } catch (error: any) {
@@ -276,6 +285,7 @@ export default function PasswordReset() {
             <button
               onClick={() => {
                 setFilters({ employee_id: '', full_name: '', department: '' });
+                setCurrentPage(1);
                 setSelectedEmployee(null);
               }}
               className="text-sm text-gray-600 hover:text-gray-900 underline"
@@ -302,7 +312,7 @@ export default function PasswordReset() {
                 <MagnifyingGlassIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-600">
                   {employees.length === 0
-                    ? 'Không tìm thấy nhân viên nào. Có lỗi khi tải dữ liệu.'
+                    ? 'Không tìm thấy nhân viên nào.'
                     : 'Không có kết quả phù hợp với bộ lọc'}
                 </p>
               </div>
@@ -371,10 +381,18 @@ export default function PasswordReset() {
             </div>
           )}
 
-          {/* Results Count */}
+          {/* Pagination */}
           {!loading && filteredEmployees.length > 0 && (
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 text-sm text-gray-600">
-              Hiển thị {filteredEmployees.length} kết quả
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(totalCount / itemsPerPage)}
+                totalItems={totalCount}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
+                showItemsPerPage={true}
+              />
             </div>
           )}
         </div>
@@ -397,7 +415,7 @@ export default function PasswordReset() {
             <ul className="text-sm text-yellow-800 space-y-1">
               <li>• Không có dữ liệu nhân viên được tải</li>
               <li>• Vui lòng mở DevTools (F12) → Console để xem chi tiết lỗi</li>
-              <li>• Kiểm tra API endpoint: /api/employees/</li>
+              <li>• Kiểm tra API endpoint: /api-hrm/employees/</li>
               <li>• Kiểm tra authentication token</li>
             </ul>
           </div>
