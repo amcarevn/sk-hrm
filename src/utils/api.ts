@@ -2704,6 +2704,41 @@ export const companyConfigAPI = {
     return response.data;
   },
 
+  getShiftConfigAssignOptions: async (shiftConfigId: number): Promise<{
+    shift: ShiftConfig;
+    current_assignments: {
+      employees: any[];
+      positions: any[];
+      departments: any[];
+    };
+    available_options: {
+      employees: any[];
+      positions: any[];
+      departments: any[];
+    };
+  }> => {
+    const response: AxiosResponse = await managementApi.get(`/api-hrm/shift-configs/${shiftConfigId}/assign-options/`);
+    return response.data;
+  },
+
+  assignShiftConfig: async (
+    shiftConfigId: number,
+    data: {
+      employee_ids?: number[];
+      position_ids?: number[];
+      department_ids?: number[];
+    }
+  ): Promise<{
+    message: string;
+    shift: ShiftConfig;
+  }> => {
+    const response: AxiosResponse = await managementApi.post(
+      `/api-hrm/shift-configs/${shiftConfigId}/assign/`,
+      data
+    );
+    return response.data;
+  },
+
   // Holiday Configs
   listHolidayConfigs: async (params?: {
     page?: number;

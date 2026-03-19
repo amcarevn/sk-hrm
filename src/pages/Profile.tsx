@@ -143,7 +143,7 @@ const Profile: React.FC = () => {
         try {
           const deptEmployees = await departmentsAPI.employees(
             emp.department.id,
-            { page_size: 20 }
+            { page_size: 50 }
           );
           const team = deptEmployees.results
             .filter((e) => e.id !== emp.id)
