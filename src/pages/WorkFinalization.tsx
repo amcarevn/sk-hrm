@@ -60,11 +60,18 @@ const EmployeeListItem = React.memo(({
             <p className="text-xs text-gray-500 font-mono">
               {emp.employee_id}
             </p>
-            {emp.department && (
-              <p className="text-xs text-gray-400 truncate">
-                {emp.department.name}
-              </p>
-            )}
+            <div className="flex flex-col">
+              {emp.department && (
+                <p className="text-xs text-gray-400 truncate">
+                  {emp.department.name}
+                </p>
+              )}
+              {emp.position && (
+                <p className="text-[10px] text-indigo-400 font-medium truncate">
+                  {emp.position.title}
+                </p>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex-shrink-0 flex flex-col items-end gap-1">
@@ -183,7 +190,8 @@ const WorkFinalization: React.FC = () => {
 
   // Load finalization records for the selected month/year/dept
   const loadRecords = useCallback(async () => {
-    if (!selectedDepartment) {
+    // Nếu không chọn phòng ban VÀ không có từ khóa tìm kiếm thì không tải
+    if (!selectedDepartment && !debouncedSearchTerm) {
       setRecords([]);
       return;
     }
@@ -191,8 +199,12 @@ const WorkFinalization: React.FC = () => {
     setError(null);
     try {
       const params: any = { year: selectedYear, month: selectedMonth };
-      if (selectedDepartment !== 'all') {
+      if (selectedDepartment && selectedDepartment !== 'all') {
         params.department_id = Number(selectedDepartment);
+      }
+      // Nếu có tìm kiếm, gửi kèm employee_code để lấy records của NV đó ngay cả khi không chọn phòng ban
+      if (debouncedSearchTerm) {
+        params.employee_code = debouncedSearchTerm;
       }
       const res = await workFinalizationService.list(params);
       setRecords(res.results);
@@ -205,7 +217,7 @@ const WorkFinalization: React.FC = () => {
     } finally {
       setLoadingRecords(false);
     }
-  }, [selectedYear, selectedMonth, selectedDepartment]);
+  }, [selectedYear, selectedMonth, selectedDepartment, debouncedSearchTerm]);
 
   useEffect(() => {
     loadRecords();
@@ -235,6 +247,20 @@ const WorkFinalization: React.FC = () => {
       setSuccessMsg(
         `${res.created ? 'Chốt công thành công' : 'Đã cập nhật chốt công'} cho ${emp.employee_id} - ${emp.full_name}`
       );
+      
+      // Update local records state immediately for better UX
+      if (res.data) {
+        setRecords(prev => {
+          const index = prev.findIndex(r => r.ma_nv === emp.employee_id);
+          if (index !== -1) {
+            const updated = [...prev];
+            updated[index] = res.data;
+            return updated;
+          }
+          return [...prev, res.data];
+        });
+      }
+
       await loadRecords();
     } catch (err: any) {
       setError(
@@ -758,6 +784,7 @@ const WorkFinalization: React.FC = () => {
                     <p className="text-xs text-gray-500 font-mono">
                       {selectedEmployee.employee_id}
                       {selectedEmployee.department && ` · ${selectedEmployee.department.name}`}
+                      {selectedEmployee.position && ` · ${selectedEmployee.position.title}`}
                     </p>
                   </div>
                 </div>
