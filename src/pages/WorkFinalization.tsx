@@ -10,6 +10,7 @@ import {
   CalendarIcon,
   BoltIcon,
   ClipboardDocumentCheckIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { departmentsAPI, employeesAPI, Department, Employee } from '../utils/api';
@@ -25,6 +26,7 @@ const WorkFinalization: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -90,6 +92,16 @@ const WorkFinalization: React.FC = () => {
       setLoadingRecords(false);
     }
   }, [selectedYear, selectedMonth, selectedDepartment]);
+
+  // Derived state: filtered employees based on search term
+  const filteredEmployees = employees.filter((emp) => {
+    const search = searchTerm.toLowerCase().trim();
+    if (!search) return true;
+    return (
+      emp.full_name.toLowerCase().includes(search) ||
+      emp.employee_id.toLowerCase().includes(search)
+    );
+  });
 
   useEffect(() => {
     loadRecords();
@@ -489,9 +501,9 @@ const WorkFinalization: React.FC = () => {
       <div className="bg-white shadow rounded-lg p-4">
         <div className="flex items-center mb-3">
           <FunnelIcon className="w-4 h-4 mr-2 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">Bộ lọc</span>
+          <span className="text-sm font-medium text-gray-700">Bộ lọc & Tìm kiếm</span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Tháng</label>
             <select
@@ -538,6 +550,21 @@ const WorkFinalization: React.FC = () => {
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Tìm kiếm</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Tên hoặc mã NV..."
+                className="block w-full pl-10 pr-3 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+          </div>
           <div className="flex items-end">
             <button
               onClick={() => { loadEmployees(); loadRecords(); }}
@@ -559,20 +586,20 @@ const WorkFinalization: React.FC = () => {
               Danh sách nhân sự
             </span>
             <span className="text-xs text-gray-500">
-              {employees.length} NV · {records.length} đã chốt
+              {searchTerm ? `${filteredEmployees.length}/` : ''}{employees.length} NV · {records.length} đã chốt
             </span>
           </div>
           {loadingEmployees ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
             </div>
-          ) : employees.length === 0 ? (
+          ) : filteredEmployees.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-sm text-gray-400 p-4 text-center">
-              Không có nhân viên nào
+              {searchTerm ? 'Không tìm thấy kết quả phù hợp' : 'Không có nhân viên nào'}
             </div>
           ) : (
             <ul className="flex-1 overflow-y-auto divide-y divide-gray-100">
-              {employees.map((emp) => {
+              {filteredEmployees.map((emp) => {
                 const rec = getFinalizedRecord(emp);
                 const isFinalized = !!rec;
                 const isSelected = selectedEmployee?.id === emp.id;
@@ -717,6 +744,7 @@ const WorkFinalization: React.FC = () => {
                 year={selectedYear}
                 month={selectedMonth - 1}
                 employeeId={selectedEmployee.id}
+                showInternalDialog={true}
               />
 
               {/* Finalization details if finalized */}

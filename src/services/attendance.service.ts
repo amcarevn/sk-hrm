@@ -748,6 +748,9 @@ class AttendanceService {
       if (extendedData.early_leave_penalty !== undefined) formData.append('early_leave_penalty', String(extendedData.early_leave_penalty));
       if (extendedData.late_minutes !== undefined) formData.append('late_minutes', String(extendedData.late_minutes));
       if (extendedData.early_leave_minutes !== undefined) formData.append('early_leave_minutes', String(extendedData.early_leave_minutes));
+      if (extendedData.forgot_punch_type) formData.append('forgot_punch_type', extendedData.forgot_punch_type);
+      if (extendedData.forgot_checkin_time) formData.append('forgot_checkin_time', extendedData.forgot_checkin_time);
+      if (extendedData.forgot_checkout_time) formData.append('forgot_checkout_time', extendedData.forgot_checkout_time);
 
       const response = await managementApi.post('/api-hrm/attendance-explanations/', formData, {
         headers: {
@@ -867,6 +870,19 @@ class AttendanceService {
   }
 
   /**
+   * Xóa đơn làm việc online
+   */
+  async deleteOnlineWorkRequest(id: number): Promise<any> {
+    try {
+      const response = await managementApi.delete(`/api-hrm/online-work-requests/${id}/`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting online work request ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Lấy danh sách đơn đăng ký công (tăng ca, làm thêm giờ, trực tối, live)
    */
   async getRegistrationRequests(params?: {
@@ -906,6 +922,19 @@ class AttendanceService {
       return response.data;
     } catch (error) {
       console.error('Error creating registration request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Xóa đơn đăng ký công
+   */
+  async deleteRegistrationRequest(id: number): Promise<any> {
+    try {
+      const response = await managementApi.delete(`/api-hrm/registration-requests/${id}/`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting registration request ${id}:`, error);
       throw error;
     }
   }
