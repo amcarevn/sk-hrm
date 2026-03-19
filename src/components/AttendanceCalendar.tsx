@@ -7,8 +7,6 @@ import {
   ExclamationCircleIcon,
   CalendarDaysIcon,
   XMarkIcon,
-  CheckCircleIcon,
-  ClockIcon as ClockOutlineIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/solid';
 import { attendanceService } from '../services/attendance.service';
@@ -98,6 +96,7 @@ export interface AttendanceCalendarProps {
   departmentId?: number;
   refreshTrigger?: number;
   onDataLoaded?: (data: { calendar: any[]; summary: any }) => void;
+  showInternalDialog?: boolean;
 }
 
 const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
@@ -109,6 +108,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   departmentId,
   refreshTrigger,
   onDataLoaded,
+  showInternalDialog,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date(year, month, 1));
   const [attendanceData, setAttendanceData] = useState<AttendanceDay[]>([]);
@@ -117,6 +117,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
   // Dialog state for day detail
   const [dialogDay, setDialogDay] = useState<AttendanceDay | null>(null);
+
+  // Determine if we should show the internal detail dialog.
+  // Default to showing it ONLY if no external date click handler is provided.
+  const shouldShowInternal = showInternalDialog ?? !onDateClick;
 
   // DEBUG: Log engine summary when it changes
   useEffect(() => {
@@ -569,10 +573,14 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     if (day.engine_context?.work_credit >= 1.0) return 'bg-green-100 text-green-700';
     if (day.engine_context?.work_credit >= 0.5) return 'bg-orange-100 text-orange-700';
 
-    if (day.engine_context?.work_credit === 0) {
-      return 'bg-red-100 text-red-700';
+    if (day.dayStatusSummary?.has_pending_request) {
+      return 'bg-yellow-50 text-yellow-700 border-yellow-200';
     }
-    return 'bg-gray-100 text-gray-500';
+
+    if (day.engine_context?.work_credit === 0) {
+      return 'bg-red-50 text-red-700 border-red-200';
+    }
+    return 'bg-gray-50 text-gray-500 border-gray-200';
   };
 
   // Helper: Get badge text for a day
@@ -625,7 +633,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       const reg = (day.approvedRegistrations || [])[0];
       if (reg) {
         const type = (reg.event_type || '').toUpperCase();
-        if (type === 'ONLINE_WORK' && reg.data?.expected_status === 'HALF_DAY') {
+        if (type === 'ONLINE_WORK' && reg.data?.expected_status === 'HALF_DAY' && !reg.data?.reason?.toLowerCase().includes('checkpage')) {
           return 'Đã duyệt làm online nửa ngày';
         }
         const label = getRequestTypeLabel(reg);
@@ -786,7 +794,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             {/* Work credit summary */}
             <div className={`flex items-center gap-3 p-3 rounded-xl border ${getDayBadgeStyle(day)} bg-opacity-30`}>
               <span className="text-xl">
-                {day.is_holiday ? '🎉' : day.is_leave ? '🌴' : day.engine_context?.work_credit >= 1 ? '✅' : day.engine_context?.work_credit >= 0.5 ? '🟡' : '❌'}
+                {day.is_holiday ? '🎉' : day.is_leave ? '🌴' : day.engine_context?.work_credit >= 1 ? '✅' : day.engine_context?.work_credit >= 0.5 ? '🟡' : day.dayStatusSummary?.has_pending_request ? '⏳' : '❌'}
               </span>
               <div className="flex-1">
                 <p className={`text-sm font-bold ${getDayBadgeStyle(day).includes('green') ? 'text-green-700' : getDayBadgeStyle(day).includes('red') ? 'text-red-700' : 'text-gray-700'}`}>
@@ -885,6 +893,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                   {allRegs.map((reg: any, i: number) => {
                     const info = getRequestLabel(reg);
                     const data = reg.data || {};
+                    const type = (reg.event_type || '').toUpperCase();
+                    const regType = (data.registration_type || type).toUpperCase();
                     const statusBadge = getStatusBadge(data.status);
                     const cardCls = colorMap[info.color] || 'bg-gray-50 border-gray-200';
                     return (
@@ -930,7 +940,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                                   OVERTIME:             'Tăng ca',
                                   NIGHT_SHIFT:          'Trực tối',
                                   EXTRA_HOURS:          'Làm thêm giờ',
-                                } as Record<string, string>)[data.expected_status] || data.expected_status}
+                                } as Record<string, string>)[data.reason?.toLowerCase().includes('checkpage') ? 'ABSENT' : data.expected_status] || data.expected_status}
+                                {data.reason?.toLowerCase().includes('checkpage') && ' (CheckPage)'}
                               </p>
                             )}
                             {data.approved_by_name && (
@@ -942,9 +953,16 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                           <div className="space-y-2">
                             {data.reason && (
                               <div className="bg-white/60 border border-gray-100 rounded-md p-2 text-xs">
-                                <span className="font-semibold text-gray-700 block mb-0.5">Lý do:</span>
+                                {(regType === 'NIGHT_SHIFT' || regType === 'ONLINE_WORK') && (
+                                  <span className="font-semibold text-gray-700 block mb-1">
+                                    Ca: {regType === 'NIGHT_SHIFT' 
+                                          ? (data.reason.toLowerCase().includes('checkpage') ? 'CheckPage' : (data.reason.toLowerCase().includes('chiều tối') ? 'Chiều tối' : (data.reason.toLowerCase().includes('gãy') ? 'Ca gãy' : 'Trực tối')))
+                                          : (data.reason.toLowerCase().includes('checkpage') ? 'CheckPage' : (data.reason.toLowerCase().includes('sáng') ? 'Sáng' : (data.reason.toLowerCase().includes('chiều') ? 'Chiều' : (data.reason.toLowerCase().includes('cả ngày') ? 'Cả ngày' : 'Online'))))}
+                                  </span>
+                                )}
                                 <p className="text-gray-600 italic leading-relaxed">
-                                  {data.reason.replace(/^(Làm online sáng|Làm online chiều|Làm online cả ngày|Làm việc online):\s*/i, '')}
+                                  <span className="font-semibold text-gray-700 not-italic mr-1.5">Nội dung:</span>
+                                   {data.reason.replace(/^(Làm online checkpage|Làm online sáng|Làm online chiều|Làm online cả ngày|Làm việc online|Trực tối|Ca CheckPage|Ca chiều tối|Ca gãy)(:\s*)?/i, '')}
                                 </p>
                               </div>
                             )}
@@ -1135,7 +1153,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 <div
                   key={index}
                   onClick={() => {
-                    setDialogDay(day);
+                    if (shouldShowInternal) {
+                      setDialogDay(day);
+                    }
                     if (onDateClick) onDateClick(day.date, day);
                   }}
                   className={`group relative flex flex-col rounded-xl p-2 transition-all duration-200 cursor-pointer min-h-[120px]
@@ -1299,7 +1319,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               <div
                 key={index}
                 onClick={() => {
-                  setDialogDay(day);
+                  if (shouldShowInternal) {
+                    setDialogDay(day);
+                  }
                   if (onDateClick) onDateClick(day.date, day);
                 }}
                 className={`flex flex-col gap-4 p-4 rounded-[20px] cursor-pointer transition-all shadow-sm border

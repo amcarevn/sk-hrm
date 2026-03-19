@@ -22,16 +22,20 @@ import {
   MoonIcon,
   VideoCameraIcon,
   HeartIcon,
-  ComputerDesktopIcon,
   ChatBubbleBottomCenterTextIcon,
   ExclamationTriangleIcon,
+  ArrowLeftOnRectangleIcon,
+  ArrowRightOnRectangleIcon,
+  ArrowsRightLeftIcon,
+  CheckIcon,
+  VideoCameraIcon as VideoIcon,
+  HomeIcon,
+  ComputerDesktopIcon,
 } from '@heroicons/react/24/outline';
 
 const AttendanceManagement: React.FC = () => {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
-
-
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadMessage, setUploadMessage] = useState<{
     type: 'success' | 'error';
@@ -44,10 +48,11 @@ const AttendanceManagement: React.FC = () => {
   const [attendanceStats, setAttendanceStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
-  const isManagementUser = !!(currentEmployee?.position?.is_management || user?.role === 'MANAGER' || user?.role === 'ADMIN' || user?.role === 'HR');
   const [attendanceDetails, setAttendanceDetails] = useState<
     AttendanceRecord[]
   >([]);
+  const [selectedDayData, setSelectedDayData] = useState<any>(null);
+  const isFullPresent = selectedDayData?.status_badge === 'Có mặt' || selectedDayData?.status_badge === 'Đủ công' || selectedDayData?.day_status === 'FULL';
 
   console.log('attendanceDetails', attendanceDetails);
   const [fetchingDetails, setFetchingDetails] = useState(false);
@@ -60,7 +65,6 @@ const AttendanceManagement: React.FC = () => {
   }, []);
 
   const [allExplanations, setAllExplanations] = useState<any[]>([]);
-  const [approvedRegistrations, setApprovedRegistrations] = useState<any[]>([]);
   const [monthlyWorkCredits, setMonthlyWorkCredits] = useState<any>(null);
   const [penaltyAmount, setPenaltyAmount] = useState<number>(0);
   const [refreshDataTrigger, setRefreshDataTrigger] = useState(0);
@@ -123,15 +127,17 @@ const AttendanceManagement: React.FC = () => {
     LATE: 'Đơn giải trình đi muộn',
     EARLY_LEAVE: 'Đơn giải trình về sớm',
     INCOMPLETE_ATTENDANCE: 'Đơn giải trình quên chấm công',
-    BUSINESS_TRIP: 'Đơn giải trình đi công tác',
-    FIRST_DAY: 'Đơn giải trình ngày đầu đi làm',
+    BUSINESS_TRIP: 'Đơn giải trình công tác',
+    FIRST_DAY: 'Đơn giải trình ngày đầu',
     OVERTIME: 'Đơn đăng ký tăng ca',
     EXTRA_HOURS: 'Đơn đăng ký làm thêm giờ',
     NIGHT_SHIFT: 'Đơn đăng ký trực tối',
     LIVE: 'Đơn đăng ký Live',
     LEAVE: 'Đơn nghỉ phép tháng',
     ONLINE_WORK: 'Đơn làm việc online',
-    OFF_DUTY: 'Đơn đăng ký ra trực',
+    OFF_DUTY: 'Đơn đăng ký Vào/Ra trực',
+    ABSENT: 'Vắng mặt',
+    FULL_DAY: 'Cả ngày',
   };
 
   const getExplanationTypeLabel = (type: string): string => {
@@ -163,7 +169,7 @@ const AttendanceManagement: React.FC = () => {
     | 'business_trip'
     | 'incomplete_attendance';
   type RegistrationReason = 'overtime' | 'extra_hours' | 'night_shift' | 'live' | 'off_duty';
-  type OnlineWorkReason = 'morning' | 'afternoon' | 'full_day';
+  type OnlineWorkReason = 'morning' | 'afternoon' | 'full_day' | 'checkpage';
   type LeaveReason = 'morning' | 'afternoon' | 'full_day';
   type ReasonType = ExplanationReason | RegistrationReason | OnlineWorkReason | LeaveReason | null;
 
@@ -273,6 +279,8 @@ const AttendanceManagement: React.FC = () => {
           extraHoursDuration >= MIN_HOURS
         );
       case 'night_shift':
+        // Cho phép Ca CheckPage không có giờ cố định
+        if (!nightShiftStartTime && !nightShiftEndTime) return true;
         return (
           !!(nightShiftStartTime && nightShiftEndTime) &&
           nightShiftDuration >= MIN_HOURS
@@ -354,6 +362,7 @@ const AttendanceManagement: React.FC = () => {
       { id: 'morning', label: 'Làm online sáng', icon: 'desktop' },
       { id: 'afternoon', label: 'Làm online chiều', icon: 'desktop' },
       { id: 'full_day', label: 'Làm online cả ngày', icon: 'desktop' },
+      { id: 'checkpage', label: 'Làm online checkpage', icon: 'desktop' },
     ];
 
   const monthlyLeaveReasons: {
@@ -413,137 +422,26 @@ const AttendanceManagement: React.FC = () => {
   };
 
   // Icon render helper
+  // Icon render helper
   const renderIcon = (iconName: string, isSelected: boolean) => {
     const iconClass = `w-4 h-4 mr-2 ${isSelected ? 'text-purple-500' : 'text-gray-400'}`;
     switch (iconName) {
       case 'clock':
-        return (
-          <svg
-            className={iconClass}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        );
+        return <ClockIcon className={iconClass} />;
       case 'calendar':
-        return (
-          <svg
-            className={iconClass}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-        );
+        return <CalendarIcon className={iconClass} />;
       case 'warning':
-        return (
-          <svg
-            className={iconClass}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-            />
-          </svg>
-        );
+        return <ExclamationTriangleIcon className={iconClass} />;
       case 'bolt':
-        return (
-          <svg
-            className={iconClass}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 10V3L4 14h7v7l9-11h-7z"
-            />
-          </svg>
-        );
+        return <BoltIcon className={iconClass} />;
       case 'moon':
-        return (
-          <svg
-            className={iconClass}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-            />
-          </svg>
-        );
+        return <MoonIcon className={iconClass} />;
       case 'video':
-        return (
-          <svg
-            className={iconClass}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-            />
-          </svg>
-        );
+        return <VideoIcon className={iconClass} />;
       case 'home':
-        return (
-          <svg
-            className={iconClass}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-            />
-          </svg>
-        );
+        return <HomeIcon className={iconClass} />;
       case 'desktop':
-        return (
-          <svg
-            className={iconClass}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-            />
-          </svg>
-        );
+        return <ComputerDesktopIcon className={iconClass} />;
       case 'briefcase':
         return <BriefcaseIcon className={iconClass} />;
       default:
@@ -628,12 +526,6 @@ const AttendanceManagement: React.FC = () => {
         e.attendance_date === dateStr || (e.event_date && e.event_date === dateStr)
       );
       setAllExplanations(dayExplanations);
-
-      // Lọc đăng ký của ngày đang chọn
-      const dayRegistrations = monthlyRequestHistory.registrations.filter(r => 
-        r.attendance_date === dateStr || (r.event_date && r.event_date === dateStr)
-      );
-      setApprovedRegistrations(dayRegistrations.filter(r => r.status === 'APPROVED'));
     }
   }, [monthlyRequestHistory, selectedDate, currentEmployee?.id]);
 
@@ -758,6 +650,20 @@ const AttendanceManagement: React.FC = () => {
         total_late_minutes: totalLate,
         total_early_leave_minutes: totalEarly,
       });
+
+      // === SYNC selectedDayData === 
+      // Important to keep overwrite logic accurate when staying in modal
+      if (selectedDate) {
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(selectedDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
+        const freshDayData = calendarArray.find((d: any) => d.date === dateStr);
+        if (freshDayData) {
+          setSelectedDayData(freshDayData);
+        }
+      }
     }
 
     // Trích xuất lịch sử đơn từ calendarArray thay vì gọi 3 API rời rạc
@@ -875,11 +781,11 @@ const AttendanceManagement: React.FC = () => {
 
   const handleDateClick = async (date: Date, dayData?: any) => {
     setSelectedDate(date);
+    setSelectedDayData(dayData);
     setShowAttendanceModal(true);
 
     // Set approved requests từ dayData ngay lập tức (không reset về mảng rỗng)
     setAllExplanations(dayData?.allExplanations || []);
-    setApprovedRegistrations(dayData?.approvedRegistrations || []);
     setPenaltyAmount(dayData?.engine_context?.penalty_amount || 0);
 
     // Fetch chi tiết bản ghi (bao gồm Lịch sử sự kiện)
@@ -889,6 +795,7 @@ const AttendanceManagement: React.FC = () => {
   const handleCloseModal = () => {
     setShowAttendanceModal(false);
     setSelectedDate(null);
+    setSelectedDayData(null);
     setAllExplanations([]);
   };
 
@@ -931,6 +838,94 @@ const AttendanceManagement: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      // -------------------------------------------------------------------------
+      // OVERWRITE LOGIC: Delete existing pending requests for the same day/type
+      // -------------------------------------------------------------------------
+      try {
+        const existingRegistrations = selectedDayData?.registrations || [];
+        const pendingRequests = existingRegistrations.filter((r: any) => r.status === 'PENDING');
+
+        if (['monthly_leave', 'online_work', 'explanation', 'registration'].includes(selectedContext)) {
+          for (const existing of pendingRequests) {
+            const modelId = existing.data?.id || existing.id;
+            const existingType = (existing.event_type || '').toLowerCase();
+            const isExistingReg = ['overtime', 'extra_hours', 'night_shift', 'live', 'off_duty'].includes(existingType);
+
+            // A. Nếu đang gửi Nghỉ phép tháng: Xóa hết
+            if (selectedContext === 'monthly_leave') {
+              console.log(`Global Overwrite: Deleting existing pending ${existingType} due to Leave`);
+              if (existingType === 'online_work') {
+                await attendanceService.deleteOnlineWorkRequest(modelId);
+              } else if (existingType === 'explanation' && existing.data?.explanation_type === 'LEAVE') {
+                await attendanceService.deleteMonthlyLeaveRequest(modelId);
+              } else if (existingType === 'explanation') {
+                await attendanceService.deleteAttendanceExplanation(existing.id);
+              } else {
+                await attendanceService.deleteRegistrationRequest(modelId);
+              }
+            }
+            // B. Nếu đang gửi Làm online: Xóa Giải trình, Nghỉ phép, online cũ và "Vào/Ra trực"
+            else if (selectedContext === 'online_work') {
+              if (existingType === 'explanation' && existing.data?.explanation_type === 'LEAVE') {
+                await attendanceService.deleteMonthlyLeaveRequest(modelId);
+              } else if (existingType === 'explanation') {
+                await attendanceService.deleteAttendanceExplanation(existing.id);
+              } else if (existingType === 'online_work') {
+                await attendanceService.deleteOnlineWorkRequest(modelId);
+              } else if (existingType === 'off_duty') {
+                console.log('Global Overwrite: Deleting Off-Duty Registration due to Online Work');
+                await attendanceService.deleteRegistrationRequest(modelId);
+              }
+            }
+            // C. Nếu đang gửi Giải trình: Xóa Online, Nghỉ phép và Giải trình cùng loại
+            else if (selectedContext === 'explanation') {
+               if (existingType === 'online_work') {
+                 await attendanceService.deleteOnlineWorkRequest(modelId);
+               } else if (existingType === 'explanation' && existing.data?.explanation_type === 'LEAVE') {
+                 await attendanceService.deleteMonthlyLeaveRequest(modelId);
+               } else if (existingType === 'explanation') {
+                  const explMap: any = {
+                    late_minutes: 'LATE',
+                    early_leave_minutes: 'EARLY_LEAVE',
+                    incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
+                    business_trip: 'BUSINESS_TRIP',
+                    first_day: 'FIRST_DAY',
+                  };
+                  const targetType = explMap[selectedReason as string];
+                  if (existing.data?.explanation_type === targetType) {
+                    console.log(`Overwriting existing pending same-type explanation (${targetType}) request:`, existing.id);
+                    await attendanceService.deleteAttendanceExplanation(existing.id);
+                  }
+               }
+            }
+            // D. Nếu đang gửi Đăng ký (OT, Trực...): 
+            else if (selectedContext === 'registration') {
+              // Xóa đơn Đăng ký cũ (Chỉ giữ 1 đơn Đăng ký 1 ngày)
+              if (isExistingReg) {
+                await attendanceService.deleteRegistrationRequest(modelId);
+              }
+              // Nếu đăng ký mới là "Vào/Ra trực": Xóa Online, Nghỉ phép
+              if (selectedReason === 'off_duty') {
+                if (existingType === 'online_work') {
+                  await attendanceService.deleteOnlineWorkRequest(modelId);
+                } else if (existingType === 'explanation' && existing.data?.explanation_type === 'LEAVE') {
+                  await attendanceService.deleteMonthlyLeaveRequest(modelId);
+                }
+              }
+              // Nếu đăng ký OT/Trực...: Xóa Nghỉ phép (nhưng vẫn cho phép Online)
+              else {
+                if (existingType === 'explanation' && existing.data?.explanation_type === 'LEAVE') {
+                  await attendanceService.deleteMonthlyLeaveRequest(modelId);
+                }
+              }
+            }
+          }
+        }
+      } catch (deleteError) {
+        console.warn('Silent failure during overwrite (deleting old request):', deleteError);
+        // Continue submission even if deletion failed (might be already deleted or edge case)
+      }
+
       // Get original status from attendance details
       let originalStatus = 'ABSENT';
       if (attendanceDetails.length > 0) {
@@ -956,6 +951,7 @@ const AttendanceManagement: React.FC = () => {
           morning: 'Làm online sáng',
           afternoon: 'Làm online chiều',
           full_day: 'Làm online cả ngày',
+          checkpage: 'Làm online checkpage',
         };
         reasonLabel = onlineMap[selectedReason as string] || 'Làm việc online';
       } else if (selectedContext === 'monthly_leave') {
@@ -979,9 +975,7 @@ const AttendanceManagement: React.FC = () => {
       // Map expected status
       let expectedStatus = 'PRESENT';
       if (selectedContext === 'monthly_leave' || selectedContext === 'online_work') {
-        // Nếu làm/nghỉ cả ngày thì expected là ABSENT (để BE tính 1 công)
-        // Nếu làm/nghỉ ca sáng/chiều thì expected là HALF_DAY (để BE tính 0.5 công)
-        expectedStatus = selectedReason === 'full_day' ? 'ABSENT' : 'HALF_DAY';
+        expectedStatus = (selectedReason === 'full_day' || selectedReason === 'checkpage') ? 'ABSENT' : 'HALF_DAY';
       }
 
       let result;
@@ -1077,12 +1071,12 @@ const AttendanceManagement: React.FC = () => {
           const endTime = selectedReason === 'night_shift' ? nightShiftEndTime : 
                          (selectedReason === 'live' ? liveEndTime : (selectedReason === 'off_duty' ? '17:30' : ''));
 
-          const otherRegData = {
+          const otherRegData: any = {
             employee_id: currentEmployee.id,
             attendance_date: dateStr,
             registration_type: regType,
-            start_time: startTime,
-            end_time: endTime,
+            start_time: startTime || null,
+            end_time: endTime || null,
             reason: finalReason || 'Đơn Vào/Ra trực',
             status: 'PENDING' as const,
           };
@@ -1124,6 +1118,9 @@ const AttendanceManagement: React.FC = () => {
         };
 
         if (explanationType === 'INCOMPLETE_ATTENDANCE') {
+          explanationData.forgot_punch_type = forgotPunchType;
+          explanationData.forgot_checkin_time = forgotCheckinTime;
+          explanationData.forgot_checkout_time = forgotCheckoutTime;
           explanationData.actual_check_in = forgotCheckinTime;
           explanationData.actual_check_out = forgotCheckoutTime;
         }
@@ -2179,18 +2176,18 @@ const AttendanceManagement: React.FC = () => {
                     if (filteredEvents.length === 0) return null;
                       const eventTypeLabel: Record<string, string> = {
                         attendance: 'Chấm công',
-                        explanation: 'Giải trình',
+                        explanation: 'Đơn giải trình',
                         explanation_approval: 'Phê duyệt giải trình',
                         request_approval: 'Phê duyệt đơn',
                         registration_approval: 'Phê duyệt đăng ký',
-                        overtime: 'Tăng ca',
-                        extra_hours: 'Làm thêm giờ',
-                        night_shift: 'Trực tối',
-                        live: 'Live',
-                        livestream: 'Livestream',
-                        online_work: 'Làm việc online',
+                        overtime: 'Đơn đăng ký tăng ca',
+                        extra_hours: 'Đơn đăng ký làm thêm giờ',
+                        night_shift: 'Đơn đăng ký trực tối',
+                        live: 'Đơn đăng ký Live',
+                        livestream: 'Đơn đăng ký Livestream',
+                        online_work: 'Đơn làm việc online',
                         off_duty: 'Đơn đăng ký Vào/Ra trực',
-                        leave: 'Nghỉ phép tháng',
+                        leave: 'Đơn nghỉ phép tháng',
                       };
                     const statusLabel: Record<string, string> = {
                       ...ATTENDANCE_STATUS_MAP,
@@ -2258,8 +2255,9 @@ const AttendanceManagement: React.FC = () => {
                             const prefixes = [
                               ...Object.values(EXPLANATION_TYPE_MAP),
                               'Tăng ca', 'Làm thêm giờ', 'Trực tối', 'Live', 'Livestream',
+                              'Ca CheckPage', 'Ca chiều tối', 'Ca gãy',
                               'Giải trình đi muộn', 'Giải trình về sớm', 'Giải trình quên chấm công', 'Giải trình đi công tác', 'Giải trình ngày đầu đi làm',
-                              'Đi muộn', 'Về sớm', 'Quên chấm công', 'Làm online', 'Nghỉ phép'
+                              'Đi muộn', 'Về sớm', 'Quên chấm công', 'Làm online checkpage', 'Làm online', 'Nghỉ phép'
                             ].filter(Boolean);
                             prefixes.sort((a, b) => b.length - a.length);
 
@@ -2293,25 +2291,15 @@ const AttendanceManagement: React.FC = () => {
                                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${ev.event_type === 'attendance'
                                         ? 'bg-blue-100 text-blue-800'
                                         : ev.event_type === 'explanation' || (ev.event_type === 'explanation_approval' && (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE'))
-                                          ? (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE') ? 'bg-indigo-100 text-indigo-800' : 'bg-purple-100 text-purple-800'
-                                          : (ev.event_type === 'explanation_approval' || ev.event_type === 'registration_approval')
-                                            ? 'bg-indigo-100 text-indigo-800'
-                                            : (['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty'].includes(ev.event_type))
-                                              ? 'bg-amber-100 text-amber-800'
-                                              : 'bg-indigo-100 text-indigo-800'
+                                          ? 'bg-indigo-100 text-indigo-800'
+                                          : ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty'].includes(ev.event_type) || ev.event_type === 'registration_approval' || ev.event_type === 'request_approval'
+                                            ? 'bg-purple-100 text-purple-800'
+                                            : 'bg-gray-100 text-gray-800'
                                         }`}
                                     >
-                                      {ev.event_type === 'explanation'
-                                        ? (getExplanationTypeLabel(ev.data?.explanation_type) || 'Giải trình')
-                                        : (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE' || ev.event_type === 'monthly_leave')
-                                          ? 'Nghỉ phép tháng'
-                                          : (ev.event_type === 'live' || ['overtime', 'extra_hours', 'night_shift', 'online_work', 'off_duty'].includes(ev.event_type))
-                                            ? (getExplanationTypeLabel(ev.data?.registration_type || ev.data?.event_type || ev.event_type) || (ev.event_type === 'live' ? 'Đơn đăng ký Live' : 'Đơn đăng ký'))
-                                            : (ev.event_type === 'explanation_approval' || ev.event_type === 'request_approval') && (ev.data?.explanation_type || ev.data?.registration_type)
-                                              ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data?.explanation_type || ev.data?.registration_type)}`
-                                              : ev.event_type === 'registration_approval' && (ev.data?.registration_type || ev.data?.explanation_type)
-                                                ? `${rejected ? 'Từ chối' : 'Phê duyệt'} ${getExplanationTypeLabel(ev.data.registration_type || ev.data.explanation_type)}`
-                                                : (eventTypeLabel[ev.event_type] || ev.event_type)}
+                                      {(ev.event_type === 'explanation' || (ev.event_type === 'explanation_approval' && ev.data?.explanation_type))
+                                        ? (EXPLANATION_TYPE_MAP[ev.data?.explanation_type || ''] || EXPLANATION_TYPE_MAP[ev.recordStatus || ''] || 'Giải trình')
+                                        : (eventTypeLabel[ev.event_type] || ev.event_type)}
                                     </span>
                                     {approved && (
                                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 whitespace-nowrap">
@@ -2345,8 +2333,39 @@ const AttendanceManagement: React.FC = () => {
                                   )}
                                   {ev.event_type === 'explanation' && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {cleanedReason && (
-                                        <p className="text-gray-900 font-medium">Lý do: {cleanedReason}</p>
+                                      {ev.data?.explanation_type === 'LEAVE' ? (
+                                        <>
+                                          <p className="text-gray-900 font-medium">
+                                            Ca: {rawReason.toLowerCase().includes('sáng') ? 'Sáng' : rawReason.toLowerCase().includes('chiều') ? 'Chiều' : 'Cả ngày'}
+                                          </p>
+                                          {rawReason.includes(':') && (
+                                            <p>Nội dung: {rawReason.split(':').slice(1).join(':').trim()}</p>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <>
+                                          {ev.data?.explanation_type === 'INCOMPLETE_ATTENDANCE' && (
+                                            <div className="bg-purple-50 p-2 rounded-lg mb-2 text-purple-800 border border-purple-100">
+                                              <p className="font-bold flex items-center">
+                                                <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                {(() => {
+                                                  const type = ev.data.forgot_punch_type;
+                                                  const hasIn = ev.data.forgot_checkin_time || ev.data.actual_check_in;
+                                                  const hasOut = ev.data.forgot_checkout_time || ev.data.actual_check_out;
+                                                  if (type === 'checkin' || (hasIn && !hasOut)) return 'Quên Check-in';
+                                                  if (type === 'checkout' || (!hasIn && hasOut)) return 'Quên Check-out';
+                                                  return 'Quên cả Check-in/out';
+                                                })()}
+                                              </p>
+                                              <p>
+                                                Giờ bổ sung: {ev.data.forgot_checkin_time || ev.data.actual_check_in || '--:--'} — {ev.data.forgot_checkout_time || ev.data.actual_check_out || '--:--'}
+                                              </p>
+                                            </div>
+                                          )}
+                                          {cleanedReason && (
+                                            <p className="text-gray-900 font-medium">Nội dung: {cleanedReason}</p>
+                                          )}
+                                        </>
                                       )}
                                       
                                       {/* Hiển thị chi tiết vi phạm nếu có trong dữ liệu đơn */}
@@ -2426,11 +2445,24 @@ const AttendanceManagement: React.FC = () => {
                                           {ev.check_out || ev.data?.end_time || '--'}
                                         </p>
                                       )}
-                                      {cleanedReason && (
-                                        <p>
-                                          Lý do: {cleanedReason}
-                                        </p>
-                                      )}
+                                       {ev.event_type === 'online_work' || ev.event_type === 'night_shift' ? (
+                                         <>
+                                           <p className="text-gray-900 font-medium">
+                                             Ca: {ev.event_type === 'night_shift' 
+                                                  ? (rawReason.toLowerCase().includes('checkpage') ? 'CheckPage' : (rawReason.toLowerCase().includes('chiều tối') ? 'Chiều tối' : (rawReason.toLowerCase().includes('gãy') ? 'Ca gãy' : 'Trực tối')))
+                                                  : (rawReason.toLowerCase().includes('checkpage') ? 'CheckPage' : (rawReason.toLowerCase().includes('sáng') ? 'Sáng' : rawReason.toLowerCase().includes('chiều') ? 'Chiều' : 'Cả ngày'))}
+                                           </p>
+                                           {cleanedReason && (
+                                             <p>Nội dung: {cleanedReason}</p>
+                                           )}
+                                         </>
+                                       ) : (
+                                         cleanedReason && (
+                                           <p>
+                                             Nội dung: {cleanedReason}
+                                           </p>
+                                         )
+                                       )}
                                       {ev.data?.status && ev.data.status !== 'APPROVED' && (
                                         <p>
                                           Trạng thái:{' '}
@@ -2466,21 +2498,29 @@ const AttendanceManagement: React.FC = () => {
                     {/* Hiện nút nếu còn vi phạm chưa giải trình hoặc còn lượt nghỉ phép */}
                     {(() => {
                       const detail = attendanceDetails[0];
-                      const pendingOrApprovedTypes = (allExplanations || []).map(e => e.explanation_type);
+                      const dateStr = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : '';
+                      
+                      // Check categories
+                      const hasExp = (allExplanations || []).length > 0;
+                      const hasLeave = monthlyRequestHistory.leaveRequests.some(l => (l.attendance_date === dateStr || l.event_date === dateStr));
+                      const hasOnline = monthlyRequestHistory.onlineWorks.some(w => (w.work_date === dateStr || w.attendance_date === dateStr));
+                      
+                      const isViolationResolved = hasExp || hasLeave || hasOnline;
 
-                      const hasUnresolvedLate = (detail?.late_minutes || 0) > 0 && !pendingOrApprovedTypes.includes('LATE');
-                      const hasUnresolvedEarly = (detail?.early_leave_minutes || 0) > 0 && !pendingOrApprovedTypes.includes('EARLY_LEAVE');
-                      const hasUnresolvedIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE' && !pendingOrApprovedTypes.includes('INCOMPLETE_ATTENDANCE');
+                      const hasUnresolvedLate = (detail?.late_minutes || 0) > 0 && !isViolationResolved;
+                      const hasUnresolvedEarly = (detail?.early_leave_minutes || 0) > 0 && !isViolationResolved;
+                      const hasUnresolvedIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE' && !isViolationResolved;
 
                       // Còn vi phạm chưa đơn từ?
                       const hasWorkViolationToDo = hasUnresolvedLate || hasUnresolvedEarly || hasUnresolvedIncomplete;
 
-                      // Còn lượt nghỉ tháng?
+                      // Còn lượt nghỉ tháng? (Trừ các đơn Đã nghỉ và đơn Đang chờ duyệt)
                       const remainingMonthlyLeave = attendanceStats?.remaining_leave ?? 1;
-                      const hasMonthlyLeaveRemaining = remainingMonthlyLeave > 0;
+                      const hasMonthlyLeaveRemaining = remainingMonthlyLeave > 0 && !hasLeave;
 
                       // Vẫn hiện nút nếu còn việc để làm (giải trình hoặc đăng ký khác)
-                      if (hasWorkViolationToDo || hasMonthlyLeaveRemaining || approvedRegistrations.length === 0) {
+                      // Ẩn nút nếu tất cả vi phạm đã được giải trình (hoặc có đơn đang chờ của chính nó/Nghỉ phép/Online)
+                      if (hasWorkViolationToDo || hasMonthlyLeaveRemaining) {
                         return (
                           <button
                             onClick={handleOpenSupplementaryRequest}
@@ -2627,13 +2667,25 @@ const AttendanceManagement: React.FC = () => {
                       <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                         Chọn loại yêu cầu
                       </h3>
+                      {/* Thêm thông báo dựa trên trạng thái ngày */}
+                      {isFullPresent && (
+                        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
+                          <CheckCircleIcon className="h-5 w-5 text-green-600 shrink-0" />
+                          <div className="text-xs text-green-800">
+                            Ngày này bạn đã <strong>{selectedDayData?.status_badge || 'Có mặt'}</strong>. 
+                            Hệ thống tự động ẩn các đơn vi phạm và chỉ hiển thị tùy chọn Đăng ký thêm.
+                          </div>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Card 1: Giải trình đơn */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleContextSelect('explanation')
-                          }
+                        {!isFullPresent && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleContextSelect('explanation')
+                            }
                           className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${selectedContext === 'explanation'
                               ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
                               : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
@@ -2698,6 +2750,7 @@ const AttendanceManagement: React.FC = () => {
                               </div>
                             )}
                         </button>
+                      )}
 
                         {/* Card 2: Đơn đăng ký */}
                         <button
@@ -2758,7 +2811,7 @@ const AttendanceManagement: React.FC = () => {
                           )}
                         </button>
 
-                        {(() => {
+                        {!isFullPresent && (() => {
                           const maxMonthlyLeave = attendanceStats?.max_leave_per_month || 1;
                           const remainingMonthlyLeave = attendanceStats?.remaining_leave ?? 1;
 
@@ -2835,7 +2888,7 @@ const AttendanceManagement: React.FC = () => {
                         })()}
 
                         {/* Card 4: Làm việc online */}
-                        {(() => {
+                        {!isFullPresent && (() => {
                           const maxOnline = attendanceStats?.max_online_work_per_month || 3;
                           const usedOnline = (attendanceStats?.max_online_work_per_month || 0) - (attendanceStats?.remaining_online_work || 0);
                           const remainingOnline = Math.max(0, maxOnline - usedOnline);
@@ -2843,14 +2896,10 @@ const AttendanceManagement: React.FC = () => {
                           return (
                             <button
                               type="button"
-                              disabled={remainingOnline <= 0}
                               onClick={() =>
-                                remainingOnline > 0 &&
                                 handleContextSelect('online_work')
                               }
-                              className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${remainingOnline <= 0
-                                ? 'opacity-50 cursor-not-allowed border-gray-200'
-                                : selectedContext === 'online_work'
+                              className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${selectedContext === 'online_work'
                                   ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
                                   : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
                                 }`}
@@ -2925,7 +2974,7 @@ const AttendanceManagement: React.FC = () => {
                         selectedContext === 'online_work') && (
                         <div className="space-y-4 mb-6 animate-fadeIn">
                           <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                            Chọn lý do cụ thể
+                            {(selectedContext === 'monthly_leave' || selectedContext === 'online_work') ? 'Chọn ca' : 'Chọn lý do cụ thể'}
                           </h3>
 
                           {/* Chip buttons - Render based on selected context */}
@@ -2942,42 +2991,45 @@ const AttendanceManagement: React.FC = () => {
                               // Lọc lý do cho Đơn giải trình dựa trên thực tế chấm công
                               if (selectedContext === 'explanation') {
                                 const detail = attendanceDetails[0];
-                                const isNoViolation = detail &&
-                                  detail.late_minutes <= 0 &&
-                                  detail.early_leave_minutes <= 0 &&
-                                  detail.status !== 'INCOMPLETE_ATTENDANCE' &&
-                                  detail.status !== 'ABSENT';
-
                                 return reasons.filter(reason => {
-                                  const alreadyExplained = (allExplanations || []).some(e => {
-                                    if (reason.id === 'late_minutes' && e.explanation_type === 'LATE') return true;
-                                    if (reason.id === 'early_leave_minutes' && e.explanation_type === 'EARLY_LEAVE') return true;
-                                    if (reason.id === 'incomplete_attendance' && e.explanation_type === 'INCOMPLETE_ATTENDANCE') return true;
-                                    if (reason.id === 'business_trip' && e.explanation_type === 'BUSINESS_TRIP') return true;
-                                    if (reason.id === 'first_day' && e.explanation_type === 'FIRST_DAY') return true;
-                                    return false;
-                                  });
-                                  if (alreadyExplained) return false;
-                                  const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
+                                  // Kiểm tra theo danh mục (Giải trình, Nghỉ phép, Làm online)
+                                  const dateStr = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : '';
+                                  const hasExp = (allExplanations || []).length > 0;
+                                  const hasLeave = monthlyRequestHistory.leaveRequests.some(l => (l.attendance_date === dateStr || l.event_date === dateStr));
+                                  const hasOnline = monthlyRequestHistory.onlineWorks.some(w => (w.work_date === dateStr || w.attendance_date === dateStr));
 
+                                  // Các loại giải trình vi phạm chính
+                                  const isViolationReason = ['late_minutes', 'early_leave_minutes', 'incomplete_attendance'].includes(reason.id?.toString() || '');
+                                  
+                                  // Nếu đã có bất kỳ đơn Giải trình/Nghỉ phép/Online nào thì triệt tiêu lý do vi phạm này
+                                  if (isViolationReason && (hasExp || hasLeave || hasOnline)) return false;
+                                  
+                                  // Với các loại khác thì check chính nó
+                                  const alreadyHasSameReason = (allExplanations || []).some(e => e.explanation_type === reason.id || e.data?.explanation_type === reason.id);
+                                  if (alreadyHasSameReason) return false;
+
+                                  const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
                                   if (reason.id === 'late_minutes') return !isIncomplete && (detail?.late_minutes || 0) > 0;
                                   if (reason.id === 'early_leave_minutes') return !isIncomplete && (detail?.early_leave_minutes || 0) > 0;
                                   if (reason.id === 'incomplete_attendance') return isIncomplete || !detail || detail.status === 'ABSENT';
-                                  // Công tác và Ngày đầu chỉ hiện khi Vắng mặt hoặc chưa có dữ liệu
-                                  if (reason.id === 'first_day') {
-                                    return !detail || detail.status === 'ABSENT';
-                                  }
+                                  if (reason.id === 'first_day') return !detail || detail.status === 'ABSENT';
                                   if (reason.id === 'business_trip') {
-                                    // Hiển thị đi công tác khi vắng mặt HOẶC khi có vi phạm (muộn/sớm/quên chấm)
-                                    return !detail ||
-                                      detail.status === 'ABSENT' ||
-                                      (detail?.late_minutes || 0) > 0 ||
-                                      (detail?.early_leave_minutes || 0) > 0 ||
-                                      detail?.status === 'INCOMPLETE_ATTENDANCE';
+                                    return !detail || detail.status === 'ABSENT' || (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || detail?.status === 'INCOMPLETE_ATTENDANCE';
                                   }
                                   return true;
                                 });
                               }
+
+                              // Lọc lý do cho Đăng ký (OT, Trực...)
+                              if (selectedContext === 'registration') {
+                                const dateStr = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : '';
+                                const hasOnline = monthlyRequestHistory.onlineWorks.some(w => (w.work_date === dateStr || w.attendance_date === dateStr));
+                                if (hasOnline) {
+                                  // Nếu làm online thì chỉ cho phép OT, Extra, Night, Live. Ẩn Vào/Ra trực
+                                  return reasons.filter(r => r.id !== 'off_duty');
+                                }
+                              }
+
                               // Lọc lý do cho Nghỉ phép tháng
                               if (selectedContext === 'monthly_leave') {
                                 const remaining = attendanceStats?.remaining_leave ?? 1;
@@ -3001,8 +3053,8 @@ const AttendanceManagement: React.FC = () => {
                               // Xác định xem lý do này có bị tính vào quota giải trình không (đối với context explanation)
                               const isQuotaConsuming = selectedContext === 'explanation' &&
                                 ['late_minutes', 'early_leave_minutes', 'incomplete_attendance'].includes(reason.id);
-                              const isNonQuota = selectedContext === 'explanation' &&
-                                ['business_trip', 'first_day'].includes(reason.id);
+                              const isNonQuota = (selectedContext === 'explanation' &&
+                                ['business_trip', 'first_day'].includes(reason.id)) || (selectedContext === 'online_work' && reason.id === 'checkpage');
 
                               return (
                                 <div key={reason.id} className="relative group/chip">
@@ -3610,7 +3662,7 @@ const AttendanceManagement: React.FC = () => {
                               </svg>
                               <div>
                                 <span className="text-sm font-medium text-emerald-800">
-                                  Dành cho vị trí Telesale và CSKH
+                                  Dành cho vị trí Telesale và CSKH, CheckPage
                                 </span>
                                 <p className="text-xs text-emerald-700 mt-1">
                                   Ca sáng: 8h30 - 12h | Ca chiều tối: 17h30 - 23h
@@ -3641,6 +3693,14 @@ const AttendanceManagement: React.FC = () => {
                                   end: '23:00',
                                   color: 'purple',
                                   icon: '🔀',
+                                },
+                                {
+                                  label: 'Ca CheckPage',
+                                  time: '',
+                                  start: '',
+                                  end: '',
+                                  color: 'blue',
+                                  icon: '📱',
                                 },
                               ].map((preset) => {
                                 const isSelected =
@@ -3677,6 +3737,9 @@ const AttendanceManagement: React.FC = () => {
                                     onClick={() => {
                                       setNightShiftStartTime(preset.start);
                                       setNightShiftEndTime(preset.end);
+                                      if (!formNote) {
+                                        setFormNote(preset.label);
+                                      }
                                     }}
                                     className={`flex items-center justify-between w-full px-4 py-3 rounded-xl border-2 transition-all font-medium ${c.card} ${isSelected ? 'scale-[1.01]' : ''}`}
                                   >
@@ -3686,9 +3749,11 @@ const AttendanceManagement: React.FC = () => {
                                         <div className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-gray-800'}`}>{preset.label}</div>
                                       </div>
                                     </div>
-                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${c.badge}`}>
-                                      {preset.time}
-                                    </span>
+                                    {preset.time && (
+                                      <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${c.badge}`}>
+                                        {preset.time}
+                                      </span>
+                                    )}
                                   </button>
                                 );
                               })}
@@ -3973,7 +4038,7 @@ const AttendanceManagement: React.FC = () => {
                             htmlFor="online-work-note"
                             className="block text-sm font-semibold text-gray-700 uppercase tracking-wide"
                           >
-                            Ghi chú làm việc online (bắt buộc)
+                            Nội dung (bắt buộc)
                           </label>
                           <textarea
                             id="online-work-note"
@@ -4011,11 +4076,7 @@ const AttendanceManagement: React.FC = () => {
                               {
                                 id: 'checkin',
                                 label: 'Quên\nCheck-in',
-                                icon: (
-                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5-4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                                  </svg>
-                                ),
+                                icon: <ArrowLeftOnRectangleIcon className="w-6 h-6" />,
                                 activeColor: 'bg-purple-600 border-purple-600 text-white shadow-lg',
                                 inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50',
                                 dotColor: 'bg-purple-500',
@@ -4023,11 +4084,7 @@ const AttendanceManagement: React.FC = () => {
                               {
                                 id: 'checkout',
                                 label: 'Quên\nCheck-out',
-                                icon: (
-                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                  </svg>
-                                ),
+                                icon: <ArrowRightOnRectangleIcon className="w-6 h-6" />,
                                 activeColor: 'bg-orange-500 border-orange-500 text-white shadow-lg',
                                 inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-orange-300 hover:bg-orange-50',
                                 dotColor: 'bg-orange-500',
@@ -4035,11 +4092,7 @@ const AttendanceManagement: React.FC = () => {
                               {
                                 id: 'both',
                                 label: 'Cả\nhai',
-                                icon: (
-                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                  </svg>
-                                ),
+                                icon: <ArrowsRightLeftIcon className="w-6 h-6" />,
                                 activeColor: 'bg-gradient-to-br from-purple-600 to-orange-500 border-transparent text-white shadow-lg',
                                 inactiveColor: 'bg-white border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50',
                                 dotColor: 'bg-purple-500',
@@ -4059,9 +4112,7 @@ const AttendanceManagement: React.FC = () => {
                                 >
                                   {isActive && (
                                     <span className="absolute top-2 right-2 w-4 h-4 bg-white bg-opacity-30 rounded-full flex items-center justify-center">
-                                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                      </svg>
+                                      <CheckIcon className="w-2.5 h-2.5 text-white" />
                                     </span>
                                   )}
                                   <span className={`${isActive ? 'text-white opacity-90' : 'text-gray-400'}`}>{type.icon}</span>
@@ -4188,10 +4239,8 @@ const AttendanceManagement: React.FC = () => {
                     }
                     className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 rounded-xl border border-transparent shadow-lg text-base font-semibold transition-all duration-200 ${isSubmitting
                       ? 'bg-purple-400 text-white cursor-wait'
-                      : ((selectedContext &&
-                        (selectedContext === 'monthly_leave' ||
-                          selectedContext === 'online_work')) ||
-                        (selectedContext && selectedReason)) &&
+                      : (selectedContext &&
+                        selectedReason) &&
                         isRegistrationTimeValid() &&
                         (formNote?.trim() || selectedReason === 'incomplete_attendance' || selectedContext === 'monthly_leave' || selectedReason === 'off_duty')
                         ? 'text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transform hover:scale-[1.02]'
@@ -4399,6 +4448,20 @@ const AttendanceManagement: React.FC = () => {
                         </span>
                       </div>
                     )}
+                    {/* Row: Shift (Optional, for Night Shift) */}
+                    {selectedReason === 'night_shift' && (
+                      <div className="flex justify-between items-center bg-indigo-50/50 p-2 rounded-xl border border-indigo-100/50">
+                        <div className="flex items-center text-indigo-600">
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-[10px] uppercase font-bold tracking-wider">Ca trực</span>
+                        </div>
+                        <span className="text-sm font-bold text-indigo-700">
+                          {!nightShiftStartTime && !nightShiftEndTime ? 'CheckPage' : (nightShiftStartTime === '13:00' ? 'Chiều tối' : 'Ca gãy')}
+                        </span>
+                      </div>
+                    )}
 
                     {/* Row: Note */}
                     {formNote &&
@@ -4427,7 +4490,7 @@ const AttendanceManagement: React.FC = () => {
                             </span>
                           </div>
                           <div className="text-sm text-gray-700 bg-white/60 p-3 rounded-xl border border-gray-100 italic leading-relaxed">
-                            {formNote}
+                            {formNote.replace(/^(Ca chiều tối|Ca gãy|Ca CheckPage)(:\s*)?/, '') || formNote}
                           </div>
                         </div>
                       )}
@@ -4465,7 +4528,8 @@ const AttendanceManagement: React.FC = () => {
                     {/* Row: Time Range (for Overtime, Extra Hours, Night Shift, Live) */}
                     {selectedContext === 'registration' &&
                       selectedReason &&
-                      ['overtime', 'extra_hours', 'night_shift', 'live'].includes(selectedReason as any) && (
+                      ['overtime', 'extra_hours', 'night_shift', 'live'].includes(selectedReason as any) &&
+                      !(selectedReason === 'night_shift' && !nightShiftStartTime && !nightShiftEndTime) && (
                         <div className="flex justify-between items-center p-2 bg-purple-50 rounded-xl">
                           <div className="flex items-center text-purple-700">
                             <svg
@@ -4489,7 +4553,7 @@ const AttendanceManagement: React.FC = () => {
                             {selectedReason === 'extra_hours'
                               ? `${extraHoursStartTime} — ${extraHoursEndTime}`
                               : selectedReason === 'night_shift'
-                                ? `${nightShiftStartTime} — ${nightShiftEndTime}`
+                                ? (nightShiftStartTime && nightShiftEndTime ? `${nightShiftStartTime} — ${nightShiftEndTime}` : '')
                                 : selectedReason === 'live'
                                   ? `${liveStartTime} — ${liveEndTime}`
                                   : `${overtimeStartTime} — ${overtimeEndTime}`}
