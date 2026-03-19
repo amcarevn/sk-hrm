@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 export const API_BASE_URL = 'https://backend-hrm.amcare.vn';
-//export const API_BASE_URL = 'https://app-uat.amcare.vn';
+// export const API_BASE_URL = 'https://app-uat.amcare.vn';
 // export const API_BASE_URL = 'http://localhost:8000';
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
@@ -2701,6 +2701,41 @@ export const companyConfigAPI = {
 
   getShiftConfigStats: async (): Promise<any> => {
     const response: AxiosResponse<any> = await managementApi.get('/api-hrm/shift-configs/stats/');
+    return response.data;
+  },
+
+  getShiftConfigAssignOptions: async (shiftConfigId: number): Promise<{
+    shift: ShiftConfig;
+    current_assignments: {
+      employees: any[];
+      positions: any[];
+      departments: any[];
+    };
+    available_options: {
+      employees: any[];
+      positions: any[];
+      departments: any[];
+    };
+  }> => {
+    const response: AxiosResponse = await managementApi.get(`/api-hrm/shift-configs/${shiftConfigId}/assign-options/`);
+    return response.data;
+  },
+
+  assignShiftConfig: async (
+    shiftConfigId: number,
+    data: {
+      employee_ids?: number[];
+      position_ids?: number[];
+      department_ids?: number[];
+    }
+  ): Promise<{
+    message: string;
+    shift: ShiftConfig;
+  }> => {
+    const response: AxiosResponse = await managementApi.post(
+      `/api-hrm/shift-configs/${shiftConfigId}/assign/`,
+      data
+    );
     return response.data;
   },
 

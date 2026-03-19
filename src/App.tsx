@@ -76,6 +76,7 @@ import WorkFinalization from './pages/WorkFinalization';
 import WorkFinalizationApprovals from './pages/WorkFinalizationApprovals';
 import ContractTemplates from './pages/ContractTemplates';
 import PasswordReset from './pages/PasswordReset';
+import ShiftConfiguration from './pages/ShiftConfiguration';
 
 function App() {
   return (
@@ -661,6 +662,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <CompanyConfigEdit />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Shift Configuration Route */}
+          <Route
+            path="/dashboard/shift-configuration"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ShiftConfiguration />
                 </Layout>
               </ProtectedRoute>
             }
