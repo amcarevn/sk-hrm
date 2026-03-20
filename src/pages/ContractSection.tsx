@@ -58,19 +58,6 @@ type EmployeeContract = {
   notes: string;
   is_expiring_soon: boolean;
   created_at: string;
-  employee?: {
-    id: number;
-    full_name: string;
-    phone_number?: string;
-    cccd_number?: string;
-    permanent_residence?: string;
-    date_of_birth?: string;
-    personal_email?: string;
-    current_address?: string;
-    bank_account?: string;
-    bank_name?: string;
-    tax_code?: string;
-  };
 };
 
 type Props = {
