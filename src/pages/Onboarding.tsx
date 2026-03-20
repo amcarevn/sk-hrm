@@ -732,12 +732,6 @@ const Onboarding: React.FC = () => {
                           >
                             Xem chi tiết
                           </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="px-3 py-1.5 text-xs bg-red-50 text-red-600 border border-red-200 rounded-md hover:bg-red-100"
-                          >
-                            Xóa
-                          </button>
                         </div>
                       </td>
                     </tr>

@@ -54,21 +54,25 @@ const WORK_LOCATION_OPTIONS = [
 
 const REGION_OPTIONS = ['Miền Bắc', 'Miền Nam'];
 const BLOCK_OPTIONS = ['Khối Back office', 'Khối Marketing', 'Khối Kinh doanh'];
-const SUB_DEPARTMENT_OPTIONS = [
-  'ADS', 'ADS2', 'KD 1', 'KD 2', 'KD 3', 'KD 4', 'KD MN',
-  'CSKH MB', 'CSKH MN', 'Media MB', 'Media MN', 'Giám sát nội bộ',
-  'HCNS', 'Kế toán', 'Truyền thông',
-  'TTTH 01', 'TTTH 02', 'TTTH 03', 'TTTH 04', 'TTTH 06',
-  'Xây group', 'TTTH 08', 'TTTH 05', 'TTTH 07', 'TTTH 09',
-  'TTTH 10', 'TTTH 11', 'Tiktok 1', 'Tiktok 2', 'Tiktok 3',
-  'Tiktok 5', 'TTTH 15', 'Pháp chế', 'Tiktok 4', 'KD 5',
-  'Mua hàng', 'Công nghệ thông tin', 'Tiktok 6', 'Tiktok 7',
-  'Tiktok 8', 'Tiktok 9', 'Tiktok 10',
-];
 const SECTION_OPTIONS = ['Phẫu thuật thẩm mỹ'];
+const POSITION_OPTIONS = [
+  'Nhân viên Sale', 'Nhân viên Kinh doanh', 'Nhân viên Telesale', 'Trưởng phòng Telesale',
+  'Nhân viên CSKH', 'Trưởng phòng CSKH', 'Nhân viên Tư vấn',
+  'Chăm sóc, tiếp nhận khách', 'Chăm sóc hậu phẫu',
+  'Nhân viên Marketing', 'Nhân viên ADS', 'Trưởng phòng ADS', 'Nhân viên Content', 'Trưởng phòng Content',
+  'Nhân viên Seeding', 'Trưởng phòng Seeding', 'Nhân viên Truyền thông thương hiệu', 'Trưởng phòng Truyền thông thương hiệu',
+  'Nhân viên Media', 'Trưởng phòng Media', 'Nhân viên TikTok', 'Xây group',
+  'Nhân viên Thiết kế', 'Nhân viên Editor/Dựng phim', 'Biên tập viên', 'Biên kịch', 'Checkpage', 'Trợ lý hình ảnh', 'Quay - Chụp', 'Tổ chức sản xuất',
+  'Bác sĩ', 'Trợ lý bác sĩ', 'Điều dưỡng', 'Y tá', 'Kỹ thuật viên', 'Phụ tá',
+  'Nhân viên Hành chính - Nhân sự', 'Trưởng phòng Hành chính - Nhân sự', 'Giám đốc Hành chính - Nhân sự',
+  'Nhân viên C&B', 'Nhân viên Tuyển dụng', 'Trưởng phòng Tuyển dụng',
+  'Nhân viên Pháp chế', 'Trưởng phòng Pháp chế', 'Giám đốc Pháp chế',
+  'Phiên dịch viên', 'Nhân viên IT', 'Nhân viên AI', 'Trưởng phòng IT', 'Trưởng phòng AI',
+  'Nhân viên Kế toán', 'Thực tập sinh', 'Lễ tân', 'Giám sát nội bộ', 'Giám sát chất lượng', 'Trưởng phòng Giám sát',
+  'Lái xe', 'Tạp vụ', 'Bảo vệ', 'Giám đốc', 'Phó Giám đốc',
+];
 const RANK_OPTIONS = [
   'Nhân viên',
-  'TP AI', 
   'Leader',
   'Trưởng phòng tập sự',
   'Phó phòng',
@@ -82,6 +86,10 @@ const WORK_FORM_OPTIONS = [
   { value: 'PART_TIME', label: 'Part-time' },
 ];
 const EDUCATION_LEVEL_OPTIONS = ['Thạc sĩ', 'Cử nhân đại học', 'Cử nhân cao đẳng', 'Trung cấp', 'Khác'];
+const CITIZEN_ID_ISSUE_PLACE_OPTIONS = [
+  { value: 'POLICE_ADMIN', label: 'Cục cảnh sát Quản lý hành chính & Trật tự xã hội' },
+  { value: 'MINISTRY_PUBLIC_SECURITY', label: 'Bộ Công An' },
+];
 const STEP_ICONS = [Person, Apartment, Description, Home, Contacts, AttachMoney];
 const STEP_LABELS = ['Cơ bản', 'Công việc', 'CCCD', 'Địa chỉ', 'Liên hệ', 'Lương'];
 
@@ -111,9 +119,10 @@ interface FormValues {
   start_date: string;
   region: string;
   block: string;
-  sub_department: string;
+  sub_department: string;  // now free-text
   section: string;
-  job_rank: string;
+  position: string;
+  job_rank: string;        // new field
   doctor_team: string;
   work_form: string;
   work_location: string;
@@ -258,7 +267,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
     candidate_name: '', candidate_email: '', candidate_phone: '',
     date_of_birth: '', gender: 'M', education_level: '', facebook_link: '',
     start_date: '', region: '', block: '', sub_department: '', section: 'Phẫu thuật thẩm mỹ',
-    job_rank: '', doctor_team: '', work_form: '', work_location: '',
+    position: '', job_rank: '', doctor_team: '', work_form: '', work_location: '',
     citizen_id: '', citizen_id_issue_date: '', citizen_id_issue_place: '',
     old_id_number: '', permanent_address: '', current_address: '',
     social_insurance_number: '', tax_code: '', marital_status: 'SINGLE',
@@ -274,7 +283,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // useCallback để tránh tạo function mới mỗi render → không gây re-mount TF
   const handleChange = useCallback((field: keyof FormValues) =>
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setValues((v) => ({ ...v, [field]: e.target.value }))
@@ -312,7 +320,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
 
   // ===== VALIDATION =====
   const validateStep = (step: number): boolean => {
-    // Bước 1: Thông tin cơ bản
     if (step === 1) {
       if (!values.candidate_name.trim()) { showToast('error', 'Vui lòng nhập họ và tên'); return false; }
       if (!values.date_of_birth) { showToast('error', 'Vui lòng chọn ngày sinh'); return false; }
@@ -323,29 +330,26 @@ export const EmployeeOnboardingForm: React.FC = () => {
       if (!values.education_level) { showToast('error', 'Vui lòng chọn trình độ học vấn'); return false; }
       if (!values.facebook_link.trim()) { showToast('error', 'Vui lòng nhập link Facebook'); return false; }
     }
-    // Bước 2: Thông tin công việc
     if (step === 2) {
       if (!values.region) { showToast('error', 'Vui lòng chọn vùng/miền'); return false; }
       if (!values.block) { showToast('error', 'Vui lòng chọn khối'); return false; }
-      if (!values.sub_department) { showToast('error', 'Vui lòng chọn phòng/ban'); return false; }
+      if (!values.sub_department.trim()) { showToast('error', 'Vui lòng nhập phòng/ban'); return false; }
+      if (!values.position) { showToast('error', 'Vui lòng chọn vị trí'); return false; }
       if (!values.job_rank) { showToast('error', 'Vui lòng chọn cấp bậc'); return false; }
       if (!values.work_form) { showToast('error', 'Vui lòng chọn hình thức làm việc'); return false; }
       if (!values.work_location) { showToast('error', 'Vui lòng chọn địa điểm làm việc'); return false; }
     }
-    // Bước 3: CCCD
     if (step === 3) {
       if (!values.citizen_id.trim()) { showToast('error', 'Vui lòng nhập số CCCD'); return false; }
       if (!citizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return false; }
       if (!values.citizen_id_issue_date) { showToast('error', 'Vui lòng chọn ngày cấp CCCD'); return false; }
       if (!values.citizen_id_issue_place.trim()) { showToast('error', 'Vui lòng nhập nơi cấp CCCD'); return false; }
     }
-    // Bước 4: Địa chỉ
     if (step === 4) {
       if (!values.permanent_address.trim()) { showToast('error', 'Vui lòng nhập địa chỉ thường trú'); return false; }
       if (!values.current_address.trim()) { showToast('error', 'Vui lòng nhập địa chỉ hiện tại'); return false; }
       if (!values.marital_status) { showToast('error', 'Vui lòng chọn tình trạng hôn nhân'); return false; }
     }
-    // Bước 5: Người liên hệ khẩn cấp
     if (step === 5) {
       if (!values.emergency_contact_name.trim()) { showToast('error', 'Vui lòng nhập tên người liên hệ khẩn cấp'); return false; }
       if (!values.emergency_contact_relationship.trim()) { showToast('error', 'Vui lòng nhập mối quan hệ'); return false; }
@@ -378,7 +382,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
 
   // ===== SUBMIT =====
   const handleSubmit = async () => {
-    // Validate tất cả các bước trước khi submit
     for (let step = 1; step <= 5; step++) {
       if (!validateStep(step)) return;
     }
@@ -401,7 +404,8 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('block', values.block);
       ap('sub_department', values.sub_department);
       ap('section', values.section);
-      ap('rank', values.job_rank);
+      ap('position', values.position);
+      ap('job_rank', values.job_rank);
       ap('doctor_team', values.doctor_team);
       ap('work_form', values.work_form);
       ap('work_type', workType);
@@ -476,7 +480,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Đã gửi thông tin!</h2>
         <p className="text-gray-500 mb-2">Cảm ơn bạn đã điền thông tin.</p>
         <p className="text-gray-500 mb-6">
-          Thông tin của bạn đang chờ <strong>quản lý trực tiếp xác nhận</strong>. 
+          Thông tin của bạn đang chờ <strong>quản lý trực tiếp xác nhận</strong>.
           Bạn sẽ được thông báo sau khi được duyệt.
         </p>
         <Button variant="contained" onClick={() => window.close()}>Đóng trang</Button>
@@ -487,7 +491,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const stepNumber = currentStep + 1;
 
   // ============================================
-  // RENDER STEPS — dùng TF/SF/RF đã định nghĩa ngoài component
+  // RENDER STEPS
   // ============================================
 
   const renderStep = () => {
@@ -536,15 +540,30 @@ export const EmployeeOnboardingForm: React.FC = () => {
               onChange={handleSelect('block')} options={BLOCK_OPTIONS} />
           </div>
 
-          <SF label="Phòng/Ban" value={values.sub_department}
-            onChange={handleSelect('sub_department')} options={SUB_DEPARTMENT_OPTIONS} required />
+          {/* Phòng/Ban: free-text thay vì dropdown */}
+          <TF
+            label="Phòng/Ban"
+            value={values.sub_department}
+            onChange={handleChange('sub_department')}
+            required
+            placeholder="Nhập tên phòng/ban..."
+          />
 
           <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
             <RF label="Bộ phận (Section)" value={values.section}
               onChange={handleSelect('section')} options={SECTION_OPTIONS} />
-            <SF label="Cấp bậc" value={values.job_rank}
-              onChange={handleSelect('job_rank')} options={RANK_OPTIONS} required />
+            <SF label="Vị trí" value={values.position}
+              onChange={handleSelect('position')} options={POSITION_OPTIONS} required />
           </div>
+
+          {/* Cấp bậc: dropdown với RANK_OPTIONS */}
+          <SF
+            label="Cấp bậc"
+            value={values.job_rank}
+            onChange={handleSelect('job_rank')}
+            options={RANK_OPTIONS}
+            required
+          />
 
           <TF label="Team Bác sĩ" value={values.doctor_team}
             onChange={handleChange('doctor_team')} placeholder="Team Dr. Nguyễn Văn A..." />
@@ -592,8 +611,8 @@ export const EmployeeOnboardingForm: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <TF label="Ngày cấp" value={values.citizen_id_issue_date}
               onChange={handleChange('citizen_id_issue_date')} type="date" required />
-            <TF label="Nơi cấp" value={values.citizen_id_issue_place}
-              onChange={handleChange('citizen_id_issue_place')} placeholder="Cục Cảnh sát..." required />
+            <SF label="Nơi cấp" value={values.citizen_id_issue_place}
+              onChange={handleSelect('citizen_id_issue_place')} options={CITIZEN_ID_ISSUE_PLACE_OPTIONS} required />
           </div>
 
           <TF label="Số CMND cũ (nếu có)" value={values.old_id_number}
@@ -610,12 +629,14 @@ export const EmployeeOnboardingForm: React.FC = () => {
             onChange={handleChange('permanent_address')} multiline rows={2}
             required placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
 
-      <p className="text-xs text-gray-500 px-1">
-        (Vui lòng tra cứu địa chỉ mới bằng cách đăng nhập ứng dụng VNeID để kiểm tra)
-      </p>
+          <p className="text-xs text-gray-500 px-1">
+            (Vui lòng tra cứu địa chỉ mới bằng cách đăng nhập ứng dụng VNeID để kiểm tra)
+          </p>
+
           <TF label="Địa chỉ hiện tại" value={values.current_address}
             onChange={handleChange('current_address')} multiline rows={2}
             required placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" />
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <TF label="Mã BHXH" value={values.social_insurance_number}
@@ -700,6 +721,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
               { value: '3', label: '3 tháng' },
               { value: '6', label: '6 tháng' },
             ]} />
+
           <SF label="% lương thử việc" value={values.probation_salary_percentage}
             onChange={handleSelect('probation_salary_percentage')} options={[
               { value: '0', label: 'Không thử việc' },
@@ -715,13 +737,15 @@ export const EmployeeOnboardingForm: React.FC = () => {
               {[
                 ['Họ tên', values.candidate_name],
                 ['Email', values.candidate_email],
+                ['Phòng/Ban', values.sub_department],
+                ['Cấp bậc', values.job_rank],
                 ['CCCD', values.citizen_id],
                 ['File CCCD', citizenIdFile ? `✓ ${citizenIdFile.name}` : null],
                 ['Lương', values.salary ? `${parseInt(values.salary).toLocaleString()} VNĐ` : null],
                 ['Phụ cấp', values.allowance_notes ? `${parseInt(values.allowance_notes).toLocaleString()} VNĐ` : null],
               ].map(([label, val]) => (
                 <div key={label as string} className="flex gap-2 text-sm">
-                  <span className="text-blue-500 w-20 shrink-0">{label}:</span>
+                  <span className="text-blue-500 w-24 shrink-0">{label}:</span>
                   <span className={val ? 'text-blue-800 font-medium' : 'text-blue-300 italic'}>
                     {val || '(Chưa điền)'}
                   </span>

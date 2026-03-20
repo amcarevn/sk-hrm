@@ -1,8 +1,8 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
-export const API_BASE_URL = 'https://backend-hrm.amcare.vn';
-//export const API_BASE_URL = 'https://app-uat.amcare.vn';
-//export const API_BASE_URL = 'http://localhost:8000';
+// export const API_BASE_URL = 'https://backend-hrm.amcare.vn';
+// export const API_BASE_URL = 'https://app-uat.amcare.vn';
+export const API_BASE_URL = 'http://localhost:8000';
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -1776,6 +1776,8 @@ export interface SuperAdminEmployee extends Employee {
   reporting_path?: string;
   is_active?: boolean;
   personal_email?: string;
+  ethnicity?: string;
+  nationality?: string;
   probation_salary_percentage?: number;
   probation_salary_percentage_display?: string;
   file_status_display?: string;
@@ -1850,6 +1852,8 @@ export interface EmployeeUpdateData {
   date_of_birth?: string;
   phone_number?: string;
   personal_email?: string;
+  ethnicity?: string;
+  nationality?: string;
   bank_name?: string;
   bank_account?: string;
   employment_status?: 'ACTIVE' | 'INACTIVE' | 'PROBATION';
