@@ -66,14 +66,26 @@ const EmployeeList: React.FC = () => {
   const fetchStats = async () => {
     try {
       const statsData = await employeesAPI.stats();
+      
+      // Fetch active employees to calculate gender stats
+      const activeEmployees = await employeesAPI.list({ 
+        employment_status: 'ACTIVE',
+        page_size: 10000
+      });
+      
+      const employees = activeEmployees.results || [];
+      const male = employees.filter((emp: any) => emp.is_active && emp.gender === 'M').length;
+      const female = employees.filter((emp: any) => emp.is_active && emp.gender === 'F').length;
+      const other = employees.filter((emp: any) => emp.is_active && emp.gender === 'O').length;
+      
       setStats({
         total: statsData.total,
         active: statsData.active,
         probation: statsData.probation,
         inactive: statsData.inactive,
-        male: statsData.gender_stats.male,
-        female: statsData.gender_stats.female,
-        other: statsData.gender_stats.other
+        male,
+        female,
+        other
       });
     } catch (err) {
       console.error('Error fetching stats:', err);
