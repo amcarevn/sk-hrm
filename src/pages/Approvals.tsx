@@ -2191,21 +2191,19 @@ const Approvals: React.FC = () => {
                                       </div>
 
                                       <div className="flex items-center gap-4">
-                                        {pendingInEmp > 0 && activeTab === 'pending' && (
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              const empId = firstItem.employee_id || (typeof firstItem.employee === 'object' ? firstItem.employee?.id : firstItem.employee);
-                                              if (empId) {
-                                                setCalendarModalEmployee({ id: Number(empId), name: empName, month: filterMonth, year: filterYear });
-                                              }
-                                            }}
-                                            className="flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-100 bg-white hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700 transition-all shadow-sm"
-                                            title={`Xem lịch công của ${empName}`}
-                                          >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                          </button>
-                                        )}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const empId = firstItem.employee_id || (typeof firstItem.employee === 'object' ? firstItem.employee?.id : firstItem.employee);
+                                            if (empId) {
+                                              setCalendarModalEmployee({ id: Number(empId), name: empName, month: filterMonth, year: filterYear });
+                                            }
+                                          }}
+                                          className="flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-100 bg-white hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700 transition-all shadow-sm"
+                                          title={`Xem lịch công của ${empName}`}
+                                        >
+                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                        </button>
                                         <div className={`p-2 rounded-full transition-transform duration-500 ${isEmpExpanded ? 'rotate-180 bg-primary-100 text-primary-600' : 'bg-slate-50 text-slate-400'}`}>
                                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                                         </div>
