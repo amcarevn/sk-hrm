@@ -38,7 +38,6 @@ const Approvals: React.FC = () => {
   const [filterOnlyMine, setFilterOnlyMine] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const isFetchingRef = useRef<boolean>(false);
-  const lastFetchParamsRef = useRef<string>('');
   const lastFetchTimeRef = useRef<number>(0);
   const [selectedExplanation, setSelectedExplanation] = useState<any>(null);
   const [selectedOnlineWorkRequest, setSelectedOnlineWorkRequest] =
@@ -310,10 +309,7 @@ const Approvals: React.FC = () => {
     }
   };
 
-  const MIN_REFETCH_INTERVAL = 30000; // 30 seconds minimum between automatic refetches
-
   const fetchAllData = async (force = false) => {
-    const currentParams = `${activeTab}-${filterMonth}-${filterYear}`;
     const nowValue = Date.now();
 
     // Prevent concurrent fetches
@@ -321,16 +317,10 @@ const Approvals: React.FC = () => {
       return;
     }
 
-    // For automatic (non-forced) fetches, prevent refetching same data too frequently
-    if (!force && lastFetchParamsRef.current === currentParams && (nowValue - lastFetchTimeRef.current < MIN_REFETCH_INTERVAL)) {
-      return;
-    }
-
     try {
       isFetchingRef.current = true;
       const prevFetchTime = lastFetchTimeRef.current;
       lastFetchTimeRef.current = nowValue;
-      lastFetchParamsRef.current = currentParams;
       setLoading(true);
 
       const emp = await fetchCurrentEmployee();
@@ -378,20 +368,6 @@ const Approvals: React.FC = () => {
 
   useEffect(() => {
     fetchAllData();
-    
-    const handleFocus = () => {
-      fetchAllData();
-    };
-    window.addEventListener('focus', handleFocus);
-    
-    const refreshInterval = setInterval(() => {
-      fetchAllData();
-    }, 120000); 
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      clearInterval(refreshInterval);
-    };
   }, [activeTab, filterMonth, filterYear]);
 
   const EXPLANATION_TYPE_MAP: Record<string, string> = {
