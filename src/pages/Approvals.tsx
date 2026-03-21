@@ -4,6 +4,7 @@ import { attendanceService } from '../services/attendance.service';
 import { workFinalizationApprovalService } from '../services/workFinalizationApproval.service';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import { useAuth } from '../contexts/AuthContext';
+import AttendanceCalendar from '../components/AttendanceCalendar';
 
 
 const Approvals: React.FC = () => {
@@ -50,6 +51,7 @@ const Approvals: React.FC = () => {
   const [employeeFreqStats, setEmployeeFreqStats] = useState<any>(null);
   const [expandedEmployees, setExpandedEmployees] = useState<string[]>([]);
   const [isFetchingStats, setIsFetchingStats] = useState(false);
+  const [calendarModalEmployee, setCalendarModalEmployee] = useState<{ id: number; name: string; month: number; year: number } | null>(null);
 
   // Debug log cho Quota và dữ liệu được chọn
   useEffect(() => {
@@ -2193,14 +2195,15 @@ const Approvals: React.FC = () => {
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              handleBulkApproveItems(items, `nhân viên ${empName}`);
+                                              const empId = firstItem.employee_id || (typeof firstItem.employee === 'object' ? firstItem.employee?.id : firstItem.employee);
+                                              if (empId) {
+                                                setCalendarModalEmployee({ id: Number(empId), name: empName, month: filterMonth, year: filterYear });
+                                              }
                                             }}
-                                            disabled={isBulkProcessing}
-                                            className="flex text-[10px] font-black text-emerald-600 bg-white hover:bg-emerald-600 hover:text-white px-2 sm:px-4 py-2 rounded-xl border border-emerald-100 uppercase tracking-widest items-center gap-2 transition-all shadow-sm"
-                                            title={`Duyệt tất cả đơn của ${empName}`}
+                                            className="flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-100 bg-white hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700 transition-all shadow-sm"
+                                            title={`Xem lịch công của ${empName}`}
                                           >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                            <span className="hidden sm:inline">Duyệt giúp {empName.split(' ').pop()}</span>
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                           </button>
                                         )}
                                         <div className={`p-2 rounded-full transition-transform duration-500 ${isEmpExpanded ? 'rotate-180 bg-primary-100 text-primary-600' : 'bg-slate-50 text-slate-400'}`}>
@@ -3679,6 +3682,39 @@ const Approvals: React.FC = () => {
               >
                 Tuyệt vời
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Attendance Calendar Modal */}
+      {calendarModalEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-800">Lịch công của {calendarModalEmployee.name}</h2>
+                  <p className="text-xs text-slate-400 font-semibold">Tháng {calendarModalEmployee.month}/{calendarModalEmployee.year}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCalendarModalEmployee(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-4">
+              <AttendanceCalendar
+                year={calendarModalEmployee.year}
+                month={calendarModalEmployee.month - 1}
+                employeeId={calendarModalEmployee.id}
+                showInternalDialog={true}
+              />
             </div>
           </div>
         </div>
