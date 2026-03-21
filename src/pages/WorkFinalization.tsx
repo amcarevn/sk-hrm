@@ -12,6 +12,7 @@ import {
   ClipboardDocumentCheckIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { departmentsAPI, employeesAPI, Department, Employee } from '../utils/api';
@@ -24,6 +25,14 @@ import AttendanceCalendar from '../components/AttendanceCalendar';
 const formatNumber = (value: number | null) => {
   if (value === null || value === undefined) return '—';
   return value.toLocaleString('vi-VN');
+};
+
+const formatDate = (val: string | null | undefined) => {
+  if (!val) return '—';
+  const d = new Date(val);
+  return isNaN(d.getTime())
+    ? '—'
+    : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
 const EmployeeListItem = React.memo(({
@@ -139,6 +148,8 @@ const WorkFinalization: React.FC = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [records, setRecords] = useState<WorkFinalizationRecord[]>([]);
+
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [loadingRecords, setLoadingRecords] = useState(false);
@@ -481,6 +492,11 @@ const WorkFinalization: React.FC = () => {
     }
   };
 
+  const handlePreviewExport = () => {
+    setShowPreviewModal(false);
+    handleExport();
+  };
+
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -534,6 +550,14 @@ const WorkFinalization: React.FC = () => {
                 : `Chốt phòng ban (Tháng ${selectedMonth}/${selectedYear})`}
             </button>
           )}
+          <button
+            onClick={() => setShowPreviewModal(true)}
+            disabled={records.length === 0}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <EyeIcon className="w-4 h-4 mr-2" />
+            Xem trước
+          </button>
           <button
             onClick={handleExport}
             disabled={exporting || records.length === 0}
@@ -855,6 +879,120 @@ const WorkFinalization: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Excel Preview Modal */}
+      {showPreviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-green-100 flex items-center justify-center">
+                  <EyeIcon className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">
+                    Xem trước dữ liệu Excel
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Tháng {selectedMonth}/{selectedYear} · {records.length} bản ghi đã chốt
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-auto">
+              <table className="min-w-full text-xs border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr>
+                    {[
+                      'STT', 'Mã NV', 'Họ và Tên', 'Phòng Ban', 'Vị Trí',
+                      'Bác Sĩ', 'Ngày BĐ Làm Việc', 'Ngày KT Thử Việc',
+                      'ON/OFF', 'Ngày Nghỉ Việc', 'Hình Thức LV',
+                      'Công Thử Việc', 'Công Chính Thức', 'Có Lễ',
+                      'Công Thực Tế', 'Tổng Công', 'Nghỉ Phép',
+                      'Làm Việc Online', 'Tổng Phạt', 'Tăng Ca',
+                      'Làm Tối', 'Trực Tối', 'Làm Thêm Giờ', 'Live',
+                      'Phụ Cấp Gửi Xe',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="whitespace-nowrap px-3 py-2 text-center font-semibold text-white bg-blue-700 border border-blue-800"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.map((rec, idx) => {
+                    const rowCls = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                    return (
+                      <tr key={rec.ma_nv} className={`${rowCls} hover:bg-blue-50 transition-colors`}>
+                        <td className="px-3 py-1.5 text-center border border-gray-200">{rec.stt}</td>
+                        <td className="px-3 py-1.5 font-mono border border-gray-200">{rec.ma_nv}</td>
+                        <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{rec.ho_va_ten}</td>
+                        <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{rec.phong_ban ?? '—'}</td>
+                        <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{rec.vi_tri ?? '—'}</td>
+                        <td className="px-3 py-1.5 text-center border border-gray-200">{rec.bac_si ?? '—'}</td>
+                        <td className="px-3 py-1.5 text-center whitespace-nowrap border border-gray-200">{formatDate(rec.ngay_bat_dau_lam_viec)}</td>
+                        <td className="px-3 py-1.5 text-center whitespace-nowrap border border-gray-200">{formatDate(rec.ngay_ket_thuc_thu_viec)}</td>
+                        <td className="px-3 py-1.5 text-center border border-gray-200">{rec.on_off ?? '—'}</td>
+                        <td className="px-3 py-1.5 text-center whitespace-nowrap border border-gray-200">{formatDate(rec.ngay_nghi_viec)}</td>
+                        <td className="px-3 py-1.5 text-center whitespace-nowrap border border-gray-200">{rec.hinh_thuc_lam_viec ?? '—'}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.cong_thu_viec}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.cong_chinh_thuc}</td>
+                        <td className="px-3 py-1.5 text-center border border-gray-200">{rec.co_le ?? '—'}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.cong_thuc_te}</td>
+                        <td className="px-3 py-1.5 text-right font-semibold border border-gray-200">{rec.tong_cong}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.nghi_phep}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.lam_viec_online ?? 0}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(rec.tong_phat)}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.tang_ca}</td>
+                        <td className="px-3 py-1.5 text-center border border-gray-200">{rec.lam_toi ?? '—'}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.truc_toi}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.lam_them_gio}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.live}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(rec.phu_cap_gui_xe)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+              <span className="text-xs text-gray-500">
+                Hiển thị {records.length} bản ghi · Tháng {selectedMonth}/{selectedYear}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePreviewExport}
+                  disabled={exporting}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ArrowDownTrayIcon className="w-4 h-4 mr-1.5" />
+                  {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+                </button>
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
