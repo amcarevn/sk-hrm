@@ -310,11 +310,19 @@ const Approvals: React.FC = () => {
     }
   };
 
-  const fetchAllData = async () => {
+  const MIN_REFETCH_INTERVAL = 30000; // 30 seconds minimum between automatic refetches
+
+  const fetchAllData = async (force = false) => {
     const currentParams = `${activeTab}-${filterMonth}-${filterYear}`;
     const nowValue = Date.now();
-    
-    if (isFetchingRef.current && lastFetchParamsRef.current === currentParams && (nowValue - lastFetchTimeRef.current < 1000)) {
+
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    // For automatic (non-forced) fetches, prevent refetching same data too frequently
+    if (!force && lastFetchParamsRef.current === currentParams && (nowValue - lastFetchTimeRef.current < MIN_REFETCH_INTERVAL)) {
       return;
     }
 
@@ -329,12 +337,26 @@ const Approvals: React.FC = () => {
       const currentIsAdmin = emp?.user?.is_staff || emp?.user?.is_superuser || (user as any)?.is_superuser || (user as any)?.is_staff || user?.role?.toUpperCase() === 'ADMIN';
       const currentIsHR = emp?.is_hr === true || user?.role?.toUpperCase() === 'HR';
 
-      await Promise.all([
-        fetchPendingRequests(),
-        fetchApprovedRequests(),
-        fetchRejectedRequests(),
-        fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR),
-      ]);
+      if (force) {
+        // Forced refresh: fetch all tabs to update all stats counts
+        await Promise.all([
+          fetchPendingRequests(),
+          fetchApprovedRequests(),
+          fetchRejectedRequests(),
+          fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR),
+        ]);
+      } else {
+        // Normal fetch: only fetch active tab to minimize unnecessary API calls
+        const tabFetch = activeTab === 'pending'
+          ? fetchPendingRequests()
+          : activeTab === 'approved'
+          ? fetchApprovedRequests()
+          : fetchRejectedRequests();
+        await Promise.all([
+          tabFetch,
+          fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR),
+        ]);
+      }
       
       setLastRefreshedAt(new Date());
       // Chỉ hiện toast nếu là refresh thủ công/focus sau khi đã có dữ liệu (không hiện lần đầu)
@@ -351,7 +373,7 @@ const Approvals: React.FC = () => {
   };
 
   const fetchRequests = async () => {
-    await fetchAllData();
+    await fetchAllData(true);
   };
 
   useEffect(() => {
@@ -775,7 +797,7 @@ const Approvals: React.FC = () => {
       setActionModalOpen(false);
       setTargetItem(null);
       setApprovalNote('');
-      fetchAllData(); // Refresh FULL data including stats AND counts in other tabs
+      fetchAllData(true); // Forced refresh to update all stats counts after action
     } catch (error: any) {
       console.error(`Error ${actionType}:`, error);
       const msg = error.response?.data?.error || error.response?.data?.detail || 'Thao tác thất bại';
@@ -806,7 +828,7 @@ const Approvals: React.FC = () => {
 
       setDeleteModalOpen(false);
       setTargetItem(null);
-      fetchAllData();
+      fetchAllData(true);
     } catch (error: any) {
       console.error('Error deleting:', error);
       const msg = error.response?.data?.error || error.response?.data?.detail || 'Xóa thất bại';
@@ -902,7 +924,7 @@ const Approvals: React.FC = () => {
 
       // Hiển thị kết quả qua Modal thay vì alert
       setBulkActionResult({ success: totalSuccess, error: totalError, groupName: groupName });
-      fetchAllData();
+      fetchAllData(true);
     } catch (error: any) {
       console.error(`Error bulk approving ${groupName}:`, error);
       setErrorMessage(`Lỗi khi duyệt hàng loạt ${groupName}: ` + (error.response?.data?.error || error.message));
@@ -1507,7 +1529,7 @@ const Approvals: React.FC = () => {
         
         {/* Floating Refresh FAB for Mobile */}
         <button 
-          onClick={fetchAllData}
+          onClick={() => fetchAllData(true)}
           className={`fixed bottom-6 right-6 sm:hidden z-50 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center border-4 border-white transition-all active:scale-90 ${loading ? 'animate-pulse' : ''}`}
         >
           <svg className={`w-6 h-6 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -1533,7 +1555,7 @@ const Approvals: React.FC = () => {
           </div>
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             <button
-              onClick={fetchAllData}
+              onClick={() => fetchAllData(true)}
               className="flex-1 sm:flex-none justify-center border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 flex items-center space-x-2 text-base"
             >
               {loading && <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full"></div>}
@@ -1828,7 +1850,7 @@ const Approvals: React.FC = () => {
                     {/* Refresh Button */}
                     <button
                       onClick={() => {
-                        fetchAllData();
+                        fetchAllData(true);
                       }}
                       className="p-2 sm:p-2.5 bg-white text-slate-400 border-2 border-slate-100 rounded-xl hover:border-indigo-200 hover:text-indigo-500 hover:rotate-180 transition-all duration-500 shadow-sm group"
                     >
