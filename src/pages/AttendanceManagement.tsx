@@ -348,7 +348,7 @@ const AttendanceManagement: React.FC = () => {
     icon: string;
   }[] = [
       { id: 'overtime', label: 'Tăng ca', icon: 'bolt' },
-      { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' },
+      // { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' }, // tạm ẩn vì có chức năng giống Tăng ca
       { id: 'night_shift', label: 'Trực tối', icon: 'moon' },
       { id: 'live', label: 'Live', icon: 'video' },
       { id: 'off_duty', label: 'Vào/Ra trực', icon: 'briefcase' },
