@@ -364,17 +364,31 @@ class ApprovalService {
           ordering: '-created_at',
           day: params?.day && params.day !== 0 ? params.day : undefined,
           month: params?.month,
-          year: params?.year
+          year: params?.year,
+          page_size: 1000
         }
       });
-      return response.data.results || response.data || [];
+
+      let items: any[] = [];
+      if (Array.isArray(response.data)) {
+        items = response.data;
+      } else if (response.data?.results && Array.isArray(response.data.results)) {
+        items = response.data.results;
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        items = response.data.data;
+      } else {
+        console.warn('[ApprovalService] Unexpected duyet-don response format:', response.data);
+      }
+
+      console.debug(`[ApprovalService] getDuyetDonList(${status}): ${items.length} items`, items.slice(0, 3).map(i => ({ id: i.id, request_type: i.request_type })));
+      return items;
     } catch (error) {
       console.error(`Error fetching duyet-don list with status ${status}:`, error);
       throw error;
     }
   }
 
-  // Phân loại danh sách đơn từ API tổng hợp theo request_type
+  // Phân loại danh sách đơn từ API tổng hợp theo request_type và các trường phân biệt khác
   private categorizeDuyetDonList(allRequests: any[]): {
     attendance_explanations: any[];
     leave_requests: any[];
@@ -387,17 +401,30 @@ class ApprovalService {
     const registration_requests: any[] = [];
 
     for (const item of allRequests) {
-      const type = (item.request_type || '').toUpperCase();
-      if (type === 'ATTENDANCE_EXPLANATION' || type === 'EXPLANATION') {
+      // Chuẩn hóa request_type: uppercase và bỏ dấu gạch dưới để xử lý cả
+      // 'ATTENDANCE_EXPLANATION' và 'ATTENDANCEEXPLANATION', 'ONLINE_WORK' và 'ONLINEWORK', v.v.
+      const normalizedType = (item.request_type || '').toUpperCase().replace(/_/g, '');
+
+      if (normalizedType === 'ATTENDANCEEXPLANATION' || normalizedType === 'EXPLANATION') {
         attendance_explanations.push(item);
-      } else if (type === 'LEAVE' || type === 'MONTHLY_LEAVE') {
+      } else if (normalizedType === 'LEAVE' || normalizedType === 'MONTHLYLEAVE' || normalizedType === 'MONTHLYLEAVEREQUEST') {
         leave_requests.push(item);
-      } else if (type === 'ONLINE_WORK') {
+      } else if (normalizedType === 'ONLINEWORK' || normalizedType === 'ONLINEWORKREQUEST') {
         online_work_requests.push(item);
-      } else if (type === 'REGISTRATION' || type === 'OVERTIME') {
+      } else if (normalizedType === 'REGISTRATION' || normalizedType === 'REGISTRATIONREQUEST' || normalizedType === 'OVERTIME') {
         registration_requests.push(item);
       } else {
-        console.warn(`[ApprovalService] Unrecognized request_type: "${item.request_type}" for item id=${item.id}`);
+        // Fallback: phân loại dựa trên các trường của item khi request_type không xác định
+        if (item.registration_type) {
+          registration_requests.push(item);
+        } else if (item.work_date !== undefined && !item.explanation_type && !item.attendance_date) {
+          online_work_requests.push(item);
+        } else if (item.explanation_type && item.explanation_type !== 'LEAVE') {
+          attendance_explanations.push(item);
+        } else {
+          // Đơn nghỉ phép: có explanation_type === 'LEAVE', hoặc không có trường nhận dạng khác
+          leave_requests.push(item);
+        }
       }
     }
 
