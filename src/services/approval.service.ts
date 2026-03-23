@@ -355,6 +355,55 @@ class ApprovalService {
     }
   }
 
+  // Lấy danh sách tất cả các đơn theo trạng thái từ API tổng hợp
+  async getDuyetDonList(status: string, params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
+    try {
+      const response = await managementApi.get('/api-hrm/duyet-don/', {
+        params: {
+          status,
+          ordering: '-created_at',
+          day: params?.day && params.day !== 0 ? params.day : undefined,
+          month: params?.month,
+          year: params?.year
+        }
+      });
+      return response.data.results || response.data || [];
+    } catch (error) {
+      console.error(`Error fetching duyet-don list with status ${status}:`, error);
+      throw error;
+    }
+  }
+
+  // Phân loại danh sách đơn từ API tổng hợp theo request_type
+  private categorizeDuyetDonList(allRequests: any[]): {
+    attendance_explanations: any[];
+    leave_requests: any[];
+    online_work_requests: any[];
+    registration_requests: any[];
+  } {
+    const attendance_explanations: any[] = [];
+    const leave_requests: any[] = [];
+    const online_work_requests: any[] = [];
+    const registration_requests: any[] = [];
+
+    for (const item of allRequests) {
+      const type = (item.request_type || '').toUpperCase();
+      if (type === 'ATTENDANCE_EXPLANATION' || type === 'EXPLANATION') {
+        attendance_explanations.push(item);
+      } else if (type === 'LEAVE' || type === 'MONTHLY_LEAVE') {
+        leave_requests.push(item);
+      } else if (type === 'ONLINE_WORK') {
+        online_work_requests.push(item);
+      } else if (type === 'REGISTRATION' || type === 'OVERTIME') {
+        registration_requests.push(item);
+      } else {
+        console.warn(`[ApprovalService] Unrecognized request_type: "${item.request_type}" for item id=${item.id}`);
+      }
+    }
+
+    return { attendance_explanations, leave_requests, online_work_requests, registration_requests };
+  }
+
   // Tổng hợp tất cả các loại đơn chờ duyệt
   async getAllPendingRequests(params?: { day?: number; month?: number; year?: number }): Promise<{
     attendance_explanations: any[];
@@ -365,21 +414,16 @@ class ApprovalService {
     total_pending: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
-        this.getPendingAttendanceExplanations(params),
-        this.getPendingLeaveRequests(params),
-        this.getPendingOnlineWorkRequests(params),
-        this.getPendingRegistrationRequests(params)
-      ]);
-
-      const total_pending = attendanceExplanations.length + leaveRequests.length + onlineWorkRequests.length + registrationRequests.length;
+      const allRequests = await this.getDuyetDonList('PENDING', params);
+      const { attendance_explanations, leave_requests, online_work_requests, registration_requests } = this.categorizeDuyetDonList(allRequests);
+      const total_pending = allRequests.length;
 
       return {
-        attendance_explanations: attendanceExplanations,
-        leave_requests: leaveRequests,
-        overtime_requests: [], // TODO: Cần API cho overtime requests (chờ đăng ký types khác)
-        online_work_requests: onlineWorkRequests,
-        registration_requests: registrationRequests,
+        attendance_explanations,
+        leave_requests,
+        overtime_requests: [],
+        online_work_requests,
+        registration_requests,
         total_pending
       };
     } catch (error) {
@@ -398,21 +442,16 @@ class ApprovalService {
     total_approved: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
-        this.getApprovedAttendanceExplanations(params),
-        this.getApprovedLeaveRequests(params),
-        this.getApprovedOnlineWorkRequests(params),
-        this.getApprovedRegistrationRequests(params)
-      ]);
-
-      const total_approved = attendanceExplanations.length + leaveRequests.length + onlineWorkRequests.length + registrationRequests.length;
+      const allRequests = await this.getDuyetDonList('APPROVED', params);
+      const { attendance_explanations, leave_requests, online_work_requests, registration_requests } = this.categorizeDuyetDonList(allRequests);
+      const total_approved = allRequests.length;
 
       return {
-        attendance_explanations: attendanceExplanations,
-        leave_requests: leaveRequests,
+        attendance_explanations,
+        leave_requests,
         overtime_requests: [],
-        online_work_requests: onlineWorkRequests,
-        registration_requests: registrationRequests,
+        online_work_requests,
+        registration_requests,
         total_approved
       };
     } catch (error) {
@@ -431,21 +470,16 @@ class ApprovalService {
     total_rejected: number;
   }> {
     try {
-      const [attendanceExplanations, leaveRequests, onlineWorkRequests, registrationRequests] = await Promise.all([
-        this.getRejectedAttendanceExplanations(params),
-        this.getRejectedLeaveRequests(params),
-        this.getRejectedOnlineWorkRequests(params),
-        this.getRejectedRegistrationRequests(params)
-      ]);
-
-      const total_rejected = attendanceExplanations.length + leaveRequests.length + onlineWorkRequests.length + registrationRequests.length;
+      const allRequests = await this.getDuyetDonList('REJECTED', params);
+      const { attendance_explanations, leave_requests, online_work_requests, registration_requests } = this.categorizeDuyetDonList(allRequests);
+      const total_rejected = allRequests.length;
 
       return {
-        attendance_explanations: attendanceExplanations,
-        leave_requests: leaveRequests,
+        attendance_explanations,
+        leave_requests,
         overtime_requests: [],
-        online_work_requests: onlineWorkRequests,
-        registration_requests: registrationRequests,
+        online_work_requests,
+        registration_requests,
         total_rejected
       };
     } catch (error) {
