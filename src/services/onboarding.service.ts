@@ -37,6 +37,9 @@ export interface OnboardingProcess {
   direct_manager?: number;
   start_date: string;
   expected_end_date?: string;
+  rank?: string;
+  section?: string;
+  doctor_team?: string;
 
   // Contract
   contract_type: 'PROBATION' | 'DEFINITE' | 'INDEFINITE' | 'SEASONAL' | 'PART_TIME';

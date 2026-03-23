@@ -1,19 +1,96 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { employeesAPI, Employee } from '../utils/api';
-import { useLocation } from 'react-router-dom';
+import {
+  ArrowLeftIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+  PencilIcon,
+} from '@heroicons/react/24/outline';
+
+// ============================================
+// CONSTANTS
+// ============================================
+
+const PROBATION_RATE_LABELS: Record<string, string> = {
+  OPTION_1: 'Tháng đầu 85%, tháng sau 100%',
+  OPTION_2: 'Tháng đầu 100%, tháng sau 100%',
+};
+
+const CONTRACT_TYPE_LABELS: Record<string, string> = {
+  PROBATION: 'Hợp đồng thử việc',
+  INTERN: 'Hợp đồng thực tập sinh',
+  COLLABORATOR: 'Hợp đồng cộng tác viên',
+  ONE_YEAR: 'Hợp đồng lao động 1 năm',
+  THREE_YEAR: 'Hợp đồng lao động 3 năm',
+  INDEFINITE: 'Hợp đồng vô thời hạn',
+  SERVICE: 'Hợp đồng dịch vụ',
+};
+
+const MARITAL_STATUS_LABELS: Record<string, string> = {
+  SINGLE: 'Độc thân',
+  MARRIED: 'Đã kết hôn',
+  DIVORCED: 'Ly hôn',
+  WIDOWED: 'Góa',
+};
+
+const WORK_FORM_LABELS: Record<string, string> = {
+  FULL_TIME: 'Toàn thời gian',
+  PART_TIME: 'Bán thời gian',
+  CONTRACT: 'Hợp đồng',
+  INTERN: 'Thực tập',
+  COLLABORATOR: 'Cộng tác viên',
+};
+
+const EDUCATION_LEVEL_LABELS: Record<string, string> = {
+  HIGH_SCHOOL: 'Trung học phổ thông',
+  ASSOCIATE: 'Cao đẳng',
+  BACHELOR: 'Đại học',
+  MASTER: 'Thạc sĩ',
+  DOCTORATE: 'Tiến sĩ',
+  OTHER: 'Khác',
+};
+
+const FILE_STATUS_LABELS: Record<string, string> = {
+  COMPLETE: 'Nộp đủ',
+  NEED_SUPPLEMENT: 'Cần bổ sung hồ sơ',
+  NOT_SUBMITTED: 'Chưa nộp',
+  PENDING_REVIEW: 'Chờ rà soát',
+};
+
+const CCCD_ISSUE_PLACE_LABELS: Record<string, string> = {
+  POLICE_ADMIN: 'Cục cảnh sát Quản lý hành chính & Trật tự xã hội',
+  MINISTRY_PUBLIC_SECURITY: 'Bộ Công An',
+};
+
+const getStatusBadge = (status: string) => {
+  const config: Record<string, { label: string; color: string }> = {
+    ACTIVE: { label: 'Đang làm việc', color: 'bg-green-100 text-green-800' },
+    INACTIVE: { label: 'Đã nghỉ', color: 'bg-red-100 text-red-800' },
+    PROBATION: { label: 'Thử việc', color: 'bg-yellow-100 text-yellow-800' },
+  };
+  const c = config[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
+  return (
+    <span className={`px-3 py-1 rounded-full text-sm font-medium ${c.color}`}>
+      {c.label}
+    </span>
+  );
+};
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 const EmployeeShow: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const location = useLocation();
 
   useEffect(() => {
-    if (id) {
-      loadEmployee(Number(id));
-    }
+    if (id) loadEmployee(Number(id));
   }, [id, location.key]);
 
   const loadEmployee = async (employeeId: number) => {
@@ -24,296 +101,531 @@ const EmployeeShow: React.FC = () => {
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Không thể tải thông tin nhân viên');
-      console.error('Error loading employee:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const getGenderText = (gender: string) => {
-    switch (gender) {
-      case 'M':
-        return 'Nam';
-      case 'F':
-        return 'Nữ';
-      case 'O':
-        return 'Khác';
-      default:
-        return gender;
-    }
-  };
+  // ============================================
+  // LOADING / ERROR
+  // ============================================
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'Đang làm việc';
-      case 'INACTIVE':
-        return 'Đã nghỉ';
-      case 'PROBATION':
-        return 'Thử việc';
-      default:
-        return status;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'bg-green-100 text-green-800';
-      case 'INACTIVE':
-        return 'bg-red-100 text-red-800';
-      case 'PROBATION':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-gray-600">Đang tải thông tin nhân viên...</p>
-        </div>
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <ArrowPathIcon className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+        <span className="text-lg text-gray-600">Đang tải thông tin nhân viên...</span>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (error || !employee) {
-    return (
-      <div className="p-6">
-        <div className="text-center py-12">
-          <div className="text-red-600 mb-4">
-            <svg
-              className="w-12 h-12 mx-auto"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
-          <p className="text-lg font-medium text-gray-900">Đã xảy ra lỗi</p>
-          <p className="text-gray-500 mt-1">
-            {error || 'Không tìm thấy nhân viên'}
-          </p>
-          <button
-            onClick={() => navigate('/dashboard/employees')}
-            className="mt-4 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
-          >
-            Quay lại danh sách
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-return (
-  <div className="p-4 sm:p-6 lg:p-8">
-    <div className="mb-6">
-      <button
-        onClick={() => navigate('/dashboard/employees')}
-        className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mb-4"
-      >
-        ← Quay lại danh sách
+  if (error || !employee) return (
+    <div className="p-6">
+      <button onClick={() => navigate('/dashboard/employees')}
+        className="flex items-center text-gray-600 hover:text-gray-900 mb-4">
+        <ArrowLeftIcon className="w-5 h-5 mr-2" /> Quay lại danh sách
       </button>
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
-        <div>
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-            {employee.full_name}
-          </h1>
-          <p className="text-gray-600 mt-1 sm:mt-2">
-            Mã nhân viên: {employee.employee_id}
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          {/* <button
-            onClick={() =>
-              navigate(`/dashboard/employees/${employee.id}/edit`)
-            }
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Sửa thông tin
-          </button> */}
-          <button
-            onClick={() => navigate('/dashboard/employees')}
-            className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
-          >
-            Danh sách nhân viên
-          </button>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <div className="flex items-center">
+          <ExclamationTriangleIcon className="w-8 h-8 text-red-600 mr-3" />
+          <div>
+            <h3 className="text-lg font-semibold text-red-900">Lỗi tải dữ liệu</h3>
+            <p className="text-red-700 mt-1">{error || 'Không tìm thấy nhân viên'}</p>
+            <button onClick={() => id && loadEmployee(Number(id))}
+              className="mt-3 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+              Thử lại
+            </button>
+          </div>
         </div>
       </div>
     </div>
+  );
 
-    <div className="bg-white rounded-lg shadow overflow-hidden text-sm sm:text-base">
-      <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-        <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-          Thông tin cá nhân
-        </h2>
+  const emp = employee as any;
+
+  return (
+    <div className="p-6 bg-gray-50 min-h-screen">
+
+      {/* Header */}
+      <div className="mb-6">
+        <button onClick={() => navigate('/dashboard/employees')}
+          className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors">
+          <ArrowLeftIcon className="w-5 h-5 mr-2" /> Quay lại danh sách
+        </button>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">{employee.full_name}</h1>
+            <p className="text-gray-600 mt-1 text-lg">
+              {employee.position?.title || 'N/A'} — {employee.department?.name || 'N/A'}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {getStatusBadge(employee.employment_status)}
+            <button
+              onClick={() => navigate(`/dashboard/employees/${employee.id}/edit`)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+            >
+              <PencilIcon className="w-4 h-4" />
+              Sửa thông tin
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="px-4 sm:px-6 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <div className="space-y-4">
-            {[
-              ['Mã nhân viên', employee.employee_id],
-              ['Họ tên', employee.full_name],
-              ['Giới tính', getGenderText(employee.gender)],
-              [
-                'Ngày sinh',
-                employee.date_of_birth
+      {/* Content */}
+      <div className="space-y-6">
+
+        {/* ── Thông tin nhân viên ── */}
+        <div className="bg-white rounded-lg border p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <span className="mr-2">👤</span>
+            Thông tin nhân viên
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-gray-600">Mã nhân viên</label>
+              <p className="font-medium text-indigo-700">{employee.employee_id}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Họ và tên</label>
+              <p className="font-medium">{employee.full_name || 'Chưa có dữ liệu'}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Email cá nhân</label>
+              <p className="font-medium">{employee.personal_email || 'Chưa có dữ liệu'}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Số điện thoại</label>
+              <p className="font-medium">{employee.phone_number || 'Chưa có dữ liệu'}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Giới tính</label>
+              <p className="font-medium">
+                {employee.gender === 'M' ? 'Nam' : employee.gender === 'F' ? 'Nữ' : employee.gender === 'O' ? 'Khác' : 'Chưa có dữ liệu'}
+              </p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Ngày sinh</label>
+              <p className="font-medium">
+                {employee.date_of_birth
                   ? new Date(employee.date_of_birth).toLocaleDateString('vi-VN')
-                  : 'Chưa cập nhật',
-              ],
-              ['Số điện thoại', employee.phone_number || 'Chưa cập nhật'],
-              ['Email cá nhân', employee.personal_email || 'Chưa cập nhật'],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <h3 className="text-xs sm:text-sm font-medium text-gray-500">
-                  {label}
-                </h3>
-                <p className="mt-1 text-sm text-gray-900">{value}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500">
-                Trạng thái làm việc
-              </h3>
-              <span
-                className={`mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                  employee.employment_status
-                )}`}
-              >
-                {getStatusText(employee.employment_status)}
-              </span>
+                  : 'Chưa có dữ liệu'}
+              </p>
             </div>
+            {emp.ethnicity && (
+              <div>
+                <label className="text-sm text-gray-600">Dân tộc</label>
+                <p className="font-medium">{emp.ethnicity}</p>
+              </div>
+            )}
+            {emp.nationality && (
+              <div>
+                <label className="text-sm text-gray-600">Quốc tịch</label>
+                <p className="font-medium">{emp.nationality}</p>
+              </div>
+            )}
+            {emp.marital_status && (
+              <div>
+                <label className="text-sm text-gray-600">Tình trạng hôn nhân</label>
+                <p className="font-medium">{MARITAL_STATUS_LABELS[emp.marital_status] || emp.marital_status}</p>
+              </div>
+            )}
+            {emp.facebook_link && (
+              <div>
+                <label className="text-sm text-gray-600">Facebook</label>
+                <a href={emp.facebook_link} target="_blank" rel="noopener noreferrer"
+                  className="block font-medium text-blue-600 hover:text-blue-800 underline truncate">
+                  {emp.facebook_link}
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
 
-            {[
-              [
-                'Ngày bắt đầu',
-                employee.start_date
+        {/* ── Thông tin công việc ── */}
+        <div className="bg-white rounded-lg border p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <span className="mr-2">💼</span>
+            Thông tin công việc
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-gray-600">Phòng ban</label>
+              <p className="font-medium">{employee.department?.name || 'Chưa có dữ liệu'}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Vị trí</label>
+              <p className="font-medium">{employee.position?.title || 'Chưa có dữ liệu'}</p>
+            </div>
+            {emp.rank && (
+              <div>
+                <label className="text-sm text-gray-600">Cấp bậc</label>
+                <p className="font-medium">{emp.rank}</p>
+              </div>
+            )}
+            {emp.section && (
+              <div>
+                <label className="text-sm text-gray-600">Bộ phận</label>
+                <p className="font-medium">{emp.section}</p>
+              </div>
+            )}
+            <div>
+              <label className="text-sm text-gray-600">Quản lý trực tiếp</label>
+              <p className="font-medium">{employee.manager_name || 'Chưa có dữ liệu'}</p>
+            </div>
+            {emp.doctor_team && (
+              <div>
+                <label className="text-sm text-gray-600">Team Bác sĩ</label>
+                <p className="font-medium">{emp.doctor_team}</p>
+              </div>
+            )}
+            <div>
+              <label className="text-sm text-gray-600">Ngày bắt đầu làm việc</label>
+              <p className="font-medium">
+                {employee.start_date
                   ? new Date(employee.start_date).toLocaleDateString('vi-VN')
-                  : 'Chưa cập nhật',
-              ],
-              [
-                'Ngày kết thúc',
-                employee.end_date
-                  ? new Date(employee.end_date).toLocaleDateString('vi-VN')
-                  : 'Chưa cập nhật',
-              ],
-              ['Phòng ban', employee.department?.name || 'Chưa phân phòng'],
-              ['Chức vụ', employee.position?.title || 'Chưa phân chức vụ'],
-              ['Nhân viên HR', employee.is_hr ? 'Đúng' : 'Không'],
-              ['Người quản lý', employee.manager_name || 'Chưa có'],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <h3 className="text-xs sm:text-sm font-medium text-gray-500">
-                  {label}
-                </h3>
-                <p className="mt-1 text-sm text-gray-900">{value}</p>
+                  : 'Chưa có dữ liệu'}
+              </p>
+            </div>
+            {emp.work_form && (
+              <div>
+                <label className="text-sm text-gray-600">Hình thức làm việc</label>
+                <p className="font-medium">{WORK_FORM_LABELS[emp.work_form] || emp.work_form}</p>
               </div>
-            ))}
+            )}
+            {emp.region && (
+              <div>
+                <label className="text-sm text-gray-600">Vùng/Miền</label>
+                <p className="font-medium">{emp.region}</p>
+              </div>
+            )}
+            {emp.block && (
+              <div>
+                <label className="text-sm text-gray-600">Khối</label>
+                <p className="font-medium">{emp.block}</p>
+              </div>
+            )}
+            {emp.work_location_display && (
+              <div className="col-span-2">
+                <label className="text-sm text-gray-600">Địa điểm làm việc</label>
+                <p className="font-medium">{emp.work_location_display}</p>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <h3 className="text-sm font-medium text-gray-500 mb-4">
-            Thông tin ngân hàng
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            <div>
-              <h4 className="text-xs sm:text-sm font-medium text-gray-500">
-                Tên ngân hàng
-              </h4>
-              <p className="mt-1 text-sm text-gray-900">
-                {employee.bank_name || 'Chưa cập nhật'}
-              </p>
+        {/* ── Giấy tờ tùy thân & địa chỉ ── */}
+        {(emp.cccd_number || emp.permanent_residence || emp.current_address || emp.social_insurance_number || emp.tax_code) && (
+          <div className="bg-white rounded-lg border p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <span className="mr-2">🪪</span>
+              Giấy tờ tùy thân & địa chỉ
+            </h3>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+              {emp.cccd_number && (
+                <div>
+                  <label className="text-sm text-gray-600">Số CCCD</label>
+                  <p className="font-medium font-mono">{emp.cccd_number}</p>
+                </div>
+              )}
+              {emp.cccd_issue_date && (
+                <div>
+                  <label className="text-sm text-gray-600">Ngày cấp CCCD</label>
+                  <p className="font-medium">
+                    {new Date(emp.cccd_issue_date).toLocaleDateString('vi-VN')}
+                  </p>
+                </div>
+              )}
+              {emp.cccd_issue_place && (
+                <div>
+                  <label className="text-sm text-gray-600">Nơi cấp CCCD</label>
+                  <p className="font-medium">
+                    {CCCD_ISSUE_PLACE_LABELS[emp.cccd_issue_place] || emp.cccd_issue_place}
+                  </p>
+                </div>
+              )}
+              {emp.old_id_number && (
+                <div>
+                  <label className="text-sm text-gray-600">Số CMND cũ</label>
+                  <p className="font-medium font-mono">{emp.old_id_number}</p>
+                </div>
+              )}
+              {emp.birth_place && (
+                <div>
+                  <label className="text-sm text-gray-600">Nơi đăng ký khai sinh</label>
+                  <p className="font-medium">{emp.birth_place}</p>
+                </div>
+              )}
+              {emp.social_insurance_number && (
+                <div>
+                  <label className="text-sm text-gray-600">Mã số BHXH</label>
+                  <p className="font-medium">{emp.social_insurance_number}</p>
+                </div>
+              )}
+              {emp.tax_code && (
+                <div>
+                  <label className="text-sm text-gray-600">Mã số thuế</label>
+                  <p className="font-medium">{emp.tax_code}</p>
+                </div>
+              )}
             </div>
+            {(emp.permanent_residence || emp.current_address) && (
+              <div className="mt-4 space-y-3">
+                {emp.permanent_residence && (
+                  <div>
+                    <label className="text-sm text-gray-600">Địa chỉ thường trú</label>
+                    <p className="font-medium">{emp.permanent_residence}</p>
+                  </div>
+                )}
+                {emp.current_address && (
+                  <div>
+                    <label className="text-sm text-gray-600">Địa chỉ hiện tại</label>
+                    <p className="font-medium">{emp.current_address}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-            <div>
-              <h4 className="text-xs sm:text-sm font-medium text-gray-500">
-                Số tài khoản
-              </h4>
-              <p className="mt-1 text-sm text-gray-900">
-                {employee.bank_account || 'Chưa cập nhật'}
-              </p>
+        {/* ── Trình độ học vấn ── */}
+        {emp.education_level && (
+          <div className="bg-white rounded-lg border p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <span className="mr-2">🎓</span>
+              Trình độ học vấn
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-gray-600">Trình độ</label>
+                <p className="font-medium">{EDUCATION_LEVEL_LABELS[emp.education_level] || emp.education_level}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <h3 className="text-sm font-medium text-gray-500 mb-4">
-            Thông tin tài khoản hệ thống
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            <div>
-              <h4 className="text-xs sm:text-sm font-medium text-gray-500">
-                Tên đăng nhập
-              </h4>
-              <p className="mt-1 text-sm text-gray-900">
-                {employee.user?.username || 'Chưa có tài khoản'}
-              </p>
-            </div>
-
-            <div>
-              <h4 className="text-xs sm:text-sm font-medium text-gray-500">
-                Email
-              </h4>
-              <p className="mt-1 text-sm text-gray-900">
-                {employee.user?.email || 'Chưa cập nhật'}
-              </p>
+        {/* ── Thông tin tài chính & ngân hàng ── */}
+        {(employee.bank_name || employee.bank_account || emp.bank_branch) && (
+          <div className="bg-white rounded-lg border p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <span className="mr-2">💳</span>
+              Thông tin tài chính & ngân hàng
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-gray-600">Ngân hàng</label>
+                <p className="font-medium">{employee.bank_name || 'Chưa có dữ liệu'}</p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-600">Số tài khoản</label>
+                <p className="font-medium">{employee.bank_account || 'Chưa có dữ liệu'}</p>
+              </div>
+              {emp.bank_branch && (
+                <div>
+                  <label className="text-sm text-gray-600">Chi nhánh</label>
+                  <p className="font-medium">{emp.bank_branch}</p>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-200">
-        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-          <div className="text-sm text-gray-500">
-            Ngày tạo:{' '}
-            {new Date(employee.created_at).toLocaleDateString('vi-VN')}
+        {/* ── Lương & Hợp đồng ── */}
+        {(emp.basic_salary != null || emp.contract_type) && (
+          <div className="bg-white rounded-lg border p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <span className="mr-2">💰</span>
+              Lương & Hợp đồng
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              {emp.basic_salary != null && (
+                <div>
+                  <label className="text-sm text-gray-600">Lương cơ bản</label>
+                  <p className="font-medium text-green-700 text-lg">
+                    {Number(emp.basic_salary).toLocaleString('vi-VN')} đ
+                  </p>
+                </div>
+              )}
+              {emp.allowance != null && (
+                <div>
+                  <label className="text-sm text-gray-600">Phụ cấp</label>
+                  <p className="font-medium text-green-700">
+                    {Number(emp.allowance).toLocaleString('vi-VN')} đ
+                  </p>
+                </div>
+              )}
+              {emp.contract_type && (
+                <div>
+                  <label className="text-sm text-gray-600">Loại hợp đồng</label>
+                  <p className="font-medium">{emp.contract_type_display || CONTRACT_TYPE_LABELS[emp.contract_type] || emp.contract_type}</p>
+                </div>
+              )}
+              {emp.probation_months != null && (
+                <div>
+                  <label className="text-sm text-gray-600">Thời gian thử việc</label>
+                  <p className="font-medium">{emp.probation_months} tháng</p>
+                </div>
+              )}
+              {emp.probation_end_date && (
+                <div>
+                  <label className="text-sm text-gray-600">Ngày kết thúc thử việc</label>
+                  <p className="font-medium">{new Date(emp.probation_end_date).toLocaleDateString('vi-VN')}</p>
+                </div>
+              )}
+              {emp.probation_rate && (
+                <div>
+                  <label className="text-sm text-gray-600">Tỉ lệ thử việc</label>
+                  <p className="font-medium">{PROBATION_RATE_LABELS[emp.probation_rate] || emp.probation_rate}</p>
+                </div>
+              )}
+              {emp.probation_salary_percentage != null && (
+                <div>
+                  <label className="text-sm text-gray-600">% lương thử việc</label>
+                  <p className="font-medium">{emp.probation_salary_percentage_display || `${emp.probation_salary_percentage}%`}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Trạng thái hồ sơ ── */}
+        {emp.file_status && (
+          <div className="bg-white rounded-lg border p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <span className="mr-2">📋</span>
+              Trạng thái hồ sơ
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-gray-600">Trạng thái hồ sơ</label>
+                <p className="font-medium">{emp.file_status_display || FILE_STATUS_LABELS[emp.file_status] || emp.file_status}</p>
+              </div>
+              {emp.file_submission_deadline && (
+                <div>
+                  <label className="text-sm text-gray-600">Hạn nộp hồ sơ</label>
+                  <p className="font-medium">{new Date(emp.file_submission_deadline).toLocaleDateString('vi-VN')}</p>
+                </div>
+              )}
+              {emp.file_submission_date && (
+                <div>
+                  <label className="text-sm text-gray-600">Ngày nộp hồ sơ</label>
+                  <p className="font-medium">{new Date(emp.file_submission_date).toLocaleDateString('vi-VN')}</p>
+                </div>
+              )}
+              {emp.file_review_notes && (
+                <div className="col-span-2">
+                  <label className="text-sm text-gray-600">Ghi chú hồ sơ</label>
+                  <p className="font-medium">{emp.file_review_notes}</p>
+                </div>
+              )}
+              {emp.training_presentation_viewed != null && (
+                <div>
+                  <label className="text-sm text-gray-600">Đã xem bài thuyết trình đào tạo</label>
+                  <p className="font-medium">
+                    {emp.training_presentation_viewed
+                      ? <span className="text-green-600">✓ Đã xem</span>
+                      : <span className="text-gray-500">Chưa xem</span>}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Thông tin tài khoản hệ thống ── */}
+        {employee.user && (
+          <div className="bg-white rounded-lg border p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <span className="mr-2">🔐</span>
+              Thông tin tài khoản hệ thống
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-gray-600">Tên đăng nhập</label>
+                <p className="font-medium">{employee.user.username || 'Chưa có tài khoản'}</p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-600">Email</label>
+                <p className="font-medium">{employee.user.email || 'Chưa cập nhật'}</p>
+              </div>
+              <div>
+                <label className="text-sm text-gray-600">Nhân viên HR</label>
+                <p className="font-medium">{employee.is_hr ? 'Có' : 'Không'}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Thông tin người liên hệ khẩn cấp ── */}
+        {emp.emergency_contact_name && (
+          <div className="bg-white rounded-lg border p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <span className="mr-2">🆘</span>
+              Thông tin người liên hệ khẩn cấp
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm text-gray-600">Họ và tên</label>
+                <p className="font-medium">{emp.emergency_contact_name}</p>
+              </div>
+              {emp.emergency_contact_relationship && (
+                <div>
+                  <label className="text-sm text-gray-600">Mối quan hệ</label>
+                  <p className="font-medium">{emp.emergency_contact_relationship}</p>
+                </div>
+              )}
+              {emp.emergency_contact_phone && (
+                <div>
+                  <label className="text-sm text-gray-600">Số điện thoại</label>
+                  <p className="font-medium">{emp.emergency_contact_phone}</p>
+                </div>
+              )}
+              {emp.emergency_contact_dob && (
+                <div>
+                  <label className="text-sm text-gray-600">Ngày sinh</label>
+                  <p className="font-medium">
+                    {new Date(emp.emergency_contact_dob).toLocaleDateString('vi-VN')}
+                  </p>
+                </div>
+              )}
+              {emp.emergency_contact_occupation && (
+                <div>
+                  <label className="text-sm text-gray-600">Nghề nghiệp</label>
+                  <p className="font-medium">{emp.emergency_contact_occupation}</p>
+                </div>
+              )}
+              {emp.emergency_contact_address && (
+                <div className="col-span-2">
+                  <label className="text-sm text-gray-600">Địa chỉ</label>
+                  <p className="font-medium">{emp.emergency_contact_address}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="bg-white rounded-lg border p-4 flex justify-between items-center text-sm text-gray-500">
+          <div>
+            Ngày tạo: {new Date(employee.created_at).toLocaleDateString('vi-VN')}
             {employee.updated_at !== employee.created_at && (
-              <span className="block sm:inline sm:ml-4">
-                Cập nhật lần cuối:{' '}
-                {new Date(employee.updated_at).toLocaleDateString('vi-VN')}
+              <span className="ml-4">
+                Cập nhật lần cuối: {new Date(employee.updated_at).toLocaleDateString('vi-VN')}
               </span>
             )}
           </div>
-
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <button
-              onClick={() =>
-                navigate(`/dashboard/employees/${employee.id}/edit`)
-              }
-              className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Sửa thông tin
-            </button>
-            <button
-              onClick={() => navigate('/dashboard/employees')}
-              className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
-            >
-              Quay lại
-            </button>
-          </div>
+          <button
+            onClick={() => navigate(`/dashboard/employees/${employee.id}/edit`)}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+          >
+            <PencilIcon className="w-4 h-4" />
+            Sửa thông tin
+          </button>
         </div>
+
       </div>
     </div>
-  </div>
-);
-
+  );
 };
 
 export default EmployeeShow;

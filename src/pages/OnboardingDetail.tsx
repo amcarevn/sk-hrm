@@ -94,6 +94,16 @@ type OnboardingDetail = {
   expected_end_date: string | null;
   contract_type: string;
   probation_period_months?: number;
+  rank?: string;
+  section?: string;
+  doctor_team?: string;
+  birth_place?: string;
+  ethnicity?: string;
+  nationality?: string;
+  marital_status?: string;
+  work_form?: string;
+  region?: string;
+  block?: string;
   status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   progress_percentage: number;
   employee: { id: number; full_name: string; employee_id: string } | null;
@@ -103,27 +113,26 @@ type OnboardingDetail = {
   contracts?: { id: number }[];
   created_at: string;
   notes: string;
-  // Personal info (filled by employee)
   desired_employee_id?: string;
   citizen_id?: string;
   date_of_birth?: string;
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
   permanent_address?: string;
   current_address?: string;
-  // Education
   education_level?: string;
   university?: string;
   major?: string;
   graduation_year?: number | null;
-  // Financial / Banking
   salary?: number | string | null;
   salary_note?: string;
+  allowance?: number | string | null;
   bank_name?: string;
-  bank_account_number?: string;
+  bank_account?: string;
   bank_account_holder?: string;
+  bank_branch?: string;
   tax_code?: string;
   tax_dependents?: number;
-  // Uploaded files
+  social_insurance_number?: string | null;
   cv_file?: string | null;
   cv_file_url?: string | null;
   id_card_front?: string | null;
@@ -134,7 +143,6 @@ type OnboardingDetail = {
   diploma_file_url?: string | null;
   citizen_id_file?: string | null;
   citizen_id_file_url?: string | null;
-  // Status flags
   employee_info_completed?: boolean;
   employee_info_completed_at?: string | null;
 };
@@ -153,10 +161,16 @@ const showSuccess = (msg: string) => {
   window.alert(msg);
 };
 
-const GENDER_LABELS: Record<string, string> = {
-  MALE: 'Nam',
-  FEMALE: 'Nữ',
-  OTHER: 'Khác',
+const MARITAL_STATUS_LABELS: Record<string, string> = {
+  SINGLE: 'Độc thân',
+  MARRIED: 'Đã kết hôn',
+  DIVORCED: 'Ly hôn',
+  WIDOWED: 'Góa',
+};
+
+const WORK_FORM_LABELS: Record<string, string> = {
+  FULL_TIME: 'Full-time',
+  PART_TIME: 'Part-time',
 };
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
@@ -187,7 +201,7 @@ const getStatusBadge = (status: string) => {
 // ============================================
 
 type EditSection =
-  | 'employee_info'   // merged: candidate info + employee system profile (8 fields)
+  | 'employee_info'
   | 'job'
   | 'personal'
   | 'education'
@@ -203,11 +217,85 @@ const CONTRACT_OPTIONS = [
   { value: 'PART_TIME', label: 'Bán thời gian' },
 ];
 
+const PROBATION_RATE_OPTIONS = [
+  { value: 'OPTION_1', label: 'Tháng đầu 85%, tháng sau 100%' },
+  { value: 'OPTION_2', label: 'Tháng đầu 100%, tháng sau 100%' },
+];
+
+const CCCD_ISSUE_PLACE_OPTIONS = [
+  { value: 'POLICE_ADMIN', label: 'Cục cảnh sát Quản lý hành chính & Trật tự xã hội' },
+  { value: 'MINISTRY_PUBLIC_SECURITY', label: 'Bộ Công An' },
+];
+
+// ============================================
+// EDIT FIELD — defined OUTSIDE main component to prevent focus loss on re-render
+// ============================================
+
+interface EditFieldProps {
+  label: string;
+  name: string;
+  type?: string;
+  options?: { value: string; label: string }[];
+  readOnly?: boolean;
+  editData: Record<string, any>;
+  onChange: (name: string, value: any) => void;
+}
+
+const EditField: React.FC<EditFieldProps> = ({
+  label, name, type = 'text', options, readOnly = false, editData, onChange,
+}) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
+    if (readOnly) return;
+    const value = type === 'number' && e.target.value !== '' ? Number(e.target.value) : e.target.value;
+    onChange(name, value);
+  };
+
+  const commonClass = `w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+    readOnly ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''
+  }`;
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {options ? (
+        <select
+          value={editData[name] ?? ''}
+          onChange={handleChange}
+          disabled={readOnly}
+          className={commonClass}
+        >
+          <option value="">-- Chọn --</option>
+          {options.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      ) : type === 'textarea' ? (
+        <textarea
+          value={editData[name] ?? ''}
+          onChange={handleChange}
+          rows={3}
+          readOnly={readOnly}
+          className={commonClass}
+        />
+      ) : (
+        <input
+          type={type}
+          value={editData[name] ?? ''}
+          onChange={handleChange}
+          readOnly={readOnly}
+          className={commonClass}
+        />
+      )}
+    </div>
+  );
+};
+
 // ============================================
 // MAIN COMPONENT
 // ============================================
 
-// Detect file type from a URL or S3 key
 const getFileType = (url: string): 'image' | 'pdf' | 'other' => {
   const clean = url.split('?')[0].toLowerCase();
   if (clean.match(/\.(jpg|jpeg|png|gif|webp|bmp|tiff?)$/)) return 'image';
@@ -233,6 +321,11 @@ const OnboardingDetail: React.FC = () => {
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [editLoading, setEditLoading] = useState(false);
 
+  // Stable handler — prevents EditField re-mount on every keystroke
+  const handleEditFieldChange = React.useCallback((name: string, value: any) => {
+    setEditData(prev => ({ ...prev, [name]: value }));
+  }, []);
+
   useEffect(() => {
     if (isEmployee) setActiveTab('documents');
   }, [isEmployee]);
@@ -247,22 +340,16 @@ const OnboardingDetail: React.FC = () => {
       setLoading(false);
       return;
     }
-
     setLoading(true);
     setError(null);
-
     try {
       const data = await onboardingService.get(parseInt(id));
-
       if (data.progress_percentage !== undefined && data.progress_percentage !== null) {
         data.progress_percentage = typeof data.progress_percentage === 'string'
           ? parseFloat(data.progress_percentage)
           : data.progress_percentage;
       }
-
       setOnboarding(data as any);
-
-      // Fetch full employee profile for admins when employee record exists
       if (userRole === 'ADMIN' && (data as any).employee?.employee_id) {
         try {
           const profile = await employeesAPI.getByEmployeeId((data as any).employee.employee_id);
@@ -325,26 +412,16 @@ const OnboardingDetail: React.FC = () => {
     setEditData(initialData);
   };
 
-  /**
-   * Save logic:
-   * - 'employee_info': nếu đã có employeeProfile → patch employee API (full_name, gender,
-   *   date_of_birth, phone_number, personal_email, ethnicity, nationality) + onboarding API
-   *   (candidate_name, candidate_email, candidate_phone). Nếu chưa có profile → chỉ patch onboarding.
-   * - Các section khác giữ nguyên logic cũ.
-   */
   const handleSaveEdit = async () => {
     if (!id || !editSection) return;
     setEditLoading(true);
     try {
       if (editSection === 'employee_info') {
-        // Always update onboarding candidate fields
         await onboardingService.superAdminPartialUpdate(parseInt(id), {
           candidate_name: editData.full_name,
           candidate_email: editData.personal_email,
           candidate_phone: editData.phone_number,
         });
-
-        // If an employee record exists, also update the employee profile
         if (employeeProfile?.employee_id) {
           await employeesAPI.partialUpdateByEmployeeId(employeeProfile.employee_id, {
             full_name: editData.full_name,
@@ -358,13 +435,11 @@ const OnboardingDetail: React.FC = () => {
           const updated = await employeesAPI.getByEmployeeId(employeeProfile.employee_id);
           setEmployeeProfile(updated);
         }
-
         await fetchOnboardingDetail();
       } else if (['job', 'personal', 'education', 'financial'].includes(editSection)) {
         await onboardingService.superAdminPartialUpdate(parseInt(id), editData);
         await fetchOnboardingDetail();
       } else {
-        // emp_cccd, emp_salary
         const empId = employeeProfile?.employee_id;
         if (!empId) throw new Error('Không tìm thấy mã nhân viên');
         await employeesAPI.partialUpdateByEmployeeId(empId, editData);
@@ -391,10 +466,21 @@ const OnboardingDetail: React.FC = () => {
   const renderInfoTab = () => {
     if (!onboarding) return null;
 
+    // Parse extra_info một lần để dùng nhiều chỗ
+    const extraInfo = (() => {
+      try {
+        return typeof employeeProfile?.extra_info === 'string'
+          ? JSON.parse(employeeProfile.extra_info || '{}')
+          : (employeeProfile?.extra_info || {});
+      } catch {
+        return {};
+      }
+    })();
+
     return (
       <div className="space-y-6">
 
-        {/* ── MERGED: Thông tin nhân viên ── */}
+        {/* ── Thông tin nhân viên ── */}
         <div className="bg-white rounded-lg border p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
             <span className="flex items-center">
@@ -404,15 +490,14 @@ const OnboardingDetail: React.FC = () => {
             {userRole === 'ADMIN' && (
               <button
                 onClick={() => openEdit('employee_info', {
-                  // Pull from employeeProfile when available, fall back to onboarding candidate fields
                   employee_id: employeeProfile?.employee_id ?? onboarding.employee?.employee_id ?? '',
                   full_name: employeeProfile?.full_name ?? onboarding.candidate_name ?? '',
                   personal_email: employeeProfile?.personal_email ?? onboarding.candidate_email ?? '',
                   phone_number: employeeProfile?.phone_number ?? onboarding.candidate_phone ?? '',
                   gender: employeeProfile?.gender ?? '',
                   date_of_birth: employeeProfile?.date_of_birth ?? '',
-                  ethnicity: employeeProfile?.ethnicity ?? '',
-                  nationality: employeeProfile?.nationality ?? '',
+                  ethnicity: (employeeProfile as any)?.ethnicity ?? '',
+                  nationality: (employeeProfile as any)?.nationality ?? '',
                 })}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                 title="Sửa thông tin nhân viên"
@@ -422,7 +507,6 @@ const OnboardingDetail: React.FC = () => {
             )}
           </h3>
           <div className="grid grid-cols-2 gap-4">
-            {/* Mã nhân viên — only meaningful once employee record exists */}
             <div>
               <label className="text-sm text-gray-600">Mã nhân viên</label>
               <p className="font-medium text-indigo-700">
@@ -432,19 +516,19 @@ const OnboardingDetail: React.FC = () => {
             <div>
               <label className="text-sm text-gray-600">Họ và tên</label>
               <p className="font-medium">
-                {employeeProfile?.full_name ?? onboarding.candidate_name ?? 'N/A'}
+                {employeeProfile?.full_name ?? onboarding.candidate_name ?? 'Chưa có dữ liệu'}
               </p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Email cá nhân</label>
               <p className="font-medium">
-                {employeeProfile?.personal_email ?? onboarding.candidate_email ?? 'N/A'}
+                {employeeProfile?.personal_email ?? onboarding.candidate_email ?? 'Chưa có dữ liệu'}
               </p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Số điện thoại</label>
               <p className="font-medium">
-                {employeeProfile?.phone_number ?? onboarding.candidate_phone ?? 'N/A'}
+                {employeeProfile?.phone_number ?? onboarding.candidate_phone ?? 'Chưa có dữ liệu'}
               </p>
             </div>
             <div>
@@ -452,7 +536,7 @@ const OnboardingDetail: React.FC = () => {
               <p className="font-medium">
                 {employeeProfile?.gender
                   ? (employeeProfile.gender === 'M' ? 'Nam' : employeeProfile.gender === 'F' ? 'Nữ' : 'Khác')
-                  : 'N/A'}
+                  : 'Chưa có dữ liệu'}
               </p>
             </div>
             <div>
@@ -460,24 +544,34 @@ const OnboardingDetail: React.FC = () => {
               <p className="font-medium">
                 {employeeProfile?.date_of_birth
                   ? new Date(employeeProfile.date_of_birth).toLocaleDateString('vi-VN')
-                  : 'N/A'}
+                  : 'Chưa có dữ liệu'}
               </p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Dân tộc</label>
               <p className="font-medium">
-                {(employeeProfile as any)?.ethnicity || 'N/A'}
+                {(employeeProfile as any)?.ethnicity || onboarding.ethnicity || 'Chưa có dữ liệu'}
               </p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Quốc tịch</label>
               <p className="font-medium">
-                {(employeeProfile as any)?.nationality || 'N/A'}
+                {(employeeProfile as any)?.nationality || onboarding.nationality || 'Chưa có dữ liệu'}
+              </p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Tình trạng hôn nhân</label>
+              <p className="font-medium">
+                {(() => {
+                  const ms = (employeeProfile as any)?.marital_status || (onboarding as any)?.marital_status;
+                  return ms ? (MARITAL_STATUS_LABELS[ms] || ms) : 'Chưa có dữ liệu';
+                })()}
               </p>
             </div>
           </div>
         </div>
 
+        {/* ── Thông tin công việc ── */}
         <div className="bg-white rounded-lg border p-6">
           <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
             <span className="flex items-center">
@@ -487,10 +581,13 @@ const OnboardingDetail: React.FC = () => {
             {userRole === 'ADMIN' && (
               <button
                 onClick={() => openEdit('job', {
-                  start_date: onboarding.start_date,
-                  expected_end_date: onboarding.expected_end_date ?? '',
-                  contract_type: onboarding.contract_type,
-                  probation_period_months: onboarding.probation_period_months ?? '',
+                  rank: onboarding.rank ?? '',
+                  section: onboarding.section ?? '',
+                  doctor_team: onboarding.doctor_team ?? '',
+                  work_form: onboarding.work_form ?? '',
+                  region: onboarding.region ?? '',
+                  block: onboarding.block ?? '',
+                  start_date: onboarding.start_date ?? '',
                 })}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                 title="Sửa thông tin công việc"
@@ -501,55 +598,63 @@ const OnboardingDetail: React.FC = () => {
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-gray-600">Vị trí</label>
-              <p className="font-medium">{onboarding.position?.title || 'N/A'}</p>
+              <label className="text-sm text-gray-600">Phòng ban</label>
+              <p className="font-medium">{onboarding.department?.name || 'Chưa có dữ liệu'}</p>
             </div>
             <div>
-              <label className="text-sm text-gray-600">Phòng ban</label>
-              <p className="font-medium">{onboarding.department?.name || 'N/A'}</p>
+              <label className="text-sm text-gray-600">Cấp bậc</label>
+              <p className="font-medium">{onboarding.rank || 'Chưa có dữ liệu'}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Vị trí</label>
+              <p className="font-medium">{onboarding.position?.title || 'Chưa có dữ liệu'}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Bộ phận</label>
+              <p className="font-medium">{onboarding.section || 'Chưa có dữ liệu'}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Quản lý trực tiếp</label>
-              <p className="font-medium">{onboarding.direct_manager?.full_name || 'N/A'}</p>
+              <p className="font-medium">{onboarding.direct_manager?.full_name || 'Chưa có dữ liệu'}</p>
             </div>
             <div>
-              <label className="text-sm text-gray-600">HR phụ trách</label>
-              <p className="font-medium">{onboarding.hr_responsible?.full_name || 'N/A'}</p>
+              <label className="text-sm text-gray-600">Bác sĩ phụ trách</label>
+              <p className="font-medium">{onboarding.doctor_team || 'Chưa có dữ liệu'}</p>
             </div>
             <div>
-              <label className="text-sm text-gray-600">Ngày bắt đầu</label>
-              <p className="font-medium">{onboarding.start_date || 'N/A'}</p>
+              <label className="text-sm text-gray-600">Ngày bắt đầu làm việc</label>
+              <p className="font-medium">
+                {employeeProfile?.start_date
+                  ? new Date(employeeProfile.start_date).toLocaleDateString('vi-VN')
+                  : 'Chưa có dữ liệu'}
+              </p>
             </div>
             <div>
-              <label className="text-sm text-gray-600">Ngày kết thúc dự kiến</label>
-              <p className="font-medium">{onboarding.expected_end_date || 'N/A'}</p>
+              <label className="text-sm text-gray-600">Hình thức làm việc</label>
+              <p className="font-medium">
+                {onboarding.work_form ? (WORK_FORM_LABELS[onboarding.work_form] || onboarding.work_form) : 'Chưa có dữ liệu'}
+              </p>
             </div>
             <div>
-              <label className="text-sm text-gray-600">Loại hợp đồng</label>
-              <p className="font-medium">{CONTRACT_TYPE_LABELS[onboarding.contract_type] || onboarding.contract_type || 'N/A'}</p>
+              <label className="text-sm text-gray-600">Vùng/Miền</label>
+              <p className="font-medium">{onboarding.region || 'Chưa có dữ liệu'}</p>
             </div>
-            {onboarding.probation_period_months != null && (
-              <div>
-                <label className="text-sm text-gray-600">Thời gian thử việc</label>
-                <p className="font-medium">{onboarding.probation_period_months} tháng</p>
-              </div>
-            )}
+            <div>
+              <label className="text-sm text-gray-600">Khối</label>
+              <p className="font-medium">{onboarding.block || 'Chưa có dữ liệu'}</p>
+            </div>
           </div>
         </div>
 
-        {/* Employee-filled personal information — only visible to admin */}
+        {/* Employee-filled sections — only visible to admin */}
         {userRole === 'ADMIN' && onboarding.employee_info_completed && (
           <>
+            {/* ── Giấy tờ tùy thân & địa chỉ ── */}
             <div className="bg-white rounded-lg border p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
                 <span className="flex items-center">
                   <span className="mr-2">🪪</span>
-                  Thông tin cá nhân (nhân sự tự nhập)
-                  {onboarding.employee_info_completed_at && (
-                    <span className="ml-3 text-xs font-normal text-gray-500">
-                      Hoàn thành lúc: {new Date(onboarding.employee_info_completed_at).toLocaleString('vi-VN')}
-                    </span>
-                  )}
+                  Giấy tờ tùy thân & địa chỉ
                 </span>
                 <button
                   onClick={() => openEdit('personal', {
@@ -558,49 +663,81 @@ const OnboardingDetail: React.FC = () => {
                     gender: onboarding.gender ?? '',
                     permanent_address: onboarding.permanent_address ?? '',
                     current_address: onboarding.current_address ?? '',
+                    cccd_number: employeeProfile?.cccd_number ?? '',
+                    cccd_issue_date: employeeProfile?.cccd_issue_date ?? '',
+                    cccd_issue_place: employeeProfile?.cccd_issue_place ?? '',
+                    birth_place: employeeProfile?.birth_place ?? '',
+                    permanent_residence: employeeProfile?.permanent_residence ?? '',
+                    social_insurance_number: employeeProfile?.social_insurance_number ?? '',
+                    tax_code: onboarding.tax_code ?? '',
                   })}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                  title="Sửa thông tin cá nhân"
+                  title="Sửa giấy tờ tùy thân & địa chỉ"
                 >
                   <PencilIcon className="w-4 h-4" />
                 </button>
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                 <div>
-                  <label className="text-sm text-gray-600">Số CMND / CCCD</label>
-                  <p className="font-medium">{onboarding.citizen_id || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Ngày sinh</label>
-                  <p className="font-medium">
-                    {onboarding.date_of_birth
-                      ? new Date(onboarding.date_of_birth).toLocaleDateString('vi-VN')
-                      : 'N/A'}
+                  <label className="text-sm text-gray-600">Số CCCD</label>
+                  <p className="font-medium font-mono">
+                    {onboarding.citizen_id || employeeProfile?.cccd_number || 'Chưa có dữ liệu'}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600">Giới tính</label>
-                  <p className="font-medium">{onboarding.gender ? (GENDER_LABELS[onboarding.gender] || onboarding.gender) : 'N/A'}</p>
+                  <label className="text-sm text-gray-600">Ngày cấp CCCD</label>
+                  <p className="font-medium">
+                    {employeeProfile?.cccd_issue_date
+                      ? new Date(employeeProfile.cccd_issue_date).toLocaleDateString('vi-VN')
+                      : 'Chưa có dữ liệu'}
+                  </p>
                 </div>
-                {onboarding.desired_employee_id && (
-                  <div>
-                    <label className="text-sm text-gray-600">Mã nhân viên mong muốn</label>
-                    <p className="font-medium">{onboarding.desired_employee_id}</p>
-                  </div>
-                )}
-                <div className="col-span-2">
+                <div>
+                  <label className="text-sm text-gray-600">Nơi cấp CCCD</label>
+                  <p className="font-medium">
+                    {employeeProfile?.cccd_issue_place === 'POLICE_ADMIN'
+                      ? 'Cục cảnh sát Quản lý hành chính & Trật tự xã hội'
+                      : employeeProfile?.cccd_issue_place === 'MINISTRY_PUBLIC_SECURITY'
+                      ? 'Bộ Công An'
+                      : employeeProfile?.cccd_issue_place || 'Chưa có dữ liệu'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Nơi đăng ký khai sinh</label>
+                  <p className="font-medium">
+                    {onboarding.birth_place || employeeProfile?.birth_place || 'Chưa có dữ liệu'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Mã số BHXH</label>
+                  <p className="font-medium">
+                    {onboarding.social_insurance_number || employeeProfile?.social_insurance_number || 'Chưa có dữ liệu'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Mã số thuế</label>
+                  <p className="font-medium">{onboarding.tax_code || 'Chưa có dữ liệu'}</p>
+                </div>
+              </div>
+              <div className="mt-4 space-y-3">
+                <div>
                   <label className="text-sm text-gray-600">Địa chỉ thường trú</label>
-                  <p className="font-medium">{onboarding.permanent_address || 'N/A'}</p>
+                  <p className="font-medium">
+                    {employeeProfile?.permanent_residence || onboarding.permanent_address || 'Chưa có dữ liệu'}
+                  </p>
                 </div>
-                {onboarding.current_address && (
-                  <div className="col-span-2">
-                    <label className="text-sm text-gray-600">Địa chỉ hiện tại</label>
-                    <p className="font-medium">{onboarding.current_address}</p>
-                  </div>
-                )}
+                <div>
+                  <label className="text-sm text-gray-600">Địa chỉ hiện tại</label>
+                  <p className="font-medium">
+                    {(employeeProfile?.current_address && employeeProfile.current_address !== '')
+                      ? employeeProfile.current_address
+                      : (onboarding.current_address || 'Chưa có dữ liệu')}
+                  </p>
+                </div>
               </div>
             </div>
 
+            {/* ── Trình độ học vấn ── */}
             <div className="bg-white rounded-lg border p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
                 <span className="flex items-center">
@@ -623,23 +760,24 @@ const OnboardingDetail: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-gray-600">Trình độ</label>
-                  <p className="font-medium">{onboarding.education_level || 'N/A'}</p>
+                  <p className="font-medium">{onboarding.education_level || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Trường đại học / cao đẳng</label>
-                  <p className="font-medium">{onboarding.university || 'N/A'}</p>
+                  <p className="font-medium">{onboarding.university || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Chuyên ngành</label>
-                  <p className="font-medium">{onboarding.major || 'N/A'}</p>
+                  <p className="font-medium">{onboarding.major || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Năm tốt nghiệp</label>
-                  <p className="font-medium">{onboarding.graduation_year ?? 'N/A'}</p>
+                  <p className="font-medium">{onboarding.graduation_year ?? 'Chưa có dữ liệu'}</p>
                 </div>
               </div>
             </div>
 
+            {/* ── Thông tin tài chính & ngân hàng ── */}
             <div className="bg-white rounded-lg border p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
                 <span className="flex items-center">
@@ -648,13 +786,10 @@ const OnboardingDetail: React.FC = () => {
                 </span>
                 <button
                   onClick={() => openEdit('financial', {
-                    salary: onboarding.salary ?? '',
-                    salary_note: onboarding.salary_note ?? '',
                     bank_name: onboarding.bank_name ?? '',
-                    bank_account_number: onboarding.bank_account_number ?? '',
+                    bank_account: onboarding.bank_account ?? '',
                     bank_account_holder: onboarding.bank_account_holder ?? '',
-                    tax_code: onboarding.tax_code ?? '',
-                    tax_dependents: onboarding.tax_dependents ?? '',
+                    bank_branch: onboarding.bank_branch ?? '',
                   })}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                   title="Sửa thông tin tài chính"
@@ -664,49 +799,33 @@ const OnboardingDetail: React.FC = () => {
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-600">Mức lương</label>
-                  <p className="font-medium">
-                    {onboarding.salary != null && onboarding.salary !== '' && !isNaN(Number(onboarding.salary))
-                      ? Number(onboarding.salary).toLocaleString('vi-VN') + ' đ'
-                      : 'N/A'}
-                  </p>
-                </div>
-                {onboarding.salary_note && (
-                  <div>
-                    <label className="text-sm text-gray-600">Ghi chú lương</label>
-                    <p className="font-medium">{onboarding.salary_note}</p>
-                  </div>
-                )}
-                <div>
                   <label className="text-sm text-gray-600">Ngân hàng</label>
-                  <p className="font-medium">{onboarding.bank_name || 'N/A'}</p>
+                  <p className="font-medium">{onboarding.bank_name || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Số tài khoản</label>
-                  <p className="font-medium">{onboarding.bank_account_number || 'N/A'}</p>
+                  <p className="font-medium">{onboarding.bank_account || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Chủ tài khoản</label>
-                  <p className="font-medium">{onboarding.bank_account_holder || 'N/A'}</p>
+                  <p className="font-medium">{onboarding.bank_account_holder || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600">Mã số thuế</label>
-                  <p className="font-medium">{onboarding.tax_code || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Số người phụ thuộc</label>
-                  <p className="font-medium">{onboarding.tax_dependents ?? 'N/A'}</p>
+                  <label className="text-sm text-gray-600">Chi nhánh</label>
+                  <p className="font-medium">{onboarding.bank_branch || 'Chưa có dữ liệu'}</p>
                 </div>
               </div>
             </div>
 
-            {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file || onboarding.citizen_id_file || onboarding.citizen_id_file_url) && (
+            {/* ── Hồ sơ đính kèm ── */}
+            {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file || onboarding.citizen_id_file || onboarding.citizen_id_file_url || extraInfo.facebook_link) && (
               <div className="bg-white rounded-lg border p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center">
                   <span className="mr-2">📎</span>
                   Hồ sơ đính kèm
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
+                  {/* Files */}
                   {([
                     { key: 'cv_file', label: 'CV', url: onboarding.cv_file_url || onboarding.cv_file },
                     { key: 'id_card_front', label: 'CCCD mặt trước', url: onboarding.id_card_front_url || onboarding.id_card_front },
@@ -767,91 +886,39 @@ const OnboardingDetail: React.FC = () => {
                       );
                     })
                   }
+
+                  {/* Facebook — cùng grid với các file */}
+                  {extraInfo.facebook_link && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="h-32 bg-blue-50 flex flex-col items-center justify-center">
+                        <span className="text-3xl mb-1">👤</span>
+                        <span className="text-xs text-blue-500 font-medium px-2 text-center truncate w-full">
+                          Facebook
+                        </span>
+                      </div>
+                      <div className="p-2 bg-white flex items-center justify-between">
+                        <label className="text-xs text-gray-600 font-medium truncate">Facebook</label>
+                        <a
+                          href={extraInfo.facebook_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+                          title="Mở Facebook"
+                        >
+                          <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
           </>
         )}
 
-        {onboarding.employee && (
-          <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
-            <h3 className="text-lg font-semibold mb-2 text-blue-900 flex items-center">
-              <span className="mr-2">✅</span>
-              Nhân viên đã tạo
-            </h3>
-            <p className="text-blue-700 mb-3">
-              Hồ sơ nhân viên đã được tạo: <span className="font-medium">{onboarding.employee.full_name}</span>
-              {' '}(Mã: {onboarding.employee.employee_id})
-            </p>
-            <button
-              onClick={() => navigate(`/dashboard/employees/${onboarding.employee?.id}`)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Xem hồ sơ nhân viên
-            </button>
-          </div>
-        )}
-
-        {/* Admin-only: remaining employee profile sections (CCCD, salary, file status, extra) */}
+        {/* Admin-only: remaining employee profile sections */}
         {userRole === 'ADMIN' && employeeProfile && (
           <>
-            {/* Identity (CCCD) */}
-            {(employeeProfile.cccd_number || employeeProfile.cccd_issue_date || employeeProfile.cccd_issue_place || employeeProfile.birth_place || employeeProfile.permanent_residence) && (
-              <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
-                  <span className="flex items-center">
-                    <span className="mr-2">🪪</span>
-                    Thông tin CCCD / Giấy tờ tùy thân
-                  </span>
-                  <button
-                    onClick={() => openEdit('emp_cccd', {
-                      cccd_number: employeeProfile.cccd_number ?? '',
-                      cccd_issue_date: employeeProfile.cccd_issue_date ?? '',
-                      cccd_issue_place: employeeProfile.cccd_issue_place ?? '',
-                      birth_place: employeeProfile.birth_place ?? '',
-                      permanent_residence: employeeProfile.permanent_residence ?? '',
-                    })}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                    title="Sửa thông tin CCCD"
-                  >
-                    <PencilIcon className="w-4 h-4" />
-                  </button>
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-gray-600">Số CCCD</label>
-                    <p className="font-medium font-mono">{employeeProfile.cccd_number || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">Ngày cấp CCCD</label>
-                    <p className="font-medium">
-                      {employeeProfile.cccd_issue_date
-                        ? new Date(employeeProfile.cccd_issue_date).toLocaleDateString('vi-VN')
-                        : 'N/A'}
-                    </p>
-                  </div>
-                  {employeeProfile.cccd_issue_place && (
-                    <div className="col-span-2">
-                      <label className="text-sm text-gray-600">Nơi cấp CCCD</label>
-                      <p className="font-medium">{employeeProfile.cccd_issue_place}</p>
-                    </div>
-                  )}
-                  {employeeProfile.birth_place && (
-                    <div className="col-span-2">
-                      <label className="text-sm text-gray-600">Nơi sinh</label>
-                      <p className="font-medium">{employeeProfile.birth_place}</p>
-                    </div>
-                  )}
-                  {employeeProfile.permanent_residence && (
-                    <div className="col-span-2">
-                      <label className="text-sm text-gray-600">Địa chỉ thường trú</label>
-                      <p className="font-medium">{employeeProfile.permanent_residence}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Salary & Contract */}
             {(employeeProfile.basic_salary != null || employeeProfile.contract_type) && (
               <div className="bg-white rounded-lg border p-6">
@@ -863,10 +930,11 @@ const OnboardingDetail: React.FC = () => {
                   <button
                     onClick={() => openEdit('emp_salary', {
                       basic_salary: employeeProfile.basic_salary ?? '',
+                      allowance: employeeProfile.allowance ?? '',
                       contract_type: employeeProfile.contract_type ?? '',
                       probation_months: employeeProfile.probation_months ?? '',
                       probation_end_date: employeeProfile.probation_end_date ?? '',
-                      probation_salary_percentage: employeeProfile.probation_salary_percentage ?? '',
+                      probation_rate: (employeeProfile as any).probation_rate ?? '',
                       bank_name: employeeProfile.bank_name ?? '',
                       bank_account: employeeProfile.bank_account ?? '',
                     })}
@@ -882,6 +950,14 @@ const OnboardingDetail: React.FC = () => {
                       <label className="text-sm text-gray-600">Lương cơ bản</label>
                       <p className="font-medium text-green-700 text-lg">
                         {Number(employeeProfile.basic_salary).toLocaleString('vi-VN')} đ
+                      </p>
+                    </div>
+                  )}
+                  {employeeProfile.allowance != null && (
+                    <div>
+                      <label className="text-sm text-gray-600">Phụ cấp</label>
+                      <p className="font-medium text-green-700">
+                        {Number(employeeProfile.allowance).toLocaleString('vi-VN')} đ
                       </p>
                     </div>
                   )}
@@ -903,22 +979,16 @@ const OnboardingDetail: React.FC = () => {
                       <p className="font-medium">{new Date(employeeProfile.probation_end_date).toLocaleDateString('vi-VN')}</p>
                     </div>
                   )}
-                  {employeeProfile.probation_salary_percentage != null && (
+                  {(employeeProfile as any).probation_rate && (
                     <div>
-                      <label className="text-sm text-gray-600">% lương thử việc</label>
-                      <p className="font-medium">{employeeProfile.probation_salary_percentage_display || `${employeeProfile.probation_salary_percentage}%`}</p>
-                    </div>
-                  )}
-                  {employeeProfile.bank_name && (
-                    <div>
-                      <label className="text-sm text-gray-600">Ngân hàng</label>
-                      <p className="font-medium">{employeeProfile.bank_name}</p>
-                    </div>
-                  )}
-                  {employeeProfile.bank_account && (
-                    <div>
-                      <label className="text-sm text-gray-600">Số tài khoản</label>
-                      <p className="font-medium font-mono">{employeeProfile.bank_account}</p>
+                      <label className="text-sm text-gray-600">Tỉ lệ thử việc</label>
+                      <p className="font-medium">
+                        {(employeeProfile as any).probation_rate === 'OPTION_1'
+                          ? 'Tháng đầu 85%, tháng sau 100%'
+                          : (employeeProfile as any).probation_rate === 'OPTION_2'
+                          ? 'Tháng đầu 100%, tháng sau 100%'
+                          : (employeeProfile as any).probation_rate}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -970,53 +1040,45 @@ const OnboardingDetail: React.FC = () => {
                 </div>
               </div>
             )}
-
-            {/* Extra Info (parsed JSON) */}
-            {employeeProfile.extra_info && (() => {
-              try {
-                const extra = typeof employeeProfile.extra_info === 'string'
-                  ? JSON.parse(employeeProfile.extra_info)
-                  : employeeProfile.extra_info;
-                const entries = Object.entries(extra).filter(([, v]) => v !== null && v !== '');
-                if (entries.length === 0) return null;
-                const EXTRA_LABELS: Record<string, string> = {
-                  facebook_link: 'Facebook',
-                  work_type: 'Hình thức làm việc',
-                  citizen_id_issue_date: 'Ngày cấp CMND/CCCD',
-                  allowance_notes: 'Phụ cấp (ghi chú)',
-                };
-                return (
-                  <div className="bg-white rounded-lg border p-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center">
-                      <span className="mr-2">ℹ️</span>
-                      Thông tin bổ sung
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {entries.map(([key, value]) => (
-                        <div key={key}>
-                          <label className="text-sm text-gray-600">{EXTRA_LABELS[key] || key}</label>
-                          {String(value).startsWith('http') ? (
-                            <a
-                              href={String(value)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block font-medium text-blue-600 hover:text-blue-800 underline truncate"
-                            >
-                              {String(value)}
-                            </a>
-                          ) : (
-                            <p className="font-medium">{String(value)}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+            {/* Thông tin người liên hệ khẩn cấp */}
+            {(employeeProfile as any).emergency_contact_name && (
+              <div className="bg-white rounded-lg border p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center">
+                  <span className="mr-2">🆘</span>
+                  Thông tin người liên hệ khẩn cấp
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-gray-600">Họ và tên</label>
+                    <p className="font-medium">{(employeeProfile as any).emergency_contact_name || 'Chưa có dữ liệu'}</p>
                   </div>
-                );
-              } catch (parseErr) {
-                console.warn('Could not parse extra_info JSON:', parseErr, employeeProfile.extra_info);
-                return null;
-              }
-            })()}
+                  <div>
+                    <label className="text-sm text-gray-600">Mối quan hệ</label>
+                    <p className="font-medium">{(employeeProfile as any).emergency_contact_relationship || 'Chưa có dữ liệu'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Số điện thoại</label>
+                    <p className="font-medium">{(employeeProfile as any).emergency_contact_phone || 'Chưa có dữ liệu'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Ngày sinh</label>
+                    <p className="font-medium">
+                      {(employeeProfile as any).emergency_contact_dob
+                        ? new Date((employeeProfile as any).emergency_contact_dob).toLocaleDateString('vi-VN')
+                        : 'Chưa có dữ liệu'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Nghề nghiệp</label>
+                    <p className="font-medium">{(employeeProfile as any).emergency_contact_occupation || 'Chưa có dữ liệu'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Địa chỉ</label>
+                    <p className="font-medium">{(employeeProfile as any).emergency_contact_address || 'Chưa có dữ liệu'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -1052,34 +1114,6 @@ const OnboardingDetail: React.FC = () => {
             <p className="text-gray-700 whitespace-pre-wrap">{onboarding.notes}</p>
           </div>
         )}
-
-        <div className="bg-gray-50 rounded-lg border p-6">
-          <h3 className="text-lg font-semibold mb-4">Thao tác</h3>
-          {onboarding.status === 'DRAFT' && (
-            <button
-              onClick={handleStartProcess}
-              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              <PlayIcon className="w-5 h-5 mr-2" />
-              Bắt đầu quy trình
-            </button>
-          )}
-          {onboarding.status === 'IN_PROGRESS' && (
-            <button
-              onClick={handleCompleteProcess}
-              className="flex items-center px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-            >
-              <CheckCircleIcon className="w-5 h-5 mr-2" />
-              Hoàn thành quy trình
-            </button>
-          )}
-          {onboarding.status === 'COMPLETED' && (
-            <div className="text-green-600 flex items-center">
-              <CheckCircleIcon className="w-6 h-6 mr-2" />
-              <span className="font-medium">Quy trình đã hoàn thành</span>
-            </div>
-          )}
-        </div>
       </div>
     );
   };
@@ -1094,145 +1128,148 @@ const OnboardingDetail: React.FC = () => {
     const sectionTitles: Record<EditSection, string> = {
       employee_info: 'Sửa thông tin nhân viên',
       job: 'Sửa thông tin công việc',
-      personal: 'Sửa thông tin cá nhân',
+      personal: 'Sửa giấy tờ tùy thân & địa chỉ',
       education: 'Sửa trình độ học vấn',
       financial: 'Sửa thông tin tài chính & ngân hàng',
       emp_cccd: 'Sửa thông tin CCCD / Giấy tờ tùy thân',
       emp_salary: 'Sửa lương & hợp đồng',
     };
 
-    const EditField = ({
-      label,
-      name,
-      type = 'text',
-      options,
-      readOnly = false,
-    }: {
-      label: string;
-      name: string;
-      type?: string;
-      options?: { value: string; label: string }[];
-      readOnly?: boolean;
-    }) => {
-      const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        if (readOnly) return;
-        const value = type === 'number' && e.target.value !== '' ? Number(e.target.value) : e.target.value;
-        setEditData(prev => ({ ...prev, [name]: value }));
-      };
-      const commonClass = `w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${readOnly ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`;
-      return (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-          {options ? (
-            <select value={editData[name] ?? ''} onChange={handleChange} disabled={readOnly} className={commonClass}>
-              <option value="">-- Chọn --</option>
-              {options.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          ) : type === 'textarea' ? (
-            <textarea value={editData[name] ?? ''} onChange={handleChange} rows={3} readOnly={readOnly} className={commonClass} />
-          ) : (
-            <input type={type} value={editData[name] ?? ''} onChange={handleChange} readOnly={readOnly} className={commonClass} />
-          )}
-        </div>
-      );
-    };
+    // Helper để render EditField ngắn gọn hơn
+    const ef = (
+      label: string,
+      name: string,
+      type?: string,
+      options?: { value: string; label: string }[],
+      readOnly?: boolean,
+    ) => (
+      <EditField
+        key={name}
+        label={label}
+        name={name}
+        type={type}
+        options={options}
+        readOnly={readOnly}
+        editData={editData}
+        onChange={handleEditFieldChange}
+      />
+    );
 
     const renderFields = () => {
       switch (editSection) {
+
+        // ── Thông tin nhân viên ──
         case 'employee_info':
           return (
             <div className="space-y-4">
-              {/* Mã nhân viên is read-only — assigned by the system */}
-              <EditField label="Mã nhân viên" name="employee_id" readOnly />
-              <EditField label="Họ và tên" name="full_name" />
-              <EditField label="Email cá nhân" name="personal_email" type="email" />
-              <EditField label="Số điện thoại" name="phone_number" />
-              <EditField
-                label="Giới tính"
-                name="gender"
-                options={[
-                  { value: 'M', label: 'Nam' },
-                  { value: 'F', label: 'Nữ' },
-                  { value: 'O', label: 'Khác' },
-                ]}
-              />
-              <EditField label="Ngày sinh" name="date_of_birth" type="date" />
-              <EditField label="Dân tộc" name="ethnicity" />
-              <EditField label="Quốc tịch" name="nationality" />
+              {ef('Mã nhân viên', 'employee_id', 'text', undefined, true)}
+              {ef('Họ và tên', 'full_name')}
+              {ef('Email cá nhân', 'personal_email', 'email')}
+              {ef('Số điện thoại', 'phone_number')}
+              {ef('Giới tính', 'gender', undefined, [
+                { value: 'M', label: 'Nam' },
+                { value: 'F', label: 'Nữ' },
+                { value: 'O', label: 'Khác' },
+              ])}
+              {ef('Ngày sinh', 'date_of_birth', 'date')}
+              {ef('Dân tộc', 'ethnicity')}
+              {ef('Quốc tịch', 'nationality')}
             </div>
           );
+
+        // ── Thông tin công việc ──
         case 'job':
           return (
             <div className="space-y-4">
-              <EditField label="Ngày bắt đầu" name="start_date" type="date" />
-              <EditField label="Ngày kết thúc dự kiến" name="expected_end_date" type="date" />
-              <EditField label="Loại hợp đồng" name="contract_type" options={CONTRACT_OPTIONS} />
-              <EditField label="Thời gian thử việc (tháng)" name="probation_period_months" type="number" />
+              {ef('Cấp bậc', 'rank')}
+              {ef('Bộ phận', 'section')}
+              {ef('Team Bác sĩ', 'doctor_team')}
+              {ef('Hình thức làm việc', 'work_form', undefined, [
+                { value: 'FULL_TIME', label: 'Full-time' },
+                { value: 'PART_TIME', label: 'Part-time' },
+              ])}
+              {ef('Vùng/Miền', 'region', undefined, [
+                { value: 'Miền Bắc', label: 'Miền Bắc' },
+                { value: 'Miền Nam', label: 'Miền Nam' },
+              ])}
+              {ef('Khối', 'block', undefined, [
+                { value: 'Khối Back office', label: 'Khối Back office' },
+                { value: 'Khối Marketing', label: 'Khối Marketing' },
+                { value: 'Khối Kinh doanh', label: 'Khối Kinh doanh' },
+              ])}
+              {ef('Ngày bắt đầu làm việc', 'start_date', 'date')}
             </div>
           );
+
+        // ── Giấy tờ tùy thân & địa chỉ ──
+        // Phải khớp với các field hiển thị trong section: cccd_number, cccd_issue_date,
+        // cccd_issue_place, birth_place, social_insurance_number, tax_code,
+        // permanent_residence, current_address
         case 'personal':
           return (
             <div className="space-y-4">
-              <EditField label="Số CMND / CCCD" name="citizen_id" />
-              <EditField label="Ngày sinh" name="date_of_birth" type="date" />
-              <EditField
-                label="Giới tính"
-                name="gender"
-                options={[
-                  { value: 'MALE', label: 'Nam' },
-                  { value: 'FEMALE', label: 'Nữ' },
-                  { value: 'OTHER', label: 'Khác' },
-                ]}
-              />
-              <EditField label="Địa chỉ thường trú" name="permanent_address" type="textarea" />
-              <EditField label="Địa chỉ hiện tại" name="current_address" type="textarea" />
+              {ef('Số CCCD', 'cccd_number')}
+              {ef('Ngày cấp CCCD', 'cccd_issue_date', 'date')}
+              {ef('Nơi cấp CCCD', 'cccd_issue_place', undefined, CCCD_ISSUE_PLACE_OPTIONS)}
+              {ef('Nơi đăng ký khai sinh', 'birth_place')}
+              {ef('Mã số BHXH', 'social_insurance_number')}
+              {ef('Mã số thuế', 'tax_code')}
+              {ef('Địa chỉ thường trú', 'permanent_residence', 'textarea')}
+              {ef('Địa chỉ hiện tại', 'current_address', 'textarea')}
             </div>
           );
+
+        // ── Trình độ học vấn ──
         case 'education':
           return (
             <div className="space-y-4">
-              <EditField label="Trình độ học vấn" name="education_level" />
-              <EditField label="Trường đại học / cao đẳng" name="university" />
-              <EditField label="Chuyên ngành" name="major" />
-              <EditField label="Năm tốt nghiệp" name="graduation_year" type="number" />
+              {ef('Trình độ học vấn', 'education_level')}
+              {ef('Trường đại học / cao đẳng', 'university')}
+              {ef('Chuyên ngành', 'major')}
+              {ef('Năm tốt nghiệp', 'graduation_year', 'number')}
             </div>
           );
+
+        // ── Thông tin tài chính & ngân hàng ──
         case 'financial':
           return (
             <div className="space-y-4">
-              <EditField label="Mức lương" name="salary" type="number" />
-              <EditField label="Ghi chú lương" name="salary_note" />
-              <EditField label="Ngân hàng" name="bank_name" />
-              <EditField label="Số tài khoản" name="bank_account_number" />
-              <EditField label="Chủ tài khoản" name="bank_account_holder" />
-              <EditField label="Mã số thuế" name="tax_code" />
-              <EditField label="Số người phụ thuộc" name="tax_dependents" type="number" />
+              {ef('Ngân hàng', 'bank_name')}
+              {ef('Số tài khoản', 'bank_account')}
+              {ef('Chủ tài khoản', 'bank_account_holder')}
+              {ef('Chi nhánh', 'bank_branch')}
             </div>
           );
+
+        // ── CCCD (không dùng trực tiếp trong UI hiện tại nhưng giữ lại) ──
         case 'emp_cccd':
           return (
             <div className="space-y-4">
-              <EditField label="Số CCCD" name="cccd_number" />
-              <EditField label="Ngày cấp CCCD" name="cccd_issue_date" type="date" />
-              <EditField label="Nơi cấp CCCD" name="cccd_issue_place" />
-              <EditField label="Nơi sinh" name="birth_place" />
-              <EditField label="Địa chỉ thường trú" name="permanent_residence" type="textarea" />
+              {ef('Số CCCD', 'cccd_number')}
+              {ef('Ngày cấp CCCD', 'cccd_issue_date', 'date')}
+              {ef('Nơi cấp CCCD', 'cccd_issue_place', undefined, CCCD_ISSUE_PLACE_OPTIONS)}
+              {ef('Nơi sinh', 'birth_place')}
+              {ef('Địa chỉ thường trú', 'permanent_residence', 'textarea')}
             </div>
           );
+
+        // ── Lương & Hợp đồng ──
+        // Phải khớp với openEdit('emp_salary'): basic_salary, allowance, contract_type,
+        // probation_months, probation_end_date, probation_rate, bank_name, bank_account
         case 'emp_salary':
           return (
             <div className="space-y-4">
-              <EditField label="Lương cơ bản" name="basic_salary" type="number" />
-              <EditField label="Loại hợp đồng" name="contract_type" options={CONTRACT_OPTIONS} />
-              <EditField label="Thời gian thử việc (tháng)" name="probation_months" type="number" />
-              <EditField label="Ngày kết thúc thử việc" name="probation_end_date" type="date" />
-              <EditField label="% lương thử việc" name="probation_salary_percentage" type="number" />
-              <EditField label="Ngân hàng" name="bank_name" />
-              <EditField label="Số tài khoản" name="bank_account" />
+              {ef('Lương cơ bản', 'basic_salary', 'number')}
+              {ef('Phụ cấp', 'allowance', 'number')}
+              {ef('Loại hợp đồng', 'contract_type', undefined, CONTRACT_OPTIONS)}
+              {ef('Thời gian thử việc (tháng)', 'probation_months', 'number')}
+              {ef('Ngày kết thúc thử việc', 'probation_end_date', 'date')}
+              {ef('Tỉ lệ thử việc', 'probation_rate', undefined, PROBATION_RATE_OPTIONS)}
+              {ef('Ngân hàng', 'bank_name')}
+              {ef('Số tài khoản', 'bank_account')}
             </div>
           );
+
         default:
           return null;
       }
@@ -1357,12 +1394,11 @@ const OnboardingDetail: React.FC = () => {
           <ArrowLeftIcon className="w-5 h-5 mr-2" />
           Quay lại danh sách
         </button>
-
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{onboarding.candidate_name}</h1>
             <p className="text-gray-600 mt-1 text-lg">
-              {onboarding.position?.title || 'N/A'} - {onboarding.department?.name || 'N/A'}
+              {onboarding.position?.title || 'Chưa có dữ liệu'} - {onboarding.department?.name || 'Chưa có dữ liệu'}
             </p>
           </div>
           <div className="flex items-center gap-3">

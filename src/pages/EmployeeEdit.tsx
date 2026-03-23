@@ -8,6 +8,125 @@ import {
 } from '../utils/api';
 import { SelectBox } from '@/components/LandingLayout/SelectBox';
 
+// ============================================
+// CONSTANTS
+// ============================================
+
+const GENDER_OPTIONS = [
+  { label: 'Nam', value: 'M' },
+  { label: 'Nữ', value: 'F' },
+  { label: 'Khác', value: 'O' },
+];
+
+const EMPLOYMENT_STATUS_OPTIONS = [
+  { label: 'Đang làm việc', value: 'ACTIVE' },
+  { label: 'Thử việc', value: 'PROBATION' },
+  { label: 'Đã nghỉ', value: 'INACTIVE' },
+];
+
+const MARITAL_STATUS_OPTIONS = [
+  { label: 'Độc thân', value: 'SINGLE' },
+  { label: 'Đã kết hôn', value: 'MARRIED' },
+  { label: 'Ly hôn', value: 'DIVORCED' },
+  { label: 'Góa', value: 'WIDOWED' },
+];
+
+const WORK_FORM_OPTIONS = [
+  { label: 'Toàn thời gian', value: 'FULL_TIME' },
+  { label: 'Bán thời gian', value: 'PART_TIME' },
+  { label: 'Hợp đồng', value: 'CONTRACT' },
+  { label: 'Thực tập', value: 'INTERN' },
+  { label: 'Cộng tác viên', value: 'COLLABORATOR' },
+];
+
+const REGION_OPTIONS = [
+  { label: 'Miền Bắc', value: 'Miền Bắc' },
+  { label: 'Miền Nam', value: 'Miền Nam' },
+];
+
+const BLOCK_OPTIONS = [
+  { label: 'Khối Back office', value: 'Khối Back office' },
+  { label: 'Khối Marketing', value: 'Khối Marketing' },
+  { label: 'Khối Kinh doanh', value: 'Khối Kinh doanh' },
+];
+
+const CONTRACT_TYPE_OPTIONS = [
+  { label: 'Hợp đồng thử việc', value: 'PROBATION' },
+  { label: 'Hợp đồng thực tập sinh', value: 'INTERN' },
+  { label: 'Hợp đồng cộng tác viên', value: 'COLLABORATOR' },
+  { label: 'Hợp đồng lao động 1 năm', value: 'ONE_YEAR' },
+  { label: 'Hợp đồng lao động 3 năm', value: 'THREE_YEAR' },
+  { label: 'Hợp đồng vô thời hạn', value: 'INDEFINITE' },
+  { label: 'Hợp đồng dịch vụ', value: 'SERVICE' },
+];
+
+const PROBATION_RATE_OPTIONS = [
+  { label: 'Tháng đầu 85%, tháng sau 100%', value: 'OPTION_1' },
+  { label: 'Tháng đầu 100%, tháng sau 100%', value: 'OPTION_2' },
+];
+
+const PROBATION_SALARY_PERCENTAGE_OPTIONS = [
+  { label: 'Không thử việc', value: '0' },
+  { label: '85%', value: '85' },
+  { label: '90%', value: '90' },
+  { label: '95%', value: '95' },
+  { label: '100%', value: '100' },
+];
+
+const CCCD_ISSUE_PLACE_OPTIONS = [
+  { label: 'Cục cảnh sát Quản lý hành chính & Trật tự xã hội', value: 'POLICE_ADMIN' },
+  { label: 'Bộ Công An', value: 'MINISTRY_PUBLIC_SECURITY' },
+];
+
+const FILE_STATUS_OPTIONS = [
+  { label: 'Nộp đủ', value: 'COMPLETE' },
+  { label: 'Cần bổ sung hồ sơ', value: 'NEED_SUPPLEMENT' },
+  { label: 'Chưa nộp', value: 'NOT_SUBMITTED' },
+  { label: 'Chờ rà soát', value: 'PENDING_REVIEW' },
+];
+
+const EDUCATION_LEVEL_OPTIONS = [
+  { label: 'Trung học phổ thông', value: 'HIGH_SCHOOL' },
+  { label: 'Cao đẳng', value: 'ASSOCIATE' },
+  { label: 'Đại học', value: 'BACHELOR' },
+  { label: 'Thạc sĩ', value: 'MASTER' },
+  { label: 'Tiến sĩ', value: 'DOCTORATE' },
+  { label: 'Khác', value: 'OTHER' },
+];
+
+// ============================================
+// HELPER COMPONENTS
+// ============================================
+
+const SectionTitle: React.FC<{ icon: string; title: string }> = ({ icon, title }) => (
+  <h2 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+    <span>{icon}</span>
+    {title}
+  </h2>
+);
+
+interface FieldProps {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}
+
+const Field: React.FC<FieldProps> = ({ label, required, children }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label}{required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+    {children}
+  </div>
+);
+
+const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+const textareaClass = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none";
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 const EmployeeEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -19,26 +138,73 @@ const EmployeeEdit: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  console.log('EmployeeEdit:', employees);
-  const [formData, setFormData] = useState<EmployeeUpdateData>({
+  const [formData, setFormData] = useState<any>({
+    // Thông tin cơ bản
     employee_id: '',
     full_name: '',
     gender: 'M',
     date_of_birth: '',
     phone_number: '',
     personal_email: '',
-    bank_name: '',
-    bank_account: '',
+    ethnicity: '',
+    nationality: '',
+    marital_status: '',
+    facebook_link: '',
+
+    // Thông tin công việc
     employment_status: 'ACTIVE',
     start_date: '',
     end_date: '',
     position_id: undefined,
     department_id: undefined,
     manager_id: undefined,
+    rank: '',
+    section: '',
+    doctor_team: '',
+    work_form: '',
+    region: '',
+    block: '',
     is_hr: false,
-  });
+    education_level: '',
 
-  console.log('Form Data:', formData);
+    // Giấy tờ tùy thân
+    cccd_number: '',
+    cccd_issue_date: '',
+    cccd_issue_place: '',
+    old_id_number: '',
+    birth_place: '',
+    social_insurance_number: '',
+    tax_code: '',
+    permanent_residence: '',
+    current_address: '',
+
+    // Ngân hàng
+    bank_name: '',
+    bank_account: '',
+    bank_branch: '',
+
+    // Lương & Hợp đồng
+    basic_salary: '',
+    allowance: '',
+    contract_type: '',
+    probation_months: '',
+    probation_end_date: '',
+    probation_rate: '',
+    probation_salary_percentage: '',
+
+    // Hồ sơ
+    file_status: '',
+    file_submission_deadline: '',
+    file_review_notes: '',
+
+    // Người liên hệ khẩn cấp
+    emergency_contact_name: '',
+    emergency_contact_relationship: '',
+    emergency_contact_phone: '',
+    emergency_contact_dob: '',
+    emergency_contact_occupation: '',
+    emergency_contact_address: '',
+  });
 
   useEffect(() => {
     if (id) {
@@ -52,33 +218,71 @@ const EmployeeEdit: React.FC = () => {
   const loadEmployee = async (employeeId: number) => {
     try {
       setLoadingEmployee(true);
-      const employee = await employeesAPI.getById(employeeId);
-      console.log('EmployeeEdit:', employee);
+      const emp = await employeesAPI.getById(employeeId);
+      const e = emp as any;
       setFormData({
-        employee_id: employee.employee_id || '',
-        full_name: employee.full_name || '',
-        gender: employee.gender || 'M',
-        date_of_birth: employee.date_of_birth || '',
-        phone_number: employee.phone_number || '',
-        personal_email: employee.personal_email || '',
-        bank_name: employee.bank_name || '',
-        bank_account: employee.bank_account || '',
-        employment_status: employee.employment_status || 'ACTIVE',
-        start_date: employee.start_date || '',
-        end_date: employee.end_date || '',
-        position_id: employee.position?.id,
-        department_id: employee.department?.id,
-        manager_id:
-          typeof employee.manager === 'number'
-            ? employee.manager
-            : employee.manager?.id,
-        is_hr: employee.is_hr || false,
-      });
+        employee_id: e.employee_id || '',
+        full_name: e.full_name || '',
+        gender: e.gender || 'M',
+        date_of_birth: e.date_of_birth || '',
+        phone_number: e.phone_number || '',
+        personal_email: e.personal_email || '',
+        ethnicity: e.ethnicity || '',
+        nationality: e.nationality || '',
+        marital_status: e.marital_status || '',
+        facebook_link: e.facebook_link || '',
 
+        employment_status: e.employment_status || 'ACTIVE',
+        start_date: e.start_date || '',
+        end_date: e.end_date || '',
+        position_id: e.position?.id,
+        department_id: e.department?.id,
+        manager_id: typeof e.manager === 'number' ? e.manager : e.manager?.id,
+        rank: e.rank || '',
+        section: e.section || '',
+        doctor_team: e.doctor_team || '',
+        work_form: e.work_form || '',
+        region: e.region || '',
+        block: e.block || '',
+        is_hr: e.is_hr || false,
+        education_level: e.education_level || '',
+
+        cccd_number: e.cccd_number || '',
+        cccd_issue_date: e.cccd_issue_date || '',
+        cccd_issue_place: e.cccd_issue_place || '',
+        old_id_number: e.old_id_number || '',
+        birth_place: e.birth_place || '',
+        social_insurance_number: e.social_insurance_number || '',
+        tax_code: e.tax_code || '',
+        permanent_residence: e.permanent_residence || '',
+        current_address: e.current_address || '',
+
+        bank_name: e.bank_name || '',
+        bank_account: e.bank_account || '',
+        bank_branch: e.bank_branch || '',
+
+        basic_salary: e.basic_salary ?? '',
+        allowance: e.allowance ?? '',
+        contract_type: e.contract_type || '',
+        probation_months: e.probation_months ?? '',
+        probation_end_date: e.probation_end_date || '',
+        probation_rate: e.probation_rate || '',
+        probation_salary_percentage: e.probation_salary_percentage != null ? String(e.probation_salary_percentage) : '',
+
+        file_status: e.file_status || '',
+        file_submission_deadline: e.file_submission_deadline || '',
+        file_review_notes: e.file_review_notes || '',
+
+        emergency_contact_name: e.emergency_contact_name || '',
+        emergency_contact_relationship: e.emergency_contact_relationship || '',
+        emergency_contact_phone: e.emergency_contact_phone || '',
+        emergency_contact_dob: e.emergency_contact_dob || '',
+        emergency_contact_occupation: e.emergency_contact_occupation || '',
+        emergency_contact_address: e.emergency_contact_address || '',
+      });
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Không thể tải thông tin nhân viên');
-      console.error('Error loading employee:', err);
     } finally {
       setLoadingEmployee(false);
     }
@@ -88,91 +292,114 @@ const EmployeeEdit: React.FC = () => {
     try {
       const response = await departmentsAPI.list();
       setDepartments(response.results);
-    } catch (err) {
-      console.error('Failed to load departments:', err);
-    }
+    } catch (err) { console.error('Failed to load departments:', err); }
   };
 
   const loadPositions = async () => {
     try {
       const response = await positionsAPI.list();
       setPositions(response.results);
-    } catch (err) {
-      console.error('Failed to load positions:', err);
-    }
+    } catch (err) { console.error('Failed to load positions:', err); }
   };
 
   const loadEmployees = async () => {
     try {
       const response = await employeesAPI.list({ page_size: 1000 });
       setEmployees(response.results);
-    } catch (err) {
-      console.error('Failed to load employees:', err);
-    }
+    } catch (err) { console.error('Failed to load employees:', err); }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev: any) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelect = (name: string, value: any) => {
+    setFormData((prev: any) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.employee_id || !formData.full_name) {
       setError('Vui lòng điền đầy đủ thông tin bắt buộc');
       return;
     }
-
     try {
       setLoading(true);
       setError(null);
 
-      const employeeData: EmployeeUpdateData = {
+      const payload: any = {
         employee_id: formData.employee_id.trim(),
         full_name: formData.full_name.trim(),
         gender: formData.gender,
         employment_status: formData.employment_status,
-        ...(formData.date_of_birth && {
-          date_of_birth: formData.date_of_birth,
-        }),
-        ...(formData.phone_number && {
-          phone_number: formData.phone_number.trim(),
-        }),
-        ...(formData.personal_email && {
-          personal_email: formData.personal_email.trim(),
-        }),
-        ...(formData.bank_name && { bank_name: formData.bank_name.trim() }),
-        ...(formData.bank_account && {
-          bank_account: formData.bank_account.trim(),
-        }),
-        ...(formData.start_date && { start_date: formData.start_date }),
-        ...(formData.end_date && { end_date: formData.end_date }),
-        ...(formData.position_id && { position_id: formData.position_id }),
-        ...(formData.department_id && {
-          department_id: formData.department_id,
-        }),
-        ...(formData.manager_id !== undefined && { manager_id: formData.manager_id }),
         is_hr: formData.is_hr,
       };
 
-      await employeesAPI.update(parseInt(id!), employeeData);
+      // Helper: only add if not empty
+      const add = (key: string, val: any) => {
+        if (val !== '' && val !== null && val !== undefined) payload[key] = val;
+      };
 
+      add('date_of_birth', formData.date_of_birth);
+      add('phone_number', formData.phone_number?.trim());
+      add('personal_email', formData.personal_email?.trim());
+      add('ethnicity', formData.ethnicity?.trim());
+      add('nationality', formData.nationality?.trim());
+      add('marital_status', formData.marital_status);
+      add('facebook_link', formData.facebook_link?.trim());
+
+      add('start_date', formData.start_date);
+      add('end_date', formData.end_date);
+      add('position_id', formData.position_id);
+      add('department_id', formData.department_id);
+      if (formData.manager_id !== undefined) payload['manager_id'] = formData.manager_id;
+      add('rank', formData.rank?.trim());
+      add('section', formData.section?.trim());
+      add('doctor_team', formData.doctor_team?.trim());
+      add('work_form', formData.work_form);
+      add('region', formData.region);
+      add('block', formData.block);
+      add('education_level', formData.education_level);
+
+      add('cccd_number', formData.cccd_number?.trim());
+      add('cccd_issue_date', formData.cccd_issue_date);
+      add('cccd_issue_place', formData.cccd_issue_place);
+      add('old_id_number', formData.old_id_number?.trim());
+      add('birth_place', formData.birth_place?.trim());
+      add('social_insurance_number', formData.social_insurance_number?.trim());
+      add('tax_code', formData.tax_code?.trim());
+      add('permanent_residence', formData.permanent_residence?.trim());
+      add('current_address', formData.current_address?.trim());
+
+      add('bank_name', formData.bank_name?.trim());
+      add('bank_account', formData.bank_account?.trim());
+      add('bank_branch', formData.bank_branch?.trim());
+
+      if (formData.basic_salary !== '') payload['basic_salary'] = Number(formData.basic_salary);
+      if (formData.allowance !== '') payload['allowance'] = Number(formData.allowance);
+      add('contract_type', formData.contract_type);
+      if (formData.probation_months !== '') payload['probation_months'] = Number(formData.probation_months);
+      add('probation_end_date', formData.probation_end_date);
+      add('probation_rate', formData.probation_rate);
+      if (formData.probation_salary_percentage !== '') payload['probation_salary_percentage'] = Number(formData.probation_salary_percentage);
+
+      add('file_status', formData.file_status);
+      add('file_submission_deadline', formData.file_submission_deadline);
+      add('file_review_notes', formData.file_review_notes?.trim());
+
+      add('emergency_contact_name', formData.emergency_contact_name?.trim());
+      add('emergency_contact_relationship', formData.emergency_contact_relationship?.trim());
+      add('emergency_contact_phone', formData.emergency_contact_phone?.trim());
+      add('emergency_contact_dob', formData.emergency_contact_dob);
+      add('emergency_contact_occupation', formData.emergency_contact_occupation?.trim());
+      add('emergency_contact_address', formData.emergency_contact_address?.trim());
+
+      await employeesAPI.update(parseInt(id!), payload);
       setSuccess('Cập nhật nhân viên thành công!');
-
-      setTimeout(() => {
-        navigate(`/dashboard/employees/${id}`);
-      }, 2000);
+      setTimeout(() => navigate(`/dashboard/employees/${id}`), 1500);
     } catch (err: any) {
-      console.error('Failed to update employee:', err);
-      setError(
-        err.response?.data?.message ||
-        err.message ||
-        'Lỗi khi cập nhật nhân viên'
-      );
+      setError(err.response?.data?.message || err.message || 'Lỗi khi cập nhật nhân viên');
     } finally {
       setLoading(false);
     }
@@ -182,7 +409,7 @@ const EmployeeEdit: React.FC = () => {
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <p className="mt-4 text-gray-600">Đang tải thông tin nhân viên...</p>
         </div>
       </div>
@@ -190,8 +417,8 @@ const EmployeeEdit: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      {/* ===== HEADER ===== */}
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Header */}
       <div className="mb-6">
         <button
           onClick={() => navigate(`/dashboard/employees/${id}`)}
@@ -199,315 +426,423 @@ const EmployeeEdit: React.FC = () => {
         >
           ← Quay lại chi tiết
         </button>
-
-        <h1 className="text-2xl font-bold text-gray-900">
-          Chỉnh sửa nhân viên
-        </h1>
-        <p className="text-gray-600 mt-2">Cập nhật thông tin nhân viên</p>
+        <h1 className="text-2xl font-bold text-gray-900">Chỉnh sửa nhân viên</h1>
+        <p className="text-gray-600 mt-1">Cập nhật thông tin nhân viên</p>
       </div>
 
-      {/* ===== ERROR ===== */}
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">{error}</p>
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-700 text-sm">{error}</p>
         </div>
       )}
-
-      {/* ===== SUCCESS ===== */}
       {success && (
-        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-green-700">{success}</p>
+        <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
+          <p className="text-green-700 text-sm">{success}</p>
         </div>
       )}
 
-      {/* ===== FORM CARD ===== */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* ================= THÔNG TIN CÁ NHÂN ================= */}
-          <div className="border rounded-lg p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">
-              Thông tin cá nhân
-            </h2>
+      <form onSubmit={handleSubmit} className="space-y-6">
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mã nhân viên *
-                </label>
+        {/* ── Thông tin cá nhân ── */}
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="👤" title="Thông tin cá nhân" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <Field label="Mã nhân viên" required>
+              <input type="text" name="employee_id" value={formData.employee_id}
+                onChange={handleInput} className={inputClass} required />
+            </Field>
+
+            <Field label="Họ và tên" required>
+              <input type="text" name="full_name" value={formData.full_name}
+                onChange={handleInput} className={inputClass} required />
+            </Field>
+
+            <SelectBox
+              label="Giới tính *"
+              value={formData.gender}
+              placeholder="Chọn giới tính"
+              options={GENDER_OPTIONS}
+              onChange={(v) => handleSelect('gender', v)}
+            />
+
+            <Field label="Ngày sinh">
+              <input type="date" name="date_of_birth" value={formData.date_of_birth}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <Field label="Số điện thoại">
+              <input type="tel" name="phone_number" value={formData.phone_number}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <Field label="Email cá nhân">
+              <input type="email" name="personal_email" value={formData.personal_email}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <Field label="Dân tộc">
+              <input type="text" name="ethnicity" value={formData.ethnicity}
+                onChange={handleInput} placeholder="Kinh, Tày, Mường..." className={inputClass} />
+            </Field>
+
+            <Field label="Quốc tịch">
+              <input type="text" name="nationality" value={formData.nationality}
+                onChange={handleInput} placeholder="Việt Nam..." className={inputClass} />
+            </Field>
+
+            <SelectBox
+              label="Tình trạng hôn nhân"
+              value={formData.marital_status}
+              placeholder="Chọn tình trạng"
+              options={MARITAL_STATUS_OPTIONS}
+              onChange={(v) => handleSelect('marital_status', v)}
+            />
+
+            <Field label="Link Facebook">
+              <input type="url" name="facebook_link" value={formData.facebook_link}
+                onChange={handleInput} placeholder="https://facebook.com/..." className={inputClass} />
+            </Field>
+
+            <SelectBox
+              label="Trình độ học vấn"
+              value={formData.education_level}
+              placeholder="Chọn trình độ"
+              options={EDUCATION_LEVEL_OPTIONS}
+              onChange={(v) => handleSelect('education_level', v)}
+            />
+          </div>
+        </div>
+
+        {/* ── Thông tin công việc ── */}
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="💼" title="Thông tin công việc" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <SelectBox
+              label="Trạng thái làm việc"
+              value={formData.employment_status}
+              placeholder="Chọn trạng thái"
+              options={EMPLOYMENT_STATUS_OPTIONS}
+              onChange={(v) => handleSelect('employment_status', v)}
+            />
+
+            <Field label="Ngày bắt đầu">
+              <input type="date" name="start_date" value={formData.start_date}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <Field label="Ngày kết thúc">
+              <input type="date" name="end_date" value={formData.end_date}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <SelectBox
+              label="Phòng ban"
+              value={formData.department_id}
+              placeholder="Chọn phòng ban"
+              options={departments.map((d) => ({ label: d.name, value: d.id }))}
+              onChange={(v) => handleSelect('department_id', v)}
+            />
+
+            <SelectBox
+              label="Chức vụ"
+              value={formData.position_id}
+              placeholder="Chọn chức vụ"
+              options={positions.map((p) => ({ label: p.title, value: p.id }))}
+              onChange={(v) => handleSelect('position_id', v)}
+            />
+
+            <SelectBox
+              label="Quản lý trực tiếp"
+              value={formData.manager_id}
+              placeholder="Chọn quản lý"
+              options={[
+                { label: 'Không có quản lý', value: null },
+                ...employees
+                  .filter((emp) => emp.id !== parseInt(id!))
+                  .map((emp) => ({
+                    label: `${emp.full_name} (${emp.employee_id})`,
+                    value: emp.id,
+                  })),
+              ]}
+              onChange={(v) => handleSelect('manager_id', v ?? undefined)}
+            />
+
+            <Field label="Cấp bậc">
+              <input type="text" name="rank" value={formData.rank}
+                onChange={handleInput} placeholder="Nhân viên, Trưởng phòng..." className={inputClass} />
+            </Field>
+
+            <Field label="Bộ phận (Section)">
+              <input type="text" name="section" value={formData.section}
+                onChange={handleInput} placeholder="Da liễu, Phẫu thuật..." className={inputClass} />
+            </Field>
+
+            <Field label="Team Bác sĩ">
+              <input type="text" name="doctor_team" value={formData.doctor_team}
+                onChange={handleInput} placeholder="Team Dr. Nguyễn..." className={inputClass} />
+            </Field>
+
+            <SelectBox
+              label="Hình thức làm việc"
+              value={formData.work_form}
+              placeholder="Chọn hình thức"
+              options={WORK_FORM_OPTIONS}
+              onChange={(v) => handleSelect('work_form', v)}
+            />
+
+            <SelectBox
+              label="Vùng/Miền"
+              value={formData.region}
+              placeholder="Chọn vùng/miền"
+              options={REGION_OPTIONS}
+              onChange={(v) => handleSelect('region', v)}
+            />
+
+            <SelectBox
+              label="Khối"
+              value={formData.block}
+              placeholder="Chọn khối"
+              options={BLOCK_OPTIONS}
+              onChange={(v) => handleSelect('block', v)}
+            />
+
+            <div className="md:col-span-2">
+              <label className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border cursor-pointer">
                 <input
-                  type="text"
-                  name="employee_id"
-                  value={formData.employee_id}
-                  onChange={handleInputChange}
-                  placeholder="NV001"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={formData.is_hr}
+                  onChange={(e) => handleSelect('is_hr', e.target.checked)}
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Họ tên *
-                </label>
-                <input
-                  type="text"
-                  name="full_name"
-                  value={formData.full_name}
-                  onChange={handleInputChange}
-                  placeholder="Nguyễn Văn A"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <SelectBox
-                label="Giới tính *"
-                value={formData.gender}
-                placeholder="Chọn giới tính"
-                options={[
-                  { label: 'Nam', value: 'M' },
-                  { label: 'Nữ', value: 'F' },
-                  { label: 'Khác', value: 'O' },
-                ]}
-                onChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    gender: value as 'M' | 'F' | 'O' | undefined,
-                  }))
-                }
-              />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ngày sinh
-                </label>
-                <input
-                  type="date"
-                  name="date_of_birth"
-                  value={formData.date_of_birth || ''}
-                  onChange={handleInputChange}
-                  placeholder="1995-01-01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Số điện thoại
-                </label>
-                <input
-                  type="tel"
-                  name="phone_number"
-                  value={formData.phone_number || ''}
-                  onChange={handleInputChange}
-                  placeholder="0123456789"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email cá nhân
-                </label>
-                <input
-                  type="email"
-                  name="personal_email"
-                  value={formData.personal_email || ''}
-                  onChange={handleInputChange}
-                  placeholder="example@gmail.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Nhân viên HR</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Có quyền duyệt đơn và truy cập các chức năng quản lý nhân sự</p>
+                </div>
+              </label>
             </div>
           </div>
+        </div>
 
-          {/* ================= THÔNG TIN CÔNG VIỆC ================= */}
-          <div className="border rounded-lg p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">
-              Thông tin công việc
-            </h2>
+        {/* ── Giấy tờ tùy thân & địa chỉ ── */}
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="🪪" title="Giấy tờ tùy thân & địa chỉ" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <Field label="Số CCCD">
+              <input type="text" name="cccd_number" value={formData.cccd_number}
+                onChange={handleInput} placeholder="012345678901" className={inputClass} />
+            </Field>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <SelectBox
-                label="Trạng thái làm việc"
-                value={formData.employment_status}
-                placeholder="Chọn trạng thái"
-                options={[
-                  { label: 'Đang làm việc', value: 'ACTIVE' },
-                  { label: 'Thử việc', value: 'PROBATION' },
-                  { label: 'Đã nghỉ', value: 'INACTIVE' },
-                ]}
-                onChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    employment_status: value as
-                      | 'ACTIVE'
-                      | 'PROBATION'
-                      | 'INACTIVE'
-                      | undefined,
-                  }))
-                }
-              />
+            <Field label="Ngày cấp CCCD">
+              <input type="date" name="cccd_issue_date" value={formData.cccd_issue_date}
+                onChange={handleInput} className={inputClass} />
+            </Field>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ngày bắt đầu
-                </label>
-                <input
-                  type="date"
-                  name="start_date"
-                  value={formData.start_date || ''}
-                  onChange={handleInputChange}
-                  placeholder="2024-01-01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <SelectBox
+              label="Nơi cấp CCCD"
+              value={formData.cccd_issue_place}
+              placeholder="Chọn nơi cấp"
+              options={CCCD_ISSUE_PLACE_OPTIONS}
+              onChange={(v) => handleSelect('cccd_issue_place', v)}
+            />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ngày kết thúc
-                </label>
-                <input
-                  type="date"
-                  name="end_date"
-                  value={formData.end_date || ''}
-                  onChange={handleInputChange}
-                  placeholder="2025-01-01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <Field label="Số CMND cũ">
+              <input type="text" name="old_id_number" value={formData.old_id_number}
+                onChange={handleInput} placeholder="123456789" className={inputClass} />
+            </Field>
 
-              <SelectBox
-                label="Phòng ban"
-                value={formData.department_id}
-                placeholder="Chọn phòng ban"
-                options={departments.map((dept) => ({
-                  label: dept.name,
-                  value: dept.id,
-                }))}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, department_id: value }))
-                }
-              />
+            <Field label="Nơi đăng ký khai sinh">
+              <input type="text" name="birth_place" value={formData.birth_place}
+                onChange={handleInput} placeholder="Tỉnh/thành phố..." className={inputClass} />
+            </Field>
 
-              <SelectBox
-                label="Chức vụ"
-                value={formData.position_id}
-                placeholder="Chọn chức vụ"
-                options={positions.map((pos) => ({
-                  label: pos.title,
-                  value: pos.id,
-                }))}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, position_id: value }))
-                }
-              />
+            <Field label="Mã số BHXH">
+              <input type="text" name="social_insurance_number" value={formData.social_insurance_number}
+                onChange={handleInput} placeholder="1234567890" className={inputClass} />
+            </Field>
 
-              <SelectBox
-                label="Quản lý trực tiếp"
-                value={formData.manager_id}
-                placeholder="Chọn quản lý trực tiếp"
-                options={[
-                  { label: 'Không có quản lý', value: null },
-                  ...employees
-                    .filter(
-                      (emp) =>
-                        emp.id !== parseInt(id!) &&
-                        positions.find((p) => p.id === emp.position?.id)
-                          ?.is_management === true
-                    )
-                    .map((emp) => ({
-                      label: `${emp.full_name} (${emp.employee_id}) - ${emp.department?.name ?? 'Chưa có phòng ban'}`,
-                      value: emp.id,
-                    })),
-                ]}
-                onChange={(value) =>
-                  setFormData((prev) => ({ ...prev, manager_id: value ?? undefined }))
-                }
-              />
+            <Field label="Mã số thuế">
+              <input type="text" name="tax_code" value={formData.tax_code}
+                onChange={handleInput} placeholder="0123456789" className={inputClass} />
+            </Field>
+
+            <div className="md:col-span-2">
+              <Field label="Địa chỉ thường trú">
+                <textarea name="permanent_residence" value={formData.permanent_residence}
+                  onChange={handleInput} rows={2}
+                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
+                  className={textareaClass} />
+              </Field>
+            </div>
+
+            <div className="md:col-span-2">
+              <Field label="Địa chỉ hiện tại">
+                <textarea name="current_address" value={formData.current_address}
+                  onChange={handleInput} rows={2}
+                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
+                  className={textareaClass} />
+              </Field>
             </div>
           </div>
+        </div>
 
-          <div className="col-span-1 md:col-span-2 border rounded-lg p-4 bg-gray-50">
-            <label className="flex gap-3">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={formData.is_hr}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    is_hr: e.target.checked,
-                  }))
-                }
-              />
-              <div>
-                <p className="font-medium">Nhân viên HR</p>
-                <p className="text-xs text-gray-500">
-                  Nhân viên HR có quyền duyệt đơn, truy cập vào các chức năng
-                  quản lý nhân sự
-                </p>
-              </div>
-            </label>
+        {/* ── Thông tin ngân hàng ── */}
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="💳" title="Thông tin ngân hàng" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <Field label="Tên ngân hàng">
+              <input type="text" name="bank_name" value={formData.bank_name}
+                onChange={handleInput} placeholder="ACB, Vietcombank..." className={inputClass} />
+            </Field>
+
+            <Field label="Số tài khoản">
+              <input type="text" name="bank_account" value={formData.bank_account}
+                onChange={handleInput} placeholder="1234567890" className={inputClass} />
+            </Field>
+
+            <Field label="Chi nhánh">
+              <input type="text" name="bank_branch" value={formData.bank_branch}
+                onChange={handleInput} placeholder="Chi nhánh Hà Nội..." className={inputClass} />
+              <p className="text-xs text-gray-400 mt-1">* Trong trường hợp không phải Ngân hàng ACB</p>
+            </Field>
           </div>
+        </div>
 
-          {/* ================= THÔNG TIN TÀI KHOẢN / NGÂN HÀNG ================= */}
-          <div className="border rounded-lg p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">
-              Thông tin tài khoản / ngân hàng
-            </h2>
+        {/* ── Lương & Hợp đồng ── */}
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="💰" title="Lương & Hợp đồng" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <Field label="Lương cơ bản (VNĐ)">
+              <input type="number" name="basic_salary" value={formData.basic_salary}
+                onChange={handleInput} placeholder="10000000" className={inputClass} />
+            </Field>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tên ngân hàng
-                </label>
-                <input
-                  type="text"
-                  name="bank_name"
-                  value={formData.bank_name || ''}
-                  onChange={handleInputChange}
-                  placeholder="Vietcombank"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <Field label="Phụ cấp (VNĐ)">
+              <input type="number" name="allowance" value={formData.allowance}
+                onChange={handleInput} placeholder="2000000" className={inputClass} />
+            </Field>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Số tài khoản
-                </label>
-                <input
-                  type="text"
-                  name="bank_account"
-                  value={formData.bank_account || ''}
-                  onChange={handleInputChange}
-                  placeholder="1234567890"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <SelectBox
+              label="Loại hợp đồng"
+              value={formData.contract_type}
+              placeholder="Chọn loại hợp đồng"
+              options={CONTRACT_TYPE_OPTIONS}
+              onChange={(v) => handleSelect('contract_type', v)}
+            />
+
+            <Field label="Số tháng thử việc">
+              <input type="number" name="probation_months" value={formData.probation_months}
+                onChange={handleInput} placeholder="2" className={inputClass} />
+            </Field>
+
+            <Field label="Ngày kết thúc thử việc">
+              <input type="date" name="probation_end_date" value={formData.probation_end_date}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <SelectBox
+              label="Tỉ lệ thử việc"
+              value={formData.probation_rate}
+              placeholder="Chọn tỉ lệ"
+              options={PROBATION_RATE_OPTIONS}
+              onChange={(v) => handleSelect('probation_rate', v)}
+            />
+
+            <SelectBox
+              label="% lương thử việc"
+              value={formData.probation_salary_percentage}
+              placeholder="Chọn %"
+              options={PROBATION_SALARY_PERCENTAGE_OPTIONS}
+              onChange={(v) => handleSelect('probation_salary_percentage', v)}
+            />
+          </div>
+        </div>
+
+        {/* ── Trạng thái hồ sơ ── */}
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="📋" title="Trạng thái hồ sơ" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <SelectBox
+              label="Trạng thái hồ sơ"
+              value={formData.file_status}
+              placeholder="Chọn trạng thái"
+              options={FILE_STATUS_OPTIONS}
+              onChange={(v) => handleSelect('file_status', v)}
+            />
+
+            <Field label="Hạn nộp hồ sơ">
+              <input type="date" name="file_submission_deadline" value={formData.file_submission_deadline}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <div className="md:col-span-2">
+              <Field label="Ghi chú hồ sơ">
+                <textarea name="file_review_notes" value={formData.file_review_notes}
+                  onChange={handleInput} rows={2}
+                  placeholder="Ghi chú về tình trạng hồ sơ..."
+                  className={textareaClass} />
+              </Field>
             </div>
           </div>
+        </div>
 
-          {/* ================= ACTION BUTTONS ================= */}
-          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={() => navigate(`/dashboard/employees/${id}`)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              Hủy
-            </button>
+        {/* ── Người liên hệ khẩn cấp ── */}
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="🆘" title="Người liên hệ khẩn cấp" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <Field label="Họ và tên">
+              <input type="text" name="emergency_contact_name" value={formData.emergency_contact_name}
+                onChange={handleInput} placeholder="Nguyễn Văn B" className={inputClass} />
+            </Field>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Đang cập nhật...' : 'Cập nhật'}
-            </button>
+            <Field label="Mối quan hệ">
+              <input type="text" name="emergency_contact_relationship" value={formData.emergency_contact_relationship}
+                onChange={handleInput} placeholder="Bố, mẹ, vợ, chồng..." className={inputClass} />
+            </Field>
+
+            <Field label="Số điện thoại">
+              <input type="tel" name="emergency_contact_phone" value={formData.emergency_contact_phone}
+                onChange={handleInput} placeholder="0987654321" className={inputClass} />
+            </Field>
+
+            <Field label="Ngày sinh">
+              <input type="date" name="emergency_contact_dob" value={formData.emergency_contact_dob}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <Field label="Nghề nghiệp">
+              <input type="text" name="emergency_contact_occupation" value={formData.emergency_contact_occupation}
+                onChange={handleInput} placeholder="Giáo viên, Bác sĩ..." className={inputClass} />
+            </Field>
+
+            <div className="md:col-span-2">
+              <Field label="Địa chỉ">
+                <textarea name="emergency_contact_address" value={formData.emergency_contact_address}
+                  onChange={handleInput} rows={2}
+                  placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
+                  className={textareaClass} />
+              </Field>
+            </div>
           </div>
-        </form>
-      </div>
+        </div>
+
+        {/* ── Action buttons ── */}
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => navigate(`/dashboard/employees/${id}`)}
+            className="px-5 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+          >
+            Hủy
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Đang cập nhật...' : 'Lưu thay đổi'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };

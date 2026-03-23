@@ -54,7 +54,20 @@ const WORK_LOCATION_OPTIONS = [
 
 const REGION_OPTIONS = ['Miền Bắc', 'Miền Nam'];
 const BLOCK_OPTIONS = ['Khối Back office', 'Khối Marketing', 'Khối Kinh doanh'];
-const SECTION_OPTIONS = ['Phẫu thuật thẩm mỹ'];
+
+// ← Restored: dropdown cho Phòng/Ban
+const SUB_DEPARTMENT_OPTIONS = [
+  'ADS', 'ADS2', 'KD 1', 'KD 2', 'KD 3', 'KD 4', 'KD MN',
+  'CSKH MB', 'CSKH MN', 'Media MB', 'Media MN', 'Giám sát nội bộ',
+  'HCNS', 'Kế toán', 'Truyền thông',
+  'TTTH 01', 'TTTH 02', 'TTTH 03', 'TTTH 04', 'TTTH 06',
+  'Xây group', 'TTTH 08', 'TTTH 05', 'TTTH 07', 'TTTH 09',
+  'TTTH 10', 'TTTH 11', 'Tiktok 1', 'Tiktok 2', 'Tiktok 3',
+  'Tiktok 5', 'TTTH 15', 'Pháp chế', 'Tiktok 4', 'KD 5',
+  'Mua hàng', 'IT', 'Tiktok 6', 'Tiktok 7',
+  'Tiktok 8', 'Tiktok 9', 'Tiktok 10', 'AI',
+];
+
 const POSITION_OPTIONS = [
   'Nhân viên Sale', 'Nhân viên Kinh doanh', 'Nhân viên Telesale', 'Trưởng phòng Telesale',
   'Nhân viên CSKH', 'Trưởng phòng CSKH', 'Nhân viên Tư vấn',
@@ -119,10 +132,14 @@ interface FormValues {
   start_date: string;
   region: string;
   block: string;
-  sub_department: string;  // now free-text
-  section: string;
+  sub_department: string;  // SF dropdown
+  section: string;         // TF free-text ← changed
   position: string;
-  job_rank: string;        // new field
+  job_rank: string;
+  ethnicity: string;
+  birth_place: string;
+  nationality: string;
+  probation_rate: string;
   doctor_team: string;
   work_form: string;
   work_location: string;
@@ -142,9 +159,11 @@ interface FormValues {
   emergency_contact_occupation: string;
   emergency_contact_address: string;
   salary: string;
-  allowance_notes: string;
+  allowance: string;
   probation_period_months: string;
-  probation_salary_percentage: string;
+  bank_account: string;
+  bank_name: string;
+  bank_branch: string;
 }
 
 // ============================================
@@ -266,16 +285,20 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const [values, setValues] = useState<FormValues>({
     candidate_name: '', candidate_email: '', candidate_phone: '',
     date_of_birth: '', gender: 'M', education_level: '', facebook_link: '',
-    start_date: '', region: '', block: '', sub_department: '', section: 'Phẫu thuật thẩm mỹ',
-    position: '', job_rank: '', doctor_team: '', work_form: '', work_location: '',
+    start_date: '', region: '', block: '', sub_department: '',
+    section: '',  // ← bỏ giá trị mặc định 'Phẫu thuật thẩm mỹ'
+    position: '', job_rank: '', ethnicity: '', birth_place: '', nationality: '', doctor_team: '', work_form: '',
+    work_location: '', probation_rate: '',
     citizen_id: '', citizen_id_issue_date: '', citizen_id_issue_place: '',
     old_id_number: '', permanent_address: '', current_address: '',
     social_insurance_number: '', tax_code: '', marital_status: 'SINGLE',
     emergency_contact_name: '', emergency_contact_relationship: '',
     emergency_contact_phone: '', emergency_contact_dob: '',
     emergency_contact_occupation: '', emergency_contact_address: '',
-    salary: '', allowance_notes: '', probation_period_months: '2',
-    probation_salary_percentage: '',
+    salary: '', allowance: '', probation_period_months: '2',
+    bank_account: '',
+    bank_name: '',
+    bank_branch: '',
   });
 
   const showToast = (type: 'success' | 'error' | 'warning', msg: string) => {
@@ -333,7 +356,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
     if (step === 2) {
       if (!values.region) { showToast('error', 'Vui lòng chọn vùng/miền'); return false; }
       if (!values.block) { showToast('error', 'Vui lòng chọn khối'); return false; }
-      if (!values.sub_department.trim()) { showToast('error', 'Vui lòng nhập phòng/ban'); return false; }
+      if (!values.sub_department) { showToast('error', 'Vui lòng chọn phòng/ban'); return false; }
       if (!values.position) { showToast('error', 'Vui lòng chọn vị trí'); return false; }
       if (!values.job_rank) { showToast('error', 'Vui lòng chọn cấp bậc'); return false; }
       if (!values.work_form) { showToast('error', 'Vui lòng chọn hình thức làm việc'); return false; }
@@ -398,6 +421,10 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('date_of_birth', values.date_of_birth);
       ap('gender', values.gender);
       ap('education_level', values.education_level);
+      ap('ethnicity', values.ethnicity);
+      ap('birth_place', values.birth_place);
+      ap('nationality', values.nationality);
+      ap('probation_rate', values.probation_rate);
       ap('facebook_link', values.facebook_link);
       ap('start_date', values.start_date);
       ap('region', values.region);
@@ -427,9 +454,11 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('emergency_contact_occupation', values.emergency_contact_occupation);
       ap('emergency_contact_address', values.emergency_contact_address);
       ap('salary', values.salary);
-      ap('allowance_notes', values.allowance_notes);
+      ap('allowance', values.allowance);
       ap('probation_period_months', values.probation_period_months);
-      ap('probation_salary_percentage', values.probation_salary_percentage);
+      ap('bank_account', values.bank_account);
+      ap('bank_name', values.bank_name);
+      ap('bank_branch', values.bank_branch);
 
       const res = await fetch(
         `${API_BASE_URL}/api-hrm/employee-onboarding-form/submit/${token}/`,
@@ -523,6 +552,18 @@ export const EmployeeOnboardingForm: React.FC = () => {
           <SF label="Trình độ học vấn" value={values.education_level}
             onChange={handleSelect('education_level')} options={EDUCATION_LEVEL_OPTIONS} required />
 
+          <TF label="Dân tộc" value={values.ethnicity}
+            onChange={handleChange('ethnicity')} placeholder="Kinh, Tày, Mường..." />
+
+          <p className="text-xs text-gray-500 px-1 -mt-2">
+            Vui lòng nhập Xã/Phường và Tỉnh/TP khai sinh theo đơn vị hành chính mới
+          </p>
+          <TF label="Nơi khai sinh" value={values.birth_place}
+            onChange={handleChange('birth_place')} placeholder="Tỉnh/thành phố, Quốc gia..." />
+          
+          <TF label="Quốc tịch" value={values.nationality}
+            onChange={handleChange('nationality')} placeholder="Việt Nam..." />
+
           <TF label="Link Facebook" value={values.facebook_link}
             onChange={handleChange('facebook_link')} placeholder="https://facebook.com/..." required />
         </div>
@@ -540,23 +581,23 @@ export const EmployeeOnboardingForm: React.FC = () => {
               onChange={handleSelect('block')} options={BLOCK_OPTIONS} />
           </div>
 
-          {/* Phòng/Ban: free-text thay vì dropdown */}
-          <TF
-            label="Phòng/Ban"
-            value={values.sub_department}
-            onChange={handleChange('sub_department')}
-            required
-            placeholder="Nhập tên phòng/ban..."
-          />
+          {/* Phòng/Ban: SF dropdown ← restored */}
+          <SF label="Phòng/Ban" value={values.sub_department}
+            onChange={handleSelect('sub_department')} options={SUB_DEPARTMENT_OPTIONS} required />
 
-          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-            <RF label="Bộ phận (Section)" value={values.section}
-              onChange={handleSelect('section')} options={SECTION_OPTIONS} />
+          <div className="grid grid-cols-2 gap-4">
+            {/* Bộ phận (Section): TF free-text ← changed */}
+            <TF
+              label="Bộ phận (Section)"
+              value={values.section}
+              onChange={handleChange('section')}
+              placeholder="Nhập tên bộ phận..."
+            />
             <SF label="Vị trí" value={values.position}
               onChange={handleSelect('position')} options={POSITION_OPTIONS} required />
           </div>
 
-          {/* Cấp bậc: dropdown với RANK_OPTIONS */}
+          {/* Cấp bậc */}
           <SF
             label="Cấp bậc"
             value={values.job_rank}
@@ -710,8 +751,8 @@ export const EmployeeOnboardingForm: React.FC = () => {
           <TF label="Mức lương cơ bản (VNĐ)" value={values.salary}
             onChange={handleChange('salary')} type="number" placeholder="10000000" />
 
-          <TF label="Phụ cấp (VNĐ)" value={values.allowance_notes}
-            onChange={handleChange('allowance_notes')} type="number" placeholder="2000000" />
+          <TF label="Phụ cấp (VNĐ)" value={values.allowance}
+            onChange={handleChange('allowance')} type="number" placeholder="2000000" />
 
           <SF label="Số tháng thử việc" value={values.probation_period_months}
             onChange={handleSelect('probation_period_months')} options={[
@@ -722,15 +763,45 @@ export const EmployeeOnboardingForm: React.FC = () => {
               { value: '6', label: '6 tháng' },
             ]} />
 
-          <SF label="% lương thử việc" value={values.probation_salary_percentage}
-            onChange={handleSelect('probation_salary_percentage')} options={[
-              { value: '0', label: 'Không thử việc' },
-              { value: '85', label: '85%' },
-              { value: '90', label: '90%' },
-              { value: '95', label: '95%' },
-              { value: '100', label: '100%' },
-            ]} />
+          <SF
+            label="Tỉ lệ thử việc"
+            value={values.probation_rate}
+            onChange={handleSelect('probation_rate')}
+            options={[
+              { value: 'OPTION_1', label: 'Tháng đầu 85%, tháng sau 100%' },
+              { value: 'OPTION_2', label: 'Tháng đầu 100%, tháng sau 100%' },
+            ]}
+          />
+          {/* Thông tin ngân hàng */}
+          <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+            <p className="text-sm font-semibold text-gray-700">🏦 Thông tin ngân hàng</p>
 
+            <TF
+              label="Số tài khoản"
+              value={values.bank_account}
+              onChange={handleChange('bank_account')}
+              placeholder="123456789012"
+            />
+
+            <TF
+              label="Tên ngân hàng"
+              value={values.bank_name}
+              onChange={handleChange('bank_name')}
+              placeholder="ACB, Vietcombank, Techcombank..."
+            />
+
+            <div>
+              <TF
+                label="Chi nhánh"
+                value={values.bank_branch}
+                onChange={handleChange('bank_branch')}
+                placeholder="Chi nhánh Hà Nội, TP.HCM..."
+              />
+              <p className="text-xs text-gray-400 mt-1 px-1">
+                * Trong trường hợp không phải Ngân hàng ACB
+              </p>
+            </div>
+          </div>
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mt-2">
             <p className="text-sm font-semibold text-blue-800 mb-3">📋 Tóm tắt thông tin</p>
             <div className="space-y-1.5">
@@ -738,11 +809,12 @@ export const EmployeeOnboardingForm: React.FC = () => {
                 ['Họ tên', values.candidate_name],
                 ['Email', values.candidate_email],
                 ['Phòng/Ban', values.sub_department],
+                ['Bộ phận', values.section],
                 ['Cấp bậc', values.job_rank],
                 ['CCCD', values.citizen_id],
                 ['File CCCD', citizenIdFile ? `✓ ${citizenIdFile.name}` : null],
                 ['Lương', values.salary ? `${parseInt(values.salary).toLocaleString()} VNĐ` : null],
-                ['Phụ cấp', values.allowance_notes ? `${parseInt(values.allowance_notes).toLocaleString()} VNĐ` : null],
+                ['Phụ cấp', values.allowance ? `${parseInt(values.allowance).toLocaleString()} VNĐ` : null],
               ].map(([label, val]) => (
                 <div key={label as string} className="flex gap-2 text-sm">
                   <span className="text-blue-500 w-24 shrink-0">{label}:</span>
