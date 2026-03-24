@@ -2494,45 +2494,14 @@ const AttendanceManagement: React.FC = () => {
 
                   {/* Action Buttons */}
                   <div className="mt-6 flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3">
-                    {/* Ẩn nút làm đơn bổ sung công nếu đã có đơn được duyệt */}
-                    {/* Hiện nút nếu còn vi phạm chưa giải trình hoặc còn lượt nghỉ phép */}
-                    {(() => {
-                      const detail = attendanceDetails[0];
-                      const dateStr = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : '';
-                      
-                      // Check categories
-                      const hasExp = (allExplanations || []).length > 0;
-                      const hasLeave = monthlyRequestHistory.leaveRequests.some(l => (l.attendance_date === dateStr || l.event_date === dateStr));
-                      const hasOnline = monthlyRequestHistory.onlineWorks.some(w => (w.work_date === dateStr || w.attendance_date === dateStr));
-                      
-                      const isViolationResolved = hasExp || hasLeave || hasOnline;
-
-                      const hasUnresolvedLate = (detail?.late_minutes || 0) > 0 && !isViolationResolved;
-                      const hasUnresolvedEarly = (detail?.early_leave_minutes || 0) > 0 && !isViolationResolved;
-                      const hasUnresolvedIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE' && !isViolationResolved;
-
-                      // Còn vi phạm chưa đơn từ?
-                      const hasWorkViolationToDo = hasUnresolvedLate || hasUnresolvedEarly || hasUnresolvedIncomplete;
-
-                      // Còn lượt nghỉ tháng? (Trừ các đơn Đã nghỉ và đơn Đang chờ duyệt)
-                      const remainingMonthlyLeave = attendanceStats?.remaining_leave ?? 1;
-                      const hasMonthlyLeaveRemaining = remainingMonthlyLeave > 0 && !hasLeave;
-
-                      // Vẫn hiện nút nếu còn việc để làm (giải trình hoặc đăng ký khác)
-                      // Ẩn nút nếu tất cả vi phạm đã được giải trình (hoặc có đơn đang chờ của chính nó/Nghỉ phép/Online)
-                      if (hasWorkViolationToDo || hasMonthlyLeaveRemaining) {
-                        return (
-                          <button
-                            onClick={handleOpenSupplementaryRequest}
-                            className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                          >
-                            <DocumentPlusIcon className="h-5 w-5 mr-2" />
-                            Làm đơn bổ sung
-                          </button>
-                        );
-                      }
-                      return null;
-                    })()}
+                    {/* Luôn hiện nút làm đơn bổ sung để cho phép tạo đơn đăng ký (OT, tăng ca...) bất kể trạng thái ngày */}
+                    <button
+                      onClick={handleOpenSupplementaryRequest}
+                      className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                    >
+                      <DocumentPlusIcon className="h-5 w-5 mr-2" />
+                      Làm đơn bổ sung
+                    </button>
                     <button
                       onClick={handleCloseModal}
                       className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
