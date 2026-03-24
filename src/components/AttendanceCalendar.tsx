@@ -8,8 +8,11 @@ import {
   CalendarDaysIcon,
   XMarkIcon,
   DocumentTextIcon,
+  PencilIcon,
+  CheckIcon,
 } from '@heroicons/react/24/solid';
 import { attendanceService } from '../services/attendance.service';
+import { useAuth } from '../contexts/AuthContext';
 
 // Types for attendance data
 export interface AttendanceDay {
@@ -118,6 +121,17 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   // Dialog state for day detail
   const [dialogDay, setDialogDay] = useState<AttendanceDay | null>(null);
 
+  // Edit attendance state
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editCheckIn, setEditCheckIn] = useState('');
+  const [editCheckOut, setEditCheckOut] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState(false);
+
+  // Auth context for permission check
+  const { user } = useAuth();
+
   // Determine if we should show the internal detail dialog.
   // Default to showing it ONLY if no external date click handler is provided.
   const shouldShowInternal = showInternalDialog ?? !onDateClick;
@@ -132,6 +146,15 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       console.log('Data:', engineSummary);
     }
   }, [engineSummary]);
+
+  // Reset edit form when the selected dialog day changes
+  useEffect(() => {
+    setShowEditForm(false);
+    setEditCheckIn('');
+    setEditCheckOut('');
+    setEditError(null);
+    setEditSuccess(false);
+  }, [dialogDay]);
 
   // Map API shift status string to AttendanceStatus
   const mapShiftStatus = (shift: any): AttendanceStatus => {
@@ -738,6 +761,46 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     gray:   'bg-gray-50   border-gray-200',
   };
 
+  // Permission: can edit attendance (admin always can, or user with can_edit_attendance)
+  const isAdmin = !!(
+    user?.is_superuser ||
+    user?.is_staff ||
+    user?.is_super_admin ||
+    user?.role?.toUpperCase() === 'ADMIN'
+  );
+  const canEditAttendance = isAdmin || !!(user?.employee_permission?.can_edit_attendance);
+
+  // Handle edit attendance submission
+  const handleEditAttendance = async () => {
+    if (!dialogDay || !employeeId) return;
+    setEditSubmitting(true);
+    setEditError(null);
+    setEditSuccess(false);
+    try {
+      const d = dialogDay.date;
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      await attendanceService.editAttendance({
+        employee_id: employeeId,
+        date: dateStr,
+        check_in: editCheckIn,
+        check_out: editCheckOut,
+      });
+      setEditSuccess(true);
+      setShowEditForm(false);
+      // Refresh calendar data
+      fetchCalendarData();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Có lỗi xảy ra, vui lòng thử lại.';
+      setEditError(msg);
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   const DayDetailDialog = () => {
     if (!dialogDay) return null;
     const day = dialogDay;
@@ -781,15 +844,96 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               <p className="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-0.5">Chi tiết ngày</p>
               <h3 className="text-base font-bold text-gray-900">{getDayFullLabel(day.date)}</h3>
             </div>
-            <button
-              onClick={() => setDialogDay(null)}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors mt-0.5"
-            >
-              <XMarkIcon className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {canEditAttendance && employeeId && (
+                <button
+                  onClick={() => {
+                    const next = !showEditForm;
+                    setShowEditForm(next);
+                    setEditError(null);
+                    setEditSuccess(false);
+                    if (next) {
+                      setEditCheckIn(morningIn || afternoonIn || eveningIn || '');
+                      setEditCheckOut(eveningOut || afternoonOut || morningOut || '');
+                    }
+                  }}
+                  className={`p-1.5 rounded-lg transition-colors ${showEditForm ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100 text-gray-400 hover:text-gray-700'}`}
+                  title="Sửa check-in / check-out"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </button>
+              )}
+              <button
+                onClick={() => setDialogDay(null)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           <div className="px-5 py-4 space-y-5">
+
+            {/* Edit Attendance Form */}
+            {showEditForm && canEditAttendance && employeeId && (
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+                <p className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-3">Sửa check-in / check-out</p>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Check-in</label>
+                    <input
+                      type="time"
+                      value={editCheckIn}
+                      onChange={e => setEditCheckIn(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Check-out</label>
+                    <input
+                      type="time"
+                      value={editCheckOut}
+                      onChange={e => setEditCheckOut(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+                </div>
+                {editError && (
+                  <p className="text-xs text-red-600 mb-2">{editError}</p>
+                )}
+                {editSuccess && (
+                  <p className="text-xs text-green-600 mb-2 flex items-center gap-1">
+                    <CheckIcon className="h-3.5 w-3.5" /> Cập nhật thành công!
+                  </p>
+                )}
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => { setShowEditForm(false); setEditError(null); setEditSuccess(false); }}
+                    disabled={editSubmitting}
+                    className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={handleEditAttendance}
+                    disabled={editSubmitting || !editCheckIn || !editCheckOut}
+                    className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    {editSubmitting ? (
+                      <>
+                        <span className="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Đang lưu...
+                      </>
+                    ) : (
+                      <>
+                        <CheckIcon className="h-3.5 w-3.5" />
+                        Lưu
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Work credit summary */}
             <div className={`flex items-center gap-3 p-3 rounded-xl border ${getDayBadgeStyle(day)} bg-opacity-30`}>
