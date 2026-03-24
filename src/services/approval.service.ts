@@ -404,6 +404,8 @@ class ApprovalService {
       // Chuẩn hóa request_type: uppercase và bỏ dấu gạch dưới để xử lý cả
       // 'ATTENDANCE_EXPLANATION' và 'ATTENDANCEEXPLANATION', 'ONLINE_WORK' và 'ONLINEWORK', v.v.
       const normalizedType = (item.request_type || '').toUpperCase().replace(/_/g, '');
+      // event_type field returned by the unified API (e.g. "overtime", "live", "explanation")
+      const eventType = (item.event_type || '').toLowerCase().replace(/_/g, '');
 
       if (normalizedType === 'ATTENDANCEEXPLANATION' || normalizedType === 'EXPLANATION') {
         attendance_explanations.push(item);
@@ -412,6 +414,21 @@ class ApprovalService {
       } else if (normalizedType === 'ONLINEWORK' || normalizedType === 'ONLINEWORKREQUEST') {
         online_work_requests.push(item);
       } else if (normalizedType === 'REGISTRATION' || normalizedType === 'REGISTRATIONREQUEST' || normalizedType === 'OVERTIME') {
+        registration_requests.push(item);
+      } else if (eventType === 'explanation' || eventType === 'explanationapproval') {
+        // API trả về event_type: "explanation" hoặc "explanation_approval"
+        attendance_explanations.push(item);
+      } else if (eventType === 'leaverequest') {
+        // API trả về event_type: "leave_request"
+        leave_requests.push(item);
+      } else if (eventType === 'onlinework') {
+        // API trả về event_type: "online_work"
+        online_work_requests.push(item);
+      } else if (
+        eventType === 'overtime' || eventType === 'extrahours' || eventType === 'nightshift' ||
+        eventType === 'live' || eventType === 'offduty' || eventType === 'requestapproval'
+      ) {
+        // API trả về event_type: "overtime", "extra_hours", "night_shift", "live", "off_duty", "request_approval"
         registration_requests.push(item);
       } else {
         // Fallback: phân loại dựa trên các trường của item khi request_type không xác định

@@ -420,12 +420,56 @@ const Approvals: React.FC = () => {
   const getExpectedStatusText = (status: string): string =>
     EXPECTED_STATUS_MAP[status] || status;
 
+  // Returns icon path and color classes for each item type / registration sub-type
+  const getItemTypeConfig = (item: any): { tableCls: string; mobileBg: string; iconPath: string } => {
+    if (item._itemType === 'LEAVE') return {
+      tableCls: 'bg-blue-50 text-blue-600 border-blue-100',
+      mobileBg: 'bg-blue-500',
+      iconPath: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+    };
+    if (item._itemType === 'OVERTIME') return {
+      tableCls: 'bg-purple-50 text-purple-600 border-purple-100',
+      mobileBg: 'bg-purple-500',
+      iconPath: 'M13 10V3L4 14h7v7l9-11h-7z',
+    };
+    if (item._itemType === 'ONLINE_WORK') return {
+      tableCls: 'bg-teal-50 text-teal-600 border-teal-100',
+      mobileBg: 'bg-teal-500',
+      iconPath: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+    };
+    if (item._itemType === 'REGISTRATION') {
+      // registration_type is the legacy field; event_type is returned by the unified API
+      const regType = (item.registration_type || item.event_type || '').toUpperCase();
+      switch (regType) {
+        case 'OVERTIME':
+          return { tableCls: 'bg-purple-50 text-purple-600 border-purple-100', mobileBg: 'bg-purple-500', iconPath: 'M13 10V3L4 14h7v7l9-11h-7z' };
+        case 'EXTRA_HOURS':
+          return { tableCls: 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100', mobileBg: 'bg-fuchsia-500', iconPath: 'M12 4v16m8-8H4' };
+        case 'NIGHT_SHIFT':
+          return { tableCls: 'bg-sky-50 text-sky-600 border-sky-100', mobileBg: 'bg-sky-500', iconPath: 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z' };
+        case 'LIVE':
+          return { tableCls: 'bg-rose-50 text-rose-600 border-rose-100', mobileBg: 'bg-rose-500', iconPath: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' };
+        case 'OFF_DUTY':
+          return { tableCls: 'bg-orange-50 text-orange-600 border-orange-100', mobileBg: 'bg-orange-500', iconPath: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' };
+        default:
+          return { tableCls: 'bg-indigo-50 text-indigo-600 border-indigo-100', mobileBg: 'bg-indigo-500', iconPath: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' };
+      }
+    }
+    // EXPLANATION (default)
+    return {
+      tableCls: 'bg-amber-50 text-amber-600 border-amber-100',
+      mobileBg: 'bg-amber-500',
+      iconPath: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+    };
+  };
+
   const getRequestTypeLabel = (req: any): string => {
     let label = '';
     if (req._itemType === 'ONLINE_WORK') label = 'làm việc online';
     else if (req.explanation_type === 'LEAVE' || req._itemType === 'LEAVE') label = 'nghỉ phép tháng';
     else if (req._itemType === 'REGISTRATION' || req._itemType === 'OVERTIME') {
-      const type = req.registration_type || (req._itemType === 'OVERTIME' ? 'OVERTIME' : '');
+      // registration_type is the legacy field; event_type is returned by the unified API
+      const type = req.registration_type || req.event_type || (req._itemType === 'OVERTIME' ? 'OVERTIME' : '');
       label = getExplanationTypeLabel(type) || 'đơn đăng ký';
     }
     else if (req._itemType === 'WORK_FINALIZATION') label = 'chốt công tháng';
@@ -2228,22 +2272,13 @@ const Approvals: React.FC = () => {
                                             <tbody className="divide-y divide-slate-50">
                                               {items.map((item) => {
                                                 const itemKey = `${item._itemType}-${item.id}`;
+                                                const itemTypeConfig = getItemTypeConfig(item);
                                                 return (
                                                   <tr key={itemKey} className="group hover:bg-primary-50/30 transition-colors">
                                                     <td className="px-6 py-4">
                                                       <div className="flex items-center gap-4">
-                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border ${item._itemType === 'LEAVE' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                          item._itemType === 'OVERTIME' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                                            item._itemType === 'ONLINE_WORK' ? 'bg-teal-50 text-teal-600 border-teal-100' :
-                                                              item._itemType === 'REGISTRATION' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
-                                                                'bg-amber-50 text-amber-600 border-amber-100'}`}>
-                                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={
-                                                            item._itemType === 'LEAVE' ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' :
-                                                              item._itemType === 'OVERTIME' ? 'M13 10V3L4 14h7v7l9-11h-7z' :
-                                                                item._itemType === 'ONLINE_WORK' ? 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' :
-                                                                  item._itemType === 'REGISTRATION' ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' :
-                                                                    'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
-                                                          } /></svg>
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border ${itemTypeConfig.tableCls}`}>
+                                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={itemTypeConfig.iconPath} /></svg>
                                                         </div>
                                                         <div>
                                                           <div className="text-sm font-black text-slate-800 uppercase tracking-tight">{getRequestTypeLabel(item)}</div>
@@ -2307,22 +2342,13 @@ const Approvals: React.FC = () => {
                                         <div className="lg:hidden p-4 space-y-4 bg-slate-50/50">
                                           {items.map((item) => {
                                             const itemKey = `${item._itemType}-${item.id}`;
+                                            const itemTypeConfig = getItemTypeConfig(item);
                                             return (
                                               <div key={itemKey} className="p-4 bg-white rounded-[24px] border border-slate-100 shadow-sm active:scale-[0.98] transition-all">
                                                 <div className="flex justify-between items-start mb-4">
                                                   <div className="flex items-center gap-3">
-                                                    <div className={`p-2.5 rounded-2xl shadow-md ${item._itemType === 'LEAVE' ? 'bg-blue-500' :
-                                                      item._itemType === 'OVERTIME' ? 'bg-purple-500' :
-                                                        item._itemType === 'ONLINE_WORK' ? 'bg-teal-500' :
-                                                          item._itemType === 'REGISTRATION' ? 'bg-indigo-500' :
-                                                            'bg-amber-500'} text-white`}>
-                                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={
-                                                        item._itemType === 'LEAVE' ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' :
-                                                          item._itemType === 'OVERTIME' ? 'M13 10V3L4 14h7v7l9-11h-7z' :
-                                                            item._itemType === 'ONLINE_WORK' ? 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' :
-                                                              item._itemType === 'REGISTRATION' ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' :
-                                                                'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'
-                                                      } /></svg>
+                                                    <div className={`p-2.5 rounded-2xl shadow-md ${itemTypeConfig.mobileBg} text-white`}>
+                                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={itemTypeConfig.iconPath} /></svg>
                                                     </div>
                                                     <div>
                                                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{getRequestTypeLabel(item)}</h4>
