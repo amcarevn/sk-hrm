@@ -408,7 +408,11 @@ class ApprovalService {
       const eventType = (item.event_type || '').toLowerCase().replace(/_/g, '');
 
       if (normalizedType === 'ATTENDANCEEXPLANATION' || normalizedType === 'EXPLANATION') {
-        attendance_explanations.push(item);
+        if (item.explanation_type === 'LEAVE') {
+          leave_requests.push(item);
+        } else {
+          attendance_explanations.push(item);
+        }
       } else if (normalizedType === 'LEAVE' || normalizedType === 'MONTHLYLEAVE' || normalizedType === 'MONTHLYLEAVEREQUEST') {
         leave_requests.push(item);
       } else if (normalizedType === 'ONLINEWORK' || normalizedType === 'ONLINEWORKREQUEST') {
@@ -417,7 +421,11 @@ class ApprovalService {
         registration_requests.push(item);
       } else if (eventType === 'explanation' || eventType === 'explanationapproval') {
         // API trả về event_type: "explanation" hoặc "explanation_approval"
-        attendance_explanations.push(item);
+        if (item.explanation_type === 'LEAVE') {
+          leave_requests.push(item);
+        } else {
+          attendance_explanations.push(item);
+        }
       } else if (eventType === 'leaverequest') {
         // API trả về event_type: "leave_request"
         leave_requests.push(item);
