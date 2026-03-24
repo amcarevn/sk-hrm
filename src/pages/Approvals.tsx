@@ -100,6 +100,12 @@ const Approvals: React.FC = () => {
     total_rejected: 0,
   });
 
+  // Role-based permissions for UI elements
+  const isAdminView = (user as any)?.is_superuser || (user as any)?.is_staff || currentEmployee?.user?.is_superuser || currentEmployee?.user?.is_staff;
+  const isHRView = currentEmployee?.is_hr === true || user?.role?.toUpperCase() === 'HR';
+  const hasBulkApprovePermission = isAdminView || isHRView;
+
+
   // States cho các modal Dialog mới
   const [actionModalOpen, setActionModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -657,7 +663,9 @@ const Approvals: React.FC = () => {
       // Nếu chưa thỏa mãn các điều kiện trên, HR chưa được duyệt
       return false;
     }
+
     return false;
+
   };
 
   /**
@@ -763,6 +771,8 @@ const Approvals: React.FC = () => {
         return !request.hr_approved;
       }
     }
+
+
 
     return false;
 
@@ -988,10 +998,10 @@ const Approvals: React.FC = () => {
           const penaltyB = Number(b.penalty_amount) || 0;
           if (penaltyA !== penaltyB) return penaltyB - penaltyA;
 
-          // 3. Đơn mới nhất
-          const dateA = a.attendance_date || a.event_date || a.date || a.created_at || '';
-          const dateB = b.attendance_date || b.event_date || b.date || b.created_at || '';
-          return dateB.localeCompare(dateA);
+          // 3. Đơn cũ nhất (gửi trước duyệt trước)
+          const dateA = a.created_at || a.attendance_date || a.event_date || a.date || '';
+          const dateB = b.created_at || b.attendance_date || b.event_date || b.date || '';
+          return dateA.localeCompare(dateB);
         });
 
         const approvedInGroup = sortedGroup.slice(0, remaining);
@@ -1257,12 +1267,16 @@ const Approvals: React.FC = () => {
           ? `${requestName} đã duyệt`
           : `${requestName} đã từ chối`;
       const finalApprover =
-        explanation.hr_rejected_by_name ||
-        (explanation.status === 'REJECTED' && explanation.rejected_by_name) ||
-        explanation.hr_approved_by_name ||
-        explanation.direct_manager_approved_by_name ||
-        explanation.approved_by_name ||
-        (explanation.status === 'REJECTED' ? 'Hệ thống' : 'Chưa xác định');
+        explanation.status === 'REJECTED'
+          ? (explanation.hr_rejected_by_name || 
+             explanation.direct_manager_rejected_by_name ||
+             explanation.rejected_by_name || 
+             (explanation.rejection_level === 'HR' ? 'Nhân sự HR' : 'Hệ thống'))
+          : (explanation.hr_approved_by_name || 
+             explanation.approved_by_name || 
+             explanation.direct_manager_approved_by_name || 
+             'Chưa xác định');
+
 
 
       workflow.push({
@@ -2197,17 +2211,6 @@ const Approvals: React.FC = () => {
                     </button>
 
                     <div className="flex items-center gap-4">
-                      {pendingInDept > 0 && activeTab === 'pending' && (
-                        <button
-                          onClick={() => handleBulkApproveItems(allItemsInDept, `phòng ${deptName}`)}
-                          disabled={isBulkProcessing}
-                          className="hidden sm:flex items-center space-x-1.5 bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold py-1.5 px-4 rounded-full shadow-sm transition-all whitespace-nowrap"
-                        >
-                          {isBulkProcessing ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
-                          <span>Duyệt cả phòng</span>
-                        </button>
-                      )}
-
                       <button
                         onClick={() => toggleDepartmentGroup(deptName)}
                         className={`p-2 hover:bg-gray-200 rounded-full transition-transform duration-300 ${isDeptExpanded ? 'rotate-180' : ''}`}
@@ -2217,6 +2220,7 @@ const Approvals: React.FC = () => {
                         </svg>
                       </button>
                     </div>
+
                   </div>
 
                   {/* Accordion Content - Positions */}
@@ -2244,17 +2248,8 @@ const Approvals: React.FC = () => {
                                 </div>
                               </div>
 
-                              {pendingInPos > 0 && activeTab === 'pending' && (
-                                <button
-                                  onClick={() => handleBulkApproveItems(allItemsInPos, `vị trí ${posName}`)}
-                                  disabled={isBulkProcessing}
-                                  className="text-[11px] font-black text-primary-600 hover:text-white bg-primary-50 hover:bg-primary-600 px-4 py-2 rounded-xl transition-all flex items-center gap-2 border border-primary-100 shadow-sm uppercase tracking-wider"
-                                >
-                                  {isBulkProcessing ? <div className="w-3 h-3 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
-                                  Duyệt nhanh {allItemsInPos.length} đơn
-                                </button>
-                              )}
-                            </div>
+                              </div>
+
 
                             {/* New Level: Employee Accordion */}
                             <div className="p-4 space-y-4">
@@ -2514,7 +2509,12 @@ const Approvals: React.FC = () => {
                                             );
                                           })}
                                         </div>
-                                        {activeTab === 'pending' && pendingInEmp > 0 && (
+                                        {/* 
+                                          QUY TẮC HIỂN THỊ: 
+                                          - Duyệt nhanh tất cả đơn (cấp nhân viên): CHỈ dành cho Admin và Nhân sự (HR).
+                                          - Quản lý (Manager) thông thường KHÔNG được sử dụng nút này để buộc phải xem chi tiết hoặc duyệt theo nhóm lớn hơn.
+                                        */}
+                                        {hasBulkApprovePermission && activeTab === 'pending' && pendingInEmp > 0 && (
                                           <div className="p-4 flex justify-end bg-slate-50/30 border-t border-slate-50">
                                             <button
                                               onClick={(e) => {
@@ -2523,11 +2523,13 @@ const Approvals: React.FC = () => {
                                               }}
                                               className="flex items-center gap-2 h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black rounded-xl shadow-lg shadow-emerald-100 transition-all uppercase tracking-wider"
                                             >
+
                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                               Duyệt nhanh tất cả đơn
                                             </button>
                                           </div>
                                         )}
+
                                       </div>
                                     )}
                                   </div>
@@ -3900,7 +3902,7 @@ const Approvals: React.FC = () => {
                 onClick={() => setBulkActionResult(null)}
                 className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors"
               >
-                Tuyệt vời
+                OK
               </button>
             </div>
           </div>
