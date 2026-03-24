@@ -32,6 +32,7 @@ interface NavigationItem {
   icon: any;
   roles: string[];
   departments?: string[]; // Optional department codes
+  employeePermission?: string; // Optional employee_permission key that grants access
 }
 
 // Define navigation items with role requirements
@@ -76,13 +77,15 @@ const navigationItems: NavigationItem[] = [
     name: 'Quản lý phòng ban',
     href: '/dashboard/departments',
     icon: BuildingOfficeIcon,
-    roles: ['ADMIN', ],
+    roles: ['ADMIN'],
+    employeePermission: 'can_manage_departments',
   },
   {
     name: 'Quản lý vị trí',
     href: '/dashboard/positions',
     icon: BriefcaseIcon,
-    roles: ['ADMIN',],
+    roles: ['ADMIN'],
+    employeePermission: 'can_manage_positions',
   },
   {
     name: 'Chấm công',
@@ -195,23 +198,31 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     null
   );
   
+  // Get employee_permission from user profile
+  const employeePermission = user?.employee_permission;
+
   // Unified filtering logic
   const navigation = isSuperAdmin 
     ? navigationItems 
     : navigationItems.filter((item) => {
-        // 1. Check department access
+        // 1. Check if item requires a specific employee permission
+        if (item.employeePermission && employeePermission?.[item.employeePermission as keyof typeof employeePermission]) {
+          return true;
+        }
+
+        // 2. Check department access
         if (item.departments && userDepartmentCode) {
           if (item.departments.includes(userDepartmentCode)) {
             return item.roles.some(role => role.toUpperCase() === userRole);
           }
         }
 
-        // 2. Special case: Managers can access Onboarding
+        // 3. Special case: Managers can access Onboarding
         if (isManager && item.name === 'Onboard nhân sự') {
           return true;
         }
         
-        // 3. Check role access
+        // 4. Check role access
         return item.roles.some(role => role.toUpperCase() === userRole);
       });
 

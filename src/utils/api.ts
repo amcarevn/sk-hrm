@@ -120,6 +120,7 @@ export interface User {
     department_code?: string;
     [key: string]: any;
   };
+  employee_permission?: EmployeePermissions;
   [key: string]: any; // Allow additional properties
 }
 
