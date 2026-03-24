@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -21,10 +21,16 @@ import {
   CogIcon,
   BuildingOfficeIcon,
   CalendarIcon,
+  HomeIcon,
+  ArrowTrendingUpIcon,
+  BellIcon,
+  MagnifyingGlassIcon,
+  EllipsisHorizontalIcon,
 } from '@heroicons/react/24/outline';
 
 export default function LandingPage() {
   const { isAuthenticated, loading } = useAuth();
+  const [activeDemoTab, setActiveDemoTab] = useState<'dashboard' | 'employees' | 'attendance' | 'payroll'>('dashboard');
 
   // Redirect to dashboard if already authenticated
   if (!loading && isAuthenticated) {
@@ -356,43 +362,447 @@ export default function LandingPage() {
       </div>
 
       {/* Demo Section */}
-      <div id="demo" className="py-16 bg-gray-50">
+      <div id="demo" className="py-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl lg:text-center">
+          <div className="mx-auto max-w-2xl lg:text-center mb-16">
+            <div className="inline-flex items-center rounded-full bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 mb-6">
+              <PlayIcon className="h-4 w-4 mr-2" />
+              Xem thử ngay
+            </div>
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl lg:text-5xl">
-              Trải nghiệm thực tế
+              Trải nghiệm{' '}
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                thực tế
+              </span>
             </h2>
             <p className="mt-6 text-lg leading-8 text-gray-600">
-              Xem hệ thống quản lý nhân sự hoạt động như thế nào trong thực tế
+              Khám phá giao diện trực quan và đầy đủ tính năng của hệ thống quản lý nhân sự
             </p>
           </div>
 
-          <div className="mx-auto mt-16 max-w-4xl">
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
-                <h3 className="text-lg font-semibold text-white">
-                  Demo Hệ Thống HRM
-                </h3>
-              </div>
-              <div className="p-8">
-                <div className="bg-gray-100 rounded-lg p-6 min-h-[400px] flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                      <UserGroupIcon className="h-8 w-8 text-blue-600" />
-                    </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      Demo Quản Lý Nhân Sự
-                    </h4>
-                    <p className="text-gray-600 mb-4">
-                      Trải nghiệm hệ thống HRM thông minh với đầy đủ tính năng
-                    </p>
-                    <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                      <PlayIcon className="h-5 w-5 mr-2" />
-                      Khởi chạy Demo
-                    </button>
+          {/* Tab Navigation */}
+          <div className="flex justify-center mb-8">
+            <div className="inline-flex bg-white rounded-xl p-1.5 shadow-md border border-gray-200 gap-1">
+              {[
+                { key: 'dashboard', label: 'Tổng quan', icon: HomeIcon },
+                { key: 'employees', label: 'Nhân viên', icon: UserGroupIcon },
+                { key: 'attendance', label: 'Chấm công', icon: ClockIcon },
+                { key: 'payroll', label: 'Lương', icon: CurrencyDollarIcon },
+              ].map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveDemoTab(key as typeof activeDemoTab)}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeDemoTab === key
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Browser Frame Mockup */}
+          <div className="mx-auto max-w-5xl">
+            <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-200">
+              {/* Browser Chrome */}
+              <div className="bg-gray-100 border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+                <div className="flex gap-1.5">
+                  <div className="h-3 w-3 rounded-full bg-red-400" />
+                  <div className="h-3 w-3 rounded-full bg-yellow-400" />
+                  <div className="h-3 w-3 rounded-full bg-green-400" />
+                </div>
+                <div className="flex-1 mx-4">
+                  <div className="bg-white rounded-md px-3 py-1.5 flex items-center gap-2 text-xs text-gray-400 border border-gray-200">
+                    <ShieldCheckIcon className="h-3.5 w-3.5 text-green-500" />
+                    <span>app.hrm-system.vn/dashboard</span>
                   </div>
                 </div>
+                <div className="flex items-center gap-2 text-gray-400">
+                  <BellIcon className="h-4 w-4" />
+                  <MagnifyingGlassIcon className="h-4 w-4" />
+                </div>
               </div>
+
+              {/* App Shell */}
+              <div className="flex bg-gray-50" style={{ minHeight: 480 }}>
+                {/* Sidebar */}
+                <div className="w-52 bg-gray-900 flex-shrink-0 flex flex-col">
+                  <div className="px-4 py-4 border-b border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <div className="h-7 w-7 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                        <BriefcaseIcon className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="text-white font-semibold text-sm">AI HRM</span>
+                    </div>
+                  </div>
+                  <nav className="flex-1 px-3 py-4 space-y-1">
+                    {[
+                      { icon: HomeIcon, label: 'Tổng quan', active: activeDemoTab === 'dashboard' },
+                      { icon: UserGroupIcon, label: 'Nhân viên', active: activeDemoTab === 'employees' },
+                      { icon: ClockIcon, label: 'Chấm công', active: activeDemoTab === 'attendance' },
+                      { icon: CurrencyDollarIcon, label: 'Tiền lương', active: activeDemoTab === 'payroll' },
+                      { icon: CalendarIcon, label: 'Nghỉ phép', active: false },
+                      { icon: ChartBarIcon, label: 'Báo cáo', active: false },
+                      { icon: CogIcon, label: 'Cài đặt', active: false },
+                    ].map(({ icon: Icon, label, active }) => (
+                      <div
+                        key={label}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs cursor-default transition-colors ${
+                          active ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        <span>{label}</span>
+                      </div>
+                    ))}
+                  </nav>
+                  <div className="px-3 py-4 border-t border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <div className="h-7 w-7 rounded-full bg-gradient-to-r from-blue-400 to-purple-400 flex items-center justify-center text-xs text-white font-semibold">
+                        HT
+                      </div>
+                      <div>
+                        <div className="text-xs text-white font-medium">HR Manager</div>
+                        <div className="text-xs text-gray-400">Quản trị viên</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main Content */}
+                <div className="flex-1 overflow-hidden">
+                  {/* Top Bar */}
+                  <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        {activeDemoTab === 'dashboard' && 'Tổng quan hệ thống'}
+                        {activeDemoTab === 'employees' && 'Quản lý nhân viên'}
+                        {activeDemoTab === 'attendance' && 'Bảng chấm công tháng 3/2026'}
+                        {activeDemoTab === 'payroll' && 'Bảng lương tháng 3/2026'}
+                      </h3>
+                      <p className="text-xs text-gray-500">Cập nhật lúc 11:30 AM, 24/03/2026</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-3 py-1.5 text-xs text-gray-500">
+                        <MagnifyingGlassIcon className="h-3.5 w-3.5" />
+                        <span>Tìm kiếm...</span>
+                      </div>
+                      <div className="relative">
+                        <BellIcon className="h-5 w-5 text-gray-400" />
+                        <span className="absolute -top-1 -right-1 h-3.5 w-3.5 bg-red-500 rounded-full text-[9px] text-white flex items-center justify-center">3</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dashboard Tab */}
+                  {activeDemoTab === 'dashboard' && (
+                    <div className="p-5 space-y-4">
+                      <div className="grid grid-cols-4 gap-3">
+                        {[
+                          { label: 'Tổng nhân viên', value: '248', change: '+12', iconBg: 'bg-blue-50', iconColor: 'text-blue-600', changeColor: 'text-blue-600', icon: UserGroupIcon },
+                          { label: 'Đang làm việc', value: '231', change: '+5', iconBg: 'bg-green-50', iconColor: 'text-green-600', changeColor: 'text-green-600', icon: BriefcaseIcon },
+                          { label: 'Nghỉ phép hôm nay', value: '17', change: '-3', iconBg: 'bg-yellow-50', iconColor: 'text-yellow-600', changeColor: 'text-yellow-600', icon: CalendarIcon },
+                          { label: 'Tổng lương tháng', value: '4.2 tỷ', change: '+8%', iconBg: 'bg-purple-50', iconColor: 'text-purple-600', changeColor: 'text-purple-600', icon: CurrencyDollarIcon },
+                        ].map(({ label, value, change, iconBg, iconColor, changeColor, icon: Icon }) => (
+                          <div key={label} className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs text-gray-500">{label}</span>
+                              <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${iconBg}`}>
+                                <Icon className={`h-3.5 w-3.5 ${iconColor}`} />
+                              </div>
+                            </div>
+                            <div className="text-lg font-bold text-gray-900">{value}</div>
+                            <div className={`text-xs ${changeColor} flex items-center gap-0.5 mt-0.5`}>
+                              <ArrowTrendingUpIcon className="h-3 w-3" />
+                              {change} so với tháng trước
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        {/* Recent Activity */}
+                        <div className="col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                          <h4 className="text-sm font-semibold text-gray-800 mb-3">Hoạt động gần đây</h4>
+                          <div className="space-y-2.5">
+                            {[
+                              { avatar: 'NT', name: 'Nguyễn Thành', action: 'đã xác nhận chấm công', time: '5 phút trước', avatarCls: 'bg-blue-100 text-blue-700' },
+                              { avatar: 'LH', name: 'Lê Hương', action: 'đã gửi đơn nghỉ phép', time: '23 phút trước', avatarCls: 'bg-purple-100 text-purple-700' },
+                              { avatar: 'TM', name: 'Trần Minh', action: 'đã hoàn thành onboarding', time: '1 giờ trước', avatarCls: 'bg-green-100 text-green-700' },
+                              { avatar: 'PL', name: 'Phạm Lan', action: 'cập nhật hồ sơ nhân viên', time: '2 giờ trước', avatarCls: 'bg-yellow-100 text-yellow-700' },
+                            ].map(({ avatar, name, action, time, avatarCls }) => (
+                              <div key={name} className="flex items-center gap-3">
+                                <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${avatarCls}`}>
+                                  {avatar}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-xs font-medium text-gray-900">{name} </span>
+                                  <span className="text-xs text-gray-500">{action}</span>
+                                </div>
+                                <span className="text-xs text-gray-400 flex-shrink-0">{time}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Dept breakdown */}
+                        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                          <h4 className="text-sm font-semibold text-gray-800 mb-3">Theo phòng ban</h4>
+                          <div className="space-y-2.5">
+                            {[
+                              { dept: 'Kỹ thuật', count: 82, pct: 33 },
+                              { dept: 'Kinh doanh', count: 65, pct: 26 },
+                              { dept: 'Marketing', count: 41, pct: 17 },
+                              { dept: 'Kế toán', count: 30, pct: 12 },
+                              { dept: 'Hành chính', count: 30, pct: 12 },
+                            ].map(({ dept, count, pct }) => (
+                              <div key={dept}>
+                                <div className="flex justify-between text-xs mb-1">
+                                  <span className="text-gray-600">{dept}</span>
+                                  <span className="font-medium text-gray-800">{count}</span>
+                                </div>
+                                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Employees Tab */}
+                  {activeDemoTab === 'employees' && (
+                    <div className="p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-500">
+                            <MagnifyingGlassIcon className="h-3.5 w-3.5" />
+                            <span>Tìm nhân viên...</span>
+                          </div>
+                          <button className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-600">Phòng ban ▾</button>
+                          <button className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-600">Trạng thái ▾</button>
+                        </div>
+                        <button className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1">
+                          + Thêm nhân viên
+                        </button>
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-gray-100 bg-gray-50">
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Nhân viên</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Phòng ban</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Chức vụ</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Ngày vào</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Trạng thái</th>
+                              <th className="px-4 py-2.5" />
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {[
+                              { initials: 'NT', name: 'Nguyễn Thành', email: 'thanh.nv@company.vn', dept: 'Kỹ thuật', role: 'Senior Dev', date: '15/03/2022', status: 'Đang làm', avatarCls: 'bg-blue-100 text-blue-700' },
+                              { initials: 'LH', name: 'Lê Thị Hương', email: 'huong.lt@company.vn', dept: 'Kinh doanh', role: 'Sales Manager', date: '01/07/2021', status: 'Đang làm', avatarCls: 'bg-green-100 text-green-700' },
+                              { initials: 'TM', name: 'Trần Văn Minh', email: 'minh.tv@company.vn', dept: 'Marketing', role: 'Content Lead', date: '20/01/2023', status: 'Nghỉ phép', avatarCls: 'bg-yellow-100 text-yellow-700' },
+                              { initials: 'PL', name: 'Phạm Thị Lan', email: 'lan.pt@company.vn', dept: 'Kế toán', role: 'Accountant', date: '05/09/2020', status: 'Đang làm', avatarCls: 'bg-purple-100 text-purple-700' },
+                              { initials: 'HQ', name: 'Hoàng Quân', email: 'quan.hd@company.vn', dept: 'Hành chính', role: 'HR Specialist', date: '12/11/2023', status: 'Đang làm', avatarCls: 'bg-indigo-100 text-indigo-700' },
+                            ].map(({ initials, name, email, dept, role, date, status, avatarCls }) => (
+                              <tr key={name} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-2.5">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${avatarCls}`}>
+                                      {initials}
+                                    </div>
+                                    <div>
+                                      <div className="font-medium text-gray-900">{name}</div>
+                                      <div className="text-gray-400">{email}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5 text-gray-600">{dept}</td>
+                                <td className="px-4 py-2.5 text-gray-600">{role}</td>
+                                <td className="px-4 py-2.5 text-gray-500">{date}</td>
+                                <td className="px-4 py-2.5">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    status === 'Đang làm' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                  }`}>
+                                    {status}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2.5 text-gray-400 text-right">
+                                  <EllipsisHorizontalIcon className="h-4 w-4 ml-auto" />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Attendance Tab */}
+                  {activeDemoTab === 'attendance' && (
+                    <div className="p-5">
+                      <div className="grid grid-cols-4 gap-3 mb-4">
+                        {[
+                          { label: 'Đúng giờ', value: '218', icon: CheckIcon, cardCls: 'bg-green-50 border-green-100', iconCls: 'text-green-600', textCls: 'text-green-700', subCls: 'text-green-500' },
+                          { label: 'Đi muộn', value: '13', icon: ClockIcon, cardCls: 'bg-yellow-50 border-yellow-100', iconCls: 'text-yellow-600', textCls: 'text-yellow-700', subCls: 'text-yellow-500' },
+                          { label: 'Vắng mặt', value: '6', icon: BriefcaseIcon, cardCls: 'bg-red-50 border-red-100', iconCls: 'text-red-600', textCls: 'text-red-700', subCls: 'text-red-500' },
+                          { label: 'Nghỉ phép', value: '11', icon: CalendarIcon, cardCls: 'bg-blue-50 border-blue-100', iconCls: 'text-blue-600', textCls: 'text-blue-700', subCls: 'text-blue-500' },
+                        ].map(({ label, value, icon: Icon, cardCls, iconCls, textCls, subCls }) => (
+                          <div key={label} className={`border rounded-xl p-3 ${cardCls}`}>
+                            <div className="flex items-center gap-2 mb-1">
+                              <Icon className={`h-4 w-4 ${iconCls}`} />
+                              <span className={`text-xs font-medium ${textCls}`}>{label}</span>
+                            </div>
+                            <div className={`text-2xl font-bold ${textCls}`}>{value}</div>
+                            <div className={`text-xs mt-0.5 ${subCls}`}>nhân viên hôm nay</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-gray-100 bg-gray-50">
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Nhân viên</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Vào ca</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Ra ca</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Giờ làm</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">OT</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Trạng thái</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {[
+                              { initials: 'NT', name: 'Nguyễn Thành', avatarCls: 'bg-blue-100 text-blue-700', checkin: '07:58', checkout: '17:05', hours: '8h 07m', ot: '-', status: 'Đúng giờ', statusCls: 'bg-green-100 text-green-700' },
+                              { initials: 'LH', name: 'Lê Thị Hương', avatarCls: 'bg-green-100 text-green-700', checkin: '08:34', checkout: '18:00', hours: '9h 26m', ot: '1h', status: 'Đi muộn', statusCls: 'bg-yellow-100 text-yellow-700' },
+                              { initials: 'TM', name: 'Trần Văn Minh', avatarCls: 'bg-yellow-100 text-yellow-700', checkin: '-', checkout: '-', hours: '-', ot: '-', status: 'Nghỉ phép', statusCls: 'bg-blue-100 text-blue-700' },
+                              { initials: 'PL', name: 'Phạm Thị Lan', avatarCls: 'bg-purple-100 text-purple-700', checkin: '08:00', checkout: '17:00', hours: '8h 00m', ot: '-', status: 'Đúng giờ', statusCls: 'bg-green-100 text-green-700' },
+                              { initials: 'HQ', name: 'Hoàng Quân', avatarCls: 'bg-indigo-100 text-indigo-700', checkin: '07:55', checkout: '19:30', hours: '11h 35m', ot: '2.5h', status: 'Đúng giờ', statusCls: 'bg-green-100 text-green-700' },
+                            ].map(({ initials, name, avatarCls, checkin, checkout, hours, ot, status, statusCls }) => (
+                              <tr key={name} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold ${avatarCls}`}>
+                                      {initials}
+                                    </div>
+                                    <span className="font-medium text-gray-900">{name}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5 text-gray-700 font-mono">{checkin}</td>
+                                <td className="px-4 py-2.5 text-gray-700 font-mono">{checkout}</td>
+                                <td className="px-4 py-2.5 text-gray-700">{hours}</td>
+                                <td className="px-4 py-2.5 text-orange-600 font-medium">{ot}</td>
+                                <td className="px-4 py-2.5">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusCls}`}>
+                                    {status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payroll Tab */}
+                  {activeDemoTab === 'payroll' && (
+                    <div className="p-5">
+                      <div className="grid grid-cols-3 gap-3 mb-4">
+                        {[
+                          { label: 'Tổng quỹ lương', value: '4,234,500,000 ₫', sub: '+8.2% so với tháng trước', labelCls: 'text-blue-600' },
+                          { label: 'Đã thanh toán', value: '3,980,000,000 ₫', sub: '94% nhân viên', labelCls: 'text-green-600' },
+                          { label: 'Còn lại', value: '254,500,000 ₫', sub: '14 nhân viên chờ duyệt', labelCls: 'text-yellow-600' },
+                        ].map(({ label, value, sub, labelCls }) => (
+                          <div key={label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+                            <div className={`text-xs font-medium mb-1 ${labelCls}`}>{label}</div>
+                            <div className="text-base font-bold text-gray-900 truncate">{value}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">{sub}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-gray-100 bg-gray-50">
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Nhân viên</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Lương cơ bản</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Phụ cấp</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">OT</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Khấu trừ</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Thực lĩnh</th>
+                              <th className="text-left px-4 py-2.5 font-semibold text-gray-600">Trạng thái</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {[
+                              { initials: 'NT', name: 'Nguyễn Thành', avatarCls: 'bg-blue-100 text-blue-700', base: '25,000,000', allowance: '3,500,000', ot: '850,000', deduct: '2,375,000', net: '26,975,000', paid: true },
+                              { initials: 'LH', name: 'Lê Thị Hương', avatarCls: 'bg-green-100 text-green-700', base: '22,000,000', allowance: '2,000,000', ot: '600,000', deduct: '2,088,000', net: '22,512,000', paid: true },
+                              { initials: 'TM', name: 'Trần Văn Minh', avatarCls: 'bg-yellow-100 text-yellow-700', base: '18,000,000', allowance: '1,500,000', ot: '0', deduct: '1,710,000', net: '17,790,000', paid: false },
+                              { initials: 'PL', name: 'Phạm Thị Lan', avatarCls: 'bg-purple-100 text-purple-700', base: '20,000,000', allowance: '1,800,000', ot: '0', deduct: '1,900,000', net: '19,900,000', paid: true },
+                              { initials: 'HQ', name: 'Hoàng Quân', avatarCls: 'bg-indigo-100 text-indigo-700', base: '16,000,000', allowance: '1,200,000', ot: '1,200,000', deduct: '1,520,000', net: '16,880,000', paid: false },
+                            ].map(({ initials, name, avatarCls, base, allowance, ot, deduct, net, paid }) => (
+                              <tr key={name} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-2.5">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold ${avatarCls}`}>
+                                      {initials}
+                                    </div>
+                                    <span className="font-medium text-gray-900">{name}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5 text-gray-700">{base} ₫</td>
+                                <td className="px-4 py-2.5 text-green-600">+{allowance} ₫</td>
+                                <td className="px-4 py-2.5 text-orange-600">{ot !== '0' ? `+${ot} ₫` : '-'}</td>
+                                <td className="px-4 py-2.5 text-red-500">-{deduct} ₫</td>
+                                <td className="px-4 py-2.5 font-semibold text-gray-900">{net} ₫</td>
+                                <td className="px-4 py-2.5">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    paid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                  }`}>
+                                    {paid ? 'Đã thanh toán' : 'Chờ duyệt'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Status Bar */}
+              <div className="bg-gray-800 px-4 py-1.5 flex items-center justify-between text-xs text-gray-400">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-400 inline-block" /> Hệ thống hoạt động bình thường</span>
+                  <span>248 nhân viên đang hoạt động</span>
+                </div>
+                <span>© 2026 AI HRM System</span>
+              </div>
+            </div>
+
+            {/* CTA below demo */}
+            <div className="mt-8 text-center">
+              <p className="text-sm text-gray-500 mb-4">Muốn trải nghiệm đầy đủ tính năng?</p>
+              <a
+                href="#contact"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                <RocketLaunchIcon className="h-5 w-5" />
+                Đăng ký dùng thử miễn phí
+                <ArrowRightIcon className="h-4 w-4" />
+              </a>
             </div>
           </div>
         </div>
