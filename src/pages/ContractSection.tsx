@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { managementApi } from '../utils/api';  // ✅ Import managementApi
+import { managementApi } from '../utils/api';
 import {
   DocumentTextIcon,
   PlusIcon,
@@ -9,6 +9,7 @@ import {
   TrashIcon,
   CheckBadgeIcon,
 } from '@heroicons/react/24/outline';
+import ContractPlaceholderModal from './ContractPlaceholderModal';
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
   PROBATION: 'Hợp đồng thử việc',
@@ -63,16 +64,17 @@ type EmployeeContract = {
 type Props = {
   onboardingId: number;
   employeeId: number | null;
+  employeeProfile?: Record<string, any>;
 };
 
-const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
+const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeeProfile }) => {
   const [contracts, setContracts] = useState<EmployeeContract[]>([]);
   const [templates, setTemplates] = useState<ContractTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [generating, setGenerating] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [markingSigned, setMarkingSigned] = useState<number | null>(null);
+  const [placeholderModal, setPlaceholderModal] = useState<number | null>(null);
 
   const [newContract, setNewContract] = useState({
     contract_type: 'PROBATION',
@@ -82,7 +84,6 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
     notes: '',
   });
 
-  // ✅ Dùng managementApi
   const fetchContracts = async () => {
     try {
       const { data } = await managementApi.get('/api-hrm/employee-contracts/', {
@@ -94,7 +95,6 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
     }
   };
 
-  // ✅ Dùng managementApi
   const fetchTemplates = async () => {
     try {
       const { data } = await managementApi.get('/api-hrm/contract-templates/', {
@@ -111,7 +111,6 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
     Promise.all([fetchContracts(), fetchTemplates()]).finally(() => setLoading(false));
   }, [onboardingId]);
 
-  // ✅ Dùng managementApi
   const handleAddContract = async () => {
     if (!employeeId) return alert('Chưa có hồ sơ nhân viên');
     try {
@@ -132,7 +131,6 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
     }
   };
 
-  // ✅ Dùng managementApi
   const handleDelete = async (contractId: number) => {
     if (!confirm('Bạn có chắc muốn xóa hợp đồng này?')) return;
     setDeleting(contractId);
@@ -146,7 +144,6 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
     }
   };
 
-  // ✅ Dùng managementApi
   const handleMarkSigned = async (contractId: number) => {
     if (!confirm('Xác nhận đánh dấu hợp đồng này là đã ký?')) return;
     setMarkingSigned(contractId);
@@ -163,26 +160,11 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
     }
   };
 
-  // ✅ Dùng managementApi
-  const handleGeneratePDF = async (contractId: number) => {
-    setGenerating(contractId);
-    try {
-      const { data } = await managementApi.post(
-        `/api-hrm/employee-contracts/${contractId}/generate_pdf/`
-      );
-      alert('Đã tạo file hợp đồng thành công');
-      await fetchContracts();
-    } catch (e: any) {
-      alert(e.response?.data?.message || e.response?.data?.detail || 'Lỗi tạo PDF');
-    } finally {
-      setGenerating(null);
-    }
-  };
-
   if (loading) return <div className="text-center py-8 text-gray-500">Đang tải...</div>;
 
   return (
     <div className="space-y-4">
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-gray-900">
@@ -234,16 +216,18 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
 
                 {/* Actions */}
                 <div className="flex gap-2 flex-wrap justify-end">
+
+                  {/* Tạo PDF — mở modal placeholder thay vì generate trực tiếp */}
                   {contract.template && !contract.generated_file && (
                     <button
-                      onClick={() => handleGeneratePDF(contract.id)}
-                      disabled={generating === contract.id}
+                      onClick={() => setPlaceholderModal(contract.id)}
                       className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 text-sm"
                     >
-                      {generating === contract.id ? '⏳' : '📄'} Tạo PDF
+                      📄 Tạo PDF
                     </button>
                   )}
 
+                  {/* Xem file đã tạo */}
                   {contract.generated_file && (
                     <a
                       href={contract.generated_file_url || contract.generated_file}
@@ -255,10 +239,10 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
                     </a>
                   )}
 
+                  {/* Tạo lại — cũng mở modal placeholder */}
                   {contract.template && contract.generated_file && (
                     <button
-                      onClick={() => handleGeneratePDF(contract.id)}
-                      disabled={generating === contract.id}
+                      onClick={() => setPlaceholderModal(contract.id)}
                       className="flex items-center gap-1 px-3 py-1.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-md hover:bg-orange-100 text-sm"
                     >
                       🔄 Tạo lại
@@ -375,6 +359,19 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Placeholder Modal — hiện khi bấm Tạo PDF hoặc Tạo lại */}
+      {placeholderModal !== null && (
+        <ContractPlaceholderModal
+          contractId={placeholderModal}
+          onClose={() => setPlaceholderModal(null)}
+          onSuccess={(fileUrl) => {
+            window.open(fileUrl, '_blank');
+            setPlaceholderModal(null);
+            fetchContracts();
+          }}
+        />
       )}
 
     </div>
