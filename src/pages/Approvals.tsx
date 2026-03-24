@@ -438,7 +438,8 @@ const Approvals: React.FC = () => {
       iconPath: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
     };
     if (item._itemType === 'REGISTRATION') {
-      const regType = (item.registration_type || '').toUpperCase();
+      // registration_type is the legacy field; event_type is returned by the unified API
+      const regType = (item.registration_type || item.event_type || '').toUpperCase();
       switch (regType) {
         case 'OVERTIME':
           return { tableCls: 'bg-purple-50 text-purple-600 border-purple-100', mobileBg: 'bg-purple-500', iconPath: 'M13 10V3L4 14h7v7l9-11h-7z' };
@@ -467,7 +468,8 @@ const Approvals: React.FC = () => {
     if (req._itemType === 'ONLINE_WORK') label = 'làm việc online';
     else if (req.explanation_type === 'LEAVE' || req._itemType === 'LEAVE') label = 'nghỉ phép tháng';
     else if (req._itemType === 'REGISTRATION' || req._itemType === 'OVERTIME') {
-      const type = req.registration_type || (req._itemType === 'OVERTIME' ? 'OVERTIME' : '');
+      // registration_type is the legacy field; event_type is returned by the unified API
+      const type = req.registration_type || req.event_type || (req._itemType === 'OVERTIME' ? 'OVERTIME' : '');
       label = getExplanationTypeLabel(type) || 'đơn đăng ký';
     }
     else if (req._itemType === 'WORK_FINALIZATION') label = 'chốt công tháng';
