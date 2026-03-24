@@ -2265,7 +2265,7 @@ const Approvals: React.FC = () => {
                                               <tr>
                                                 <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Loại đơn & Lý do</th>
                                                 <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Thời gian</th>
-                                                <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Vi phạm & Phạt</th>
+                                                <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Chi tiết</th>
                                                 <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Trạng thái</th>
                                                 <th className="px-6 py-3 text-center text-xs font-black text-slate-400 uppercase tracking-widest">Thao tác</th>
                                               </tr>
@@ -2293,14 +2293,17 @@ const Approvals: React.FC = () => {
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                       <div className="flex flex-col gap-1">
-                                                        {item.penalty_amount > 0 ? (
+                                                        {item.penalty_amount > 0 && (
                                                           <span className="text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100 w-fit">-{(item.penalty_amount).toLocaleString()}đ</span>
-                                                        ) : <span className="text-[10px] text-slate-300 font-bold italic">N/A</span>}
-                                                        {item.late_minutes > 0 && (
-                                                          <span className="text-[9px] font-bold text-amber-600 uppercase">Đi muộn: {item.late_minutes} phút</span>
                                                         )}
-                                                        {item.early_leave_minutes > 0 && (
-                                                          <span className="text-[9px] font-bold text-amber-600 uppercase">Về sớm: {item.early_leave_minutes} phút</span>
+                                                        {(item.event_type === 'overtime' || item.registration_type === 'OVERTIME') && item.hours != null && (
+                                                          <span className="text-[11px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100 w-fit">{item.hours}h tăng ca</span>
+                                                        )}
+                                                        {(item.event_type === 'live' || item.registration_type === 'LIVE') && item.sessions != null && (
+                                                          <span className="text-[11px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100 w-fit">{item.sessions} phiên live</span>
+                                                        )}
+                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && item.forgot_checkin_time && (
+                                                          <span className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 w-fit">Check-in: {item.forgot_checkin_time}</span>
                                                         )}
                                                       </div>
                                                     </td>
@@ -2368,7 +2371,18 @@ const Approvals: React.FC = () => {
                                                       <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">Về sớm: {item.early_leave_minutes}m</span>
                                                     )}
                                                   </div>
-                                                  {item.penalty_amount > 0 && <span className="text-[11px] font-black text-rose-600">-{item.penalty_amount.toLocaleString()}đ</span>}
+                                                  <div className="flex flex-col items-end gap-1 shrink-0">
+                                                    {item.penalty_amount > 0 && <span className="text-[11px] font-black text-rose-600">-{item.penalty_amount.toLocaleString()}đ</span>}
+                                                    {(item.event_type === 'overtime' || item.registration_type === 'OVERTIME') && item.hours != null && (
+                                                      <span className="text-[11px] font-black text-purple-600">{item.hours}h tăng ca</span>
+                                                    )}
+                                                    {(item.event_type === 'live' || item.registration_type === 'LIVE') && item.sessions != null && (
+                                                      <span className="text-[11px] font-black text-blue-600">{item.sessions} phiên live</span>
+                                                    )}
+                                                    {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && item.forgot_checkin_time && (
+                                                      <span className="text-[11px] font-black text-amber-600">Check-in: {item.forgot_checkin_time}</span>
+                                                    )}
+                                                  </div>
                                                 </div>
                                                 <div className="flex gap-2 mt-4">
                                                   <button onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)} className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider">Chi tiết</button>
