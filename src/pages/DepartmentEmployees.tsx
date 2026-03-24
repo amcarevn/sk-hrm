@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { departmentsAPI, employeesAPI, Employee, Department } from '../utils/api';
 
@@ -14,6 +14,15 @@ const DepartmentEmployees: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Add employee modal state
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addSearchTerm, setAddSearchTerm] = useState('');
+  const [addSearchResults, setAddSearchResults] = useState<Employee[]>([]);
+  const [addSearchLoading, setAddSearchLoading] = useState(false);
+  const [addSearchTimeout, setAddSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [assigningId, setAssigningId] = useState<number | null>(null);
+  const addSearchRef = useRef<HTMLInputElement>(null);
 
   const fetchDepartment = async () => {
     try {
@@ -90,54 +99,52 @@ const DepartmentEmployees: React.FC = () => {
     // Don't call fetchEmployees here, the useEffect will handle it
   };
 
-  const handleDelete = async (employeeId: number) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa nhân viên này?')) {
-      try {
-        await employeesAPI.delete(employeeId);
-        fetchEmployees(); // Refresh the list
-      } catch (err: any) {
-        alert('Xóa thất bại: ' + (err.message || 'Lỗi không xác định'));
-      }
+  // Search employees for adding to department
+  const searchEmployeesForAdd = async (search: string) => {
+    if (!search.trim()) {
+      setAddSearchResults([]);
+      return;
     }
-  };
-
-  const handleActivate = async (employeeId: number) => {
     try {
-      await employeesAPI.activate(employeeId);
-      fetchEmployees(); // Refresh the list
+      setAddSearchLoading(true);
+      const response = await employeesAPI.list({ search });
+      setAddSearchResults(response.results || []);
     } catch (err: any) {
-      alert('Kích hoạt thất bại: ' + (err.message || 'Lỗi không xác định'));
+      console.error('Error searching employees:', err);
+    } finally {
+      setAddSearchLoading(false);
     }
   };
 
-  const handleDeactivate = async (employeeId: number) => {
+  useEffect(() => {
+    if (addSearchTimeout) clearTimeout(addSearchTimeout);
+    const timeout = setTimeout(() => {
+      searchEmployeesForAdd(addSearchTerm);
+    }, 300);
+    setAddSearchTimeout(timeout);
+    return () => clearTimeout(timeout);
+  }, [addSearchTerm]);
+
+  useEffect(() => {
+    if (showAddModal && addSearchRef.current) {
+      addSearchRef.current.focus();
+    }
+    if (!showAddModal) {
+      setAddSearchTerm('');
+      setAddSearchResults([]);
+    }
+  }, [showAddModal]);
+
+  const handleAssignEmployee = async (employee: Employee) => {
     try {
-      await employeesAPI.deactivate(employeeId);
-      fetchEmployees(); // Refresh the list
+      setAssigningId(employee.id);
+      await employeesAPI.partialUpdate(employee.id, { department_id: departmentId });
+      setShowAddModal(false);
+      fetchEmployees();
     } catch (err: any) {
-      alert('Vô hiệu hóa thất bại: ' + (err.message || 'Lỗi không xác định'));
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đang làm việc</span>;
-      case 'INACTIVE':
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Đã nghỉ</span>;
-      case 'PROBATION':
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Thử việc</span>;
-      default:
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">{status}</span>;
-    }
-  };
-
-  const getGenderText = (gender: string) => {
-    switch (gender) {
-      case 'M': return 'Nam';
-      case 'F': return 'Nữ';
-      case 'O': return 'Khác';
-      default: return gender;
+      alert('Gán nhân viên thất bại: ' + (err.message || 'Lỗi không xác định'));
+    } finally {
+      setAssigningId(null);
     }
   };
 
@@ -226,9 +233,9 @@ const DepartmentEmployees: React.FC = () => {
           <div className="flex space-x-2">
             <button 
               className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
-              onClick={() => navigate('/dashboard/employees/create')}
+              onClick={() => setShowAddModal(true)}
             >
-              + Thêm nhân viên
+              + Thêm nhân viên vào phòng ban
             </button>
           </div>
         </div>
@@ -266,22 +273,13 @@ const DepartmentEmployees: React.FC = () => {
                     Họ tên
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Giới tính
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Chức vụ
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Trạng thái
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Thao tác
+                    Vị trí
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={3} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center">
                       <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -307,16 +305,7 @@ const DepartmentEmployees: React.FC = () => {
                       Họ tên
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Giới tính
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Chức vụ
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Trạng thái
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Thao tác
+                      Vị trí
                     </th>
                   </tr>
                 </thead>
@@ -328,53 +317,9 @@ const DepartmentEmployees: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{employee.full_name}</div>
-                        <div className="text-sm text-gray-500">{employee.phone_number || 'Chưa có số điện thoại'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{getGenderText(employee.gender)}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{employee.position?.title || 'Chưa phân chức vụ'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(employee.employment_status)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button 
-                            onClick={() => navigate(`/dashboard/employees/${employee.id}`)}
-                            className="text-primary-600 hover:text-primary-900"
-                          >
-                            Xem
-                          </button>
-                          <button 
-                            onClick={() => navigate(`/dashboard/employees/${employee.id}/edit`)}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            Sửa
-                          </button>
-                          {employee.employment_status === 'ACTIVE' ? (
-                            <button 
-                              onClick={() => handleDeactivate(employee.id)}
-                              className="text-yellow-600 hover:text-yellow-900"
-                            >
-                              Vô hiệu hóa
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => handleActivate(employee.id)}
-                              className="text-green-600 hover:text-green-900"
-                            >
-                              Kích hoạt
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => handleDelete(employee.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Xóa
-                          </button>
-                        </div>
+                        <div className="text-sm text-gray-900">{employee.position?.title || 'Chưa phân vị trí'}</div>
                       </td>
                     </tr>
                   ))}
@@ -384,6 +329,78 @@ const DepartmentEmployees: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Add Employee Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold text-gray-900">Thêm nhân viên vào phòng ban</h2>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tìm kiếm nhân viên theo mã hoặc tên
+              </label>
+              <div className="relative">
+                <input
+                  ref={addSearchRef}
+                  type="text"
+                  value={addSearchTerm}
+                  onChange={(e) => setAddSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-8"
+                  placeholder="Nhập mã NV hoặc họ tên..."
+                />
+                {addSearchLoading && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  </div>
+                )}
+              </div>
+              <div className="mt-3 max-h-72 overflow-y-auto border border-gray-200 rounded-lg">
+                {addSearchTerm.trim() === '' ? (
+                  <div className="px-4 py-6 text-center text-gray-500 text-sm">Nhập từ khóa để tìm kiếm nhân viên</div>
+                ) : addSearchResults.length === 0 && !addSearchLoading ? (
+                  <div className="px-4 py-6 text-center text-gray-500 text-sm">Không tìm thấy nhân viên</div>
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {addSearchResults.map((emp) => (
+                      <li key={emp.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{emp.full_name}</div>
+                          <div className="text-xs text-gray-500">{emp.employee_id} {emp.position?.title ? `• ${emp.position.title}` : ''}</div>
+                        </div>
+                        <button
+                          onClick={() => handleAssignEmployee(emp)}
+                          disabled={assigningId === emp.id}
+                          className="ml-4 px-3 py-1 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700 transition-colors disabled:opacity-60"
+                        >
+                          {assigningId === emp.id ? 'Đang gán...' : 'Gán vào phòng ban'}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end p-4 border-t">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
