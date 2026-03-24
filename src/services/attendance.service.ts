@@ -950,6 +950,24 @@ class AttendanceService {
       throw error;
     }
   }
+
+  /**
+   * Sửa thông tin check-in/check-out của một ngày
+   */
+  async editAttendance(data: {
+    employee_id: number;
+    date: string;
+    check_in: string;
+    check_out: string;
+  }): Promise<any> {
+    try {
+      const response = await managementApi.post('/api/v1/hrm/attendance/edit-attendance/', data);
+      return response.data;
+    } catch (error) {
+      console.error('Error editing attendance:', error);
+      throw error;
+    }
+  }
 }
 
 export const attendanceService = new AttendanceService();

@@ -1757,6 +1757,7 @@ export interface EmployeePermissions {
   can_manage_attendance: boolean;
   can_import_attendance: boolean;
   can_adjust_attendance: boolean;
+  can_edit_attendance: boolean;
   can_manage_assets: boolean;
   can_assign_assets: boolean;
   can_approve_asset_requests: boolean;
