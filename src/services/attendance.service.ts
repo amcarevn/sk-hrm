@@ -812,6 +812,18 @@ class AttendanceService {
     }
   }
 
+  /**
+   * Lấy chi tiết một giải trình (bao gồm stats quota mới nhất)
+   */
+  async getAttendanceExplanation(id: number): Promise<any> {
+    try {
+      const response = await managementApi.get(`/api-hrm/attendance-explanations/${id}/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attendance explanation detail:', error);
+      throw error;
+    }
+  }
 
   /**
    * Lấy điểm công hàng tháng cho nhân viên

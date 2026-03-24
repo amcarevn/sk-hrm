@@ -629,6 +629,20 @@ class ApprovalService {
     }
   }
 
+  // Duyệt nhanh thông minh: BE tự tính quota và từ chối các đơn dư thừa
+  async smartBulkApproveAttendanceExplanations(ids: number[], note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/attendance-explanations/smart_bulk_approve/', {
+        ids,
+        approval_note: note || 'Duyệt nhanh'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in smart bulk approving attendance explanations:', error);
+      throw error;
+    }
+  }
+
   // Duyệt hàng loạt đơn nghỉ phép tháng
   async bulkApproveMonthlyLeaveRequests(ids: number[], note?: string): Promise<any> {
     try {

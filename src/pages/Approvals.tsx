@@ -78,7 +78,18 @@ const Approvals: React.FC = () => {
       console.log('🟢 [DEBUG] Đơn làm việc online được chọn:', selectedOnlineWorkRequest);
     }
   }, [selectedOnlineWorkRequest]);
-  const [stats, setStats] = useState({
+  interface StatsType {
+    pending_leave: number;
+    pending_overtime: number;
+    pending_explanation: number;
+    pending_registration: number;
+    pending_online_work: number;
+    total_pending: number;
+    total_approved: number;
+    total_rejected: number;
+  }
+
+  const [stats, setStats] = useState<StatsType>({
     pending_leave: 0,
     pending_overtime: 0,
     pending_explanation: 0,
@@ -197,7 +208,7 @@ const Approvals: React.FC = () => {
         setOnlineWorkRequests(result.online_work_requests || []);
       }
 
-      setStats((prev) => ({
+      setStats((prev: StatsType) => ({
         ...prev,
         pending_leave: result.leave_requests.length,
         pending_overtime: result.overtime_requests.length,
@@ -223,7 +234,7 @@ const Approvals: React.FC = () => {
         setOnlineWorkRequests(result.online_work_requests || []);
       }
 
-      setStats((prev) => ({
+      setStats((prev: StatsType) => ({
         ...prev,
         total_approved: result.total_approved || 0,
       }));
@@ -244,7 +255,7 @@ const Approvals: React.FC = () => {
         setOnlineWorkRequests(result.online_work_requests || []);
       }
 
-      setStats((prev) => ({
+      setStats((prev: StatsType) => ({
         ...prev,
         total_rejected: result.total_rejected || 0,
       }));
@@ -342,19 +353,19 @@ const Approvals: React.FC = () => {
         const tabFetch = activeTab === 'pending'
           ? fetchPendingRequests()
           : activeTab === 'approved'
-          ? fetchApprovedRequests()
-          : fetchRejectedRequests();
+            ? fetchApprovedRequests()
+            : fetchRejectedRequests();
         await Promise.all([
           tabFetch,
           fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR),
         ]);
       }
-      
+
       setLastRefreshedAt(new Date());
       // Chỉ hiện toast nếu là refresh thủ công/focus sau khi đã có dữ liệu (không hiện lần đầu)
-      if (prevFetchTime > 0 && nowValue - prevFetchTime > 1000) { 
-          setShowRefreshToast(true);
-          setTimeout(() => setShowRefreshToast(false), 3000);
+      if (prevFetchTime > 0 && nowValue - prevFetchTime > 1000) {
+        setShowRefreshToast(true);
+        setTimeout(() => setShowRefreshToast(false), 3000);
       }
     } catch (error) {
       console.error('❌ [APPROVALS] Error fetching all data:', error);
@@ -731,29 +742,31 @@ const Approvals: React.FC = () => {
       return false;
     }
 
-    const employeeIsHR = request.employee_is_hr || false;
+    if (isAdminUser) return !request.hr_approved;
+
+    const requesterIsHR = request.employee_is_hr || request.is_hr || false;
 
     // Nếu người làm đơn là HR: chỉ 1 bước (QLTT duyệt là xong)
-    if (employeeIsHR) {
-      if (isAdminUser) return true;
+    if (requesterIsHR) {
       if (isDirectManager) return !request.direct_manager_approved;
       return false;
     }
 
     // Người làm đơn KHÔNG phải HR: bắt buộc 2 bước
-    // Bước 1: QLTT duyệt trước
     if (isDirectManager) {
       return !request.direct_manager_approved;
     }
 
-    // Bước 2: HR/Admin chỉ được duyệt SAU KHI QLTT đã duyệt
-    if (isAdminUser || isHRUser || hasApprovalPermission) {
+    if (isHRUser || hasApprovalPermission) {
+      // HR/Admin chỉ được duyệt SAU KHI QLTT đã duyệt (hoặc senior manager không có QLTT)
       if (request.direct_manager_approved === true || (request.employee_is_senior_manager && !request.employee_manager_id)) {
         return !request.hr_approved;
       }
     }
 
     return false;
+
+
   };
 
   // --- Triggers for Modals ---
@@ -911,8 +924,94 @@ const Approvals: React.FC = () => {
       return;
     }
 
-    // Mở Modal xác nhận thay vì window.confirm
-    setBulkConfirmModal({ items: approvableItems, name: groupName });
+    // Các loại giải trình tính và quota
+    const quotaSubjectTypes = ['LATE', 'EARLY_LEAVE', 'LATE_EARLY', 'INCOMPLETE_ATTENDANCE'];
+
+    let exceededCount = 0;
+    let approvalItems: any[] = [];
+    let rejectionItems: any[] = [];
+
+    const quotaItems: any[] = [];
+    const freeItems: any[] = [];
+
+    approvableItems.forEach(item => {
+      // Check _itemType mapped in getAllCurrentRequests
+      const isExplanation = item._itemType === 'EXPLANATION' || (item.explanation_type && item._itemType !== 'LEAVE' && item._itemType !== 'REGISTRATION');
+      
+      // Kiểm tra xem có phải là 1 trong 4 loại bị tính quota không (GIẢI TRÌNH)
+      if (isExplanation && quotaSubjectTypes.includes(item.explanation_type)) {
+        quotaItems.push(item);
+      } else {
+        // Các đơn Nghỉ phép (LEAVE), Làm việc online, Đăng ký (REGISTRATION)... đều không tính quota chung
+        freeItems.push(item);
+      }
+    });
+
+
+    // Mặc định các đơn không tính Quota là sẽ được duyệt
+    approvalItems = [...freeItems];
+
+    if (quotaItems.length > 0) {
+      // Gom nhóm theo nhân viên + tháng/năm để tính Quota chính xác
+      const empGroups: Record<string, any[]> = {};
+      quotaItems.forEach(e => {
+        const empId = Number(e.employee_id || (typeof e.employee === 'object' ? e.employee.id : e.employee));
+        // Lấy ngày tháng để phân tách quota từng tháng
+        const dateStr = e.event_date || e.attendance_date || e.date || e.created_at;
+        const d = new Date(dateStr);
+        const monthKey = `${empId}-${d.getFullYear()}-${d.getMonth() + 1}`;
+        
+        if (!empGroups[monthKey]) empGroups[monthKey] = [];
+        empGroups[monthKey].push(e);
+      });
+
+      Object.entries(empGroups).forEach(([key, group]) => {
+        // Lấy định mức thấp nhất từ nhóm để đảm bảo an toàn bộ lọc
+        const minRemaining = group.reduce((min, item) => {
+          const rem = item.quota_remaining !== undefined ? Number(item.quota_remaining) : (Number(item.max_explanation_quota || 3) - Number(item.quota_used || 0));
+          return Math.min(min, isNaN(rem) ? 3 : rem);
+        }, 3);
+
+        const remaining = Math.max(0, minRemaining);
+
+        console.log(`[QUOTA DEBUG] Group: ${key}, Count: ${group.length}, Remaining: ${remaining}`);
+
+        // Sắp xếp đơn: Quên chấm công -> Tiền phạt lớn -> Đơn mới nhất
+        const sortedGroup = [...group].sort((a, b) => {
+          // 1. Ưu tiên Quên chấm công
+          const isAForget = (a.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
+          const isBForget = (b.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
+          if (isAForget !== isBForget) return isAForget ? -1 : 1;
+
+          // 2. Tiền phạt lớn nhất
+          const penaltyA = Number(a.penalty_amount) || 0;
+          const penaltyB = Number(b.penalty_amount) || 0;
+          if (penaltyA !== penaltyB) return penaltyB - penaltyA;
+
+          // 3. Đơn mới nhất
+          const dateA = a.attendance_date || a.event_date || a.date || a.created_at || '';
+          const dateB = b.attendance_date || b.event_date || b.date || b.created_at || '';
+          return dateB.localeCompare(dateA);
+        });
+
+        const approvedInGroup = sortedGroup.slice(0, remaining);
+        const rejectedInGroup = sortedGroup.slice(remaining);
+
+
+        approvalItems.push(...approvedInGroup);
+        rejectionItems.push(...rejectedInGroup);
+        exceededCount += rejectedInGroup.length;
+      });
+    }
+
+
+    // Mở Modal xác nhận chi tiết
+    setBulkConfirmModal({
+      items: approvableItems,
+      name: groupName,
+      approvalItems,
+      rejectionItems
+    } as any);
   };
 
   const executeBulkApprove = async () => {
@@ -930,10 +1029,14 @@ const Approvals: React.FC = () => {
       const onlineWorks = approvableItems.filter(i => i._itemType === 'ONLINE_WORK');
 
       const promises = [];
-      if (explanations.length > 0) promises.push(approvalService.bulkApproveAttendanceExplanations(explanations.map(i => i.id), note));
+      if (explanations.length > 0) {
+        // Sử dụng API Duyệt nhanh thông minh: BE tự tính toán quota và từ chối các đơn dư thừa
+        promises.push(approvalService.smartBulkApproveAttendanceExplanations(explanations.map(i => i.id), note));
+      }
       if (leaveRequests.length > 0) promises.push(approvalService.bulkApproveMonthlyLeaveRequests(leaveRequests.map(i => i.id), note));
       if (registrations.length > 0) promises.push(approvalService.bulkApproveRegistrationRequests(registrations.map(i => i.id), note));
       if (onlineWorks.length > 0) promises.push(approvalService.bulkApproveOnlineWorkRequests(onlineWorks.map(i => i.id), note));
+
 
       const results = await Promise.all(promises);
       let totalSuccess = 0;
@@ -1128,9 +1231,9 @@ const Approvals: React.FC = () => {
         ? (explanation.hr_approved_by_name || 'Nhân sự HR')
         : hrStatus === 'Đã từ chối'
           ? (explanation.hr_rejected_by_name ||
-             explanation.rejected_by_name ||
-             explanation.approved_by_name ||
-             'Nhân sự HR')
+            explanation.rejected_by_name ||
+            explanation.approved_by_name ||
+            'Nhân sự HR')
           : 'Nhân sự HR'; // Chưa duyệt
 
       workflow.push({
@@ -1155,19 +1258,21 @@ const Approvals: React.FC = () => {
           : `${requestName} đã từ chối`;
       const finalApprover =
         explanation.hr_rejected_by_name ||
+        (explanation.status === 'REJECTED' && explanation.rejected_by_name) ||
         explanation.hr_approved_by_name ||
-        explanation.rejected_by_name ||
-        explanation.approved_by_name ||
         explanation.direct_manager_approved_by_name ||
-        'Hệ thống';
+        explanation.approved_by_name ||
+        (explanation.status === 'REJECTED' ? 'Hệ thống' : 'Chưa xác định');
+
 
       workflow.push({
         step: currentStep++,
         role: 'Kết quả cuối cùng',
         approver: finalApprover,
         status: finalStatus,
-        date: explanation.approved_at || explanation.updated_at,
+        date: explanation.approved_at || explanation.rejected_at || explanation.updated_at,
         note: explanation.approval_note || '',
+
       });
     }
 
@@ -1224,9 +1329,9 @@ const Approvals: React.FC = () => {
           ? (request.hr_approved_by_name || 'Nhân sự HR')
           : hrStatus === 'Đã từ chối'
             ? (request.hr_rejected_by_name ||
-               request.rejected_by_name ||
-               request.approved_by_name ||
-               'Nhân sự HR')
+              request.rejected_by_name ||
+              request.approved_by_name ||
+              'Nhân sự HR')
             : 'Nhân sự HR'; // Chưa duyệt
 
       workflow.push({
@@ -1247,20 +1352,22 @@ const Approvals: React.FC = () => {
           : `${requestName} đã từ chối`;
       const finalApprover =
         request.hr_rejected_by_name ||
-        request.rejected_by_name ||
+        (request.status === 'REJECTED' && request.rejected_by_name) ||
         request.direct_manager_rejected_by_name ||
         request.hr_approved_by_name ||
         request.direct_manager_approved_by_name ||
         request.approved_by_name ||
-        'Hệ thống';
+        (request.status === 'REJECTED' ? 'Hệ thống' : 'Chưa xác định');
+
 
       workflow.push({
         step: currentStep++,
         role: 'Kết quả cuối cùng',
         approver: finalApprover,
         status: finalStatus,
-        date: request.approved_at || request.updated_at,
-        note: request.hr_note || request.direct_manager_note || '',
+        date: request.approved_at || request.rejected_at || request.updated_at,
+        note: request.approval_note || request.hr_note || request.direct_manager_note || '',
+
       });
     }
 
@@ -1548,9 +1655,9 @@ const Approvals: React.FC = () => {
             Cập nhật lần cuối: {lastRefreshedAt.toLocaleTimeString('vi-VN')}
           </p>
         </div>
-        
+
         {/* Floating Refresh FAB for Mobile */}
-        <button 
+        <button
           onClick={() => fetchAllData(true)}
           className={`fixed bottom-6 right-6 sm:hidden z-50 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center border-4 border-white transition-all active:scale-90 ${loading ? 'animate-pulse' : ''}`}
         >
@@ -2163,7 +2270,7 @@ const Approvals: React.FC = () => {
                                     <div
                                       className={`flex items-center justify-between px-5 py-4 cursor-pointer transition-colors ${isEmpExpanded ? 'bg-primary-50/40' : 'bg-white hover:bg-slate-50'}`}
                                       onClick={() => {
-                                        setExpandedEmployees(prev =>
+                                        setExpandedEmployees((prev: string[]) =>
                                           prev.includes(accordionKey)
                                             ? prev.filter(k => k !== accordionKey)
                                             : [...prev, accordionKey]
@@ -2236,19 +2343,21 @@ const Approvals: React.FC = () => {
                                       </div>
 
                                       <div className="flex items-center gap-4">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            const empId = firstItem.employee_id || (typeof firstItem.employee === 'object' ? firstItem.employee?.id : firstItem.employee);
-                                            if (empId) {
-                                              setCalendarModalEmployee({ id: Number(empId), name: empName, month: filterMonth, year: filterYear });
-                                            }
-                                          }}
-                                          className="flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-100 bg-white hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700 transition-all shadow-sm"
-                                          title={`Xem lịch công của ${empName}`}
-                                        >
-                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const empId = firstItem.employee_id || (typeof firstItem.employee === 'object' ? firstItem.employee?.id : firstItem.employee);
+                                              if (empId) {
+                                                setCalendarModalEmployee({ id: Number(empId), name: empName, month: filterMonth, year: filterYear });
+                                              }
+                                            }}
+                                            className="flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-100 bg-white hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700 transition-all shadow-sm"
+                                            title={`Xem lịch công của ${empName}`}
+                                          >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                          </button>
+                                        </div>
                                         <div className={`p-2 rounded-full transition-transform duration-500 ${isEmpExpanded ? 'rotate-180 bg-primary-100 text-primary-600' : 'bg-slate-50 text-slate-400'}`}>
                                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                                         </div>
@@ -2405,6 +2514,20 @@ const Approvals: React.FC = () => {
                                             );
                                           })}
                                         </div>
+                                        {activeTab === 'pending' && pendingInEmp > 0 && (
+                                          <div className="p-4 flex justify-end bg-slate-50/30 border-t border-slate-50">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleBulkApproveItems(items, `nhân viên ${empName}`);
+                                              }}
+                                              className="flex items-center gap-2 h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black rounded-xl shadow-lg shadow-emerald-100 transition-all uppercase tracking-wider"
+                                            >
+                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                              Duyệt nhanh tất cả đơn
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -3522,51 +3645,33 @@ const Approvals: React.FC = () => {
             {/* Content */}
             <div className="p-6">
               <div className="mb-4">
-                <p className="text-base text-gray-500 mb-1">Đối tượng xử lý:</p>
-                <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center font-bold text-gray-400 border border-gray-200 shadow-sm">
-                    {targetItem.employee_name?.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-base font-bold text-gray-900">{targetItem.employee_name}</p>
-                    <p className="text-sm text-gray-500 font-medium">{getRequestTypeLabel(targetItem)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-base font-bold text-gray-700">Ghi chú xử lý:</label>
+                <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Nội dung ghi chú:</p>
                 <textarea
-                  autoFocus
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all h-24 text-base font-medium"
+                  placeholder="Nhập ghi chú phản hồi..."
                   value={approvalNote}
                   onChange={(e) => setApprovalNote(e.target.value)}
-                  placeholder={actionType === 'APPROVE' ? 'Nội dung phản hồi (Tùy chọn)...' : 'Lý do từ chối (Bắt buộc)...'}
-                  className={`w-full min-h-[100px] p-3 border rounded-xl text-base focus:ring-2 outline-none transition-all ${actionType === 'APPROVE' ? 'border-gray-200 focus:ring-green-200 focus:border-green-500' : 'border-red-200 focus:ring-red-100 focus:border-red-400'}`}
                 />
-                {actionType === 'REJECT' && !approvalNote.trim() && (
-                  <p className="text-[11px] text-red-500 font-medium">Vui lòng nhập lý do từ chối đơn này.</p>
-                )}
               </div>
-            </div>
 
-            {/* Actions */}
-            <div className="px-6 py-4 bg-gray-50 border-t flex flex-col sm:flex-row gap-3">
-              <button
-                disabled={isProcessing}
-                onClick={() => setActionModalOpen(false)}
-                className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all text-base disabled:opacity-50 order-last sm:order-first"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                disabled={isProcessing || (actionType === 'REJECT' && !approvalNote.trim())}
-                onClick={confirmAction}
-                className={`flex-1 w-full sm:w-auto px-4 py-2.5 text-white font-bold rounded-xl transition-all text-base flex items-center justify-center gap-2 shadow-lg ${actionType === 'APPROVE' ? 'bg-green-600 hover:bg-green-700 shadow-green-200/50' : 'bg-red-600 hover:bg-red-700 shadow-red-200/50'} disabled:bg-gray-400 disabled:shadow-none`}
-              >
-                {isProcessing ? (
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : actionType === 'APPROVE' ? 'Xác nhận Duyệt' : 'Xác nhận Từ chối'}
-              </button>
+              <div className="flex gap-3 mt-6">
+                <button
+                  disabled={isProcessing}
+                  onClick={() => setActionModalOpen(false)}
+                  className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all text-base"
+                >
+                  Hủy
+                </button>
+                <button
+                  disabled={isProcessing}
+                  onClick={confirmAction}
+                  className={`flex-1 px-4 py-2.5 text-white font-bold rounded-xl shadow-lg transition-all text-base flex items-center justify-center gap-2 ${actionType === 'APPROVE' ? 'bg-green-600 hover:bg-green-700 shadow-green-200/50' : 'bg-red-600 hover:bg-red-700 shadow-red-200/50'}`}
+                >
+                  {isProcessing ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : actionType === 'APPROVE' ? 'Xác nhận Duyệt' : 'Xác nhận Từ chối'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3644,20 +3749,95 @@ const Approvals: React.FC = () => {
           </div>
         </div>
       )}
-      {/* 4. Modal Xác nhận Duyệt hàng loạt */}
+
+      {/* 4. Modal Xác nhận Duyệt hàng loạt (Smart) */}
       {bulkConfirmModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110]">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-primary-600 px-6 py-4 flex items-center gap-3">
+            <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg text-white">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
               </div>
               <h3 className="text-lg font-bold text-white">Xác nhận duyệt nhanh</h3>
             </div>
             <div className="p-6">
-              <p className="text-gray-600 mb-4">
-                Bạn đang thực hiện duyệt nhanh <span className="font-bold text-gray-900">{bulkConfirmModal.items.length}</span> đơn tại <span className="font-bold text-primary-600">{bulkConfirmModal.name}</span>.
+              <p className="text-gray-600 mb-2 leading-relaxed">
+                Bạn đang thực hiện duyệt nhanh cho <span className="font-black text-gray-900">{(bulkConfirmModal as any).name}</span>.
               </p>
+              
+              <div className="flex gap-2 mb-6">
+                <div className="flex-1 bg-emerald-50 border border-emerald-100 p-2 rounded-xl text-center">
+                  <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Sẽ phê duyệt</div>
+                  <div className="text-lg font-black text-emerald-700">{(bulkConfirmModal as any).approvalItems.length}</div>
+                </div>
+                <div className="flex-1 bg-rose-50 border border-rose-100 p-2 rounded-xl text-center">
+                  <div className="text-[10px] font-bold text-rose-600 uppercase tracking-tighter">Sẽ từ chối</div>
+                  <div className="text-lg font-black text-rose-700">{(bulkConfirmModal as any).rejectionItems.length}</div>
+                </div>
+              </div>
+
+              {/* Phân loại chi tiết trước khi duyệt */}
+              {(bulkConfirmModal as any).approvalItems && (bulkConfirmModal as any).rejectionItems && (
+                <div className="space-y-6 mb-6">
+                  {/* Sẽ được phê duyệt */}
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                       Danh sách phê duyệt
+                       <span className="h-[1px] flex-1 bg-slate-100"></span>
+                    </p>
+                    <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                      {(bulkConfirmModal as any).approvalItems.length > 0 ? (bulkConfirmModal as any).approvalItems.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5 mb-1">
+                               <span className="text-[10px] font-black text-slate-700 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                               <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded uppercase">Duyệt</span>
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                          </div>
+                          <div className="text-right">
+                             {item.penalty_amount > 0 && (
+                               <div className="text-[11px] font-black text-emerald-600">{(item.penalty_amount).toLocaleString()}đ</div>
+                             )}
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="text-center py-4 text-[10px] font-bold text-slate-300 uppercase italic">Trống</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sẽ bị từ chối tự động */}
+                  {(bulkConfirmModal as any).rejectionItems.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-2">
+                        Từ chối (Hết hạn mức)
+                        <span className="h-[1px] flex-1 bg-rose-100"></span>
+                      </p>
+                      <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                        {(bulkConfirmModal as any).rejectionItems.map((item: any, idx: number) => (
+                          <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-xl border border-rose-100/50 grayscale-[0.5]">
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                 <span className="text-[10px] font-black text-rose-800/70 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                                 <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
+                              </div>
+                              <span className="text-[9px] font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                            </div>
+                            <div className="text-right">
+                               {item.penalty_amount > 0 && (
+                                 <div className="text-[10px] font-black text-rose-400 line-through">{(item.penalty_amount).toLocaleString()}đ</div>
+                               )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+
               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg mb-6">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -3666,22 +3846,23 @@ const Approvals: React.FC = () => {
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm text-yellow-700 font-medium">
-                      Hành động này sẽ duyệt tất cả các đơn hợp lệ được chọn. Bạn không thể hoàn tác sau khi thực hiện.
+                    <p className="text-sm text-yellow-700 font-medium leading-relaxed">
+                      Hệ thống sẽ tự động ưu tiên duyệt các đơn quan trọng (Quên công, Phạt cao) trong hạn mức Quota còn lại.
                     </p>
                   </div>
                 </div>
               </div>
+
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setBulkConfirmModal(null)}
-                  className="flex-1 w-full sm:w-auto py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors order-last sm:order-first"
+                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   onClick={executeBulkApprove}
-                  className="flex-1 w-full sm:w-auto py-2.5 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-200/50 transition-all"
+                  className="flex-1 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200/50 transition-all font-black"
                 >
                   Đồng ý duyệt
                 </button>
@@ -3707,11 +3888,11 @@ const Approvals: React.FC = () => {
               <div className="grid grid-cols-2 gap-4 mb-8">
                 <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
                   <p className="text-2xl font-black text-green-600">{bulkActionResult.success}</p>
-                  <p className="text-xs font-bold text-green-700 uppercase tracking-widest mt-1">Thành công</p>
+                  <p className="text-xs font-bold text-green-700 uppercase tracking-widest mt-1">Được phê duyệt</p>
                 </div>
                 <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
                   <p className="text-2xl font-black text-red-600">{bulkActionResult.error}</p>
-                  <p className="text-xs font-bold text-red-700 uppercase tracking-widest mt-1">Thất bại</p>
+                  <p className="text-xs font-bold text-red-700 uppercase tracking-widest mt-1">Từ chối</p>
                 </div>
               </div>
 
