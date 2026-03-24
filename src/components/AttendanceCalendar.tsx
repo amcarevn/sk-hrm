@@ -762,13 +762,15 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   };
 
   // Permission: can edit attendance (admin always can, or user with can_edit_attendance)
-  const isAdmin = !!(
-    user?.is_superuser ||
-    user?.is_staff ||
+  const userRole = (user?.role || '').toUpperCase();
+  const canEditAttendance = !!(
+    userRole === 'ADMIN' ||
+    (user as any)?.is_superuser ||
+    (user as any)?.is_staff ||
     user?.is_super_admin ||
-    user?.role?.toUpperCase() === 'ADMIN'
+    user?.employee_permission?.can_edit_attendance ||
+    (user as any)?.can_edit_attendance
   );
-  const canEditAttendance = isAdmin || !!(user?.employee_permission?.can_edit_attendance);
 
   // Handle edit attendance submission
   const handleEditAttendance = async () => {
