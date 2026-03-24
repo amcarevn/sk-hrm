@@ -375,11 +375,12 @@ const Approvals: React.FC = () => {
   const EXPLANATION_TYPE_MAP: Record<string, string> = {
     explanation: 'Đơn giải trình',
     registration: 'Đơn đăng ký',
-    LATE: 'Đơn giải trình đi muộn',
-    EARLY_LEAVE: 'Đơn giải trình về sớm',
-    INCOMPLETE_ATTENDANCE: 'Đơn giải trình quên chấm công',
-    BUSINESS_TRIP: 'Đơn giải trình đi công tác',
-    FIRST_DAY: 'Đơn giải trình ngày đầu đi làm',
+    LATE: 'Đi muộn',
+    EARLY_LEAVE: 'Về sớm',
+    LATE_EARLY: 'Đi muộn/Về sớm',
+    INCOMPLETE_ATTENDANCE: 'Quên chấm công',
+    BUSINESS_TRIP: 'Công tác',
+    FIRST_DAY: 'Ngày đầu làm việc',
     OTHER: 'Đơn giải trình khác',
     OVERTIME: 'Đơn đăng ký tăng ca',
     EXTRA_HOURS: 'Đơn đăng ký làm thêm giờ',
@@ -474,7 +475,7 @@ const Approvals: React.FC = () => {
     }
     else if (req._itemType === 'WORK_FINALIZATION') label = 'chốt công tháng';
     else {
-      label = req.explanation_type ? (getExplanationTypeLabel(req.explanation_level || req.explanation_type)) : 'đơn giải trình';
+      label = req.explanation_type_display || (req.explanation_type ? (getExplanationTypeLabel(req.explanation_level || req.explanation_type)) : 'đơn giải trình');
     }
 
     if (!label) return 'Đơn';
@@ -1937,6 +1938,7 @@ const Approvals: React.FC = () => {
                     {[
                       { value: 'LATE', label: 'Đi muộn', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
                       { value: 'EARLY_LEAVE', label: 'Về sớm', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' },
+                      { value: 'LATE_EARLY', label: 'Đi muộn/Về sớm', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4' },
                       { value: 'INCOMPLETE_ATTENDANCE', label: 'Quên chấm công', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
                       { value: 'BUSINESS_TRIP', label: 'Đi công tác', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
                       { value: 'FIRST_DAY', label: 'Ngày đầu', icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z' },
