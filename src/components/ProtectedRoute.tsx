@@ -44,6 +44,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
       
       // Define allowed paths for staff
       const isManager = user?.is_manager || false
+      const employeePermission = user?.employee_permission;
 
       const isAllowedForStaff = 
         currentPath === '/home' ||
@@ -54,7 +55,9 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         (currentPath === '/dashboard/attendance/upload' && userDepartmentCode === 'HCNS') ||
         currentPath === '/dashboard/onboarding' ||
         currentPath.startsWith('/dashboard/onboarding/') ||
-        (isManager && (currentPath === '/dashboard/onboarding' || currentPath.startsWith('/dashboard/onboarding/')));
+        (isManager && (currentPath === '/dashboard/onboarding' || currentPath.startsWith('/dashboard/onboarding/'))) ||
+        (employeePermission?.can_manage_departments && (currentPath === '/dashboard/departments' || currentPath.startsWith('/dashboard/departments/'))) ||
+        (employeePermission?.can_manage_positions && (currentPath === '/dashboard/positions' || currentPath.startsWith('/dashboard/positions/')));
       
       if (!isAllowedForStaff) {
         return <Navigate to="/home" replace />;
