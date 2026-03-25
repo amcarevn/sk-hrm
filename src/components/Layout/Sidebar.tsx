@@ -128,7 +128,7 @@ const navigationItems: NavigationItem[] = [
   name: 'Template hợp đồng',
   href: '/dashboard/contract-templates',
   icon: DocumentTextIcon,
-  roles: ['ADMIN'],
+  roles: ['ADMIN', 'HR'],
   },
   {
     name: 'Onboard nhân sự',
