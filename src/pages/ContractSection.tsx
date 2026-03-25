@@ -82,6 +82,7 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
     start_date: '',
     end_date: '',
     notes: '',
+    branch: 'AC',
   });
 
   const fetchContracts = async () => {
@@ -122,10 +123,11 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
         start_date: newContract.start_date || null,
         end_date: newContract.end_date || null,
         notes: newContract.notes,
+        branch: newContract.branch,
       });
       await fetchContracts();
       setShowAddModal(false);
-      setNewContract({ contract_type: 'PROBATION', template: '', start_date: '', end_date: '', notes: '' });
+      setNewContract({ contract_type: 'PROBATION', template: '', start_date: '', end_date: '', notes: '', branch: 'AC' });
     } catch (e: any) {
       alert(e.response?.data?.detail || 'Lỗi tạo hợp đồng');
     }
@@ -296,6 +298,17 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
                   {Object.entries(CONTRACT_TYPE_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Chi nhánh *</label>
+                <select
+                  value={newContract.branch}
+                  onChange={e => setNewContract({ ...newContract, branch: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="AC">Amcare (AC)</option>
+                  <option value="HM">Homie (HM)</option>
                 </select>
               </div>
               <div>

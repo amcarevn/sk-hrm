@@ -59,7 +59,7 @@ const FILE_STATUS_LABELS: Record<string, string> = {
 };
 
 const CCCD_ISSUE_PLACE_LABELS: Record<string, string> = {
-  POLICE_ADMIN: 'Cục cảnh sát Quản lý hành chính & Trật tự xã hội',
+  POLICE_ADMIN: 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội',
   MINISTRY_PUBLIC_SECURITY: 'Bộ Công An',
 };
 

@@ -223,7 +223,7 @@ const PROBATION_RATE_OPTIONS = [
 ];
 
 const CCCD_ISSUE_PLACE_OPTIONS = [
-  { value: 'POLICE_ADMIN', label: 'Cục cảnh sát Quản lý hành chính & Trật tự xã hội' },
+  { value: 'POLICE_ADMIN', label: 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội' },
   { value: 'MINISTRY_PUBLIC_SECURITY', label: 'Bộ Công An' },
 ];
 
@@ -696,7 +696,7 @@ const OnboardingDetail: React.FC = () => {
                   <label className="text-sm text-gray-600">Nơi cấp CCCD</label>
                   <p className="font-medium">
                     {employeeProfile?.cccd_issue_place === 'POLICE_ADMIN'
-                      ? 'Cục cảnh sát Quản lý hành chính & Trật tự xã hội'
+                      ? 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội'
                       : employeeProfile?.cccd_issue_place === 'MINISTRY_PUBLIC_SECURITY'
                       ? 'Bộ Công An'
                       : employeeProfile?.cccd_issue_place || 'Chưa có dữ liệu'}
