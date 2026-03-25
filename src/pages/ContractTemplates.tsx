@@ -173,18 +173,6 @@ export default function ContractTemplates() {
         </button>
       </div>
 
-      Placeholder reference
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <p className="text-sm font-semibold text-blue-800 mb-2">📋 Danh sách placeholder hỗ trợ trong file Word:</p>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5">
-          {PLACEHOLDER_DOCS.map(p => (
-            <div key={p.key} className="flex items-start gap-1.5 text-xs">
-              <code className="bg-white border border-blue-200 text-blue-700 px-1.5 py-0.5 rounded font-mono whitespace-nowrap">{p.key}</code>
-              <span className="text-gray-600 pt-0.5">{p.desc}</span>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Template list */}
       {loading ? (

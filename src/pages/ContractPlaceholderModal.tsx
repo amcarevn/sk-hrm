@@ -47,6 +47,7 @@ const KNOWN_LABELS: Record<string, string> = {
   '{{dia_chi_hien_tai}}': 'Địa chỉ hiện tại',
   '{{so_tai_khoan}}': 'Số tài khoản',
   '{{ten_ngan_hang}}': 'Tên ngân hàng',
+  '{{chu_tai_khoan}}': 'Chủ tài khoản',
   '{{phong_ban}}': 'Phòng ban',
   '{{vi_tri}}': 'Vị trí',
   '{{chuc_vu}}': 'Chức vụ / Cấp bậc',
@@ -73,6 +74,10 @@ const KNOWN_LABELS: Record<string, string> = {
   '{{tro_cap_thuc_tap}}': 'Trợ cấp thực tập (đồng/tháng)',
   '{{ngay_hieu_luc}}': 'Ngày có hiệu lực',
   '{{tro_cap_thuc_tap_bang_chu}}': 'Trợ cấp thực tập (bằng chữ)',
+  '{{dich_vu}}': 'Dịch vụ',
+  '{{thhddv}}' : 'Thời hạn hợp đồng dịch vụ',
+  '{{ngay_bat_dau_hd_dv}}': 'Ngày bắt đầu hợp đồng dịch vụ',
+  '{{ngay_ket_thuc_hd_dv}}': 'Ngày kết thúc hợp đồng dịch vụ',
 };
 
 const getLabel = (key: string) => KNOWN_LABELS[key] || key.replace(/^\{\{|\}\}$/g, '').replace(/_/g, ' ');
