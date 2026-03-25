@@ -357,6 +357,7 @@ const Onboarding: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterMonth, setFilterMonth] = useState<number>(0);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+  const [filterSearch, setFilterSearch] = useState<string>('');
 
   // ✅ Pagination — dùng cùng pattern với EmployeeList
   const [currentPage, setCurrentPage] = useState(1);
@@ -374,6 +375,7 @@ const Onboarding: React.FC = () => {
         params.month = filterMonth;
         params.year = filterYear;
       }
+      if (filterSearch.trim()) params.search = filterSearch.trim();
       const data = await onboardingService.list(params);
       const items = Array.isArray(data) ? data : data.results ?? [];
       setTotalCount(Array.isArray(data) ? items.length : (data.count ?? items.length));
@@ -396,7 +398,7 @@ const Onboarding: React.FC = () => {
 
   useEffect(() => {
     fetchOnboardings();
-  }, [filterStatus, filterMonth, filterYear, currentPage, itemsPerPage]);
+  }, [filterStatus, filterMonth, filterYear, filterSearch, currentPage, itemsPerPage]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Bạn chắc chắn muốn xoá quy trình này?')) return;
@@ -615,6 +617,20 @@ const Onboarding: React.FC = () => {
             ))}
           </select>
 
+          
+          <div className="relative">
+            <input
+              type="text"
+              value={filterSearch}
+              onChange={(e) => { setFilterSearch(e.target.value); setCurrentPage(1); }}
+              placeholder="Tìm tên hoặc mã NV..."
+              className="border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
+            />
+            <svg className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
           {filterMonth > 0 && (
             <select
               value={filterYear}
@@ -627,9 +643,9 @@ const Onboarding: React.FC = () => {
             </select>
           )}
 
-          {(filterStatus !== '' || filterMonth > 0) && (
+          {(filterStatus !== '' || filterMonth > 0 || filterSearch !== '') && (
             <button
-              onClick={() => { setFilterStatus(''); setFilterMonth(0); setCurrentPage(1); }}
+              onClick={() => { setFilterStatus(''); setFilterMonth(0); setFilterSearch(''); setCurrentPage(1); }}
               className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600"
             >
               Xóa bộ lọc

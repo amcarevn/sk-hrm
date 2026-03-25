@@ -74,7 +74,7 @@ const PROBATION_SALARY_PERCENTAGE_OPTIONS = [
 ];
 
 const CCCD_ISSUE_PLACE_OPTIONS = [
-  { label: 'Cục cảnh sát Quản lý hành chính & Trật tự xã hội', value: 'POLICE_ADMIN' },
+  { label: 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội', value: 'POLICE_ADMIN' },
   { label: 'Bộ Công An', value: 'MINISTRY_PUBLIC_SECURITY' },
 ];
 

@@ -74,6 +74,7 @@ const POSITION_OPTIONS = [
   'Chăm sóc, tiếp nhận khách', 'Chăm sóc hậu phẫu',
   'Nhân viên Marketing', 'Nhân viên ADS', 'Trưởng phòng ADS', 'Nhân viên Content', 'Trưởng phòng Content',
   'Nhân viên Seeding', 'Trưởng phòng Seeding', 'Nhân viên Truyền thông thương hiệu', 'Trưởng phòng Truyền thông thương hiệu',
+  'Truyền thông nội bộ',
   'Nhân viên Media', 'Trưởng phòng Media', 'Nhân viên TikTok', 'Xây group',
   'Nhân viên Thiết kế', 'Nhân viên Editor/Dựng phim', 'Biên tập viên', 'Biên kịch', 'Checkpage', 'Trợ lý hình ảnh', 'Quay - Chụp', 'Tổ chức sản xuất',
   'Bác sĩ', 'Trợ lý bác sĩ', 'Điều dưỡng', 'Y tá', 'Kỹ thuật viên', 'Phụ tá',
@@ -81,8 +82,10 @@ const POSITION_OPTIONS = [
   'Nhân viên C&B', 'Nhân viên Tuyển dụng', 'Trưởng phòng Tuyển dụng',
   'Nhân viên Pháp chế', 'Trưởng phòng Pháp chế', 'Giám đốc Pháp chế',
   'Phiên dịch viên', 'Nhân viên IT', 'Nhân viên AI', 'Trưởng phòng IT', 'Trưởng phòng AI',
-  'Nhân viên Kế toán', 'Thực tập sinh', 'Lễ tân', 'Giám sát nội bộ', 'Giám sát chất lượng', 'Trưởng phòng Giám sát',
-  'Lái xe', 'Tạp vụ', 'Bảo vệ', 'Giám đốc', 'Phó Giám đốc',
+  'Nhân viên Kế toán', 'Kế toán trưởng', 'Thủ quỹ', 'Thực tập sinh', 'Lễ tân', 'Giám sát nội bộ', 'Giám sát chất lượng', 'Trưởng phòng Giám sát',
+  'Lái xe', 'Tạp vụ', 'Bảo vệ',
+  'Phó phòng', 
+  'Giám đốc', 'Phó Giám đốc',
 ];
 const RANK_OPTIONS = [
   'Nhân viên',
@@ -100,7 +103,7 @@ const WORK_FORM_OPTIONS = [
 ];
 const EDUCATION_LEVEL_OPTIONS = ['Thạc sĩ', 'Cử nhân đại học', 'Cử nhân cao đẳng', 'Trung cấp', 'Khác'];
 const CITIZEN_ID_ISSUE_PLACE_OPTIONS = [
-  { value: 'POLICE_ADMIN', label: 'Cục cảnh sát Quản lý hành chính & Trật tự xã hội' },
+  { value: 'POLICE_ADMIN', label: 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội' },
   { value: 'MINISTRY_PUBLIC_SECURITY', label: 'Bộ Công An' },
 ];
 const STEP_ICONS = [Person, Apartment, Description, Home, Contacts, AttachMoney];
