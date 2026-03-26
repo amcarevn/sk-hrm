@@ -49,12 +49,13 @@ import DepartmentEmployees from './pages/DepartmentEmployees';
 import PositionList from './pages/PositionList';
 import PositionCreate from './pages/PositionCreate';
 import PositionEdit from './pages/PositionEdit';
+import PositionEmployees from './pages/PositionEmployees';
 import AttendanceManagement from './pages/AttendanceManagement';
 import AttendanceUpload from './pages/AttendanceUpload';
 import AttendanceView from './pages/AttendanceView';
 import Approvals from './pages/Approvals';
 import Onboarding from './pages/Onboarding';
-import OnboardingDetail from './pages/OnboardingDetail'; // ← THÊM IMPORT NÀY
+import OnboardingDetail from './pages/OnboardingDetail';
 import Offboarding from './pages/Offboarding';
 import AssetList from './pages/asset/AssetList';
 import OrganizationChart from './pages/OrganizationChart';
@@ -479,6 +480,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <DepartmentEmployees />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/positions/:id/employees"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <PositionEmployees />
                 </Layout>
               </ProtectedRoute>
             }
