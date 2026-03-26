@@ -861,18 +861,10 @@ const AttendanceManagement: React.FC = () => {
              return rType === 'EXPLANATION' && rExplType === targetType;
           }
           if (selectedContext === 'monthly_leave') {
-             if (rType === 'EXPLANATION' && rExplType === 'LEAVE') {
-               if (selectedReason === 'morning' && (rReason.includes('sáng') || rReason.includes('cả ngày'))) return true;
-               if (selectedReason === 'afternoon' && (rReason.includes('chiều') || rReason.includes('cả ngày'))) return true;
-               if (selectedReason === 'full_day' && rReason.includes('cả ngày')) return true;
-             }
+             return rType === 'EXPLANATION' && rExplType === 'LEAVE';
           }
           if (selectedContext === 'online_work') {
-             if (rType === 'ONLINE_WORK') {
-               if (selectedReason === 'morning' && (rReason.includes('sáng') || rReason.includes('cả ngày'))) return true;
-               if (selectedReason === 'afternoon' && (rReason.includes('chiều') || rReason.includes('cả ngày'))) return true;
-               if (selectedReason === 'full_day' && rReason.includes('cả ngày')) return true;
-             }
+             return rType === 'ONLINE_WORK';
           }
           return false;
         });
@@ -977,6 +969,22 @@ const AttendanceManagement: React.FC = () => {
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
+
+      // 1. NGĂN CHẶN NẾU ĐƠN ĐÃ PHÊ DUYỆT (LỚP PHÒNG THỦ THỨ 2 SAU UI)
+      const registrations = selectedDayData?.registrations || [];
+      const hasApprovedAttendance = registrations.some((r: any) => {
+        return r.status?.toUpperCase() === 'APPROVED' && 
+               ['EXPLANATION', 'ONLINE_WORK', 'LEAVE'].includes(r.event_type?.toUpperCase());
+      });
+
+      if (hasApprovedAttendance && selectedContext !== 'registration') {
+        showNotify(
+          'warning',
+          'Đã có đơn được duyệt',
+          'Ngày này đã có một đơn (Giải trình/Nghỉ phép/Online) được phê duyệt. Bạn không thể gửi thêm đơn cùng loại.'
+        );
+        return;
+      }
 
       // Construct reason string
       let reasonLabel = '';
@@ -2671,305 +2679,139 @@ const AttendanceManagement: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* === ContextSelector (Step 1) === */}
+                      {/* === ContextSelector (Step 1) === */}
                     <div className="space-y-4 mb-6">
                       <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                         Chọn loại yêu cầu
                       </h3>
                       {/* Thêm thông báo dựa trên trạng thái ngày */}
-                      {isFullPresent && (
-                        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
-                          <CheckCircleIcon className="h-5 w-5 text-green-600 shrink-0" />
-                          <div className="text-xs text-green-800">
-                            Ngày này bạn đã <strong>{selectedDayData?.status_badge || 'Có mặt'}</strong>. 
-                            Hệ thống tự động ẩn các đơn vi phạm và chỉ hiển thị tùy chọn Đăng ký thêm.
+                      {(isFullPresent || ['LATE', 'EARLY_LEAVE', 'LATE_EARLY'].includes(attendanceDetails[0]?.status?.toUpperCase() || '')) && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
+                          <CheckCircleIcon className="h-5 w-5 text-amber-600 shrink-0" />
+                          <div className="text-xs text-amber-800">
+                            Ngày này bạn đã <strong>{selectedDayData?.status_badge || 'Chấm công'}</strong>. 
+                            Hệ thống tự động ẩn các đơn Nghỉ phép và Online Work. 
+                            {( (attendanceDetails[0]?.late_minutes || 0) > 0 || (attendanceDetails[0]?.early_leave_minutes || 0) > 0 || ['LATE', 'EARLY_LEAVE', 'LATE_EARLY'].includes(attendanceDetails[0]?.status?.toUpperCase() || '')) 
+                              ? "Bạn có thể thực hiện Đơn giải trình cho các vi phạm đi muộn/về sớm hoặc Đơn đăng ký cho các nội dung khác."
+                              : "Chỉ hiển thị tùy chọn Đăng ký thêm."}
                           </div>
                         </div>
                       )}
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* Card 1: Giải trình đơn */}
-                        {!isFullPresent && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleContextSelect('explanation')
-                            }
-                          className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${selectedContext === 'explanation'
-                              ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
-                              : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
-                            }`}
-                        >
-                          <div className="flex items-start space-x-4">
-                            <div
-                              className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'explanation'
-                                ? 'bg-purple-100 group-hover:bg-purple-200'
-                                : 'bg-gray-100 group-hover:bg-purple-50'
-                                }`}
-                            >
-                              <svg
-                                className={`w-6 h-6 ${selectedContext === 'explanation' ? 'text-purple-600' : 'text-gray-500 group-hover:text-purple-500'}`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                />
-                              </svg>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
-                                Đơn giải trình
-                              </h4>
-                              <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                                Giải trình các vi phạm hoặc lý do công việc (Còn {attendanceStats?.remaining_explanations || 0}/{attendanceStats?.max_explanations_per_month || 3} lần)
-                              </p>
-                              {!hasAttendanceData && (
-                                <p className="mt-1 text-xs text-amber-500 font-medium">
-                                  Vắng mặt: Có thể làm đơn Công tác, Quên chấm, Ngày đầu
-                                </p>
-                              )}
-                              {hasAttendanceData && (attendanceStats?.remaining_explanations || 0) <= 0 && (
-                                <p className="mt-1 text-xs text-amber-600 font-medium italic">
-                                  Hết lượt giải trình vi phạm. (Công tác/Ngày đầu vẫn được duyệt)
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          {/* Selected indicator */}
-                          {selectedContext === 'explanation' && (
-                              <div className="absolute top-3 right-3">
-                                <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
-                                  <svg
-                                    className="w-3 h-3 text-white"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                </div>
-                              </div>
-                            )}
-                        </button>
-                      )}
+                        {(() => {
+                          const hasApprovedAttendance = (selectedDayData?.registrations || []).some((r: any) => 
+                            r.status?.toUpperCase() === 'APPROVED' && 
+                            ['EXPLANATION', 'ONLINE_WORK', 'LEAVE'].includes(r.event_type?.toUpperCase())
+                          );
 
-                        {/* Card 2: Đơn đăng ký */}
-                        <button
-                          type="button"
-                          onClick={() => handleContextSelect('registration')}
-                          className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left ${selectedContext === 'registration'
-                            ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
-                            : 'border-gray-200 hover:border-purple-400'
-                            }`}
-                        >
-                          <div className="flex items-start space-x-4">
-                            <div
-                              className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'registration'
-                                ? 'bg-purple-100 group-hover:bg-purple-200'
-                                : 'bg-blue-50 group-hover:bg-blue-100'
-                                }`}
-                            >
-                              <svg
-                                className={`w-6 h-6 ${selectedContext === 'registration' ? 'text-purple-600' : 'text-blue-600'}`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                />
-                              </svg>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
-                                Đơn đăng ký
-                              </h4>
-                              <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                                Tăng ca, làm thêm giờ, trực tối, live, Vào/Ra trực
-                              </p>
-                            </div>
-                          </div>
-                          {/* Selected indicator */}
-                          {selectedContext === 'registration' && (
-                            <div className="absolute top-3 right-3">
-                              <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
-                                <svg
-                                  className="w-3 h-3 text-white"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                              </div>
-                            </div>
-                          )}
-                        </button>
-
-                        {!isFullPresent && (() => {
-                          const maxMonthlyLeave = attendanceStats?.max_leave_per_month || 1;
-                          const remainingMonthlyLeave = attendanceStats?.remaining_leave ?? 1;
+                          const detail = attendanceDetails[0];
+                          const statusStr = detail?.status?.toUpperCase() || '';
+                          const isViolationStatus = ['LATE', 'EARLY_LEAVE', 'LATE_EARLY'].includes(statusStr);
+                          const hasViolations = (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || isViolationStatus;
+                          
+                          const showExplanationCard = (!isFullPresent || hasViolations) && !hasApprovedAttendance;
+                          const showLeaveAndOnlineCards = !isFullPresent && !isViolationStatus && !hasApprovedAttendance;
 
                           return (
-                            <button
-                              type="button"
-                              disabled={remainingMonthlyLeave <= 0}
-                              onClick={() => remainingMonthlyLeave > 0 && handleContextSelect('monthly_leave')}
-                              className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 text-left
-      ${remainingMonthlyLeave <= 0
-                                  ? 'opacity-50 cursor-not-allowed border-gray-200'
-                                  : selectedContext === 'monthly_leave'
+                            <>
+                              {/* Card 1: Giải trình đơn */}
+                              {showExplanationCard && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleContextSelect('explanation')}
+                                  className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${selectedContext === 'explanation'
                                     ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
                                     : 'border-gray-200 hover:border-purple-400'
-                                }
-      sm:col-span-1
-    `}
-                            >
-                              <div className="flex items-start space-x-4">
-                                <div
-                                  className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'monthly_leave'
-                                    ? 'bg-purple-100 group-hover:bg-purple-200'
-                                    : 'bg-indigo-50 group-hover:bg-indigo-100'
-                                    }`}
+                                  }`}
                                 >
-                                  <svg
-                                    className={`w-6 h-6 ${selectedContext === 'monthly_leave' ? 'text-purple-600' : 'text-indigo-600'}`}
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                    />
-                                  </svg>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
-                                    Nghỉ phép tháng
-                                  </h4>
-                                  <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                                    Đăng ký nghỉ phép trong tháng (Còn {remainingMonthlyLeave}/{maxMonthlyLeave} ngày)
-                                  </p>
-                                  {remainingMonthlyLeave <= 0 && (
-                                    <p className="mt-1 text-xs text-red-500">
-                                      Hết lượt đăng ký trong tháng
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                              {/* Selected indicator */}
-                              {selectedContext === 'monthly_leave' && (
-                                <div className="absolute top-3 right-3">
-                                  <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
-                                    <svg
-                                      className="w-3 h-3 text-white"
-                                      fill="currentColor"
-                                      viewBox="0 0 20 20"
-                                    >
-                                      <path
-                                        fillRule="evenodd"
-                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                        clipRule="evenodd"
-                                      />
-                                    </svg>
+                                  <div className="flex items-start space-x-4">
+                                    <div className={`p-3 rounded-lg ${selectedContext === 'explanation' ? 'bg-purple-100' : 'bg-gray-100'}`}>
+                                      <svg className={`w-6 h-6 ${selectedContext === 'explanation' ? 'text-purple-600' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                    </div>
+                                    <div className="flex-1">
+                                      <h4 className="text-base font-semibold text-gray-900">Đơn giải trình</h4>
+                                      <p className="mt-1 text-sm text-gray-500">Giải trình các vi phạm hoặc lý do công việc</p>
+                                    </div>
                                   </div>
-                                </div>
+                                </button>
                               )}
-                            </button>
-                          );
-                        })()}
 
-                        {/* Card 4: Làm việc online */}
-                        {!isFullPresent && (() => {
-                          const maxOnline = attendanceStats?.max_online_work_per_month || 3;
-                          const usedOnline = (attendanceStats?.max_online_work_per_month || 0) - (attendanceStats?.remaining_online_work || 0);
-                          const remainingOnline = Math.max(0, maxOnline - usedOnline);
-
-                          return (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleContextSelect('online_work')
-                              }
-                              className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${selectedContext === 'online_work'
-                                  ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600 hover:shadow-lg'
-                                  : 'border-gray-200 hover:border-purple-400 hover:shadow-lg'
+                              {/* Card 2: Đơn đăng ký (Always show) */}
+                              <button
+                                type="button"
+                                onClick={() => handleContextSelect('registration')}
+                                className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${selectedContext === 'registration'
+                                  ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600'
+                                  : 'border-gray-200 hover:border-purple-400'
                                 }`}
-                            >
-                              <div className="flex items-start space-x-4">
-                                <div
-                                  className={`flex-shrink-0 p-3 rounded-lg transition-colors ${selectedContext === 'online_work'
-                                    ? 'bg-purple-100 group-hover:bg-purple-200'
-                                    : 'bg-teal-50 group-hover:bg-teal-100'
-                                    }`}
-                                >
-                                  <svg
-                                    className={`w-6 h-6 ${selectedContext === 'online_work'
-                                      ? 'text-purple-600'
-                                      : 'text-teal-600'
-                                      }`}
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                                    />
-                                  </svg>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-base font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">
-                                    Làm việc online
-                                  </h4>
-                                  <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                                    Đăng ký làm việc từ xa (Còn {remainingOnline}/{maxOnline} ngày)
-                                  </p>
-                                  {remainingOnline <= 0 && (
-                                    <p className="mt-1 text-xs text-red-500">
-                                      Hết hạn mức trong tháng
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                              {/* Selected indicator */}
-                              {selectedContext === 'online_work' && (
-                                <div className="absolute top-3 right-3">
-                                  <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
-                                    <svg
-                                      className="w-3 h-3 text-white"
-                                      fill="currentColor"
-                                      viewBox="0 0 20 20"
-                                    >
-                                      <path
-                                        fillRule="evenodd"
-                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                        clipRule="evenodd"
-                                      />
+                              >
+                                <div className="flex items-start space-x-4">
+                                  <div className={`p-3 rounded-lg ${selectedContext === 'registration' ? 'bg-purple-100' : 'bg-blue-50'}`}>
+                                    <svg className={`w-6 h-6 ${selectedContext === 'registration' ? 'text-purple-600' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                     </svg>
                                   </div>
+                                  <div className="flex-1">
+                                    <h4 className="text-base font-semibold text-gray-900">Đơn đăng ký</h4>
+                                    <p className="mt-1 text-sm text-gray-500">Tăng ca, trực tối, live, Vào/Ra trực</p>
+                                  </div>
                                 </div>
-                              )}
-                            </button>
+                              </button>
+
+                              {/* Card 3: Nghỉ phép tháng */}
+                              {showLeaveAndOnlineCards && (() => {
+                                const maxLeave = attendanceStats?.max_leave_per_month || 1;
+                                const remainingLeave = attendanceStats?.remaining_leave ?? 1;
+                                return (
+                                  <button
+                                    type="button"
+                                    disabled={remainingLeave <= 0}
+                                    onClick={() => remainingLeave > 0 && handleContextSelect('monthly_leave')}
+                                    className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${remainingLeave <= 0 ? 'opacity-50 cursor-not-allowed' : selectedContext === 'monthly_leave' ? 'border-purple-500 ring-2 ring-purple-100' : 'border-gray-200'}`}
+                                  >
+                                    <div className="flex items-start space-x-4">
+                                      <div className={`p-3 rounded-lg ${selectedContext === 'monthly_leave' ? 'bg-purple-100' : 'bg-indigo-50'}`}>
+                                        <svg className={`w-6 h-6 ${selectedContext === 'monthly_leave' ? 'text-purple-600' : 'text-indigo-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                      </div>
+                                      <div className="flex-1">
+                                        <h4 className="text-base font-semibold text-gray-900">Nghỉ phép tháng</h4>
+                                        <p className="mt-1 text-sm text-gray-500">Đăng ký nghỉ phép (Còn {remainingLeave}/{maxLeave} ngày)</p>
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })()}
+
+                              {/* Card 4: Làm việc online */}
+                              {showLeaveAndOnlineCards && (() => {
+                                const maxOnline = attendanceStats?.max_online_work_per_month || 3;
+                                const remainingOnline = attendanceStats?.remaining_online_work || 0;
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleContextSelect('online_work')}
+                                    className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${selectedContext === 'online_work' ? 'border-purple-500 ring-2 ring-purple-100' : 'border-gray-200'}`}
+                                  >
+                                    <div className="flex items-start space-x-4">
+                                      <div className={`p-3 rounded-lg ${selectedContext === 'online_work' ? 'bg-purple-100' : 'bg-teal-50'}`}>
+                                        <svg className={`w-6 h-6 ${selectedContext === 'online_work' ? 'text-purple-600' : 'text-teal-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                        </svg>
+                                      </div>
+                                      <div className="flex-1">
+                                        <h4 className="text-base font-semibold text-gray-900">Làm việc online</h4>
+                                        <p className="mt-1 text-sm text-gray-500">Làm việc từ xa (Còn {remainingOnline}/{maxOnline} ngày)</p>
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })()}
+                            </>
                           );
                         })()}
                       </div>
@@ -3072,17 +2914,9 @@ const AttendanceManagement: React.FC = () => {
                                   const rExplType = rData.explanation_type?.toUpperCase();
 
                                   if (isLeave) {
-                                    if (rType === 'EXPLANATION' && rExplType === 'LEAVE') {
-                                      if (session === 'morning' && (rReason.includes('sáng') || rReason.includes('cả ngày'))) return true;
-                                      if (session === 'afternoon' && (rReason.includes('chiều') || rReason.includes('cả ngày'))) return true;
-                                      if (session === 'full_day' && rReason.includes('cả ngày')) return true;
-                                    }
+                                    return rType === 'EXPLANATION' && rExplType === 'LEAVE';
                                   } else { // online_work
-                                    if (rType === 'ONLINE_WORK') {
-                                      if (session === 'morning' && (rReason.includes('sáng') || rReason.includes('cả ngày'))) return true;
-                                      if (session === 'afternoon' && (rReason.includes('chiều') || rReason.includes('cả ngày'))) return true;
-                                      if (session === 'full_day' && rReason.includes('cả ngày')) return true;
-                                    }
+                                    return rType === 'ONLINE_WORK';
                                   }
                                   return false;
                                 });
