@@ -332,7 +332,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col transition-all duration-300 ${isCollapsed ? 'lg:w-16' : 'lg:w-64'}`}
       >
         <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
-          <div className="flex h-16 items-center px-4 justify-between">
+          <div className={`flex h-16 items-center ${isCollapsed ? 'justify-center px-0' : 'px-4 justify-between'}`}>
             {!isCollapsed && (
               <Link to="/" className="flex items-center">
                 <div className="h-8 w-8 rounded-lg flex items-center justify-center">
@@ -346,23 +346,6 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                   AI HRM
                 </span>
               </Link>
-            )}
-            {isCollapsed && (
-              <div className="flex items-center justify-center w-full">
-                <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <svg
-                    className="h-5 w-5 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-              </div>
             )}
             <button
               onClick={handleCollapseToggle}
