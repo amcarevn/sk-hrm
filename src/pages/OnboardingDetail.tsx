@@ -227,6 +227,15 @@ const CCCD_ISSUE_PLACE_OPTIONS = [
   { value: 'MINISTRY_PUBLIC_SECURITY', label: 'Bộ Công An' },
 ];
 
+const formatDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return 'Chưa có dữ liệu';
+  return new Date(dateStr).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
 // ============================================
 // EDIT FIELD — defined OUTSIDE main component to prevent focus loss on re-render
 // ============================================
@@ -545,10 +554,8 @@ const OnboardingDetail: React.FC = () => {
               <label className="text-sm text-gray-600">Ngày sinh</label>
               <p className="font-medium">
                 {employeeProfile?.date_of_birth
-                  ? new Date(employeeProfile.date_of_birth).toLocaleDateString('vi-VN')
-                  : onboarding.date_of_birth
-                  ? new Date(onboarding.date_of_birth).toLocaleDateString('vi-VN')
-                  : 'Chưa có dữ liệu'}
+                  ? formatDate(employeeProfile.date_of_birth)
+                  : formatDate(onboarding.date_of_birth)}
               </p>
             </div>
             <div>
@@ -629,10 +636,8 @@ const OnboardingDetail: React.FC = () => {
               <label className="text-sm text-gray-600">Ngày bắt đầu làm việc</label>
               <p className="font-medium">
                 {employeeProfile?.start_date
-                  ? new Date(employeeProfile.start_date).toLocaleDateString('vi-VN')
-                  : onboarding.start_date
-                  ? new Date(onboarding.start_date).toLocaleDateString('vi-VN')
-                  : 'Chưa có dữ liệu'}
+                  ? formatDate(employeeProfile.start_date)
+                  : formatDate(onboarding.start_date)}
               </p>
             </div>
             <div>
@@ -694,7 +699,7 @@ const OnboardingDetail: React.FC = () => {
                   <label className="text-sm text-gray-600">Ngày cấp CCCD</label>
                   <p className="font-medium">
                     {employeeProfile?.cccd_issue_date
-                      ? new Date(employeeProfile.cccd_issue_date).toLocaleDateString('vi-VN')
+                      ? formatDate(employeeProfile.cccd_issue_date)
                       : 'Chưa có dữ liệu'}
                   </p>
                 </div>
@@ -982,7 +987,7 @@ const OnboardingDetail: React.FC = () => {
                   {employeeProfile.probation_end_date && (
                     <div>
                       <label className="text-sm text-gray-600">Ngày kết thúc thử việc</label>
-                      <p className="font-medium">{new Date(employeeProfile.probation_end_date).toLocaleDateString('vi-VN')}</p>
+                      <p className="font-medium">{formatDate(employeeProfile.probation_end_date)}</p>
                     </div>
                   )}
                   {(employeeProfile as any).probation_rate && (
@@ -1016,13 +1021,13 @@ const OnboardingDetail: React.FC = () => {
                   {employeeProfile.file_submission_deadline && (
                     <div>
                       <label className="text-sm text-gray-600">Hạn nộp hồ sơ</label>
-                      <p className="font-medium">{new Date(employeeProfile.file_submission_deadline).toLocaleDateString('vi-VN')}</p>
+                      <p className="font-medium">{formatDate(employeeProfile.file_submission_deadline)}</p>
                     </div>
                   )}
                   {employeeProfile.file_submission_date && (
                     <div>
                       <label className="text-sm text-gray-600">Ngày nộp hồ sơ</label>
-                      <p className="font-medium">{new Date(employeeProfile.file_submission_date).toLocaleDateString('vi-VN')}</p>
+                      <p className="font-medium">{formatDate(employeeProfile.file_submission_date)}</p>
                     </div>
                   )}
                   {employeeProfile.file_review_notes && (
@@ -1070,7 +1075,7 @@ const OnboardingDetail: React.FC = () => {
                     <label className="text-sm text-gray-600">Ngày sinh</label>
                     <p className="font-medium">
                       {(employeeProfile as any).emergency_contact_dob
-                        ? new Date((employeeProfile as any).emergency_contact_dob).toLocaleDateString('vi-VN')
+                        ? formatDate((employeeProfile as any).emergency_contact_dob)
                         : 'Chưa có dữ liệu'}
                     </p>
                   </div>
