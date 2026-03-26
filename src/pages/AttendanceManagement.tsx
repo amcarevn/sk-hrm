@@ -844,6 +844,45 @@ const AttendanceManagement: React.FC = () => {
       // -------------------------------------------------------------------------
       try {
         const existingRegistrations = selectedDayData?.registrations || [];
+        
+        // 1. NGĂN CHẶN nếu đã có đơn cùng loại được PHÊ DUYỆT
+        const approvedSameType = existingRegistrations.find((r: any) => {
+          if (r.status?.toUpperCase() !== 'APPROVED') return false;
+          const rType = r.event_type?.toUpperCase();
+          const rData = r.data || r;
+          const rReason = (rData.reason || '').toLowerCase();
+          const rExplType = rData.explanation_type?.toUpperCase();
+
+          if (selectedContext === 'explanation') {
+             const targetType = (({
+               late_minutes: 'LATE', early_leave_minutes: 'EARLY_LEAVE', incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
+               business_trip: 'BUSINESS_TRIP', first_day: 'FIRST_DAY'
+             } as Record<string, string>)[selectedReason as string]);
+             return rType === 'EXPLANATION' && rExplType === targetType;
+          }
+          if (selectedContext === 'monthly_leave') {
+             if (rType === 'EXPLANATION' && rExplType === 'LEAVE') {
+               if (selectedReason === 'morning' && (rReason.includes('sáng') || rReason.includes('cả ngày'))) return true;
+               if (selectedReason === 'afternoon' && (rReason.includes('chiều') || rReason.includes('cả ngày'))) return true;
+               if (selectedReason === 'full_day' && rReason.includes('cả ngày')) return true;
+             }
+          }
+          if (selectedContext === 'online_work') {
+             if (rType === 'ONLINE_WORK') {
+               if (selectedReason === 'morning' && (rReason.includes('sáng') || rReason.includes('cả ngày'))) return true;
+               if (selectedReason === 'afternoon' && (rReason.includes('chiều') || rReason.includes('cả ngày'))) return true;
+               if (selectedReason === 'full_day' && rReason.includes('cả ngày')) return true;
+             }
+          }
+          return false;
+        });
+
+        if (approvedSameType) {
+           showNotify('error', 'Không thể gửi đơn', 'Đã có đơn cùng loại được duyệt cho ngày/ca này.');
+           setIsSubmitting(false);
+           return;
+        }
+
         const pendingRequests = existingRegistrations.filter((r: any) => r.status === 'PENDING');
 
         if (['monthly_leave', 'online_work', 'explanation', 'registration'].includes(selectedContext)) {
@@ -2950,7 +2989,7 @@ const AttendanceManagement: React.FC = () => {
                           {/* Chip buttons - Render based on selected context */}
                           <div className="flex flex-wrap gap-3">
                             {(() => {
-                              const reasons = selectedContext === 'explanation'
+                              const reasons: any[] = selectedContext === 'explanation'
                                 ? explanationReasons
                                 : selectedContext === 'registration'
                                   ? registrationReasons
@@ -2961,23 +3000,25 @@ const AttendanceManagement: React.FC = () => {
                               // Lọc lý do cho Đơn giải trình dựa trên thực tế chấm công
                               if (selectedContext === 'explanation') {
                                 const detail = attendanceDetails[0];
+                                const registrations = selectedDayData?.registrations || [];
+
                                 return reasons.filter(reason => {
-                                  // Kiểm tra theo danh mục (Giải trình, Nghỉ phép, Làm online)
-                                  const dateStr = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : '';
-                                  const hasExp = (allExplanations || []).length > 0;
-                                  const hasLeave = monthlyRequestHistory.leaveRequests.some(l => (l.attendance_date === dateStr || l.event_date === dateStr));
-                                  const hasOnline = monthlyRequestHistory.onlineWorks.some(w => (w.work_date === dateStr || w.attendance_date === dateStr));
+                                  // 1. Ngăn chặn nếu đã có đơn cùng loại được PHÊ DUYỆT
+                                  const isAlreadyApproved = registrations.some((r: any) => {
+                                    if (r.status?.toUpperCase() !== 'APPROVED' || r.event_type?.toUpperCase() !== 'EXPLANATION') return false;
+                                    const rData = r.data || r;
+                                    const targetType = (({
+                                      late_minutes: 'LATE',
+                                      early_leave_minutes: 'EARLY_LEAVE',
+                                      incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
+                                      business_trip: 'BUSINESS_TRIP',
+                                      first_day: 'FIRST_DAY'
+                                    } as Record<string, string>)[reason.id]);
+                                    return rData?.explanation_type?.toUpperCase() === targetType;
+                                  });
+                                  if (isAlreadyApproved) return false;
 
-                                  // Các loại giải trình vi phạm chính
-                                  const isViolationReason = ['late_minutes', 'early_leave_minutes', 'incomplete_attendance'].includes(reason.id?.toString() || '');
-                                  
-                                  // Nếu đã có bất kỳ đơn Giải trình/Nghỉ phép/Online nào thì triệt tiêu lý do vi phạm này
-                                  if (isViolationReason && (hasExp || hasLeave || hasOnline)) return false;
-                                  
-                                  // Với các loại khác thì check chính nó
-                                  const alreadyHasSameReason = (allExplanations || []).some(e => e.explanation_type === reason.id || e.data?.explanation_type === reason.id);
-                                  if (alreadyHasSameReason) return false;
-
+                                  // 2. Các logic lọc theo dữ liệu thực tế (giữ nguyên logic cũ nhưng làm gọn hơn)
                                   const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
                                   if (reason.id === 'late_minutes') return !isIncomplete && (detail?.late_minutes || 0) > 0;
                                   if (reason.id === 'early_leave_minutes') return !isIncomplete && (detail?.early_leave_minutes || 0) > 0;
@@ -3000,20 +3041,59 @@ const AttendanceManagement: React.FC = () => {
                                 }
                               }
 
-                              // Lọc lý do cho Nghỉ phép tháng
-                              if (selectedContext === 'monthly_leave') {
-                                const remaining = attendanceStats?.remaining_leave ?? 1;
+                              // Lọc lý do cho Nghỉ phép tháng và Làm việc online
+                              if (selectedContext === 'monthly_leave' || selectedContext === 'online_work') {
+                                const isLeave = selectedContext === 'monthly_leave';
+                                const remaining = isLeave 
+                                  ? (attendanceStats?.remaining_leave ?? 1)
+                                  : (attendanceStats?.remaining_online_work ?? 3);
+                                
+                                let filtered = [...reasons];
                                 if (remaining < 1.0) {
-                                  return reasons.filter(r => r.id !== 'full_day');
+                                  filtered = filtered.filter(r => r.id !== 'full_day');
                                 }
-                              }
 
-                              // Lọc lý do cho Làm việc online
-                              if (selectedContext === 'online_work') {
-                                const remaining = attendanceStats?.remaining_online_work ?? 3;
-                                if (remaining < 1.0) {
-                                  return reasons.filter(r => r.id !== 'full_day');
+                                // Kiểm tra các ca đã có dữ liệu (chính xác hơn)
+                                const dayShifts = selectedDayData?.shifts || [];
+                                const isOccupied = (type: string) => dayShifts.some((s: any) => 
+                                  (s.shift_type === type || s.shift_type === 'FULL_DAY') && 
+                                  s && !['ABSENT', 'EMPTY', 'NO_DATA'].includes(s.status?.toUpperCase())
+                                );
+
+                                // Kiểm tra đơn đã được PHÊ DUYỆT (mới thêm)
+                                const registrations = selectedDayData?.registrations || [];
+                                const hasApproved = (session: string) => registrations.some((r: any) => {
+                                  const rType = r.event_type?.toUpperCase();
+                                  const rStatus = r.status?.toUpperCase();
+                                  if (rStatus !== 'APPROVED') return false;
+                                  
+                                  const rData = r.data || r;
+                                  const rReason = (rData.reason || '').toLowerCase();
+                                  const rExplType = rData.explanation_type?.toUpperCase();
+
+                                  if (isLeave) {
+                                    if (rType === 'EXPLANATION' && rExplType === 'LEAVE') {
+                                      if (session === 'morning' && (rReason.includes('sáng') || rReason.includes('cả ngày'))) return true;
+                                      if (session === 'afternoon' && (rReason.includes('chiều') || rReason.includes('cả ngày'))) return true;
+                                      if (session === 'full_day' && rReason.includes('cả ngày')) return true;
+                                    }
+                                  } else { // online_work
+                                    if (rType === 'ONLINE_WORK') {
+                                      if (session === 'morning' && (rReason.includes('sáng') || rReason.includes('cả ngày'))) return true;
+                                      if (session === 'afternoon' && (rReason.includes('chiều') || rReason.includes('cả ngày'))) return true;
+                                      if (session === 'full_day' && rReason.includes('cả ngày')) return true;
+                                    }
+                                  }
+                                  return false;
+                                });
+
+                                if (isOccupied('MORNING') || hasApproved('morning')) {
+                                  filtered = filtered.filter(r => r.id !== 'morning' && r.id !== 'full_day');
                                 }
+                                if (isOccupied('AFTERNOON') || hasApproved('afternoon')) {
+                                  filtered = filtered.filter(r => r.id !== 'afternoon' && r.id !== 'full_day');
+                                }
+                                return filtered;
                               }
 
                               return reasons;
