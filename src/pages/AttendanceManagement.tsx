@@ -6,7 +6,7 @@ import {
   AttendanceRecord,
   AttendanceEvent,
 } from '../services/attendance.service';
-import { employeesAPI, Employee } from '../utils/api';
+
 import {
   XMarkIcon,
   DocumentPlusIcon,
@@ -32,6 +32,7 @@ import {
   HomeIcon,
   ComputerDesktopIcon,
 } from '@heroicons/react/24/outline';
+import { Employee, employeesAPI } from '@/utils/api';
 
 const AttendanceManagement: React.FC = () => {
   const { user } = useAuth();
@@ -4107,6 +4108,7 @@ const AttendanceManagement: React.FC = () => {
                                   { value: '07:30', label: '7h30', desc: 'Sáng' },
                                   { value: '08:00', label: '8h00', desc: 'Sáng' },
                                   { value: '08:30', label: '8h30', desc: 'Sáng' },
+                                  { value: '09:00', label: '9h00', desc: 'Sáng' },
                                   { value: '13:00', label: '13h00', desc: 'Chiều' },
                                   { value: '17:30', label: '17h30', desc: 'Tối' },
                                 ].map((opt) => {
