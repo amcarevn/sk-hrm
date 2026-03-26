@@ -2684,16 +2684,13 @@ const AttendanceManagement: React.FC = () => {
                       <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                         Chọn loại yêu cầu
                       </h3>
-                      {/* Thêm thông báo dựa trên trạng thái ngày */}
-                      {(isFullPresent || ['LATE', 'EARLY_LEAVE', 'LATE_EARLY'].includes(attendanceDetails[0]?.status?.toUpperCase() || '')) && (
+                      {/* Thêm thông báo dựa trên trạng thái ngày (chỉ hiện khi đã Đủ công) */}
+                      {isFullPresent && (
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
                           <CheckCircleIcon className="h-5 w-5 text-amber-600 shrink-0" />
                           <div className="text-xs text-amber-800">
-                            Ngày này bạn đã <strong>{selectedDayData?.status_badge || 'Chấm công'}</strong>. 
-                            Hệ thống tự động ẩn các đơn Nghỉ phép và Online Work. 
-                            {( (attendanceDetails[0]?.late_minutes || 0) > 0 || (attendanceDetails[0]?.early_leave_minutes || 0) > 0 || ['LATE', 'EARLY_LEAVE', 'LATE_EARLY'].includes(attendanceDetails[0]?.status?.toUpperCase() || '')) 
-                              ? "Bạn có thể thực hiện Đơn giải trình cho các vi phạm đi muộn/về sớm hoặc Đơn đăng ký cho các nội dung khác."
-                              : "Chỉ hiển thị tùy chọn Đăng ký thêm."}
+                            Ngày này bạn đã <strong>{selectedDayData?.status_badge || 'Đủ công'}</strong>. 
+                            Hệ thống tự động ẩn các đơn Nghỉ phép và Làm việc online vì ngày này đã tính đủ công.
                           </div>
                         </div>
                       )}
@@ -2707,11 +2704,13 @@ const AttendanceManagement: React.FC = () => {
 
                           const detail = attendanceDetails[0];
                           const statusStr = detail?.status?.toUpperCase() || '';
-                          const isViolationStatus = ['LATE', 'EARLY_LEAVE', 'LATE_EARLY'].includes(statusStr);
+                          const isViolationStatus = ['LATE', 'EARLY_LEAVE', 'LATE_EARLY', 'INCOMPLETE_ATTENDANCE'].includes(statusStr);
                           const hasViolations = (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || isViolationStatus;
                           
                           const showExplanationCard = (!isFullPresent || hasViolations) && !hasApprovedAttendance;
-                          const showLeaveAndOnlineCards = !isFullPresent && !isViolationStatus && !hasApprovedAttendance;
+                          const showMonthlyLeaveCard = !isFullPresent && !hasApprovedAttendance;
+                          const showOnlineWorkCard = !isFullPresent && !hasApprovedAttendance;
+                          const isLeaveDisabled = isViolationStatus;
 
                           return (
                             <>
@@ -2762,15 +2761,23 @@ const AttendanceManagement: React.FC = () => {
                               </button>
 
                               {/* Card 3: Nghỉ phép tháng */}
-                              {showLeaveAndOnlineCards && (() => {
+                              {showMonthlyLeaveCard && (() => {
                                 const maxLeave = attendanceStats?.max_leave_per_month || 1;
                                 const remainingLeave = attendanceStats?.remaining_leave ?? 1;
+                                const isActuallyDisabled = remainingLeave <= 0 || isLeaveDisabled;
+
                                 return (
                                   <button
                                     type="button"
-                                    disabled={remainingLeave <= 0}
-                                    onClick={() => remainingLeave > 0 && handleContextSelect('monthly_leave')}
-                                    className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${remainingLeave <= 0 ? 'opacity-50 cursor-not-allowed' : selectedContext === 'monthly_leave' ? 'border-purple-500 ring-2 ring-purple-100' : 'border-gray-200'}`}
+                                    disabled={isActuallyDisabled}
+                                    onClick={() => !isActuallyDisabled && handleContextSelect('monthly_leave')}
+                                    className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left 
+                                      ${isActuallyDisabled 
+                                        ? 'opacity-60 grayscale-[0.5] cursor-not-allowed bg-gray-50/50 border-gray-100' 
+                                        : selectedContext === 'monthly_leave' 
+                                          ? 'border-purple-500 ring-2 ring-purple-100' 
+                                          : 'border-gray-200 hover:border-purple-400'
+                                      }`}
                                   >
                                     <div className="flex items-start space-x-4">
                                       <div className={`p-3 rounded-lg ${selectedContext === 'monthly_leave' ? 'bg-purple-100' : 'bg-indigo-50'}`}>
@@ -2779,16 +2786,31 @@ const AttendanceManagement: React.FC = () => {
                                         </svg>
                                       </div>
                                       <div className="flex-1">
-                                        <h4 className="text-base font-semibold text-gray-900">Nghỉ phép tháng</h4>
-                                        <p className="mt-1 text-sm text-gray-500">Đăng ký nghỉ phép (Còn {remainingLeave}/{maxLeave} ngày)</p>
+                                        <h4 className={`text-base font-semibold ${isActuallyDisabled ? 'text-gray-500' : 'text-gray-900'}`}>Nghỉ phép tháng</h4>
+                                        <p className="mt-1 text-sm text-gray-500">
+                                          {isLeaveDisabled 
+                                            ? (statusStr === 'INCOMPLETE_ATTENDANCE' ? 'Không thể nghỉ phép khi Quên chấm công' : 'Không thể nghỉ phép khi có dữ liệu đi muộn/về sớm') 
+                                            : remainingLeave <= 0 
+                                              ? 'Đã hết lượt nghỉ phép tháng này'
+                                              : `Đăng ký nghỉ phép (Còn ${remainingLeave}/${maxLeave} ngày)`}
+                                        </p>
                                       </div>
                                     </div>
+                                    {isActuallyDisabled && (
+                                      <div className="absolute top-2 right-2">
+                                        <div className="bg-gray-200 rounded-full p-1">
+                                          <svg className="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                          </svg>
+                                        </div>
+                                      </div>
+                                    )}
                                   </button>
                                 );
                               })()}
 
                               {/* Card 4: Làm việc online */}
-                              {showLeaveAndOnlineCards && (() => {
+                              {showOnlineWorkCard && (() => {
                                 const maxOnline = attendanceStats?.max_online_work_per_month || 3;
                                 const remainingOnline = attendanceStats?.remaining_online_work || 0;
                                 return (
