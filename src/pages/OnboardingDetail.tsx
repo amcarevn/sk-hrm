@@ -536,6 +536,8 @@ const OnboardingDetail: React.FC = () => {
               <p className="font-medium">
                 {employeeProfile?.gender
                   ? (employeeProfile.gender === 'M' ? 'Nam' : employeeProfile.gender === 'F' ? 'Nữ' : 'Khác')
+                  : onboarding.gender
+                  ? (onboarding.gender === 'MALE' ? 'Nam' : onboarding.gender === 'FEMALE' ? 'Nữ' : 'Khác')
                   : 'Chưa có dữ liệu'}
               </p>
             </div>
@@ -544,6 +546,8 @@ const OnboardingDetail: React.FC = () => {
               <p className="font-medium">
                 {employeeProfile?.date_of_birth
                   ? new Date(employeeProfile.date_of_birth).toLocaleDateString('vi-VN')
+                  : onboarding.date_of_birth
+                  ? new Date(onboarding.date_of_birth).toLocaleDateString('vi-VN')
                   : 'Chưa có dữ liệu'}
               </p>
             </div>
@@ -626,6 +630,8 @@ const OnboardingDetail: React.FC = () => {
               <p className="font-medium">
                 {employeeProfile?.start_date
                   ? new Date(employeeProfile.start_date).toLocaleDateString('vi-VN')
+                  : onboarding.start_date
+                  ? new Date(onboarding.start_date).toLocaleDateString('vi-VN')
                   : 'Chưa có dữ liệu'}
               </p>
             </div>

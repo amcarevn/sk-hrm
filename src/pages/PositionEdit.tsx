@@ -97,7 +97,7 @@ const PositionEdit: React.FC = () => {
         level: Number(formData.level),
         is_management: formData.is_management === 'true',
         ...(formData.description && { description: formData.description.trim() }),
-        ...(formData.department && { department: Number(formData.department) }),
+        ...(formData.department && { department_id: Number(formData.department) }),
         ...(formData.parent_position && { parent_position: Number(formData.parent_position) }),
       };
 
