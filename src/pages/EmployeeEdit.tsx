@@ -20,7 +20,7 @@ const GENDER_OPTIONS = [
 
 const EMPLOYMENT_STATUS_OPTIONS = [
   { label: 'Đang làm việc', value: 'ACTIVE' },
-  { label: 'Thử việc', value: 'PROBATION' },
+  { label: 'Tạm dừng', value: 'SUSPENDED' },
   { label: 'Đã nghỉ', value: 'INACTIVE' },
 ];
 

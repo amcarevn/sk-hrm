@@ -120,8 +120,9 @@ const PositionEmployees: React.FC = () => {
   const getStatusBadge = (status: string) => {
     const map: Record<string, { label: string; color: string }> = {
       ACTIVE: { label: 'Đang làm việc', color: 'bg-green-100 text-green-700' },
-      PROBATION: { label: 'Thử việc', color: 'bg-yellow-100 text-yellow-700' },
+      SUSPENDED: { label: 'Tạm dừng', color: 'bg-yellow-100 text-yellow-700' },
       INACTIVE: { label: 'Đã nghỉ', color: 'bg-red-100 text-red-700' },
+      PROBATION: { label: 'Thử việc', color: 'bg-yellow-100 text-yellow-700' },
     };
     const cfg = map[status] || { label: status, color: 'bg-gray-100 text-gray-700' };
     return (

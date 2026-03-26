@@ -1689,7 +1689,7 @@ export interface Employee {
   personal_email?: string;
   bank_name?: string;
   bank_account?: string;
-  employment_status: 'ACTIVE' | 'INACTIVE' | 'PROBATION';
+  employment_status: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | 'PROBATION';
   start_date?: string;
   end_date?: string;
   position?: {
@@ -1789,6 +1789,16 @@ export interface SuperAdminEmployee extends Employee {
   probation_rate?: string;
   file_status_display?: string;
   file_review_notes?: string;
+  rank?: string;
+  section?: string;
+  doctor_team?: string;
+  work_form?: string;
+  region?: string;
+  block?: string;
+  tax_code?: string;
+  education_level?: string;
+  bank_branch?: string;
+  marital_status?: string;
   permissions?: EmployeePermissions;
   user?: {
     id: number;
@@ -1838,7 +1848,7 @@ export interface EmployeeCreateData {
   personal_email?: string;
   bank_name?: string;
   bank_account?: string;
-  employment_status?: 'ACTIVE' | 'INACTIVE' | 'PROBATION';
+  employment_status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | 'PROBATION';
   start_date?: string;
   end_date?: string;
   username: string;
@@ -1863,7 +1873,7 @@ export interface EmployeeUpdateData {
   nationality?: string;
   bank_name?: string;
   bank_account?: string;
-  employment_status?: 'ACTIVE' | 'INACTIVE' | 'PROBATION';
+  employment_status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | 'PROBATION';
   start_date?: string;
   end_date?: string;
   user_id?: number;
