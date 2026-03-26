@@ -23,6 +23,7 @@ import {
   TableCellsIcon,
   DocumentTextIcon,
   KeyIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -153,6 +154,12 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard/work-finalization/approvals',
     icon: CheckCircleIcon,
     roles: ['ADMIN'],
+  },
+  {
+    name: 'AI',
+    href: '/dashboard/ai',
+    icon: SparklesIcon,
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
 ];
 

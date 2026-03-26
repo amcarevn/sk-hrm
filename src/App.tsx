@@ -78,6 +78,7 @@ import WorkFinalizationApprovals from './pages/WorkFinalizationApprovals';
 import ContractTemplates from './pages/ContractTemplates';
 import PasswordReset from './pages/PasswordReset';
 import ShiftConfiguration from './pages/ShiftConfiguration';
+import AIChat from './pages/AIChat';
 
 function App() {
   return (
@@ -836,6 +837,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <PasswordReset />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* AI Chat Route */}
+          <Route
+            path="/dashboard/ai"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AIChat />
                 </Layout>
               </ProtectedRoute>
             }
