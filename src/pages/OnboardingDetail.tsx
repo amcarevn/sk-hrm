@@ -592,13 +592,13 @@ const OnboardingDetail: React.FC = () => {
             {userRole === 'ADMIN' && (
               <button
                 onClick={() => openEdit('job', {
-                  rank: onboarding.rank ?? '',
-                  section: onboarding.section ?? '',
-                  doctor_team: onboarding.doctor_team ?? '',
-                  work_form: onboarding.work_form ?? '',
-                  region: onboarding.region ?? '',
-                  block: onboarding.block ?? '',
-                  start_date: onboarding.start_date ?? '',
+                  rank: employeeProfile?.rank ?? onboarding.rank ?? '',
+                  section: employeeProfile?.section ?? onboarding.section ?? '',
+                  doctor_team: employeeProfile?.doctor_team ?? onboarding.doctor_team ?? '',
+                  work_form: employeeProfile?.work_form ?? onboarding.work_form ?? '',
+                  region: employeeProfile?.region ?? onboarding.region ?? '',
+                  block: employeeProfile?.block ?? onboarding.block ?? '',
+                  start_date: employeeProfile?.start_date ?? onboarding.start_date ?? '',
                 })}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                 title="Sửa thông tin công việc"
@@ -614,7 +614,7 @@ const OnboardingDetail: React.FC = () => {
             </div>
             <div>
               <label className="text-sm text-gray-600">Cấp bậc</label>
-              <p className="font-medium">{onboarding.rank || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{employeeProfile?.rank || onboarding.rank || 'Chưa có dữ liệu'}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Vị trí</label>
@@ -622,7 +622,7 @@ const OnboardingDetail: React.FC = () => {
             </div>
             <div>
               <label className="text-sm text-gray-600">Bộ phận</label>
-              <p className="font-medium">{onboarding.section || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{employeeProfile?.section || onboarding.section || 'Chưa có dữ liệu'}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Quản lý trực tiếp</label>
@@ -630,7 +630,7 @@ const OnboardingDetail: React.FC = () => {
             </div>
             <div>
               <label className="text-sm text-gray-600">Bác sĩ phụ trách</label>
-              <p className="font-medium">{onboarding.doctor_team || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{employeeProfile?.doctor_team || onboarding.doctor_team || 'Chưa có dữ liệu'}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Ngày bắt đầu làm việc</label>
@@ -643,16 +643,16 @@ const OnboardingDetail: React.FC = () => {
             <div>
               <label className="text-sm text-gray-600">Hình thức làm việc</label>
               <p className="font-medium">
-                {onboarding.work_form ? (WORK_FORM_LABELS[onboarding.work_form] || onboarding.work_form) : 'Chưa có dữ liệu'}
+                {(employeeProfile?.work_form || onboarding.work_form) ? (WORK_FORM_LABELS[employeeProfile?.work_form || onboarding.work_form!] || employeeProfile?.work_form || onboarding.work_form) : 'Chưa có dữ liệu'}
               </p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Vùng/Miền</label>
-              <p className="font-medium">{onboarding.region || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{employeeProfile?.region || onboarding.region || 'Chưa có dữ liệu'}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Khối</label>
-              <p className="font-medium">{onboarding.block || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{employeeProfile?.block || onboarding.block || 'Chưa có dữ liệu'}</p>
             </div>
           </div>
         </div>
@@ -669,18 +669,18 @@ const OnboardingDetail: React.FC = () => {
                 </span>
                 <button
                   onClick={() => openEdit('personal', {
-                    citizen_id: onboarding.citizen_id ?? '',
-                    date_of_birth: onboarding.date_of_birth ?? '',
-                    gender: onboarding.gender ?? '',
-                    permanent_address: onboarding.permanent_address ?? '',
-                    current_address: onboarding.current_address ?? '',
+                    citizen_id: employeeProfile?.cccd_number ?? onboarding.citizen_id ?? '',
+                    date_of_birth: employeeProfile?.date_of_birth ?? onboarding.date_of_birth ?? '',
+                    gender: employeeProfile?.gender ?? onboarding.gender ?? '',
+                    permanent_address: employeeProfile?.permanent_residence ?? onboarding.permanent_address ?? '',
+                    current_address: employeeProfile?.current_address ?? onboarding.current_address ?? '',
                     cccd_number: employeeProfile?.cccd_number ?? '',
                     cccd_issue_date: employeeProfile?.cccd_issue_date ?? '',
                     cccd_issue_place: employeeProfile?.cccd_issue_place ?? '',
-                    birth_place: employeeProfile?.birth_place ?? '',
-                    permanent_residence: employeeProfile?.permanent_residence ?? '',
-                    social_insurance_number: employeeProfile?.social_insurance_number ?? '',
-                    tax_code: onboarding.tax_code ?? '',
+                    birth_place: employeeProfile?.birth_place ?? onboarding.birth_place ?? '',
+                    permanent_residence: employeeProfile?.permanent_residence ?? onboarding.permanent_address ?? '',
+                    social_insurance_number: employeeProfile?.social_insurance_number ?? onboarding.social_insurance_number ?? '',
+                    tax_code: employeeProfile?.tax_code ?? onboarding.tax_code ?? '',
                   })}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                   title="Sửa giấy tờ tùy thân & địa chỉ"
@@ -716,13 +716,13 @@ const OnboardingDetail: React.FC = () => {
                 <div>
                   <label className="text-sm text-gray-600">Nơi đăng ký khai sinh</label>
                   <p className="font-medium">
-                    {onboarding.birth_place || employeeProfile?.birth_place || 'Chưa có dữ liệu'}
+                    {employeeProfile?.birth_place || onboarding.birth_place || 'Chưa có dữ liệu'}
                   </p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Mã số BHXH</label>
                   <p className="font-medium">
-                    {onboarding.social_insurance_number || employeeProfile?.social_insurance_number || 'Chưa có dữ liệu'}
+                    {employeeProfile?.social_insurance_number || onboarding.social_insurance_number || 'Chưa có dữ liệu'}
                   </p>
                 </div>
                 <div>
@@ -757,10 +757,10 @@ const OnboardingDetail: React.FC = () => {
                 </span>
                 <button
                   onClick={() => openEdit('education', {
-                    education_level: onboarding.education_level ?? '',
-                    university: onboarding.university ?? '',
-                    major: onboarding.major ?? '',
-                    graduation_year: onboarding.graduation_year ?? '',
+                    education_level: employeeProfile?.education_level ?? onboarding.education_level ?? '',
+                    university: (extraInfo.university || onboarding.university) ?? '',
+                    major: (extraInfo.major || onboarding.major) ?? '',
+                    graduation_year: (extraInfo.graduation_year || onboarding.graduation_year) ?? '',
                   })}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                   title="Sửa trình độ học vấn"
@@ -771,19 +771,19 @@ const OnboardingDetail: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-gray-600">Trình độ</label>
-                  <p className="font-medium">{onboarding.education_level || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{employeeProfile?.education_level || onboarding.education_level || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Trường đại học / cao đẳng</label>
-                  <p className="font-medium">{onboarding.university || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{(extraInfo.university || onboarding.university) || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Chuyên ngành</label>
-                  <p className="font-medium">{onboarding.major || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{(extraInfo.major || onboarding.major) || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Năm tốt nghiệp</label>
-                  <p className="font-medium">{onboarding.graduation_year ?? 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{(extraInfo.graduation_year || onboarding.graduation_year) ?? 'Chưa có dữ liệu'}</p>
                 </div>
               </div>
             </div>
@@ -797,10 +797,10 @@ const OnboardingDetail: React.FC = () => {
                 </span>
                 <button
                   onClick={() => openEdit('financial', {
-                    bank_name: onboarding.bank_name ?? '',
-                    bank_account: onboarding.bank_account ?? '',
-                    bank_account_holder: onboarding.bank_account_holder ?? '',
-                    bank_branch: onboarding.bank_branch ?? '',
+                    bank_name: employeeProfile?.bank_name ?? onboarding.bank_name ?? '',
+                    bank_account: employeeProfile?.bank_account ?? onboarding.bank_account ?? '',
+                    bank_account_holder: (extraInfo.bank_account_holder || onboarding.bank_account_holder) ?? '',
+                    bank_branch: employeeProfile?.bank_branch ?? onboarding.bank_branch ?? '',
                   })}
                   className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                   title="Sửa thông tin tài chính"
@@ -811,19 +811,19 @@ const OnboardingDetail: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-gray-600">Ngân hàng</label>
-                  <p className="font-medium">{onboarding.bank_name || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{employeeProfile?.bank_name || onboarding.bank_name || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Số tài khoản</label>
-                  <p className="font-medium">{onboarding.bank_account || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{employeeProfile?.bank_account || onboarding.bank_account || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Chủ tài khoản</label>
-                  <p className="font-medium">{onboarding.bank_account_holder || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{extraInfo.bank_account_holder || onboarding.bank_account_holder || 'Chưa có dữ liệu'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Chi nhánh</label>
-                  <p className="font-medium">{onboarding.bank_branch || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{employeeProfile?.bank_branch || onboarding.bank_branch || 'Chưa có dữ liệu'}</p>
                 </div>
               </div>
             </div>

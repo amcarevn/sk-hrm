@@ -66,6 +66,7 @@ const CCCD_ISSUE_PLACE_LABELS: Record<string, string> = {
 const getStatusBadge = (status: string) => {
   const config: Record<string, { label: string; color: string }> = {
     ACTIVE: { label: 'Đang làm việc', color: 'bg-green-100 text-green-800' },
+    SUSPENDED: { label: 'Tạm dừng', color: 'bg-yellow-100 text-yellow-800' },
     INACTIVE: { label: 'Đã nghỉ', color: 'bg-red-100 text-red-800' },
     PROBATION: { label: 'Thử việc', color: 'bg-yellow-100 text-yellow-800' },
   };
