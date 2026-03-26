@@ -77,6 +77,15 @@ const getStatusBadge = (status: string) => {
   );
 };
 
+const formatDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return 'Chưa có dữ liệu';
+  return new Date(dateStr).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
 // ============================================
 // MAIN COMPONENT
 // ============================================
@@ -207,9 +216,7 @@ const EmployeeShow: React.FC = () => {
             <div>
               <label className="text-sm text-gray-600">Ngày sinh</label>
               <p className="font-medium">
-                {employee.date_of_birth
-                  ? new Date(employee.date_of_birth).toLocaleDateString('vi-VN')
-                  : 'Chưa có dữ liệu'}
+                {formatDate(employee.date_of_birth)}
               </p>
             </div>
             {emp.ethnicity && (
@@ -282,9 +289,7 @@ const EmployeeShow: React.FC = () => {
             <div>
               <label className="text-sm text-gray-600">Ngày bắt đầu làm việc</label>
               <p className="font-medium">
-                {employee.start_date
-                  ? new Date(employee.start_date).toLocaleDateString('vi-VN')
-                  : 'Chưa có dữ liệu'}
+                {formatDate(employee.start_date)}
               </p>
             </div>
             {emp.work_form && (
@@ -332,7 +337,7 @@ const EmployeeShow: React.FC = () => {
                 <div>
                   <label className="text-sm text-gray-600">Ngày cấp CCCD</label>
                   <p className="font-medium">
-                    {new Date(emp.cccd_issue_date).toLocaleDateString('vi-VN')}
+                    {formatDate(emp.cccd_issue_date)}
                   </p>
                 </div>
               )}
@@ -469,7 +474,7 @@ const EmployeeShow: React.FC = () => {
               {emp.probation_end_date && (
                 <div>
                   <label className="text-sm text-gray-600">Ngày kết thúc thử việc</label>
-                  <p className="font-medium">{new Date(emp.probation_end_date).toLocaleDateString('vi-VN')}</p>
+                  <p className="font-medium">{formatDate(emp.probation_end_date)}</p>
                 </div>
               )}
               {emp.probation_rate && (
@@ -503,13 +508,13 @@ const EmployeeShow: React.FC = () => {
               {emp.file_submission_deadline && (
                 <div>
                   <label className="text-sm text-gray-600">Hạn nộp hồ sơ</label>
-                  <p className="font-medium">{new Date(emp.file_submission_deadline).toLocaleDateString('vi-VN')}</p>
+                  <p className="font-medium">{formatDate(emp.file_submission_deadline)}</p>
                 </div>
               )}
               {emp.file_submission_date && (
                 <div>
                   <label className="text-sm text-gray-600">Ngày nộp hồ sơ</label>
-                  <p className="font-medium">{new Date(emp.file_submission_date).toLocaleDateString('vi-VN')}</p>
+                  <p className="font-medium">{formatDate(emp.file_submission_date)}</p>
                 </div>
               )}
               {emp.file_review_notes && (
@@ -584,7 +589,7 @@ const EmployeeShow: React.FC = () => {
                 <div>
                   <label className="text-sm text-gray-600">Ngày sinh</label>
                   <p className="font-medium">
-                    {new Date(emp.emergency_contact_dob).toLocaleDateString('vi-VN')}
+                    {formatDate(emp.emergency_contact_dob)}
                   </p>
                 </div>
               )}
@@ -607,10 +612,10 @@ const EmployeeShow: React.FC = () => {
         {/* Footer */}
         <div className="bg-white rounded-lg border p-4 flex justify-between items-center text-sm text-gray-500">
           <div>
-            Ngày tạo: {new Date(employee.created_at).toLocaleDateString('vi-VN')}
+            Ngày tạo: {formatDate(employee.created_at)}
             {employee.updated_at !== employee.created_at && (
               <span className="ml-4">
-                Cập nhật lần cuối: {new Date(employee.updated_at).toLocaleDateString('vi-VN')}
+                Cập nhật lần cuối: {formatDate(employee.updated_at)}
               </span>
             )}
           </div>
