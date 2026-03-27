@@ -22,7 +22,7 @@ import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
 import DocumentsSection from './DocumentsSection';
 import { useAuth } from '../contexts/AuthContext';
-import { employeesAPI, SuperAdminEmployee } from '../utils/api';
+import { employeesAPI, SuperAdminEmployee, departmentsAPI, positionsAPI, Department, Position } from '../utils/api';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -222,6 +222,30 @@ const PROBATION_RATE_OPTIONS = [
   { value: 'OPTION_2', label: 'Tháng đầu 100%, tháng sau 100%' },
 ];
 
+const SECTION_OPTIONS = [
+  'ADS',
+  'Bệnh viện Hà Thành', 'Bệnh viện 30/4', 'Bệnh viện An Việt', 'Bệnh viện Hồng Hà', 'Bệnh Viện Tân Hưng',
+  'Bệnh viện Sao Hàn', 'Bệnh viện Vạn Hạnh',
+  'Check page', 'Xây Group', 'Tiktok',
+  'Giám sát chất lượng', 'Giám sát nội bộ',
+  'Media', 'Nội dung 01',
+  'Phòng HCNS', 'Phòng kế toán', 'Phòng TTTH',
+  'Kinh doanh - VP miền Bắc', 'Kinh doanh - VP miền Nam',
+  'Pháp chế',
+  'Mua hàng',
+  'Bộ phận IT', 'Bộ phận AI',
+];
+
+const toSelectOptions = (values: string[]) => values.map(opt => ({ value: opt, label: opt }));
+const withCurrentOption = (
+  options: { value: string; label: string }[],
+  currentValue: string | undefined
+) => {
+  if (!currentValue) return options;
+  const exists = options.some(opt => opt.value === currentValue);
+  return exists ? options : [{ value: currentValue, label: currentValue }, ...options];
+};
+
 const CCCD_ISSUE_PLACE_OPTIONS = [
   { value: 'POLICE_ADMIN', label: 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội' },
   { value: 'MINISTRY_PUBLIC_SECURITY', label: 'Bộ Công An' },
@@ -329,6 +353,8 @@ const OnboardingDetail: React.FC = () => {
   const [editSection, setEditSection] = useState<EditSection | null>(null);
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [editLoading, setEditLoading] = useState(false);
+  const [allDepartments, setAllDepartments] = useState<Department[]>([]);
+  const [allPositions, setAllPositions] = useState<Position[]>([]);
 
   // Stable handler — prevents EditField re-mount on every keystroke
   const handleEditFieldChange = React.useCallback((name: string, value: any) => {
@@ -457,8 +483,8 @@ const OnboardingDetail: React.FC = () => {
         const employeeData: Record<string, any> = {};
 
         // Fields to update in onboarding
-        if ('department_id' in editData && editData.department_id) onboardingData.department = editData.department_id;
-        if ('position_id' in editData && editData.position_id) onboardingData.position = editData.position_id;
+        if ('department_id' in editData && editData.department_id) onboardingData.department = Number(editData.department_id);
+        if ('position_id' in editData && editData.position_id) onboardingData.position = Number(editData.position_id);
         if ('rank' in editData) onboardingData.rank = editData.rank;
         if ('section' in editData) onboardingData.section = editData.section;
         if ('doctor_team' in editData) onboardingData.doctor_team = editData.doctor_team;
@@ -468,8 +494,8 @@ const OnboardingDetail: React.FC = () => {
         if ('start_date' in editData) onboardingData.start_date = editData.start_date;
 
         // Fields to update in employee
-        if ('department_id' in editData && editData.department_id) employeeData.department = editData.department_id;
-        if ('position_id' in editData && editData.position_id) employeeData.position = editData.position_id;
+        if ('department_id' in editData && editData.department_id) employeeData.department_id = Number(editData.department_id);
+        if ('position_id' in editData && editData.position_id) employeeData.position_id = Number(editData.position_id);
         if ('rank' in editData) employeeData.rank = editData.rank;
         if ('section' in editData) employeeData.section = editData.section;
         if ('doctor_team' in editData) employeeData.doctor_team = editData.doctor_team;
@@ -667,6 +693,22 @@ const OnboardingDetail: React.FC = () => {
     fetchOnboardingDetail();
   }, [id]);
 
+  useEffect(() => {
+    const loadMasterData = async () => {
+      try {
+        const [deptRes, posRes] = await Promise.all([
+          departmentsAPI.list({ page_size: 1000 }),
+          positionsAPI.list({ page_size: 1000 }),
+        ]);
+        setAllDepartments(deptRes.results || []);
+        setAllPositions(posRes.results || []);
+      } catch (e) {
+        console.warn('Could not load departments/positions:', e);
+      }
+    };
+    loadMasterData();
+  }, []);
+
   // ============================================
   // RENDER HELPERS
   // ============================================
@@ -792,8 +834,10 @@ const OnboardingDetail: React.FC = () => {
             {userRole === 'ADMIN' && (
               <button
                 onClick={() => openEdit('job', {
-                  department_id: onboarding.department?.id ?? '',
-                  position_id: onboarding.position?.id ?? '',
+                  department_id: onboarding.department?.id ? String(onboarding.department.id) : '',
+                  department_name: (employeeProfile as any)?.department?.name ?? onboarding.department?.name ?? '',
+                  position_id: onboarding.position?.id ? String(onboarding.position.id) : '',
+                  position_title: (employeeProfile as any)?.position?.title ?? onboarding.position?.title ?? '',
                   rank: employeeProfile?.rank ?? onboarding.rank ?? '',
                   section: employeeProfile?.section ?? onboarding.section ?? '',
                   doctor_team: employeeProfile?.doctor_team ?? onboarding.doctor_team ?? '',
@@ -812,7 +856,7 @@ const OnboardingDetail: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-gray-600">Phòng ban</label>
-              <p className="font-medium">{onboarding.department?.name || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{(employeeProfile as any)?.department?.name || onboarding.department?.name || 'Chưa có dữ liệu'}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Cấp bậc</label>
@@ -820,7 +864,7 @@ const OnboardingDetail: React.FC = () => {
             </div>
             <div>
               <label className="text-sm text-gray-600">Vị trí</label>
-              <p className="font-medium">{onboarding.position?.title || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{(employeeProfile as any)?.position?.title || onboarding.position?.title || 'Chưa có dữ liệu'}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Bộ phận</label>
@@ -1396,12 +1440,20 @@ const OnboardingDetail: React.FC = () => {
 
         // ── Thông tin công việc ──
         case 'job':
+          const departmentSelectOptions = withCurrentOption(
+            allDepartments.map(dep => ({ value: String(dep.id), label: dep.name })),
+            editData.department_id
+          );
+          const positionSelectOptions = withCurrentOption(
+            allPositions.map(pos => ({ value: String(pos.id), label: pos.title })),
+            editData.position_id
+          );
           return (
             <div className="space-y-4">
-              {ef('Phòng ban', 'department_name', 'text', undefined, true)}
-              {ef('Vị trí', 'position_title', 'text', undefined, true)}
+              {ef('Phòng ban', 'department_id', undefined, departmentSelectOptions)}
+              {ef('Vị trí', 'position_id', undefined, positionSelectOptions)}
               {ef('Cấp bậc', 'rank')}
-              {ef('Bộ phận', 'section')}
+              {ef('Bộ phận', 'section', undefined, withCurrentOption(toSelectOptions(SECTION_OPTIONS), editData.section))}
               {ef('Team Bác sĩ', 'doctor_team')}
               {ef('Hình thức làm việc', 'work_form', undefined, [
                 { value: 'FULL_TIME', label: 'Full-time' },
