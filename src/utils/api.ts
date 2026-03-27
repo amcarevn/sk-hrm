@@ -1881,6 +1881,7 @@ export interface EmployeeUpdateData {
   department_id?: number;
   manager_id?: number;
   is_hr?: boolean;
+  marital_status?: string | null;
 }
 
 let mePromise: Promise<Employee> | null = null;

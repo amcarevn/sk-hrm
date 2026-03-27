@@ -68,6 +68,20 @@ const SUB_DEPARTMENT_OPTIONS = [
   'Tiktok 8', 'Tiktok 9', 'Tiktok 10', 'AI',
 ];
 
+const SECTION_OPTIONS = [
+  'ADS',
+  'Bệnh viện Hà Thành', 'Bệnh viện 30/4', 'Bệnh viện An Việt', 'Bệnh viện Hồng Hà', 'Bệnh Viện Tân Hưng',
+  'Bệnh viện Sao Hàn', 'Bệnh viện Vạn Hạnh',
+  'Check page', 'Xây Group', 'Tiktok',
+  'Giám sát chất lượng', 'Giám sát nội bộ',
+  'Media', 'Nội dung 01',
+  'Phòng HCNS', 'Phòng kế toán', 'Phòng TTTH',
+  'Kinh doanh - VP miền Bắc', 'Kinh doanh - VP miền Nam',
+  'Pháp chế',
+  'Mua hàng',
+  'Bộ phận IT', 'Bộ phận AI',
+];
+
 const POSITION_OPTIONS = [
   'Nhân viên Sale', 'Nhân viên Kinh doanh', 'Nhân viên Telesale', 'Trưởng phòng Telesale',
   'Nhân viên CSKH', 'Trưởng phòng CSKH', 'Nhân viên Tư vấn',
@@ -589,12 +603,12 @@ export const EmployeeOnboardingForm: React.FC = () => {
             onChange={handleSelect('sub_department')} options={SUB_DEPARTMENT_OPTIONS} required />
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Bộ phận (Section): TF free-text ← changed */}
-            <TF
+            {/* Bộ phận (Section): SF dropdown */}
+            <SF
               label="Bộ phận (Section)"
               value={values.section}
-              onChange={handleChange('section')}
-              placeholder="Nhập tên bộ phận..."
+              onChange={handleSelect('section')}
+              options={SECTION_OPTIONS}
             />
             <SF label="Vị trí" value={values.position}
               onChange={handleSelect('position')} options={POSITION_OPTIONS} required />

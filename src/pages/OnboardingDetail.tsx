@@ -425,14 +425,18 @@ const OnboardingDetail: React.FC = () => {
     if (!id || !editSection) return;
     setEditLoading(true);
     try {
+      const empId = employeeProfile?.employee_id;
+
+      // ── Thông tin nhân viên ──
       if (editSection === 'employee_info') {
         await onboardingService.superAdminPartialUpdate(parseInt(id), {
           candidate_name: editData.full_name,
           candidate_email: editData.personal_email,
           candidate_phone: editData.phone_number,
+          marital_status: editData.marital_status || null,
         });
-        if (employeeProfile?.employee_id) {
-          await employeesAPI.partialUpdateByEmployeeId(employeeProfile.employee_id, {
+        if (empId) {
+          await employeesAPI.partialUpdateByEmployeeId(empId, {
             full_name: editData.full_name,
             gender: editData.gender,
             date_of_birth: editData.date_of_birth || null,
@@ -440,21 +444,216 @@ const OnboardingDetail: React.FC = () => {
             personal_email: editData.personal_email,
             ethnicity: editData.ethnicity,
             nationality: editData.nationality,
+            marital_status: editData.marital_status || null,
           });
-          const updated = await employeesAPI.getByEmployeeId(employeeProfile.employee_id);
+          const updated = await employeesAPI.getByEmployeeId(empId);
           setEmployeeProfile(updated);
         }
         await fetchOnboardingDetail();
-      } else if (['job', 'personal', 'education', 'financial'].includes(editSection)) {
-        await onboardingService.superAdminPartialUpdate(parseInt(id), editData);
-        await fetchOnboardingDetail();
-      } else {
-        const empId = employeeProfile?.employee_id;
-        if (!empId) throw new Error('Không tìm thấy mã nhân viên');
-        await employeesAPI.partialUpdateByEmployeeId(empId, editData);
-        const updated = await employeesAPI.getByEmployeeId(empId);
-        setEmployeeProfile(updated);
       }
+      // ── Thông tin công việc ──
+      else if (editSection === 'job') {
+        const onboardingData: Record<string, any> = {};
+        const employeeData: Record<string, any> = {};
+
+        // Fields to update in onboarding
+        if ('department_id' in editData && editData.department_id) onboardingData.department = editData.department_id;
+        if ('position_id' in editData && editData.position_id) onboardingData.position = editData.position_id;
+        if ('rank' in editData) onboardingData.rank = editData.rank;
+        if ('section' in editData) onboardingData.section = editData.section;
+        if ('doctor_team' in editData) onboardingData.doctor_team = editData.doctor_team;
+        if ('work_form' in editData) onboardingData.work_form = editData.work_form;
+        if ('region' in editData) onboardingData.region = editData.region;
+        if ('block' in editData) onboardingData.block = editData.block;
+        if ('start_date' in editData) onboardingData.start_date = editData.start_date;
+
+        // Fields to update in employee
+        if ('department_id' in editData && editData.department_id) employeeData.department = editData.department_id;
+        if ('position_id' in editData && editData.position_id) employeeData.position = editData.position_id;
+        if ('rank' in editData) employeeData.rank = editData.rank;
+        if ('section' in editData) employeeData.section = editData.section;
+        if ('doctor_team' in editData) employeeData.doctor_team = editData.doctor_team;
+        if ('work_form' in editData) employeeData.work_form = editData.work_form;
+        if ('region' in editData) employeeData.region = editData.region;
+        if ('block' in editData) employeeData.block = editData.block;
+        if ('start_date' in editData) employeeData.start_date = editData.start_date;
+
+        // Update onboarding
+        if (Object.keys(onboardingData).length > 0) {
+          await onboardingService.superAdminPartialUpdate(parseInt(id), onboardingData);
+        }
+
+        // Update employee profile
+        if (empId && Object.keys(employeeData).length > 0) {
+          await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
+          const updated = await employeesAPI.getByEmployeeId(empId);
+          setEmployeeProfile(updated);
+        }
+
+        await fetchOnboardingDetail();
+      }
+      // ── Giấy tờ tùy thân & địa chỉ ──
+      else if (editSection === 'personal') {
+        const onboardingData: Record<string, any> = {};
+        const employeeData: Record<string, any> = {};
+
+        // Fields to update in onboarding
+        if ('birth_place' in editData) onboardingData.birth_place = editData.birth_place;
+        if ('permanent_residence' in editData) onboardingData.permanent_address = editData.permanent_residence;
+        if ('current_address' in editData) onboardingData.current_address = editData.current_address;
+        if ('social_insurance_number' in editData) onboardingData.social_insurance_number = editData.social_insurance_number;
+        if ('tax_code' in editData) onboardingData.tax_code = editData.tax_code;
+
+        // Fields to update in employee
+        if ('cccd_number' in editData) employeeData.cccd_number = editData.cccd_number;
+        if ('cccd_issue_date' in editData) employeeData.cccd_issue_date = editData.cccd_issue_date || null;
+        if ('cccd_issue_place' in editData) employeeData.cccd_issue_place = editData.cccd_issue_place;
+        if ('birth_place' in editData) employeeData.birth_place = editData.birth_place;
+        if ('permanent_residence' in editData) employeeData.permanent_residence = editData.permanent_residence;
+        if ('current_address' in editData) employeeData.current_address = editData.current_address;
+        if ('social_insurance_number' in editData) employeeData.social_insurance_number = editData.social_insurance_number;
+        if ('tax_code' in editData) employeeData.tax_code = editData.tax_code;
+
+        // Update onboarding
+        if (Object.keys(onboardingData).length > 0) {
+          await onboardingService.superAdminPartialUpdate(parseInt(id), onboardingData);
+        }
+
+        // Update employee profile
+        if (empId && Object.keys(employeeData).length > 0) {
+          await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
+          const updated = await employeesAPI.getByEmployeeId(empId);
+          setEmployeeProfile(updated);
+        }
+
+        await fetchOnboardingDetail();
+      }
+      // ── Trình độ học vấn ──
+      else if (editSection === 'education') {
+        const onboardingData: Record<string, any> = {};
+        const employeeData: Record<string, any> = {};
+
+        // Fields to update in onboarding
+        if ('education_level' in editData) onboardingData.education_level = editData.education_level;
+        if ('university' in editData) onboardingData.university = editData.university;
+        if ('major' in editData) onboardingData.major = editData.major;
+        if ('graduation_year' in editData) onboardingData.graduation_year = editData.graduation_year || null;
+
+        // Fields to update in employee (extra_info)
+        if ('education_level' in editData) employeeData.education_level = editData.education_level;
+
+        // Update onboarding
+        if (Object.keys(onboardingData).length > 0) {
+          await onboardingService.superAdminPartialUpdate(parseInt(id), onboardingData);
+        }
+
+        // Update employee profile
+        if (empId && (Object.keys(employeeData).length > 0 || ('university' in editData || 'major' in editData || 'graduation_year' in editData))) {
+          const updateData = { ...employeeData };
+          if ('university' in editData || 'major' in editData || 'graduation_year' in editData) {
+            updateData.extra_info = JSON.stringify({
+              ...(() => {
+                try {
+                  return typeof employeeProfile?.extra_info === 'string'
+                    ? JSON.parse(employeeProfile.extra_info || '{}')
+                    : (employeeProfile?.extra_info || {});
+                } catch {
+                  return {};
+                }
+              })(),
+              university: editData.university || undefined,
+              major: editData.major || undefined,
+              graduation_year: editData.graduation_year || undefined,
+            });
+          }
+          await employeesAPI.partialUpdateByEmployeeId(empId, updateData);
+          const updated = await employeesAPI.getByEmployeeId(empId);
+          setEmployeeProfile(updated);
+        }
+
+        await fetchOnboardingDetail();
+      }
+      // ── Thông tin tài chính & ngân hàng ──
+      else if (editSection === 'financial') {
+        const onboardingData: Record<string, any> = {};
+        const employeeData: Record<string, any> = {};
+
+        // Fields to update in onboarding
+        if ('bank_name' in editData) onboardingData.bank_name = editData.bank_name;
+        if ('bank_account' in editData) onboardingData.bank_account = editData.bank_account;
+        if ('bank_account_holder' in editData) onboardingData.bank_account_holder = editData.bank_account_holder;
+        if ('bank_branch' in editData) onboardingData.bank_branch = editData.bank_branch;
+
+        // Fields to update in employee
+        if ('bank_name' in editData) employeeData.bank_name = editData.bank_name;
+        if ('bank_account' in editData) employeeData.bank_account = editData.bank_account;
+        if ('bank_branch' in editData) employeeData.bank_branch = editData.bank_branch;
+
+        // Update onboarding
+        if (Object.keys(onboardingData).length > 0) {
+          await onboardingService.superAdminPartialUpdate(parseInt(id), onboardingData);
+        }
+
+        // Update employee profile
+        if (empId && Object.keys(employeeData).length > 0) {
+          const updateData = { ...employeeData };
+          if ('bank_account_holder' in editData) {
+            updateData.extra_info = JSON.stringify({
+              ...(() => {
+                try {
+                  return typeof employeeProfile?.extra_info === 'string'
+                    ? JSON.parse(employeeProfile.extra_info || '{}')
+                    : (employeeProfile?.extra_info || {});
+                } catch {
+                  return {};
+                }
+              })(),
+              bank_account_holder: editData.bank_account_holder || undefined,
+            });
+          }
+          await employeesAPI.partialUpdateByEmployeeId(empId, updateData);
+          const updated = await employeesAPI.getByEmployeeId(empId);
+          setEmployeeProfile(updated);
+        }
+
+        await fetchOnboardingDetail();
+      }
+      // ── CCCD (emp_cccd) ──
+      else if (editSection === 'emp_cccd') {
+        const employeeData: Record<string, any> = {};
+
+        if ('cccd_number' in editData) employeeData.cccd_number = editData.cccd_number;
+        if ('cccd_issue_date' in editData) employeeData.cccd_issue_date = editData.cccd_issue_date || null;
+        if ('cccd_issue_place' in editData) employeeData.cccd_issue_place = editData.cccd_issue_place;
+        if ('birth_place' in editData) employeeData.birth_place = editData.birth_place;
+        if ('permanent_residence' in editData) employeeData.permanent_residence = editData.permanent_residence;
+
+        if (empId && Object.keys(employeeData).length > 0) {
+          await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
+          const updated = await employeesAPI.getByEmployeeId(empId);
+          setEmployeeProfile(updated);
+        }
+
+        await fetchOnboardingDetail();
+      }
+      // ── Lương & Hợp đồng (emp_salary) ──
+      else if (editSection === 'emp_salary') {
+        const employeeData: Record<string, any> = {};
+
+        if ('basic_salary' in editData) employeeData.basic_salary = editData.basic_salary || null;
+        if ('allowance' in editData) employeeData.allowance = editData.allowance || null;
+        if ('contract_type' in editData) employeeData.contract_type = editData.contract_type;
+        if ('probation_months' in editData) employeeData.probation_months = editData.probation_months || null;
+        if ('probation_end_date' in editData) employeeData.probation_end_date = editData.probation_end_date || null;
+        if ('probation_rate' in editData) employeeData.probation_rate = editData.probation_rate;
+
+        if (empId && Object.keys(employeeData).length > 0) {
+          await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
+          const updated = await employeesAPI.getByEmployeeId(empId);
+          setEmployeeProfile(updated);
+        }
+      }
+
       setEditSection(null);
       showSuccess('Đã cập nhật thành công');
     } catch (err: any) {
@@ -505,8 +704,9 @@ const OnboardingDetail: React.FC = () => {
                   phone_number: employeeProfile?.phone_number ?? onboarding.candidate_phone ?? '',
                   gender: employeeProfile?.gender ?? '',
                   date_of_birth: employeeProfile?.date_of_birth ?? '',
-                  ethnicity: (employeeProfile as any)?.ethnicity ?? '',
-                  nationality: (employeeProfile as any)?.nationality ?? '',
+                  ethnicity: employeeProfile?.ethnicity || onboarding.ethnicity || 'Chưa có dữ liệu',
+                  nationality: employeeProfile?.nationality || onboarding.nationality || 'Chưa có dữ liệu',
+                  marital_status: (employeeProfile as any)?.marital_status ?? (onboarding as any)?.marital_status ?? '',
                 })}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                 title="Sửa thông tin nhân viên"
@@ -574,7 +774,7 @@ const OnboardingDetail: React.FC = () => {
               <label className="text-sm text-gray-600">Tình trạng hôn nhân</label>
               <p className="font-medium">
                 {(() => {
-                  const ms = (employeeProfile as any)?.marital_status || (onboarding as any)?.marital_status;
+                  const ms = employeeProfile?.marital_status || (onboarding as any)?.marital_status;
                   return ms ? (MARITAL_STATUS_LABELS[ms] || ms) : 'Chưa có dữ liệu';
                 })()}
               </p>
@@ -592,6 +792,8 @@ const OnboardingDetail: React.FC = () => {
             {userRole === 'ADMIN' && (
               <button
                 onClick={() => openEdit('job', {
+                  department_id: onboarding.department?.id ?? '',
+                  position_id: onboarding.position?.id ?? '',
                   rank: employeeProfile?.rank ?? onboarding.rank ?? '',
                   section: employeeProfile?.section ?? onboarding.section ?? '',
                   doctor_team: employeeProfile?.doctor_team ?? onboarding.doctor_team ?? '',
@@ -692,7 +894,7 @@ const OnboardingDetail: React.FC = () => {
                 <div>
                   <label className="text-sm text-gray-600">Số CCCD</label>
                   <p className="font-medium font-mono">
-                    {onboarding.citizen_id || employeeProfile?.cccd_number || 'Chưa có dữ liệu'}
+                    {employeeProfile?.cccd_number || 'Chưa có dữ liệu'}
                   </p>
                 </div>
                 <div>
@@ -946,8 +1148,6 @@ const OnboardingDetail: React.FC = () => {
                       probation_months: employeeProfile.probation_months ?? '',
                       probation_end_date: employeeProfile.probation_end_date ?? '',
                       probation_rate: (employeeProfile as any).probation_rate ?? '',
-                      bank_name: employeeProfile.bank_name ?? '',
-                      bank_account: employeeProfile.bank_account ?? '',
                     })}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                     title="Sửa lương & hợp đồng"
@@ -1185,6 +1385,12 @@ const OnboardingDetail: React.FC = () => {
               {ef('Ngày sinh', 'date_of_birth', 'date')}
               {ef('Dân tộc', 'ethnicity')}
               {ef('Quốc tịch', 'nationality')}
+              {ef('Tình trạng hôn nhân', 'marital_status', undefined, [
+                { value: 'SINGLE', label: 'Độc thân' },
+                { value: 'MARRIED', label: 'Đã kết hôn' },
+                { value: 'DIVORCED', label: 'Ly hôn' },
+                { value: 'WIDOWED', label: 'Góa' },
+              ])}
             </div>
           );
 
@@ -1192,6 +1398,8 @@ const OnboardingDetail: React.FC = () => {
         case 'job':
           return (
             <div className="space-y-4">
+              {ef('Phòng ban', 'department_name', 'text', undefined, true)}
+              {ef('Vị trí', 'position_title', 'text', undefined, true)}
               {ef('Cấp bậc', 'rank')}
               {ef('Bộ phận', 'section')}
               {ef('Team Bác sĩ', 'doctor_team')}
@@ -1276,8 +1484,6 @@ const OnboardingDetail: React.FC = () => {
               {ef('Thời gian thử việc (tháng)', 'probation_months', 'number')}
               {ef('Ngày kết thúc thử việc', 'probation_end_date', 'date')}
               {ef('Tỉ lệ thử việc', 'probation_rate', undefined, PROBATION_RATE_OPTIONS)}
-              {ef('Ngân hàng', 'bank_name')}
-              {ef('Số tài khoản', 'bank_account')}
             </div>
           );
 
@@ -1289,7 +1495,6 @@ const OnboardingDetail: React.FC = () => {
     return (
       <div
         className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
-        onClick={() => setEditSection(null)}
       >
         <div
           className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
