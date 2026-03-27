@@ -88,9 +88,9 @@ const PositionList: React.FC = () => {
     }
   };
 
-  const getDepartmentName = (department?: { id: number; name: string; code: string }) => {
-    if (!department) return 'Không có';
-    return department.name;
+  const getDepartmentName = (departments?: Array<{ id: number; name: string; code: string }>) => {
+    if (!departments || departments.length === 0) return 'Không có';
+    return departments.map((dept) => dept.name).join(', ');
   };
 
   const getParentPositionName = (parentId?: number) => {

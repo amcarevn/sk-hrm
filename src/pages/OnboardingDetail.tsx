@@ -104,6 +104,7 @@ type OnboardingDetail = {
   work_form?: string;
   region?: string;
   block?: string;
+  employment_status_notes?: string;
   status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   progress_percentage: number;
   employee: { id: number; full_name: string; employee_id: string } | null;
@@ -502,6 +503,8 @@ const OnboardingDetail: React.FC = () => {
         if ('work_form' in editData) employeeData.work_form = editData.work_form;
         if ('region' in editData) employeeData.region = editData.region;
         if ('block' in editData) employeeData.block = editData.block;
+        if ('employment_status' in editData) employeeData.employment_status = editData.employment_status;
+        if ('employment_status_notes' in editData) employeeData.employment_status_notes = editData.employment_status_notes;
         if ('start_date' in editData) employeeData.start_date = editData.start_date;
 
         // Update onboarding
@@ -844,6 +847,8 @@ const OnboardingDetail: React.FC = () => {
                   work_form: employeeProfile?.work_form ?? onboarding.work_form ?? '',
                   region: employeeProfile?.region ?? onboarding.region ?? '',
                   block: employeeProfile?.block ?? onboarding.block ?? '',
+                  employment_status: employeeProfile?.employment_status ?? '',
+                  employment_status_notes: (employeeProfile as any)?.employment_status_notes ?? onboarding.employment_status_notes ?? '',
                   start_date: employeeProfile?.start_date ?? onboarding.start_date ?? '',
                 })}
                 className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -899,6 +904,24 @@ const OnboardingDetail: React.FC = () => {
             <div>
               <label className="text-sm text-gray-600">Khối</label>
               <p className="font-medium">{employeeProfile?.block || onboarding.block || 'Chưa có dữ liệu'}</p>
+            </div>
+            <div>
+              <label className="text-sm text-gray-600">Trạng thái làm việc</label>
+              <p className="font-medium">
+                {employeeProfile?.employment_status === 'ACTIVE'
+                  ? 'Đang làm việc'
+                  : employeeProfile?.employment_status === 'SUSPENDED'
+                  ? 'Tạm ngưng'
+                  : employeeProfile?.employment_status === 'INACTIVE'
+                  ? 'Nghỉ việc'
+                  : employeeProfile?.employment_status || 'Chưa có dữ liệu'}
+              </p>
+            </div>
+            <div className="col-span-2">
+              <label className="text-sm text-gray-600">Ghi chú tình trạng công việc</label>
+              <p className="font-medium whitespace-pre-wrap">
+                {(employeeProfile as any)?.employment_status_notes || onboarding.employment_status_notes || 'Chưa có dữ liệu'}
+              </p>
             </div>
           </div>
         </div>
@@ -1468,6 +1491,12 @@ const OnboardingDetail: React.FC = () => {
                 { value: 'Khối Marketing', label: 'Khối Marketing' },
                 { value: 'Khối Kinh doanh', label: 'Khối Kinh doanh' },
               ])}
+              {ef('Trạng thái làm việc', 'employment_status', undefined, [
+                { value: 'ACTIVE', label: 'Đang làm việc' },
+                { value: 'SUSPENDED', label: 'Tạm ngưng' },
+                { value: 'INACTIVE', label: 'Nghỉ việc' },
+              ])}
+              {ef('Ghi chú tình trạng công việc', 'employment_status_notes', 'textarea')}
               {ef('Ngày bắt đầu làm việc', 'start_date', 'date')}
             </div>
           );

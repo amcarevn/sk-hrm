@@ -1827,11 +1827,12 @@ export interface Position {
   title: string;
   code: string;
   description?: string;
-  department?: {
+  department?: Array<{
     id: number;
     name: string;
     code: string;
-  };
+  }>;
+  department_ids?: number[];
   level: number;
   parent_position?: number;
   is_management: boolean;
