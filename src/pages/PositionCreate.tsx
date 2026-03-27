@@ -14,7 +14,7 @@ const PositionCreate: React.FC = () => {
     title: '',
     code: '',
     description: '',
-    department: '',
+    department_ids: [] as number[],
     level: '1',
     parent_position: '',
     is_management: 'false',
@@ -51,6 +51,15 @@ const PositionCreate: React.FC = () => {
     }));
   };
 
+  const handleDepartmentToggle = (departmentId: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      department_ids: prev.department_ids.includes(departmentId)
+        ? prev.department_ids.filter((id) => id !== departmentId)
+        : [...prev.department_ids, departmentId],
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -69,7 +78,7 @@ const PositionCreate: React.FC = () => {
         level: Number(formData.level),
         is_management: formData.is_management === 'true',
         ...(formData.description && { description: formData.description.trim() }),
-        ...(formData.department && { department_id: Number(formData.department) }),
+        ...(formData.department_ids.length > 0 && { department_ids: formData.department_ids }),
         ...(formData.parent_position && { parent_position: Number(formData.parent_position) }),
       };
 
@@ -165,19 +174,20 @@ const PositionCreate: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Phòng ban
               </label>
-              <select
-                name="department"
-                value={formData.department}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Chọn phòng ban</option>
+              <div className="w-full border border-gray-300 rounded-lg p-3 max-h-[180px] overflow-y-auto space-y-2">
                 {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.code} - {dept.name}
-                  </option>
+                  <label key={dept.id} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.department_ids.includes(dept.id)}
+                      onChange={() => handleDepartmentToggle(dept.id)}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span>{dept.code} - {dept.name}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Tick để chọn một hoặc nhiều phòng ban</p>
             </div>
 
             <div>

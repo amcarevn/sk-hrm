@@ -142,7 +142,7 @@ const PositionEmployees: React.FC = () => {
             </h1>
             <p className="text-gray-600 mt-1">
               {position?.code && `Mã vị trí: ${position.code}`}
-              {position?.department?.name && ` • Phòng ban: ${position.department.name}`}
+              {position?.department && position.department.length > 0 && ` • Phòng ban: ${position.department.map((dept) => dept.name).join(', ')}`}
             </p>
           </div>
           <button
