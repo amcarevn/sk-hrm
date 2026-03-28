@@ -31,6 +31,7 @@ import {
   VideoCameraIcon as VideoIcon,
   HomeIcon,
   ComputerDesktopIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import { Employee, employeesAPI } from '@/utils/api';
 
@@ -466,6 +467,7 @@ const AttendanceManagement: React.FC = () => {
     remaining_annual_leave?: number;
     total_late_minutes?: number;
     total_early_leave_minutes?: number;
+    total_penalty?: number;
   } | null>(null);
 
   // Check if user has permission to upload attendance files
@@ -646,10 +648,13 @@ const AttendanceManagement: React.FC = () => {
     if (summary) {
       const totalLate = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.late_minutes || 0), 0);
       const totalEarly = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.early_leave_minutes || 0), 0);
+      const totalPenalty = calendarArray.reduce((acc: number, d: any) => acc + (d.engine_context?.penalty_amount || d.summary?.penalty_amount || 0), 0);
+      
       setCalendarSummary({
         ...summary,
         total_late_minutes: totalLate,
         total_early_leave_minutes: totalEarly,
+        total_penalty: totalPenalty,
       });
 
       // === SYNC selectedDayData === 
@@ -1309,7 +1314,7 @@ const AttendanceManagement: React.FC = () => {
   };
 
   return (
-    <div className="p-2.5 md:p-6">
+    <div className="space-y-6">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Quản lý chấm công</h1>
@@ -1494,7 +1499,7 @@ const AttendanceManagement: React.FC = () => {
 
       {/* Skeleton Loading for Stats */}
       {loading && initialLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="bg-gray-50 h-32 rounded-2xl animate-pulse border border-gray-100"></div>
           ))}
@@ -1503,8 +1508,32 @@ const AttendanceManagement: React.FC = () => {
 
       {/* Summary Statistics - Responsive Grid */}
       {!initialLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {/* === KPIs chính === */}
+          <div className="group bg-white p-4 rounded-2xl shadow-sm border border-red-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-red-600 to-transparent opacity-5"></div>
+            <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-red-50 rounded-lg">
+                <BanknotesIcon className="h-6 w-6 text-red-600" />
+              </div>
+              <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full uppercase tracking-wider italic">Tổng phạt tháng</span>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-tight">Tổng phạt dự kiến</h3>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-2xl font-black text-red-600">
+                {(calendarSummary?.total_penalty || 0).toLocaleString('vi-VN')}
+              </span>
+              <span className="text-xs text-red-500 font-bold uppercase">VNĐ</span>
+            </div>
+            <div className="mt-2 flex items-center gap-1.5 text-red-500 font-bold">
+              <ExclamationTriangleIcon className="h-3.5 w-3.5" />
+              <span className="text-[11px] uppercase tracking-wider">
+                {(calendarSummary?.late_or_early_days || 0) + (calendarSummary?.absent_days || 0) + (calendarSummary?.forgot_checkin_days || 0)} Lỗi vi phạm
+              </span>
+            </div>
+          </div>
+
           <div className="group bg-white p-4 rounded-2xl shadow-sm border border-blue-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
             <div className="flex items-center justify-between mb-3">
@@ -1741,6 +1770,72 @@ const AttendanceManagement: React.FC = () => {
         />
       </div>
 
+      {/* Disciplinary Regulations & Labor Rules Section */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-8">
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-4 border-b border-red-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-100 rounded-lg shadow-sm">
+              <ExclamationCircleIcon className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-tight">
+                Quy định kỷ luật & Nội quy lao động
+              </h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest leading-none">
+                  Cập nhật mới nhất • Hiệu lực từ 08/2024
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="hidden sm:block text-right">
+            <span className="px-3 py-1 bg-white/60 rounded-full border border-red-200 text-[10px] font-bold text-red-600 uppercase">Ban hành: Nội bộ</span>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50/50">
+              <tr>
+                <th className="px-6 py-3 text-left text-[10px] font-black text-gray-400 border-r border-gray-100 uppercase tracking-widest w-1/2">Nội dung vi phạm</th>
+                <th className="px-6 py-3 text-left text-[10px] font-black text-gray-400 border-r border-gray-100 uppercase tracking-widest">Xử lý vi phạm</th>
+                <th className="px-6 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 font-medium whitespace-pre-wrap">
+              {[
+                { nội_dung: 'Quên chấm công (In-Out) nhưng không chứng minh được đi làm đúng giờ', xử_lý: 'Trừ 1.0 công làm việc', ghi_chú: '' },
+                { nội_dung: 'Quên chấm công (In-Out) nhưng chứng minh được đi làm đúng giờ (nhưng quá 3 lỗi giải trình/tháng)', xử_lý: 'Trừ 0.5 công làm việc', ghi_chú: '' },
+                { nội_dung: 'Đi muộn / Về sớm < 10 phút', xử_lý: '50.000 VNĐ', ghi_chú: 'Từ lần vi phạm thứ 7: x2/lần vi phạm' },
+                { nội_dung: 'Đi muộn / Về sớm 11 - 30 phút', xử_lý: '100.000 VNĐ', ghi_chú: 'Từ lần vi phạm thứ 7: x2/lần vi phạm' },
+                { nội_dung: 'Đi muộn / Về sớm 31 - 60 phút', xử_lý: 'Quản lý: 150.000 VNĐ\nNhân viên: 120.000 VNĐ', ghi_chú: 'Từ lần vi phạm thứ 7: x2/lần vi phạm' },
+                { nội_dung: 'Đi muộn / Về sớm 61 - 120 phút', xử_lý: 'Quản lý: 250.000 VNĐ\nNhân viên: 200.000 VNĐ', ghi_chú: 'Từ lần vi phạm thứ 7: x2/lần vi phạm' },
+                { nội_dung: 'Đi muộn / Về sớm > 120 phút', xử_lý: 'Trừ 0.5 công làm việc', ghi_chú: 'Từ lần vi phạm thứ 7: x2/lần vi phạm' },
+                { nội_dung: 'Nghỉ không báo / Nghỉ không được duyệt', xử_lý: '500.000 VNĐ\nvà tùy mức độ vi phạm, sa thải...', ghi_chú: 'Hình thức xử lý cao nhất: Sa thải' },
+              ].map((item, idx) => (
+                <tr key={idx} className="hover:bg-gray-50/40 transition-colors group">
+                  <td className="px-6 py-4 text-[13px] text-gray-600 border-r border-gray-50 group-hover:text-primary-600 transition-colors leading-relaxed">
+                    {item.nội_dung}
+                  </td>
+                  <td className="px-6 py-4 text-[12px] font-black text-red-600 border-r border-gray-50">
+                    {item.xử_lý}
+                  </td>
+                  <td className="px-6 py-4 text-[11px] text-gray-400 italic">
+                    {item.ghi_chú}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="bg-red-50/30 px-6 py-3 border-t border-red-100/50">
+          <p className="text-[10px] text-gray-500 font-medium leading-relaxed italic">
+            * Lưu ý: Mọi vi phạm sẽ được hệ thống dữ liệu tự động ghi nhận và áp dụng mức xử phạt theo quy định trên. Đối với các trường hợp đặc biệt phát sinh, Ban lãnh đạo HRM sẽ xem xét và quyết định hình thức xử lý cuối cùng.
+          </p>
+        </div>
+      </div>
+
       {/* Attendance Details Modal */}
       {showAttendanceModal && selectedDate && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -1785,7 +1880,7 @@ const AttendanceManagement: React.FC = () => {
                           {currentEmployee?.full_name || 'Nhân viên'}
                         </h4>
                         <p className="text-xs text-gray-500 font-medium">
-                          Mã NV: {currentEmployee?.employee_id || '---'} • {currentEmployee?.position?.title || 'Chức vụ'}
+                          Mã NV: {currentEmployee?.employee_id || '---'} • {currentEmployee?.department?.name || 'Vị trí'}
                         </p>
                       </div>
                     </div>
@@ -1812,7 +1907,7 @@ const AttendanceManagement: React.FC = () => {
 
 
                   {/* Attendance Details Table */}
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="border rounded-xl overflow-y-auto max-h-[60vh] shadow-sm scrollbar-thin scrollbar-thumb-gray-200">
                     {fetchingDetails ? (
                       <div className="p-8 text-center">
                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -1824,24 +1919,24 @@ const AttendanceManagement: React.FC = () => {
                       <>
                         {/* Desktop: Table */}
                         <table className="hidden md:table min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
+                          <thead className="bg-gray-50 sticky top-0 z-20 shadow-sm">
                             <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">
                                 Ca làm
                               </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">
                                 Giờ vào
                               </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">
                                 Giờ ra
                               </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">
                                 Tổng giờ
                               </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">
                                 Trạng thái
                               </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider bg-gray-50">
                                 Ghi chú / Vi phạm
                               </th>
                             </tr>

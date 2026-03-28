@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { approvalService } from '../services/approval.service';
 import { attendanceService } from '../services/attendance.service';
 import { workFinalizationApprovalService } from '../services/workFinalizationApproval.service';
@@ -27,7 +27,9 @@ const Approvals: React.FC = () => {
   const [pendingOvertimeRequests, setPendingOvertimeRequests] = useState<any[]>([]);
   const [approvedOvertimeRequests, setApprovedOvertimeRequests] = useState<any[]>([]);
   const [rejectedOvertimeRequests, setRejectedOvertimeRequests] = useState<any[]>([]);
-  const [onlineWorkRequests, setOnlineWorkRequests] = useState<any[]>([]);
+  const [pendingOnlineWorkRequests, setPendingOnlineWorkRequests] = useState<any[]>([]);
+  const [approvedOnlineWorkRequests, setApprovedOnlineWorkRequests] = useState<any[]>([]);
+  const [rejectedOnlineWorkRequests, setRejectedOnlineWorkRequests] = useState<any[]>([]);
   const [workFinalizationApprovals, setWorkFinalizationApprovals] = useState<any[]>([]);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [filterExplanationSubTypes, setFilterExplanationSubTypes] = useState<string[]>([]);
@@ -48,9 +50,7 @@ const Approvals: React.FC = () => {
   const [showWfDetailModal, setShowWfDetailModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
-  const [employeeFreqStats, setEmployeeFreqStats] = useState<any>(null);
   const [expandedEmployees, setExpandedEmployees] = useState<string[]>([]);
-  const [isFetchingStats, setIsFetchingStats] = useState(false);
   const [calendarModalEmployee, setCalendarModalEmployee] = useState<{ id: number; name: string; month: number; year: number } | null>(null);
 
   // Debug log cho Quota và dữ liệu được chọn
@@ -152,7 +152,7 @@ const Approvals: React.FC = () => {
     ...pendingRegistrations || [], ...approvedRegistrations || [], ...rejectedRegistrations || [],
     ...pendingLeaveRequests || [], ...approvedLeaveRequests || [], ...rejectedLeaveRequests || [],
     ...pendingOvertimeRequests || [], ...approvedOvertimeRequests || [], ...rejectedOvertimeRequests || [],
-    ...onlineWorkRequests || []
+    ...pendingOnlineWorkRequests || [], ...approvedOnlineWorkRequests || [], ...rejectedOnlineWorkRequests || []
   ];
 
   const uniqueDepts = Array.from(new Set(
@@ -180,6 +180,30 @@ const Approvals: React.FC = () => {
     </div>
   );
 
+  // HIện thị tính số giờ/phút từ giờ bắt đầu → giờ kết thúc
+  const calculateDuration = (start: string, end: string) => {
+    if (!start || !end) return null;
+    try {
+      const [h1, m1] = start.split(':').map(Number);
+      const [h2, m2] = end.split(':').map(Number);
+
+      if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return null;
+
+      let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+      if (diff <= 0) diff += 24 * 60; // Xử lý qua đêm
+
+      const hours = Math.floor(diff / 60);
+      const mins = diff % 60;
+
+      if (hours > 0) {
+        return mins > 0 ? `${hours}h ${mins}p` : `${hours}h`;
+      }
+      return `${mins}p`;
+    } catch (e) {
+      return null;
+    }
+  };
+
   const deptOptions = [
     { value: '', label: 'Tất cả phòng ban' },
     ...uniqueDepts.map(dept => ({ value: dept as string, label: dept as string }))
@@ -204,15 +228,13 @@ const Approvals: React.FC = () => {
     try {
       const result = await (approvalService as any).getAllPendingRequests({ day: 0, month: filterMonth, year: filterYear });
 
-      // Chỉ set list data nếu đang ở tab pending
-      if (activeTab === 'pending') {
-        const allExplanations = result.attendance_explanations;
-        setAttendanceExplanations(allExplanations);
-        setPendingRegistrations(result.registration_requests || []);
-        setPendingLeaveRequests(result.leave_requests || []);
-        setPendingOvertimeRequests(result.overtime_requests || []);
-        setOnlineWorkRequests(result.online_work_requests || []);
-      }
+      const allExplanations = result.attendance_explanations;
+      setAttendanceExplanations(allExplanations);
+      setPendingRegistrations(result.registration_requests || []);
+      setPendingLeaveRequests(result.leave_requests || []);
+      setPendingOvertimeRequests(result.overtime_requests || []);
+
+      setPendingOnlineWorkRequests(result.online_work_requests || []);
 
       setStats((prev: StatsType) => ({
         ...prev,
@@ -232,13 +254,11 @@ const Approvals: React.FC = () => {
     try {
       const result = await (approvalService as any).getAllApprovedRequests({ day: 0, month: filterMonth, year: filterYear });
 
-      if (activeTab === 'approved') {
-        setApprovedExplanations(result.attendance_explanations);
-        setApprovedRegistrations(result.registration_requests || []);
-        setApprovedLeaveRequests(result.leave_requests || []);
-        setApprovedOvertimeRequests(result.overtime_requests || []);
-        setOnlineWorkRequests(result.online_work_requests || []);
-      }
+      setApprovedExplanations(result.attendance_explanations);
+      setApprovedRegistrations(result.registration_requests || []);
+      setApprovedLeaveRequests(result.leave_requests || []);
+      setApprovedOvertimeRequests(result.overtime_requests || []);
+      setApprovedOnlineWorkRequests(result.online_work_requests || []);
 
       setStats((prev: StatsType) => ({
         ...prev,
@@ -253,14 +273,11 @@ const Approvals: React.FC = () => {
     try {
       const result = await (approvalService as any).getAllRejectedRequests({ day: 0, month: filterMonth, year: filterYear });
 
-      if (activeTab === 'rejected') {
-        setRejectedExplanations(result.attendance_explanations);
-        setRejectedRegistrations(result.registration_requests || []);
-        setRejectedLeaveRequests(result.leave_requests || []);
-        setRejectedOvertimeRequests(result.overtime_requests || []);
-        setOnlineWorkRequests(result.online_work_requests || []);
-      }
-
+      setRejectedExplanations(result.attendance_explanations);
+      setRejectedRegistrations(result.registration_requests || []);
+      setRejectedLeaveRequests(result.leave_requests || []);
+      setRejectedOvertimeRequests(result.overtime_requests || []);
+      setRejectedOnlineWorkRequests(result.online_work_requests || []);
       setStats((prev: StatsType) => ({
         ...prev,
         total_rejected: result.total_rejected || 0,
@@ -273,7 +290,6 @@ const Approvals: React.FC = () => {
   const fetchWorkFinalizationData = async (empContext?: any, isAdminArg?: boolean, isHRArg?: boolean) => {
     try {
       const activeAdmin = isAdminArg !== undefined ? isAdminArg : isAdmin;
-      const activeHR = isHRArg !== undefined ? isHRArg : isHR;
       const activeEmp = empContext || currentEmployee;
 
       const fetchMonth = async (m: number, y: number) => {
@@ -323,8 +339,8 @@ const Approvals: React.FC = () => {
       }
 
       setWorkFinalizationApprovals(filteredWfItems);
-    } catch (wfError) {
-      console.error('× [APPROVALS] Error fetching work finalization data:', wfError);
+    } catch (error) {
+      console.error('× [APPROVALS] Error fetching work finalization data:', error);
     }
   };
 
@@ -346,26 +362,20 @@ const Approvals: React.FC = () => {
       const currentIsAdmin = emp?.user?.is_staff || emp?.user?.is_superuser || (user as any)?.is_superuser || (user as any)?.is_staff || user?.role?.toUpperCase() === 'ADMIN';
       const currentIsHR = emp?.is_hr === true || user?.role?.toUpperCase() === 'HR';
 
-      if (force) {
-        // Forced refresh: fetch all tabs to update all stats counts
-        await Promise.all([
-          fetchPendingRequests(),
-          fetchApprovedRequests(),
-          fetchRejectedRequests(),
-          fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR),
-        ]);
-      } else {
-        // Normal fetch: only fetch active tab to minimize unnecessary API calls
-        const tabFetch = activeTab === 'pending'
-          ? fetchPendingRequests()
-          : activeTab === 'approved'
-            ? fetchApprovedRequests()
-            : fetchRejectedRequests();
-        await Promise.all([
-          tabFetch,
-          fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR),
-        ]);
+      const tasks = [];
+
+      // Only fetch the active tab to optimize performance
+      if (activeTab === 'pending') {
+        tasks.push(fetchPendingRequests());
+        // Work Finalization data is typically only shown/relevant in the Pending tab
+        tasks.push(fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR));
+      } else if (activeTab === 'approved') {
+        tasks.push(fetchApprovedRequests());
+      } else if (activeTab === 'rejected') {
+        tasks.push(fetchRejectedRequests());
       }
+
+      await Promise.all(tasks);
 
       setLastRefreshedAt(new Date());
       // Chỉ hiện toast nếu là refresh thủ công/focus sau khi đã có dữ liệu (không hiện lần đầu)
@@ -381,29 +391,25 @@ const Approvals: React.FC = () => {
     }
   };
 
-  const fetchRequests = async () => {
-    await fetchAllData(true);
-  };
-
   useEffect(() => {
     fetchAllData();
   }, [activeTab, filterMonth, filterYear]);
 
   const EXPLANATION_TYPE_MAP: Record<string, string> = {
-    explanation: 'Đơn giải trình',
-    registration: 'Đơn đăng ký',
-    LATE: 'Đơn giải trình đi muộn',
-    EARLY_LEAVE: 'Đơn giải trình về sớm',
-    INCOMPLETE_ATTENDANCE: 'Đơn giải trình quên chấm công',
-    BUSINESS_TRIP: 'Đơn giải trình đi công tác',
-    FIRST_DAY: 'Đơn giải trình ngày đầu đi làm',
-    OTHER: 'Đơn giải trình khác',
-    OVERTIME: 'Đơn đăng ký tăng ca',
-    EXTRA_HOURS: 'Đơn đăng ký làm thêm giờ',
-    NIGHT_SHIFT: 'Đơn đăng ký trực tối',
-    LIVE: 'Đơn đăng ký Live',
-    LEAVE: 'Đơn đăng ký nghỉ phép',
-    OFF_DUTY: 'Đơn đăng ký ra trực',
+    explanation: 'Giải trình',
+    registration: 'Đăng ký',
+    LATE: 'Đi muộn',
+    EARLY_LEAVE: 'Về sớm',
+    LATE_EARLY: 'Đi muộn/Về sớm',
+    INCOMPLETE_ATTENDANCE: 'Quên chấm công',
+    BUSINESS_TRIP: 'Đi công tác',
+    FIRST_DAY: 'Ngày đầu đi làm',
+    OTHER: 'Giải trình khác',
+    OVERTIME: 'Tăng ca',
+    NIGHT_SHIFT: 'Trực tối',
+    LIVE: 'Live stream',
+    LEAVE: 'Nghỉ phép tháng',
+    OFF_DUTY: 'Vào/Ra trực',
   };
 
   const getExplanationTypeLabel = (type: string): string => {
@@ -487,11 +493,11 @@ const Approvals: React.FC = () => {
     else if (req._itemType === 'REGISTRATION' || req._itemType === 'OVERTIME') {
       // registration_type is the legacy field; event_type is returned by the unified API
       const type = req.registration_type || req.event_type || (req._itemType === 'OVERTIME' ? 'OVERTIME' : '');
-      label = getExplanationTypeLabel(type) || 'đơn đăng ký';
+      label = getExplanationTypeLabel(type) || 'Đăng ký';
     }
     else if (req._itemType === 'WORK_FINALIZATION') label = 'chốt công tháng';
     else {
-      label = req.explanation_type_display || (req.explanation_type ? (getExplanationTypeLabel(req.explanation_level || req.explanation_type)) : 'đơn giải trình');
+      label = req.explanation_type_display || (req.explanation_type ? (getExplanationTypeLabel(req.explanation_level || req.explanation_type)) : 'Giải trình');
     }
 
     if (!label) return 'Đơn';
@@ -891,7 +897,6 @@ const Approvals: React.FC = () => {
     setShowDetailModal(true);
     if (request.employee_id || request.employee) {
       const empId = request.employee_id || (typeof request.employee === 'object' ? request.employee.id : request.employee);
-      fetchEmployeeStats(empId, request.work_date || request.created_at);
     }
   };
 
@@ -900,7 +905,6 @@ const Approvals: React.FC = () => {
     setSelectedExplanation(explanation);
     setShowDetailModal(true);
     if (explanation.employee_id) {
-      fetchEmployeeStats(explanation.employee_id, explanation.attendance_date || explanation.event_date || explanation.created_at);
     }
   };
 
@@ -947,7 +951,7 @@ const Approvals: React.FC = () => {
     approvableItems.forEach(item => {
       // Check _itemType mapped in getAllCurrentRequests
       const isExplanation = item._itemType === 'EXPLANATION' || (item.explanation_type && item._itemType !== 'LEAVE' && item._itemType !== 'REGISTRATION');
-      
+
       // Kiểm tra xem có phải là 1 trong 4 loại bị tính quota không (GIẢI TRÌNH)
       if (isExplanation && quotaSubjectTypes.includes(item.explanation_type)) {
         quotaItems.push(item);
@@ -970,7 +974,7 @@ const Approvals: React.FC = () => {
         const dateStr = e.event_date || e.attendance_date || e.date || e.created_at;
         const d = new Date(dateStr);
         const monthKey = `${empId}-${d.getFullYear()}-${d.getMonth() + 1}`;
-        
+
         if (!empGroups[monthKey]) empGroups[monthKey] = [];
         empGroups[monthKey].push(e);
       });
@@ -1069,23 +1073,6 @@ const Approvals: React.FC = () => {
     }
   };
 
-  const fetchEmployeeStats = async (employeeId: number, dateStr: string) => {
-    try {
-      setIsFetchingStats(true);
-      const date = new Date(dateStr);
-      const stats = await attendanceService.getAttendanceExplanationStats({
-        employee_id: employeeId,
-        month: date.getUTCMonth() + 1,
-        year: date.getUTCFullYear()
-      });
-      setEmployeeFreqStats(stats);
-    } catch (error) {
-      console.error('Error fetching employee frequency stats:', error);
-    } finally {
-      setIsFetchingStats(false);
-    }
-  };
-
   const toggleDepartmentGroup = (deptName: string) => {
     setExpandedDepartments(prev =>
       prev.includes(deptName) ? prev.filter(d => d !== deptName) : [...prev, deptName]
@@ -1176,6 +1163,24 @@ const Approvals: React.FC = () => {
   };
 
 
+
+  const getDayOfWeek = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    return days[date.getDay()];
+  };
+
+  const formatTimeOnly = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
@@ -1268,14 +1273,14 @@ const Approvals: React.FC = () => {
           : `${requestName} đã từ chối`;
       const finalApprover =
         explanation.status === 'REJECTED'
-          ? (explanation.hr_rejected_by_name || 
-             explanation.direct_manager_rejected_by_name ||
-             explanation.rejected_by_name || 
-             (explanation.rejection_level === 'HR' ? 'Nhân sự HR' : 'Hệ thống'))
-          : (explanation.hr_approved_by_name || 
-             explanation.approved_by_name || 
-             explanation.direct_manager_approved_by_name || 
-             'Chưa xác định');
+          ? (explanation.hr_rejected_by_name ||
+            explanation.direct_manager_rejected_by_name ||
+            explanation.rejected_by_name ||
+            (explanation.rejection_level === 'HR' ? 'Nhân sự HR' : 'Hệ thống'))
+          : (explanation.hr_approved_by_name ||
+            explanation.approved_by_name ||
+            explanation.direct_manager_approved_by_name ||
+            'Chưa xác định');
 
 
 
@@ -1434,13 +1439,13 @@ const Approvals: React.FC = () => {
   };
 
 
-  const getAllCurrentRequests = () => {
+  const memoizedGroupedRequests = useMemo(() => {
     // 1. Get base data based on active tab
     const explanations = activeTab === 'pending' ? attendanceExplanations : activeTab === 'approved' ? approvedExplanations : rejectedExplanations;
     const registrations = activeTab === 'pending' ? pendingRegistrations : activeTab === 'approved' ? approvedRegistrations : rejectedRegistrations;
     const leaveRequests = activeTab === 'pending' ? pendingLeaveRequests : activeTab === 'approved' ? approvedLeaveRequests : rejectedLeaveRequests;
     const overtimeRequests = activeTab === 'pending' ? pendingOvertimeRequests : activeTab === 'approved' ? approvedOvertimeRequests : rejectedOvertimeRequests;
-    const onlineWorks = onlineWorkRequests;
+    const onlineWorks = activeTab === 'pending' ? pendingOnlineWorkRequests : activeTab === 'approved' ? approvedOnlineWorkRequests : rejectedOnlineWorkRequests;
 
     // 2. Map and filter
     const mappedExplanations = explanations
@@ -1486,38 +1491,6 @@ const Approvals: React.FC = () => {
     // Nếu không phải superadmin hoặc HR thật sự: chỉ hiển thị đơn của nhân viên mà mình là QLTT trực tiếp
     const isTrueSuperAdmin = (user as any)?.is_superuser || currentEmployee?.user?.is_superuser;
     const isTrueHR = currentEmployee?.is_hr === true || user?.role?.toUpperCase() === 'HR';
-
-    console.log('🔍 [APPROVAL FILTER] === User Identity ===', {
-      currentEmployeeId: currentEmployee?.id,
-      currentEmployeeName: currentEmployee?.full_name || currentEmployee?.user?.username,
-      // Quyền hệ thống
-      isTrueSuperAdmin,
-      isTrueHR,
-      isAdmin_computed: isAdmin,
-      isHR_computed: isHR,
-      // Trường phòng ban / quản lý
-      is_manager: currentEmployee?.is_manager,
-      management_level: currentEmployee?.management_level,
-      position_is_management: currentEmployee?.position?.is_management,
-      position_title: currentEmployee?.position?.title,
-      department_code: currentEmployee?.department?.code,
-      department_name: currentEmployee?.department?.name,
-      // Trưởng phòng ban?
-      is_department_head: currentEmployee?.is_department_head,
-      department_head_id: currentEmployee?.department?.head?.id,
-      department_head_name: currentEmployee?.department?.head?.full_name || currentEmployee?.department?.head?.name,
-      // Raw currentEmployee để debug đầy đủ
-      raw_department: currentEmployee?.department,
-    });
-
-    console.log('🔍 [APPROVAL FILTER] === Sample Items ===',
-      all.slice(0, 5).map(i => ({
-        name: i.employee_name,
-        employee_manager_id: i.employee_manager_id,
-        employee_manager_name: i.employee_manager_name,
-        employee_department: i.employee_department || i.department_name,
-      }))
-    );
 
     if (!isTrueSuperAdmin && !isTrueHR && currentEmployee) {
       all = all.filter(item => {
@@ -1585,9 +1558,21 @@ const Approvals: React.FC = () => {
     });
 
     return finalGroups;
-  };
+  }, [
+    activeTab,
+    attendanceExplanations, approvedExplanations, rejectedExplanations,
+    pendingRegistrations, approvedRegistrations, rejectedRegistrations,
+    pendingLeaveRequests, approvedLeaveRequests, rejectedLeaveRequests,
+    pendingOvertimeRequests, approvedOvertimeRequests, rejectedOvertimeRequests,
+    pendingOnlineWorkRequests, approvedOnlineWorkRequests, rejectedOnlineWorkRequests,
+    filterOnlyMine,
+    filterTypes, filterExplanationSubTypes, filterRegistrationSubTypes,
+    filterName, filterDepartment,
+    currentEmployee,
+    user
+  ]);
 
-  const getGroupedRequests = () => getAllCurrentRequests();
+  const getGroupedRequests = () => memoizedGroupedRequests;
 
   const getTotalCount = () => {
     const groups = getGroupedRequests();
@@ -1613,7 +1598,7 @@ const Approvals: React.FC = () => {
     } else if (type === 'LEAVE') {
       requests = activeTab === 'pending' ? pendingLeaveRequests : activeTab === 'approved' ? approvedLeaveRequests : rejectedLeaveRequests;
     } else if (type === 'ONLINE_WORK') {
-      requests = onlineWorkRequests || [];
+      requests = activeTab === 'pending' ? pendingOnlineWorkRequests : activeTab === 'approved' ? approvedOnlineWorkRequests : rejectedOnlineWorkRequests;
     }
 
     let filtered = requests.filter(matchesTextFilters);
@@ -1681,7 +1666,7 @@ const Approvals: React.FC = () => {
 
       <div className="mb-4 sm:mb-6">
         <p className="text-base sm:text-lg text-gray-600 mt-1 sm:mt-2">
-          Duyệt các đơn xin nghỉ phép, làm thêm giờ, giải trình chấm công và các
+          Duyệt các đơn xin nghỉ phép, giải trình chấm công và các
           yêu cầu khác.
         </p>
       </div>
@@ -1790,27 +1775,26 @@ const Approvals: React.FC = () => {
         {/* Thẻ Thống kê - Responsive Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 mb-8">
           {[
-            { type: 'EXPLANATION', label: 'Giải trình', fullLabel: 'Đơn giải trình', count: getTabCount('EXPLANATION'), color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-            { type: 'REGISTRATION', label: 'Đăng ký', fullLabel: 'Đơn đăng ký', count: getTabCount('REGISTRATION'), color: 'indigo', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
-            { type: 'LEAVE', label: 'Nghỉ phép tháng', fullLabel: 'Nghỉ phép tháng', count: getTabCount('LEAVE'), color: 'blue', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-            { type: 'ONLINE_WORK', label: 'Làm việc online', fullLabel: 'Làm việc online', count: getTabCount('ONLINE_WORK'), color: 'teal', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' }
+            { type: 'EXPLANATION', label: 'Giải trình', fullLabel: 'Giải trình', count: getTabCount('EXPLANATION'), color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+            { type: 'REGISTRATION', label: 'Đăng ký', fullLabel: 'Đăng ký', count: getTabCount('REGISTRATION'), color: 'indigo', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
+            { type: 'LEAVE', label: 'Nghỉ phép', fullLabel: 'Nghỉ phép', count: getTabCount('LEAVE'), color: 'blue', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { type: 'ONLINE_WORK', label: 'Làm online', fullLabel: 'Làm online', count: getTabCount('ONLINE_WORK'), color: 'teal', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' }
           ].map((item) => (
-            <button
+            <div
               key={item.type}
-              onClick={() => toggleFilter(item.type)}
-              className={`relative overflow-hidden p-3.5 sm:p-5 rounded-3xl border group text-left ${filterTypes.includes(item.type)
-                ? `bg-white border-${item.color}-300 shadow-xl shadow-${item.color}-100 ring-2 ring-${item.color}-500/20`
-                : `bg-white border-slate-100 hover:border-${item.color}-200 hover:shadow-lg`
+              className={`relative overflow-hidden p-3.5 sm:p-5 rounded-xl border text-left shadow-sm ${item.color === 'amber' ? 'bg-amber-50/50 border-amber-100' :
+                  item.color === 'indigo' ? 'bg-indigo-50/50 border-indigo-100' :
+                    item.color === 'blue' ? 'bg-blue-50/50 border-blue-100' :
+                      'bg-teal-50/50 border-teal-100'
                 }`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <div className={`p-2 rounded-2xl ${filterTypes.includes(item.type) ? `bg-${item.color}-500 text-white` : `bg-slate-50 text-slate-400 group-hover:bg-${item.color}-50 group-hover:text-${item.color}-500`
-                  }`}>
+                <div className={`p-2 rounded-2xl bg-${item.color}-500 text-white shadow-sm ring-4 ring-${item.color}-500/10`}>
                   <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={item.icon} />
                   </svg>
                 </div>
-                <div className={`flex items-center gap-1 sm:hidden ${filterTypes.includes(item.type) ? `text-${item.color}-600` : 'text-slate-300'}`}>
+                <div className={`flex items-center gap-1 sm:hidden text-${item.color}-600/60`}>
                   <span className="text-[10px] font-black uppercase tracking-tighter">
                     {activeTab === 'pending' ? 'Chờ' : activeTab === 'approved' ? 'Duyệt' : 'Từ chối'}
                   </span>
@@ -1818,28 +1802,25 @@ const Approvals: React.FC = () => {
               </div>
 
               <div className="mt-3 sm:mt-4 relative z-10">
-                <h3 className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] ${filterTypes.includes(item.type) ? `text-${item.color}-600` : 'text-slate-400'
-                  }`}>
+                <h3 className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] text-${item.color}-600/80`}>
                   <span className="sm:hidden">{item.label}</span>
                   <span className="hidden sm:inline">{item.fullLabel}</span>
                 </h3>
                 <div className="flex items-baseline gap-1 mt-1 sm:mt-2">
-                  <span className={`text-2xl sm:text-3xl font-black ${filterTypes.includes(item.type) ? `text-${item.color}-900` : 'text-slate-800'
-                    }`}>
+                  <span className={`text-2xl sm:text-3xl font-black text-${item.color}-900`}>
                     {item.count}
                   </span>
-                  <span className={`text-[10px] font-bold uppercase ${filterTypes.includes(item.type) ? `text-${item.color}-400` : 'text-slate-300'}`}>đơn</span>
+                  <span className={`text-[10px] font-bold uppercase text-${item.color}-400`}>đơn</span>
                 </div>
               </div>
 
               {/* Background Glow */}
-              <div className={`absolute -right-4 -bottom-4 w-20 h-20 rounded-full blur-3xl ${filterTypes.includes(item.type) ? `bg-${item.color}-400 opacity-20` : 'bg-slate-200 opacity-0 group-hover:opacity-10'
-                }`} />
-            </button>
+              <div className={`absolute -right-4 -bottom-4 w-20 h-20 rounded-full blur-3xl bg-${item.color}-400 opacity-20`} />
+            </div>
           ))}
 
           {/* Month Summary Card */}
-          <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 p-4 sm:p-5 rounded-3xl shadow-xl shadow-indigo-100 relative overflow-hidden flex flex-col justify-between col-span-2 lg:col-span-1 xl:col-span-1">
+          <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 p-4 sm:p-5 rounded-xl shadow-xl shadow-indigo-100 relative overflow-hidden flex flex-col justify-between col-span-2 lg:col-span-1 xl:col-span-1">
             <div className="relative z-10 flex justify-between items-start">
               <div>
                 <h3 className="font-black text-[10px] sm:text-xs uppercase tracking-[0.15em] text-indigo-100/80">Tháng này</h3>
@@ -2061,7 +2042,7 @@ const Approvals: React.FC = () => {
                       { value: 'LATE_EARLY', label: 'Đi muộn/Về sớm', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4' },
                       { value: 'INCOMPLETE_ATTENDANCE', label: 'Quên chấm công', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
                       { value: 'BUSINESS_TRIP', label: 'Đi công tác', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-                      { value: 'FIRST_DAY', label: 'Ngày đầu', icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z' },
+                      { value: 'FIRST_DAY', label: 'Ngày đầu đi làm', icon: 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z' },
                     ].map(sub => {
                       const isSubActive = filterExplanationSubTypes.includes(sub.value);
                       return (
@@ -2099,7 +2080,6 @@ const Approvals: React.FC = () => {
 
                     {[
                       { value: 'OVERTIME', label: 'Tăng ca', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-                      { value: 'EXTRA_HOURS', label: 'Làm thêm', icon: 'M12 4v16m8-8H4' },
                       { value: 'NIGHT_SHIFT', label: 'Trực tối', icon: 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z' },
                       { value: 'LIVE', label: 'Live stream', icon: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' },
                       { value: 'OFF_DUTY', label: 'Vào/Ra trực', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' },
@@ -2231,7 +2211,7 @@ const Approvals: React.FC = () => {
                         const pendingInPos = allItemsInPos.filter((r: any) => r.status === 'PENDING' && canApproveRequest(r)).length;
 
                         return (
-                          <div key={posName} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden border-l-4 border-l-primary-500">
+                          <div key={posName} className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden border-l-4 border-l-primary-500">
                             {/* Position Sub-Header */}
                             <div className="flex items-center justify-between px-5 py-4 bg-gray-50/50 border-b border-gray-100">
                               <div className="flex items-center gap-3">
@@ -2247,9 +2227,7 @@ const Approvals: React.FC = () => {
                                   </span>
                                 </div>
                               </div>
-
-                              </div>
-
+                            </div>
 
                             {/* New Level: Employee Accordion */}
                             <div className="p-4 space-y-4">
@@ -2260,10 +2238,10 @@ const Approvals: React.FC = () => {
                                 const firstItem = items[0];
 
                                 return (
-                                  <div key={empName} className={`border rounded-2xl overflow-hidden transition-all duration-300 ${isEmpExpanded ? 'border-primary-100 ring-2 ring-primary-50 shadow-md' : 'border-gray-100 hover:border-primary-200'}`}>
+                                  <div key={empName} className={`border rounded-xl overflow-hidden transition-all duration-300 ${isEmpExpanded ? 'border-primary-100 ring-2 ring-primary-50 shadow-md' : 'border-gray-100 hover:border-primary-200'}`}>
                                     {/* Employee Accordion Header */}
                                     <div
-                                      className={`flex items-center justify-between px-5 py-4 cursor-pointer transition-colors ${isEmpExpanded ? 'bg-primary-50/40' : 'bg-white hover:bg-slate-50'}`}
+                                      className={`flex flex-col px-4 py-3 cursor-pointer transition-colors ${isEmpExpanded ? 'bg-primary-50/40' : 'bg-white hover:bg-slate-50'}`}
                                       onClick={() => {
                                         setExpandedEmployees((prev: string[]) =>
                                           prev.includes(accordionKey)
@@ -2272,93 +2250,101 @@ const Approvals: React.FC = () => {
                                         );
                                       }}
                                     >
-                                      <div className="flex items-center gap-4">
-                                        <div className="relative">
-                                          <div className="w-11 h-11 rounded-2xl bg-slate-900 flex items-center justify-center text-white text-sm font-black shadow-lg transform rotate-2">
-                                            {empName.charAt(0)}
+                                      {/* Row 1: Info and Actions */}
+                                      <div className="flex items-start justify-between w-full">
+                                        <div className="flex items-center gap-3">
+                                          <div className="relative">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white text-xs font-black shadow-lg transform rotate-2">
+                                              {empName.charAt(0)}
+                                            </div>
+                                            {pendingInEmp > 0 && activeTab === 'pending' && (
+                                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-white animate-bounce">
+                                                {pendingInEmp}
+                                              </span>
+                                            )}
                                           </div>
-                                          {pendingInEmp > 0 && activeTab === 'pending' && (
-                                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-white animate-bounce">
-                                              {pendingInEmp}
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="flex flex-col">
-                                          <div className="text-base font-black text-slate-800 leading-tight">
-                                            {empName}
-                                          </div>
-                                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">MÃ NV: {firstItem.employee_code}</span>
-                                            <div className="flex items-center gap-1.5">
-                                              {items.filter(i => i._itemType === 'EXPLANATION').length > 0 && (
-                                                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-md text-[9px] font-black border border-amber-100 uppercase tracking-tighter">
-                                                  Giải trình: {(() => {
-                                                    const exp = items.find(i => i._itemType === 'EXPLANATION');
-                                                    if (exp?.quota_used !== undefined) return exp.quota_used;
-                                                    return items.filter(i => i._itemType === 'EXPLANATION' && i.status === 'APPROVED').length;
-                                                  })()}/3
-                                                </span>
-                                              )}
-                                              {items.filter(i => i._itemType === 'LEAVE').length > 0 && (
-                                                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[9px] font-black border border-blue-100 uppercase tracking-tighter">
-                                                  Nghỉ phép tháng: {(() => {
-                                                    const leave = items.find(i => i._itemType === 'LEAVE');
-                                                    if (leave?.quota_used !== undefined) return leave.quota_used;
-                                                    return items
-                                                      .filter(i => i._itemType === 'LEAVE' && i.status === 'APPROVED')
-                                                      .reduce((acc, curr) => acc + (Number(curr.leave_amount) || (curr.explanation_type === 'HALF_DAY' ? 0.5 : 1)), 0);
-                                                  })()}/1
-                                                </span>
-                                              )}
-                                              {items.filter(i => i._itemType === 'ONLINE_WORK').length > 0 && (
-                                                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-teal-50 text-teal-600 rounded-md text-[9px] font-black border border-teal-100 uppercase tracking-tighter">
-                                                  Làm việc online: {(() => {
-                                                    const ow = items.find(i => i._itemType === 'ONLINE_WORK');
-                                                    if (ow?.quota_used !== undefined) return ow.quota_used;
-                                                    return items
-                                                      .filter(i => i._itemType === 'ONLINE_WORK' && i.status === 'APPROVED')
-                                                      .reduce((acc, curr) => acc + (Number(curr.work_amount) || (curr.explanation_type === 'HALF_DAY' || curr.registration_type === 'HALF_DAY' ? 0.5 : 1)), 0);
-                                                  })()}/3
-                                                </span>
-                                              )}
-                                              {items.filter(i => i._itemType === 'REGISTRATION').length > 0 && (
-                                                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[9px] font-black border border-indigo-100 uppercase tracking-tighter">
-                                                  Đăng ký: {(() => {
-                                                    const reg = items.find(i => i._itemType === 'REGISTRATION');
-                                                    if (reg && reg.quota_used !== undefined) {
-                                                      return reg.quota_used;
-                                                    }
-                                                    return 0;
-                                                  })()}
-                                                </span>
-                                              )}
+                                          <div className="flex flex-col">
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                              <div className="text-base font-black text-slate-800 leading-tight">
+                                                {empName}
+                                              </div>
+                                              <span className="w-fit px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-black border border-indigo-100 uppercase tracking-widest leading-none">
+                                                {posName}
+                                              </span>
+                                            </div>
+                                            <div className="mt-1">
+                                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/50">MÃ NV: {firstItem?.employee_code}</span>
                                             </div>
                                           </div>
                                         </div>
+
+                                        <div className="flex items-center gap-2.5 sm:gap-4 mt-0.5 sm:mt-0">
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                const empId = firstItem.employee_id || (typeof firstItem.employee === 'object' ? firstItem.employee?.id : firstItem.employee);
+                                                if (empId) {
+                                                  setCalendarModalEmployee({ id: Number(empId), name: empName, month: filterMonth, year: filterYear });
+                                                }
+                                              }}
+                                              className="flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-100 bg-white hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700 transition-all shadow-sm"
+                                              title={`Xem lịch công của ${empName}`}
+                                            >
+                                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            </button>
+                                          </div>
+                                          <div className={`p-2 rounded-full transition-transform duration-500 ${isEmpExpanded ? 'rotate-180 bg-primary-100 text-primary-600' : 'bg-slate-50 text-slate-400'}`}>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                                          </div>
+                                        </div>
                                       </div>
 
-                                      <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-2">
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              const empId = firstItem.employee_id || (typeof firstItem.employee === 'object' ? firstItem.employee?.id : firstItem.employee);
-                                              if (empId) {
-                                                setCalendarModalEmployee({ id: Number(empId), name: empName, month: filterMonth, year: filterYear });
-                                              }
-                                            }}
-                                            className="flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-100 bg-white hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700 transition-all shadow-sm"
-                                            title={`Xem lịch công của ${empName}`}
-                                          >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                                          </button>
-                                        </div>
-                                        <div className={`p-2 rounded-full transition-transform duration-500 ${isEmpExpanded ? 'rotate-180 bg-primary-100 text-primary-600' : 'bg-slate-50 text-slate-400'}`}>
-                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                                      {/* Row 2: Full Width Quotas */}
+                                      <div className="mt-2.5 w-full">
+                                        <div className="grid grid-cols-2 xs:grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full">
+                                          {(() => {
+                                            const empId = firstItem?.employee_id || (typeof firstItem?.employee === 'object' ? firstItem?.employee?.id : firstItem?.employee);
+
+                                            const getMonthlyQuota = (type: string) => {
+                                              const getAllTypedItems = () => {
+                                                if (type === 'EXPLANATION') return [...attendanceExplanations, ...approvedExplanations, ...rejectedExplanations];
+                                                if (type === 'LEAVE') return [...pendingLeaveRequests, ...approvedLeaveRequests];
+                                                if (type === 'ONLINE_WORK') return [...pendingOnlineWorkRequests, ...approvedOnlineWorkRequests, ...rejectedOnlineWorkRequests];
+                                                if (type === 'REGISTRATION') return [...pendingRegistrations, ...approvedRegistrations, ...pendingOvertimeRequests, ...approvedOvertimeRequests];
+                                                return [];
+                                              };
+
+                                              const allOfThisType = getAllTypedItems().filter(i => {
+                                                const iEmpId = i.employee_id || (typeof i.employee === 'object' ? i.employee?.id : i.employee);
+                                                return iEmpId === empId;
+                                              });
+
+                                              if (allOfThisType.length === 0) return null;
+                                              const itemWithQuota = allOfThisType.find(i => i.quota_used !== undefined);
+                                              if (itemWithQuota && itemWithQuota.quota_used !== undefined) return itemWithQuota.quota_used;
+                                              return allOfThisType.filter(i => (i.status === 'APPROVED' || i.hr_approved === true)).length;
+                                            };
+
+                                            const quotas = [
+                                              { id: 'exp', label: 'Giải trình', value: getMonthlyQuota('EXPLANATION'), max: 3, color: 'amber', bg: 'bg-amber-50/70', text: 'text-amber-700', border: 'border-amber-200' },
+                                              { id: 'leave', label: 'Nghỉ phép tháng', value: getMonthlyQuota('LEAVE'), max: 1, color: 'blue', bg: 'bg-blue-50/70', text: 'text-blue-700', border: 'border-blue-200' },
+                                              { id: 'online', label: 'Làm việc online', value: getMonthlyQuota('ONLINE_WORK'), max: 3, color: 'teal', bg: 'bg-teal-50/70', text: 'text-teal-700', border: 'border-teal-200' },
+                                              { id: 'reg', label: 'Đăng ký', value: getMonthlyQuota('REGISTRATION'), max: null, color: 'indigo', bg: 'bg-indigo-50/70', text: 'text-indigo-700', border: 'border-indigo-200' },
+                                            ];
+
+                                            return quotas.map(q => (
+                                              <div key={q.id} className={`flex flex-col items-center justify-center p-1.5 rounded-xl border ${q.border} ${q.bg} min-w-[75px] flex-1 sm:flex-none transition-all shadow-sm`}>
+                                                <span className={`text-[8px] font-black uppercase tracking-tighter opacity-60 ${q.text} mb-0.5 text-center leading-none`}>{q.label}</span>
+                                                <span className={`text-[11px] font-black ${q.text} leading-none truncate`}>
+                                                  {q.value || 0}{q.max ? `/${q.max}` : ''}
+                                                </span>
+                                              </div>
+                                            ));
+                                          })()}
                                         </div>
                                       </div>
                                     </div>
-
                                     {/* Employee Accordion Content */}
                                     {isEmpExpanded && (
                                       <div className="bg-white">
@@ -2381,7 +2367,7 @@ const Approvals: React.FC = () => {
                                                 return (
                                                   <tr key={itemKey} className="group hover:bg-primary-50/30 transition-colors">
                                                     <td className="px-6 py-4">
-                                                      <div className="flex items-center gap-4">
+                                                      <div className="flex items-center gap-3">
                                                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border ${itemTypeConfig.tableCls}`}>
                                                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={itemTypeConfig.iconPath} /></svg>
                                                         </div>
@@ -2392,19 +2378,25 @@ const Approvals: React.FC = () => {
                                                       </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                      <div className="text-sm font-black text-slate-700">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</div>
-                                                      <div className="text-[10px] font-bold text-slate-400 uppercase">Lúc: {formatDateTime(item.created_at).split(' ')[1]}</div>
+                                                      <div className="text-sm font-black text-slate-700">
+                                                        {getDayOfWeek(item.attendance_date || item.registration_date || item.work_date || item.start_date || item.date)}, {formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date || item.date)}
+                                                      </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                       <div className="flex flex-col gap-1">
+                                                        {item.late_minutes > 0 && (
+                                                          <span className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 w-fit">Muộn {item.late_minutes} phút</span>
+                                                        )}
+                                                        {item.early_leave_minutes > 0 && (
+                                                          <span className="text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100 w-fit">Về sớm {item.early_leave_minutes} phút</span>
+                                                        )}
                                                         {item.penalty_amount > 0 && (
-                                                          <span className="text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100 w-fit">-{(item.penalty_amount).toLocaleString()}đ</span>
+                                                          <span className="text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100 w-fit">-{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</span>
                                                         )}
-                                                        {(item.event_type === 'overtime' || item.registration_type === 'OVERTIME') && item.hours != null && (
-                                                          <span className="text-[11px] font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-100 w-fit">{item.hours}h tăng ca</span>
-                                                        )}
-                                                        {(item.event_type === 'live' || item.registration_type === 'LIVE') && item.sessions != null && (
-                                                          <span className="text-[11px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100 w-fit">{item.sessions} phiên live</span>
+                                                        {item._itemType === 'REGISTRATION' && calculateDuration(item.start_time, item.end_time) && (
+                                                          <span className="text-[11px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100 w-fit">
+                                                            {calculateDuration(item.start_time, item.end_time)}
+                                                          </span>
                                                         )}
                                                         {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && item.forgot_checkin_time && (
                                                           <span className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 w-fit">Check-in: {item.forgot_checkin_time}</span>
@@ -2413,35 +2405,77 @@ const Approvals: React.FC = () => {
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(item)}</td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                      <div className="flex justify-center gap-2">
-                                                        {activeTab === 'pending' && canApproveRequest(item) && (
-                                                          <>
-                                                            <button onClick={() => openApproveModal(item)} className="p-2 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all border border-emerald-100 shadow-sm"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg></button>
-                                                            <button onClick={() => openRejectModal(item)} className="p-2 text-rose-500 hover:bg-rose-600 hover:text-white rounded-xl transition-all border border-rose-100 shadow-sm"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg></button>
-                                                          </>
-                                                        )}
-                                                        <button
-                                                          onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
-                                                          className="w-24 py-2 bg-slate-900 text-white hover:bg-primary-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                                                        >
-                                                          Chi tiết
-                                                        </button>
-                                                        {canDeleteRequest(item) && (
+                                                      <div className="flex flex-col items-center gap-2">
+                                                        <div className="flex items-center justify-center gap-2">
+                                                          {activeTab === 'pending' && canApproveRequest(item) && (
+                                                            <div className="flex items-center gap-1 mr-1">
+                                                              <button
+                                                                onClick={() => openApproveModal(item)}
+                                                                className="p-2 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-all border border-emerald-100 shadow-sm bg-emerald-50/50"
+                                                                title="Duyệt nhanh"
+                                                              >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                                              </button>
+                                                              <button
+                                                                onClick={() => openRejectModal(item)}
+                                                                className="p-2 text-rose-500 hover:bg-rose-600 hover:text-white rounded-lg transition-all border border-rose-100 shadow-sm bg-rose-50/50"
+                                                                title="Từ chối nhanh"
+                                                              >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                              </button>
+                                                            </div>
+                                                          )}
+
                                                           <button
-                                                            onClick={() => openDeleteModal(item)}
-                                                            className="p-2 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all border border-rose-100 shadow-sm"
-                                                            title="Xóa đơn của bạn"
+                                                            onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
+                                                            className="group flex items-center gap-2 px-4 py-2 bg-slate-900 text-white hover:bg-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-slate-200 hover:shadow-indigo-200"
                                                           >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
+                                                            <span>Chi tiết</span>
+                                                            <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
                                                           </button>
-                                                        )}
+
+                                                          {canDeleteRequest(item) && (
+                                                            <button
+                                                              onClick={() => openDeleteModal(item)}
+                                                              className="p-2 text-slate-400 hover:bg-rose-500 hover:text-white rounded-lg transition-all border border-slate-100 bg-slate-50/50"
+                                                              title="Xóa đơn"
+                                                            >
+                                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                              </svg>
+                                                            </button>
+                                                          )}
+                                                        </div>
+
+                                                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100/50">
+                                                          <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+                                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                                                            Gửi lúc: <span className="text-slate-600 font-black">{formatTimeOnly(item.created_at)}</span> • {formatDate(item.created_at)}
+                                                          </span>
+                                                        </div>
                                                       </div>
                                                     </td>
                                                   </tr>
                                                 );
                                               })}
+                                              {(() => {
+                                                const totalPenalty = items.reduce((sum, i) => sum + (i.penalty_amount || 0), 0);
+                                                if (totalPenalty === 0) return null;
+                                                return (
+                                                  <tr className="bg-rose-50/30 border-t-2 border-rose-100/50">
+                                                    <td colSpan={5} className="px-6 py-5 text-center">
+                                                      <div className="flex flex-col items-center gap-1.5 rounded-2xl p-2 transition-all duration-300">
+                                                        <span className="text-xs font-black text-rose-400 uppercase tracking-widest">TỔNG CỘNG TIỀN PHẠT</span>
+                                                        <div className="inline-flex items-center gap-2 px-8 py-2.5 bg-rose-600 shadow-xl shadow-rose-200 rounded-2xl transform hover:scale-105 transition-transform duration-300">
+                                                          <span className="text-2xl font-black text-white tracking-tighter drop-shadow-sm">
+                                                            {totalPenalty.toLocaleString('vi-VN')} VNĐ
+                                                          </span>
+                                                        </div>
+                                                      </div>
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              })()}
                                             </tbody>
                                           </table>
                                         </div>
@@ -2452,20 +2486,22 @@ const Approvals: React.FC = () => {
                                             const itemKey = `${item._itemType}-${item.id}`;
                                             const itemTypeConfig = getItemTypeConfig(item);
                                             return (
-                                              <div key={itemKey} className="p-4 bg-white rounded-[24px] border border-slate-100 shadow-sm active:scale-[0.98] transition-all">
+                                              <div key={itemKey} className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm active:scale-[0.98] transition-all">
                                                 <div className="flex justify-between items-start mb-4">
                                                   <div className="flex items-center gap-3">
-                                                    <div className={`p-2.5 rounded-2xl shadow-md ${itemTypeConfig.mobileBg} text-white`}>
+                                                    <div className={`p-2.5 rounded-xl shadow-md ${itemTypeConfig.mobileBg} text-white`}>
                                                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={itemTypeConfig.iconPath} /></svg>
                                                     </div>
                                                     <div>
                                                       <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{getRequestTypeLabel(item)}</h4>
-                                                      <p className="text-[10px] font-bold text-slate-400 uppercase">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</p>
+                                                      <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                                        {getDayOfWeek(item.attendance_date || item.registration_date || item.work_date || item.start_date)}, {formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}
+                                                      </p>
                                                     </div>
                                                   </div>
                                                   {getStatusBadge(item)}
                                                 </div>
-                                                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl">
+                                                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
                                                   <div className="flex flex-col gap-1 max-w-[70%]">
                                                     <div className="text-[11px] font-bold text-slate-500 italic line-clamp-1">"{cleanReasonText(item.reason || item.work_plan || '', getRequestTypeLabel(item))}"</div>
                                                     {item.late_minutes > 0 && (
@@ -2476,9 +2512,11 @@ const Approvals: React.FC = () => {
                                                     )}
                                                   </div>
                                                   <div className="flex flex-col items-end gap-1 shrink-0">
-                                                    {item.penalty_amount > 0 && <span className="text-[11px] font-black text-rose-600">-{item.penalty_amount.toLocaleString()}đ</span>}
-                                                    {(item.event_type === 'overtime' || item.registration_type === 'OVERTIME') && item.hours != null && (
-                                                      <span className="text-[11px] font-black text-purple-600">{item.hours}h tăng ca</span>
+                                                    {item.penalty_amount > 0 && <span className="text-[11px] font-black text-rose-600">-{item.penalty_amount.toLocaleString('vi-VN')} VNĐ</span>}
+                                                    {item._itemType === 'REGISTRATION' && calculateDuration(item.start_time, item.end_time) && (
+                                                      <span className="text-[11px] font-black text-blue-600">
+                                                        {calculateDuration(item.start_time, item.end_time)}
+                                                      </span>
                                                     )}
                                                     {(item.event_type === 'live' || item.registration_type === 'LIVE') && item.sessions != null && (
                                                       <span className="text-[11px] font-black text-blue-600">{item.sessions} phiên live</span>
@@ -2488,26 +2526,53 @@ const Approvals: React.FC = () => {
                                                     )}
                                                   </div>
                                                 </div>
-                                                <div className="flex gap-2 mt-4">
-                                                  <button onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)} className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider">Chi tiết</button>
-                                                  {activeTab === 'pending' && canApproveRequest(item) && (
-                                                    <button onClick={() => openApproveModal(item)} className="p-3 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-100"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></button>
-                                                  )}
-                                                  {canDeleteRequest(item) && (
-                                                    <button
-                                                      onClick={() => openDeleteModal(item)}
-                                                      className="p-3 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-100"
-                                                      title="Xóa đơn của bạn"
-                                                    >
-                                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                      </svg>
-                                                    </button>
-                                                  )}
+                                                <div className="mt-4 space-y-3">
+                                                  <div className="flex gap-2">
+                                                    <button onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)} className="flex-1 py-3.5 bg-slate-900 text-white rounded-xl text-[11px] font-black uppercase tracking-wider shadow-lg shadow-slate-200 active:scale-95 transition-all outline-none border-none">Chi tiết</button>
+                                                    {activeTab === 'pending' && canApproveRequest(item) && (
+                                                      <button onClick={() => openApproveModal(item)} className="p-3.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-100 active:scale-95 transition-all outline-none border-none"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></button>
+                                                    )}
+                                                    {canDeleteRequest(item) && (
+                                                      <button
+                                                        onClick={() => openDeleteModal(item)}
+                                                        className="p-3.5 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-100 active:scale-95 transition-all outline-none border-none"
+                                                        title="Xóa đơn"
+                                                      >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                  <div className="flex items-center justify-center gap-2 py-2 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                                      Gửi lúc: <span className="text-slate-600 font-black">{formatTimeOnly(item.created_at)}</span> • {formatDate(item.created_at)}
+                                                    </span>
+                                                  </div>
                                                 </div>
                                               </div>
                                             );
                                           })}
+                                          {(() => {
+                                            const totalPenalty = items.reduce((sum, i) => sum + (i.penalty_amount || 0), 0);
+                                            if (totalPenalty === 0) return null;
+                                            return (
+                                              <div className="p-5 bg-gradient-to-br from-rose-500 to-rose-600 rounded-2xl shadow-xl shadow-rose-200 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                                <div className="flex flex-col items-center text-center gap-2">
+                                                  <div className="flex flex-col">
+                                                    <span className="text-sm font-extrabold text-white mt-1 uppercase tracking-tight">
+                                                      Tổng cộng tiền phạt
+                                                    </span>
+                                                  </div>
+                                                  <div className="text-right">
+                                                    <div className="text-2xl font-black text-white tracking-tighter drop-shadow-md">
+                                                      {totalPenalty.toLocaleString('vi-VN')} <span className="text-xs text-rose-100 ml-0.5">VNĐ</span>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })()}
                                         </div>
                                         {/* 
                                           QUY TẮC HIỂN THỊ: 
@@ -2521,7 +2586,7 @@ const Approvals: React.FC = () => {
                                                 e.stopPropagation();
                                                 handleBulkApproveItems(items, `nhân viên ${empName}`);
                                               }}
-                                              className="flex items-center gap-2 h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black rounded-xl shadow-lg shadow-emerald-100 transition-all uppercase tracking-wider"
+                                              className="flex items-center gap-2 h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black rounded-lg shadow-lg shadow-emerald-100 transition-all uppercase tracking-wider"
                                             >
 
                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
@@ -2660,17 +2725,19 @@ const Approvals: React.FC = () => {
                             <div className="flex items-center justify-center min-h-[50px]">
                               {/* PHẦN HIỂN THỊ DÀNH CHO QUẢN LÝ (KHI CÓ QUYỀN DUYỆT) */}
                               {item.status === 'PENDING' && isManagement && !isAdmin ? (
-                                <div className="flex items-center gap-2.5">
+                                <div className="flex items-center gap-3">
                                   <button
                                     onClick={() => openApproveModal(item)}
-                                    className="h-9 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-black rounded-xl shadow-lg shadow-emerald-100 transition-all hover:scale-105 active:scale-95 whitespace-nowrap uppercase tracking-wider"
+                                    className="group h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black rounded-xl shadow-lg shadow-emerald-100 transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap uppercase tracking-widest flex items-center gap-2"
                                   >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                     PHÊ DUYỆT
                                   </button>
                                   <button
                                     onClick={() => openRejectModal(item)}
-                                    className="h-9 px-6 bg-white hover:bg-rose-50 text-rose-500 text-sm font-black rounded-xl border border-slate-200 hover:border-rose-200 transition-all uppercase tracking-wider"
+                                    className="h-10 px-6 bg-white hover:bg-rose-50 text-rose-500 text-[11px] font-black rounded-xl border border-slate-200 hover:border-rose-200 transition-all uppercase tracking-widest flex items-center gap-2"
                                   >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                                     TỪ CHỐI
                                   </button>
                                 </div>
@@ -2678,23 +2745,23 @@ const Approvals: React.FC = () => {
                                 /* PHẦN HIỂN THỊ DÀNH CHO ADMIN (HOẶC KHI ĐÃ DUYỆT XONG) */
                                 <div className="flex flex-col items-center">
                                   {item.status === 'APPROVED' ? (
-                                    <div className="flex items-center gap-2.5 px-4 py-2.5 bg-emerald-50 border border-emerald-100 rounded-2xl shadow-sm">
-                                      <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-emerald-100">
-                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
+                                    <div className="flex items-center gap-3 px-5 py-2.5 bg-emerald-50 border border-emerald-100 rounded-2xl shadow-sm">
+                                      <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-emerald-100">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
                                       </div>
                                       <span className="text-emerald-700 font-black text-xs uppercase tracking-widest">QLTT ĐÃ PHÊ DUYỆT</span>
                                     </div>
                                   ) : item.status === 'REJECTED' ? (
-                                    <div className="flex items-center gap-2.5 px-4 py-2.5 bg-rose-50 border border-rose-100 rounded-2xl shadow-sm">
-                                      <div className="w-6 h-6 bg-rose-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-rose-100">
-                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    <div className="flex items-center gap-3 px-5 py-2.5 bg-rose-50 border border-rose-100 rounded-2xl shadow-sm">
+                                      <div className="w-7 h-7 bg-rose-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-rose-100">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M6 18L18 6M6 6l12 12" /></svg>
                                       </div>
                                       <span className="text-rose-700 font-black text-xs uppercase tracking-widest">QLTT ĐÃ TỪ CHỐI</span>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-2.5 px-4 py-2.5 bg-amber-50 border border-amber-100 rounded-2xl shadow-sm">
-                                      <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-white shrink-0 animate-pulse shadow-sm shadow-amber-100">
-                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <div className="flex items-center gap-3 px-5 py-2.5 bg-amber-50 border border-amber-100 rounded-2xl shadow-sm">
+                                      <div className="w-7 h-7 bg-amber-500 rounded-full flex items-center justify-center text-white shrink-0 animate-pulse shadow-sm shadow-amber-100">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                       </div>
                                       <span className="text-amber-700 font-black text-xs uppercase tracking-widest">ĐANG CHỜ QLTT DUYỆT</span>
                                     </div>
@@ -2746,7 +2813,9 @@ const Approvals: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <div className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Thời gian gửi</div>
-                          <div className="text-[11px] font-black text-slate-500">{formatDateTime(item.created_at).split(' ')[0]}</div>
+                          <div className="text-[11px] font-black text-slate-500">
+                            {getDayOfWeek(item.created_at)}, {formatDateTime(item.created_at).split(' ')[0]}
+                          </div>
                         </div>
                       </div>
 
@@ -2765,17 +2834,19 @@ const Approvals: React.FC = () => {
                       </div>
 
                       {item.status === 'PENDING' && isManagement && !isAdmin && (
-                        <div className="grid grid-cols-2 gap-3" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-3 mt-2" onClick={e => e.stopPropagation()}>
                           <button
                             onClick={() => openApproveModal(item)}
-                            className="py-3.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.1em] shadow-lg shadow-emerald-100"
+                            className="flex-1 py-3.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-100 active:scale-95 transition-all flex items-center justify-center gap-2"
                           >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                             PHÊ DUYỆT
                           </button>
                           <button
                             onClick={() => openRejectModal(item)}
-                            className="py-3.5 bg-white border border-rose-100 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-[0.1em]"
+                            className="flex-1 py-3.5 bg-white border border-rose-100 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
                           >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                             TỪ CHỐI
                           </button>
                         </div>
@@ -2991,11 +3062,9 @@ const Approvals: React.FC = () => {
                             </div>
                           </div>
                           <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Tăng ca/Làm thêm giờ</span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Tăng ca</span>
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-black text-orange-600">{emp.tang_ca}h</span>
-                              <span className="text-slate-300">|</span>
-                              <span className="text-xs font-black text-blue-600">{emp.lam_them_gio}h</span>
                             </div>
                           </div>
                           <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
@@ -3052,7 +3121,7 @@ const Approvals: React.FC = () => {
       {showDetailModal &&
         (selectedExplanation || selectedOnlineWorkRequest) && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 transition-all duration-300">
-            <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-t-xl sm:rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               {/* Modal Header - Sticky */}
               <div className="sticky top-0 z-20 px-6 py-4 border-b border-slate-100 bg-white/95 backdrop-blur-sm shadow-sm">
                 <div className="flex justify-between items-center">
@@ -3078,7 +3147,6 @@ const Approvals: React.FC = () => {
                       setShowDetailModal(false);
                       setSelectedExplanation(null);
                       setSelectedOnlineWorkRequest(null);
-                      setEmployeeFreqStats(null);
                     }}
                     className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
                   >
@@ -3093,14 +3161,12 @@ const Approvals: React.FC = () => {
                   <div className="mb-6">
                     <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-xl shadow-sm">
                       <h4 className="text-sm font-bold text-blue-800 uppercase tracking-wider mb-2">
-                        {selectedExplanation
-                          ? `Lý do / Nội dung ${getRequestTypeLabel(selectedExplanation)}`
-                          : 'Kế hoạch công việc'}
+                        NỘI DUNG
                       </h4>
                       <p className="text-gray-800 font-medium whitespace-pre-wrap text-base leading-relaxed">
                         {selectedExplanation
                           ? cleanReasonText(selectedExplanation.reason, getRequestTypeLabel(selectedExplanation))
-                          : (selectedOnlineWorkRequest.work_plan || 'N/A')}
+                          : (selectedOnlineWorkRequest.work_plan || selectedOnlineWorkRequest.reason || selectedOnlineWorkRequest.note || 'N/A')}
                       </p>
                     </div>
                   </div>
@@ -3109,10 +3175,10 @@ const Approvals: React.FC = () => {
                 {/* 2. Grid Thông tin Nhân viên & Chi tiết Đơn */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   {/* Cột 1: Profile Card */}
-                  <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
                     <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center">
                       <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                      Người tạo đơn
+                      Thông tin nhân viên
                     </h4>
                     <div className="flex items-center gap-4 mb-6">
                       <div className="relative group">
@@ -3178,7 +3244,7 @@ const Approvals: React.FC = () => {
                   </div>
 
                   {/* Cột 2: Request Info (Meta Data) */}
-                  <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
                     <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center">
                       <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       Cụ thể yêu cầu
@@ -3186,7 +3252,7 @@ const Approvals: React.FC = () => {
 
                     <div className="space-y-4">
                       {/* Priority Status Section */}
-                      <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 flex items-center justify-between group/status">
+                      <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100 flex items-center justify-between group/status">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 group-hover/status:text-indigo-500 transition-colors">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -3261,24 +3327,23 @@ const Approvals: React.FC = () => {
 
                                 {/* Hiển thị chi tiết vi phạm và phạt nếu có */}
                                 {(selectedExplanation.late_minutes > 0 || selectedExplanation.early_leave_minutes > 0 || selectedExplanation.penalty_amount > 0) && (
-                                  <div className="mt-6 p-5 rounded-3xl bg-rose-50/50 border border-rose-100 shadow-sm relative overflow-hidden group/violation">
+                                  <div className="mt-4 p-4 rounded-xl bg-rose-50/50 border border-rose-100 shadow-sm relative overflow-hidden group/violation">
                                     {/* Decorative background element */}
                                     <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-100/30 rounded-full blur-2xl group-hover/violation:bg-rose-100/50 transition-colors duration-500" />
 
-                                    <div className="flex items-center gap-3 mb-5 scale-in-center">
-                                      <div className="flex-shrink-0 w-10 h-10 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-200">
+                                    <div className="flex items-center gap-3 mb-4 scale-in-center">
+                                      <div className="flex-shrink-0 w-9 h-9 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-200">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                                       </div>
                                       <div>
                                         <span className="text-sm font-extrabold text-rose-800 uppercase tracking-widest block leading-none">Thông tin vi phạm & Phạt</span>
-                                        <span className="text-[10px] font-bold text-rose-400 uppercase tracking-tighter mt-1 block">Chi tiết các khoản khấu trừ trực tiếp</span>
                                       </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                       {/* Thời gian vi phạm card */}
                                       {(selectedExplanation.late_minutes > 0 || selectedExplanation.early_leave_minutes > 0) && (
-                                        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl border border-rose-100/50 shadow-sm hover:shadow-md transition-shadow duration-300">
+                                        <div className="bg-white/80 backdrop-blur-sm p-3 rounded-xl border border-rose-100/50 shadow-sm hover:shadow-md transition-shadow duration-300">
                                           <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-3">Thời gian vi phạm</span>
                                           <div className="space-y-2">
                                             {selectedExplanation.late_minutes > 0 && (
@@ -3311,7 +3376,7 @@ const Approvals: React.FC = () => {
 
                                       {/* Tiền phạt card */}
                                       {selectedExplanation.penalty_amount > 0 && (
-                                        <div className="bg-gradient-to-br from-rose-500 to-rose-600 p-4 rounded-2xl shadow-lg shadow-rose-200 flex flex-col justify-between group/total">
+                                        <div className="bg-gradient-to-br from-rose-500 to-rose-600 p-3 rounded-xl shadow-lg shadow-rose-200 flex flex-col justify-between group/total">
                                           <span className="text-[10px] text-rose-100 font-extrabold uppercase tracking-widest block mb-1">Tiền phạt</span>
                                           <div className="flex items-baseline gap-1.5 justify-end">
                                             <span className="text-2xl font-black text-white font-mono tracking-tighter drop-shadow-sm">
@@ -3328,13 +3393,42 @@ const Approvals: React.FC = () => {
                             )}
                           </>
                         ) : (
-                          /* Online Work specifics */
-                          <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Ngày làm việc</span>
-                            <span className="text-sm font-black text-slate-700">
-                              {formatDate(selectedOnlineWorkRequest.work_date || selectedOnlineWorkRequest.attendance_date || selectedOnlineWorkRequest.registration_date)}
-                            </span>
-                          </div>
+                          /* Online Work / Registration specifics */
+                          <>
+                            <div className="flex justify-between items-center py-2.5 border-b border-slate-50">
+                              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Ngày thực hiện</span>
+                              <span className="text-sm font-black text-slate-700">
+                                {formatDate(selectedOnlineWorkRequest.work_date || selectedOnlineWorkRequest.attendance_date || selectedOnlineWorkRequest.registration_date || selectedOnlineWorkRequest.event_date)}
+                              </span>
+                            </div>
+                            {/* Giờ bắt đầu / Giờ kết thúc / Tổng thời gian — luôn hiện cho REGISTRATION */}
+                            {selectedOnlineWorkRequest._itemType === 'REGISTRATION' && (
+                              <>
+                                <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
+                                  <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Giờ bắt đầu</span>
+                                  <span className="text-sm font-black text-slate-700 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 whitespace-nowrap">
+                                    {selectedOnlineWorkRequest.start_time?.substring(0, 5) || 'N/A'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
+                                  <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Giờ kết thúc</span>
+                                  <span className="text-sm font-black text-slate-700 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 whitespace-nowrap">
+                                    {selectedOnlineWorkRequest.end_time?.substring(0, 5) || 'N/A'}
+                                  </span>
+                                </div>
+                                {calculateDuration(selectedOnlineWorkRequest.start_time, selectedOnlineWorkRequest.end_time) && (
+                                  <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
+                                    <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Tổng thời gian</span>
+                                    <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 whitespace-nowrap">
+                                      {calculateDuration(selectedOnlineWorkRequest.start_time, selectedOnlineWorkRequest.end_time)}
+                                    </span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+
+
+                          </>
                         )}
 
                         {/* Common metadata footer */}
@@ -3353,104 +3447,6 @@ const Approvals: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Khối Thống kê Nhân viên (Tần suất & Hạn mức) - Hiển thị cho tất cả loại đơn */}
-                {(employeeFreqStats || isFetchingStats) && (
-                  <div className="mt-2 p-4 rounded-2xl bg-gradient-to-br from-indigo-50/50 via-white to-blue-50/30 border border-blue-100/50 shadow-sm mb-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-indigo-100 rounded-lg text-indigo-600">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2v6a2 2 0 002 2h2a2 2 0 002-2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                        </div>
-                        <span className="text-xs font-semibold text-indigo-900 uppercase tracking-wider">Thống kê hoạt động trong tháng</span>
-                      </div>
-                      {isFetchingStats && (
-                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                      )}
-                    </div>
-
-                    <div className={`grid gap-3 ${statsCount <= 1 ? 'grid-cols-1' : statsCount === 2 ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
-                      {/* Item 1: Giải trình */}
-                      {(isViewingExp || statsCount === 0) && (
-                        <div className={`p-3 rounded-xl border transition-all ${((employeeFreqStats?.statistics?.remaining_explanations ?? 1) <= 0) ? 'bg-red-50/60 border-red-100' : 'bg-white border-indigo-100/30'}`}>
-                          <p className="text-[11px] text-gray-400 font-black uppercase mb-1.5">Giải trình</p>
-                          <div className="flex justify-between items-end">
-                            <p className="text-base font-black text-gray-900 leading-none">
-                              {employeeFreqStats?.statistics?.approved_explanations ?? 0}
-                              <span className="text-xs text-gray-400 font-bold ml-0.5">/{employeeFreqStats?.statistics?.max_explanations_per_month ?? 3}</span>
-                            </p>
-                            <span className={`text-[11px] font-black px-1.5 py-0.5 rounded-full ${(employeeFreqStats?.statistics?.remaining_explanations ?? 1) <= 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                              {((employeeFreqStats?.statistics?.remaining_explanations ?? 1) <= 0) ? 'Hết' : `Còn ${employeeFreqStats?.statistics?.remaining_explanations}`}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Item 2: Online */}
-                      {(isViewingOnl || statsCount === 0) && (
-                        <div className={`p-3 rounded-xl border transition-all ${((employeeFreqStats?.statistics?.approved_online_work ?? 0) >= (employeeFreqStats?.statistics?.max_online_work_per_month ?? 3)) ? 'bg-amber-50/60 border-amber-100' : 'bg-white border-teal-100/30'}`}>
-                          <p className="text-[11px] text-gray-400 font-black uppercase mb-1.5">Làm việc online</p>
-                          <div className="flex justify-between items-end">
-                            <p className="text-base font-black text-gray-900 leading-none">
-                              {employeeFreqStats?.statistics?.approved_online_work ?? 0}
-                              <span className="text-xs text-gray-400 font-bold ml-0.5">/3</span>
-                            </p>
-                            <span className={`text-[11px] font-black px-1.5 py-0.5 rounded-full ${((employeeFreqStats?.statistics?.approved_online_work ?? 0) >= (employeeFreqStats?.statistics?.max_online_work_per_month ?? 3)) ? 'bg-amber-100 text-amber-600' : 'bg-teal-100 text-teal-600'}`}>
-                              Lần
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Item 3: Đăng ký */}
-                      {(isViewingReg || statsCount === 0) && (
-                        <div className="bg-white p-3 rounded-xl border border-indigo-100/30">
-                          <p className="text-[11px] text-gray-400 font-black uppercase mb-1.5">Đơn đăng ký</p>
-                          <div className="flex justify-between items-end">
-                            <p className="text-base font-black text-gray-900 leading-none">
-                              {employeeFreqStats?.statistics?.approved_registrations ?? 0}
-                            </p>
-                            <span className="text-[11px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full">
-                              Duyệt
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Item 4: Nghỉ phép */}
-                      {(isViewingLea || statsCount === 0) && (
-                        <div className={`p-3 rounded-xl border transition-all ${((employeeFreqStats?.statistics?.approved_leave ?? 0) >= (employeeFreqStats?.statistics?.max_leave_per_month ?? 1)) ? 'bg-blue-50/60 border-blue-100' : 'bg-white border-blue-100/30'}`}>
-                          <p className="text-[11px] text-gray-400 font-black uppercase mb-1.5">Nghỉ phép tháng</p>
-                          <div className="flex justify-between items-end">
-                            <p className="text-base font-black text-gray-900 leading-none">
-                              {employeeFreqStats?.statistics?.approved_leave ?? 0}
-                              <span className="text-xs text-gray-400 font-bold ml-0.5">/1</span>
-                            </p>
-                            <span className={`text-[11px] font-black px-1.5 py-0.5 rounded-full ${((employeeFreqStats?.statistics?.approved_leave ?? 0) >= (employeeFreqStats?.statistics?.max_leave_per_month ?? 1)) ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600'}`}>
-                              {((employeeFreqStats?.statistics?.approved_leave ?? 0) >= (employeeFreqStats?.statistics?.max_leave_per_month ?? 1)) ? 'Hết' : 'Còn'}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {isViewingExp && (
-                      <div className="mt-4">
-                        <div className="flex justify-between items-center mb-1.5 px-0.5">
-                          <span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Sử dụng định mức giải trình</span>
-                          <span className="text-xs font-black text-indigo-600">
-                            {Math.round(((employeeFreqStats?.statistics?.approved_explanations || 0) / (employeeFreqStats?.statistics?.max_explanations_per_month || 3)) * 100)}%
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden shadow-inner">
-                          <div
-                            className={`h-full transition-all duration-1000 ease-out ${(employeeFreqStats?.statistics?.approved_explanations || 0) >= (employeeFreqStats?.statistics?.max_explanations_per_month || 3) ? 'bg-gradient-to-r from-red-500 to-rose-600' : 'bg-gradient-to-r from-indigo-500 to-blue-600'}`}
-                            style={{ width: `${Math.min(100, ((employeeFreqStats?.statistics?.approved_explanations || 0) / (employeeFreqStats?.statistics?.max_explanations_per_month || 3)) * 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
 
 
                 {/* Additional Fields for Online Work (Mở rộng) */}
@@ -3475,7 +3471,7 @@ const Approvals: React.FC = () => {
                     <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     Quy trình duyệt
                   </h4>
-                  <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm ring-1 ring-black/5">
+                  <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm ring-1 ring-black/5">
                     <div className="relative border-l-2 border-gray-100 ml-4 space-y-8">
                       {(() => {
                         const workflowSteps = selectedExplanation
@@ -3565,7 +3561,6 @@ const Approvals: React.FC = () => {
                     setShowDetailModal(false);
                     setSelectedExplanation(null);
                     setSelectedOnlineWorkRequest(null);
-                    setEmployeeFreqStats(null);
                   }}
                   className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 border border-gray-300 text-gray-700 font-semibold rounded-xl sm:rounded-md hover:bg-gray-50 transition-colors order-1"
                 >
@@ -3766,7 +3761,7 @@ const Approvals: React.FC = () => {
               <p className="text-gray-600 mb-2 leading-relaxed">
                 Bạn đang thực hiện duyệt nhanh cho <span className="font-black text-gray-900">{(bulkConfirmModal as any).name}</span>.
               </p>
-              
+
               <div className="flex gap-2 mb-6">
                 <div className="flex-1 bg-emerald-50 border border-emerald-100 p-2 rounded-xl text-center">
                   <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Sẽ phê duyệt</div>
@@ -3784,23 +3779,23 @@ const Approvals: React.FC = () => {
                   {/* Sẽ được phê duyệt */}
                   <div className="space-y-3">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                       Danh sách phê duyệt
-                       <span className="h-[1px] flex-1 bg-slate-100"></span>
+                      Danh sách phê duyệt
+                      <span className="h-[1px] flex-1 bg-slate-100"></span>
                     </p>
                     <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                       {(bulkConfirmModal as any).approvalItems.length > 0 ? (bulkConfirmModal as any).approvalItems.map((item: any, idx: number) => (
                         <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1.5 mb-1">
-                               <span className="text-[10px] font-black text-slate-700 uppercase leading-none">{getRequestTypeLabel(item)}</span>
-                               <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded uppercase">Duyệt</span>
+                              <span className="text-[10px] font-black text-slate-700 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded uppercase">Duyệt</span>
                             </div>
                             <span className="text-[9px] font-bold text-slate-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
                           </div>
                           <div className="text-right">
-                             {item.penalty_amount > 0 && (
-                               <div className="text-[11px] font-black text-emerald-600">{(item.penalty_amount).toLocaleString()}đ</div>
-                             )}
+                            {item.penalty_amount > 0 && (
+                              <div className="text-[11px] font-black text-emerald-600">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
+                            )}
                           </div>
                         </div>
                       )) : (
@@ -3821,15 +3816,15 @@ const Approvals: React.FC = () => {
                           <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-xl border border-rose-100/50 grayscale-[0.5]">
                             <div className="flex flex-col">
                               <div className="flex items-center gap-1.5 mb-1">
-                                 <span className="text-[10px] font-black text-rose-800/70 uppercase leading-none">{getRequestTypeLabel(item)}</span>
-                                 <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
+                                <span className="text-[10px] font-black text-rose-800/70 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                                <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
                               </div>
                               <span className="text-[9px] font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
                             </div>
                             <div className="text-right">
-                               {item.penalty_amount > 0 && (
-                                 <div className="text-[10px] font-black text-rose-400 line-through">{(item.penalty_amount).toLocaleString()}đ</div>
-                               )}
+                              {item.penalty_amount > 0 && (
+                                <div className="text-[10px] font-black text-rose-400 line-through">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
+                              )}
                             </div>
                           </div>
                         ))}
