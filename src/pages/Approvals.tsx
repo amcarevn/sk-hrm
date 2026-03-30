@@ -109,11 +109,12 @@ const Approvals: React.FC = () => {
 
   const isHR = currentEmployee?.is_hr === true || user?.role?.toUpperCase() === 'HR';
 
+  const isDepartmentManager = currentEmployee?.department?.manager_id === currentEmployee?.id;
+
   const isManagement = currentEmployee?.is_manager === true ||
     currentEmployee?.position?.is_management === true ||
+    isDepartmentManager ||
     false;
-
-  const isDepartmentManager = currentEmployee?.department?.manager_id === currentEmployee?.id;
 
   const hasBulkApprovePermission = isAdmin || isHR || isManagement;
 
@@ -681,13 +682,13 @@ const Approvals: React.FC = () => {
     const isOwner = requesterId === currentEmployee.id;
 
     // QUY TẮC MỚI: 
-    // 1. Admin có toàn quyền xóa ở cả hai tab
-    if (isAdmin && (activeTab === 'approved' || activeTab === 'pending')) {
+    // 2. Nhân sự (HR) và Quản lý (Manager) được phép xóa ở tab "Đã duyệt" để xử lý các trường hợp duyệt nhầm
+    if ((isHR || isManagement) && activeTab === 'approved') {
       return true;
     }
 
-    // 2. Nhân sự (HR) chỉ được phép xóa ở tab "Đã duyệt" để xử lý các trường hợp duyệt nhầm
-    if (isHR && activeTab === 'approved') {
+    // 3. Admin vẫn giữ toàn quyền xóa ở cả hai tab
+    if (isAdmin && (activeTab === 'approved' || activeTab === 'pending')) {
       return true;
     }
 
