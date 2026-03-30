@@ -389,9 +389,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
           displayColor = 'green'; // Ra trực luôn hiển thị màu xanh
         } else if (dayItem.engine_context?.work_credit >= 1.0) {
           displayColor = 'green';
+        } else if (dayItem.engine_context?.work_credit >= 0.5) {
+          displayColor = 'orange'; // 0.5 công -> màu Cam (Orange)
         } else if (isForgotCC) {
-          // Change color to green/orange if there's credit, but default to green for "màu có mặt"
-          displayColor = dayItem.engine_context?.work_credit >= 0.5 ? 'green' : 'purple';
+          displayColor = 'purple';
         } else if (dayItem.status_badge === 'Nghỉ phép tháng' || hasApprovedOnlineWork || hasApprovedExplanations) {
           displayColor = dayItem.engine_context?.work_credit >= 1.0 ? 'green' : (dayItem.engine_context?.work_credit >= 0.5 ? 'orange' : displayColor);
         }
@@ -971,7 +972,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                             Vào {shift.inn}
                           </span>
                         )}
-                        {shift.out && (
+                        {shift.out && shift.inn !== shift.out && (
                           <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-lg font-bold text-xs">
                             Ra {shift.out}
                           </span>
@@ -1310,19 +1311,17 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                       ? 'ring-2 ring-primary-500 bg-primary-50/40 shadow-sm'
                       : day.dayStatusSummary?.display_color === 'green'
                         ? 'ring-2 ring-green-400 bg-green-50/30'
-                        : (day.dayStatusSummary?.display_color === 'purple' || day.engine_context?.is_incomplete)
-                          ? 'ring-2 ring-purple-400 bg-purple-50/30'
-                          : (Number(day.engine_context?.late_minutes) > 0 || Number(day.engine_context?.early_leave_minutes) > 0)
-                            ? 'ring-2 ring-yellow-300 bg-yellow-50/30'
-                            : day.dayStatusSummary?.display_color === 'orange'
-                              ? 'ring-2 ring-orange-300 bg-orange-50/30'
-                              : day.dayStatusSummary?.display_color === 'red'
-                                ? 'ring-2 ring-red-200 bg-red-50/30'
-                                : day.dayStatusSummary?.display_color === 'blue'
-                                  ? 'ring-2 ring-blue-300 bg-blue-50/30'
-                                  : day.dayStatusSummary?.display_color === 'yellow'
-                                    ? 'ring-2 ring-yellow-300 bg-yellow-50/30'
-                                    : 'border border-gray-200 bg-gray-50/50'}
+                      : day.dayStatusSummary?.display_color === 'orange'
+                        ? 'ring-2 ring-orange-300 bg-orange-50/30'
+                      : (day.dayStatusSummary?.display_color === 'purple' || day.engine_context?.is_incomplete)
+                        ? 'ring-2 ring-purple-400 bg-purple-50/30'
+                      : day.dayStatusSummary?.display_color === 'red'
+                        ? 'ring-2 ring-red-200 bg-red-50/30'
+                      : day.dayStatusSummary?.display_color === 'blue'
+                        ? 'ring-2 ring-blue-300 bg-blue-50/30'
+                      : (Number(day.engine_context?.late_minutes) > 0 || Number(day.engine_context?.early_leave_minutes) > 0)
+                        ? 'ring-2 ring-yellow-300 bg-yellow-50/30'
+                      : 'border border-gray-200 bg-gray-50/50'}
                   `}
                 >
                   {/* Date + work coefficient */}
@@ -1336,7 +1335,11 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                       {day.date.getDate()}
                     </span>
                     {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
-                      <span className="text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-md shadow-sm border border-green-100/50">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border ${
+                        day.engine_context.work_credit >= 1.0 
+                          ? 'text-green-600 bg-green-50 border-green-100/50' 
+                          : 'text-orange-600 bg-orange-50 border-orange-100/50'
+                      }`}>
                         {day.engine_context.work_credit} công
                       </span>
                     )}
@@ -1386,7 +1389,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                           return [
                             { key: 'MORNING', label: 'Sáng', status: day.morning, info: morningInfo },
                             { key: 'AFTERNOON', label: 'Chiều', status: day.afternoon, info: afternoonInfo },
-                            { key: 'EVENING', label: 'Tối', status: 'no_data' as AttendanceStatus, info: { in: '', out: '', hasIn: false, hasOut: false } },
+                            { key: 'EVENING', label: 'Tối', status: day.evening, info: eveningInfo },
                           ].map((shift) => (
                             <div key={shift.key} className="flex items-center justify-between min-h-[16px]">
                               <div className="flex items-center gap-1 overflow-hidden">
@@ -1399,10 +1402,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                                     {shift.info.in}
                                   </span>
                                 )}
-                                {shift.info.hasIn && shift.info.hasOut && (
+                                {shift.info.hasIn && shift.info.hasOut && shift.info.in !== shift.info.out && (
                                   <span className="text-[9px] text-gray-300">|</span>
                                 )}
-                                {shift.info.hasOut && (
+                                {shift.info.hasOut && shift.info.in !== shift.info.out && (
                                   <span className="text-[10px] font-mono text-gray-700 font-bold">
                                     {shift.info.out}
                                   </span>
@@ -1505,8 +1508,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
                       {/* Work Credit Pill */}
                       {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
-                        <div className="text-[10px] font-black text-green-500 flex items-center gap-1">
-                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-blink" />
+                        <div className={`text-[10px] font-black flex items-center gap-1 ${
+                          day.engine_context.work_credit >= 1.0 ? 'text-green-500' : 'text-orange-500'
+                        }`}>
+                          <div className={`w-1.5 h-1.5 rounded-full animate-blink ${
+                            day.engine_context.work_credit >= 1.0 ? 'bg-green-500' : 'bg-orange-500'
+                          }`} />
                           {day.engine_context.work_credit} công
                         </div>
                       )}
