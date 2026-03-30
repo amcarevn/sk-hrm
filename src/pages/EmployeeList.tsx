@@ -517,8 +517,8 @@ const EmployeeList: React.FC = () => {
                   <option value="PROBATION">Hợp đồng thử việc</option>
                   <option value="INTERN">Hợp đồng thực tập sinh</option>
                   <option value="COLLABORATOR">Hợp đồng cộng tác viên</option>
-                  <option value="ONE_YEAR">Hợp đồng lao động 1 năm</option>
-                  <option value="THREE_YEAR">Hợp đồng lao động 3 năm</option>
+                  <option value="ONE_YEAR">Hợp đồng lao động 12 tháng</option>
+                  <option value="TWO_YEAR">Hợp đồng lao động 24 tháng</option>
                   <option value="INDEFINITE">Hợp đồng vô thời hạn</option>
                   <option value="SERVICE">Hợp đồng dịch vụ</option>
                 </select>
