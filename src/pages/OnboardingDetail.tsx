@@ -144,6 +144,7 @@ type OnboardingDetail = {
   diploma_file_url?: string | null;
   citizen_id_file?: string | null;
   citizen_id_file_url?: string | null;
+  vneid_screenshot_url?: string | null;
   employee_info_completed?: boolean;
   employee_info_completed_at?: string | null;
 };
@@ -335,6 +336,13 @@ const getFileType = (url: string): 'image' | 'pdf' | 'other' => {
   if (clean.match(/\.(jpg|jpeg|png|gif|webp|bmp|tiff?)$/)) return 'image';
   if (clean.endsWith('.pdf')) return 'pdf';
   return 'other';
+};
+
+const normalizeFileUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
+  return `${API_BASE_URL}/${url}`;
 };
 
 const OnboardingDetail: React.FC = () => {
@@ -729,6 +737,10 @@ const OnboardingDetail: React.FC = () => {
         return {};
       }
     })();
+    const vneidScreenshotUrl =
+      onboarding.vneid_screenshot_url ||
+      (employeeProfile as any)?.vneid_screenshot_url ||
+      normalizeFileUrl(employeeProfile?.vneid_screenshot);
 
     return (
       <div className="space-y-6">
@@ -910,10 +922,10 @@ const OnboardingDetail: React.FC = () => {
               <p className="font-medium">
                 {employeeProfile?.employment_status === 'ACTIVE'
                   ? 'Đang làm việc'
-                  : employeeProfile?.employment_status === 'SUSPENDED'
-                  ? 'Tạm ngưng'
+                  : employeeProfile?.employment_status === 'PAUSED'
+                  ? 'Tạm dừng'
                   : employeeProfile?.employment_status === 'INACTIVE'
-                  ? 'Nghỉ việc'
+                  ? 'Đã nghỉ'
                   : employeeProfile?.employment_status || 'Chưa có dữ liệu'}
               </p>
             </div>
@@ -1098,7 +1110,7 @@ const OnboardingDetail: React.FC = () => {
             </div>
 
             {/* ── Hồ sơ đính kèm ── */}
-            {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file || onboarding.citizen_id_file || onboarding.citizen_id_file_url || extraInfo.facebook_link) && (
+            {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file || onboarding.citizen_id_file || onboarding.citizen_id_file_url || vneidScreenshotUrl || extraInfo.facebook_link) && (
               <div className="bg-white rounded-lg border p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center">
                   <span className="mr-2">📎</span>
@@ -1112,6 +1124,7 @@ const OnboardingDetail: React.FC = () => {
                     { key: 'id_card_back', label: 'CCCD mặt sau', url: onboarding.id_card_back_url || onboarding.id_card_back },
                     { key: 'diploma_file', label: 'Bằng cấp', url: onboarding.diploma_file_url || onboarding.diploma_file },
                     { key: 'citizen_id_file', label: 'File CMND/CCCD', url: onboarding.citizen_id_file_url || onboarding.citizen_id_file },
+                    { key: 'vneid_screenshot', label: 'Ảnh chụp màn hình VNeID', url: vneidScreenshotUrl },
                   ] as { key: string; label: string; url: string | null | undefined }[])
                     .filter(f => f.url)
                     .map(f => {
@@ -1166,6 +1179,22 @@ const OnboardingDetail: React.FC = () => {
                       );
                     })
                   }
+
+                  {!vneidScreenshotUrl && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="h-32 bg-gray-50 flex flex-col items-center justify-center">
+                        <span className="text-3xl mb-1">🖼️</span>
+                        <span className="text-xs text-gray-500 font-medium px-2 text-center">
+                          Chưa tải ảnh VNeID
+                        </span>
+                      </div>
+                      <div className="p-2 bg-white">
+                        <label className="text-xs text-gray-600 font-medium truncate">
+                          Ảnh chụp màn hình VNeID
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Facebook — cùng grid với các file */}
                   {extraInfo.facebook_link && (
@@ -1493,8 +1522,8 @@ const OnboardingDetail: React.FC = () => {
               ])}
               {ef('Trạng thái làm việc', 'employment_status', undefined, [
                 { value: 'ACTIVE', label: 'Đang làm việc' },
-                { value: 'SUSPENDED', label: 'Tạm ngưng' },
-                { value: 'INACTIVE', label: 'Nghỉ việc' },
+                { value: 'PAUSED', label: 'Tạm dừng' },
+                { value: 'INACTIVE', label: 'Đã nghỉ' },
               ])}
               {ef('Ghi chú tình trạng công việc', 'employment_status_notes', 'textarea')}
               {ef('Ngày bắt đầu làm việc', 'start_date', 'date')}
