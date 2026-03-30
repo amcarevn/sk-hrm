@@ -101,9 +101,21 @@ const Approvals: React.FC = () => {
   });
 
   // Role-based permissions for UI elements
-  const isAdminView = (user as any)?.is_superuser || (user as any)?.is_staff || currentEmployee?.user?.is_superuser || currentEmployee?.user?.is_staff;
-  const isHRView = currentEmployee?.is_hr === true || user?.role?.toUpperCase() === 'HR';
-  const hasBulkApprovePermission = isAdminView || isHRView;
+  const isAdmin = (user as any)?.is_superuser ||
+    (user as any)?.is_staff ||
+    user?.role?.toUpperCase() === 'ADMIN' ||
+    currentEmployee?.user?.is_staff ||
+    currentEmployee?.user?.is_superuser;
+
+  const isHR = currentEmployee?.is_hr === true || user?.role?.toUpperCase() === 'HR';
+
+  const isManagement = currentEmployee?.is_manager === true ||
+    currentEmployee?.position?.is_management === true ||
+    false;
+
+  const isDepartmentManager = currentEmployee?.department?.manager_id === currentEmployee?.id;
+
+  const hasBulkApprovePermission = isAdmin || isHR || isManagement;
 
 
   // States cho các modal Dialog mới
@@ -122,22 +134,6 @@ const Approvals: React.FC = () => {
   const [bulkActionResult, setBulkActionResult] = useState<{ success: number; error: number; groupName: string } | null>(null);
   const [bulkConfirmModal, setBulkConfirmModal] = useState<{ items: any[]; name: string } | null>(null);
 
-  const isAdmin = (user as any)?.is_superuser ||
-    (user as any)?.is_staff ||
-    user?.role?.toUpperCase() === 'ADMIN' ||
-    currentEmployee?.user?.is_staff ||
-    currentEmployee?.user?.is_superuser;
-
-  // Chỉ dùng cờ is_hr, KHÔNG check department_code hay position title
-  const isHR = currentEmployee?.is_hr === true || user?.role?.toUpperCase() === 'HR';
-
-  // is_manager: BE now returns computed field (position.is_management or is dept manager)
-  const isManagement = currentEmployee?.is_manager === true ||
-    currentEmployee?.position?.is_management === true ||
-    false;
-
-  // Là manager của phòng ban (department.manager_id === currentEmployee.id)
-  const isDepartmentManager = currentEmployee?.department?.manager_id === currentEmployee?.id;
 
   const currentItem = selectedExplanation || selectedOnlineWorkRequest;
   const isViewingExp = currentItem?._itemType === 'EXPLANATION' || (!currentItem?._itemType && currentItem?.explanation_type && currentItem?.explanation_type !== 'LEAVE');
@@ -466,8 +462,6 @@ const Approvals: React.FC = () => {
       switch (regType) {
         case 'OVERTIME':
           return { tableCls: 'bg-purple-50 text-purple-600 border-purple-100', mobileBg: 'bg-purple-500', iconPath: 'M13 10V3L4 14h7v7l9-11h-7z' };
-        case 'EXTRA_HOURS':
-          return { tableCls: 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100', mobileBg: 'bg-fuchsia-500', iconPath: 'M12 4v16m8-8H4' };
         case 'NIGHT_SHIFT':
           return { tableCls: 'bg-sky-50 text-sky-600 border-sky-100', mobileBg: 'bg-sky-500', iconPath: 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z' };
         case 'LIVE':
@@ -1008,13 +1002,29 @@ const Approvals: React.FC = () => {
           return dateA.localeCompare(dateB);
         });
 
-        const approvedInGroup = sortedGroup.slice(0, remaining);
-        const rejectedInGroup = sortedGroup.slice(remaining);
-
-
-        approvalItems.push(...approvedInGroup);
-        rejectionItems.push(...rejectedInGroup);
-        exceededCount += rejectedInGroup.length;
+        let currentRemaining = remaining;
+        sortedGroup.forEach(item => {
+          const isForget = (item.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
+          if (isForget) {
+            // Đơn Quên chấm công luôn được phê duyệt để đảm bảo công cho NV
+            if (currentRemaining > 0) {
+              approvalItems.push(item);
+              currentRemaining--;
+            } else {
+              // Hết hạn mức nhưng là Quên châm công -> Duyệt nhưng cảnh báo trừ công (Logic BE xử lý trừ)
+              approvalItems.push({ ...item, is_penalty: true });
+            }
+          } else {
+            // Các loại khác (Đi muộn/Về sớm) -> Chỉ phê duyệt nếu còn hạn mức 3 đơn
+            if (currentRemaining > 0) {
+              approvalItems.push(item);
+              currentRemaining--;
+            } else {
+              rejectionItems.push(item);
+              exceededCount++;
+            }
+          }
+        });
       });
     }
 
@@ -1505,13 +1515,14 @@ const Approvals: React.FC = () => {
       all = all.filter(item => {
         if (filterTypes.includes('EXPLANATION') && item._itemType === 'EXPLANATION') {
           if (filterExplanationSubTypes.length > 0) {
-            return filterExplanationSubTypes.includes(item.explanation_type);
+            const type = (item.explanation_type || '').toUpperCase();
+            return filterExplanationSubTypes.includes(type);
           }
           return true;
         }
         if (filterTypes.includes('REGISTRATION') && (item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME')) {
           if (filterRegistrationSubTypes.length > 0) {
-            const type = item.registration_type || item._itemType;
+            const type = (item.registration_type || item.event_type || item._itemType || '').toUpperCase();
             return filterRegistrationSubTypes.includes(type);
           }
           return true;
@@ -2190,7 +2201,21 @@ const Approvals: React.FC = () => {
                       </div>
                     </button>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 sm:gap-4">
+                      {hasBulkApprovePermission && activeTab === 'pending' && pendingInDept > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBulkApproveItems(allItemsInDept, `phòng ${deptName}`);
+                          }}
+                          className="hidden sm:flex items-center gap-2 h-9 px-4 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl shadow-lg shadow-emerald-100 transition-all uppercase tracking-wider"
+                          title={`Duyệt nhanh tất cả đơn của phòng ${deptName}`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                          <span>Duyệt nhanh</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => toggleDepartmentGroup(deptName)}
                         className={`p-2 hover:bg-gray-200 rounded-full transition-transform duration-300 ${isDeptExpanded ? 'rotate-180' : ''}`}
@@ -2227,6 +2252,20 @@ const Approvals: React.FC = () => {
                                   </span>
                                 </div>
                               </div>
+
+                              {hasBulkApprovePermission && activeTab === 'pending' && pendingInPos > 0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleBulkApproveItems(allItemsInPos, `vị trí ${posName}`);
+                                  }}
+                                  className="hidden sm:flex items-center gap-2 h-8 px-4 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white text-[9px] font-black rounded-lg border border-emerald-200/50 transition-all uppercase tracking-wider"
+                                  title={`Duyệt nhanh tất cả đơn của vị trí ${posName}`}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                  <span>Duyệt nhanh {pendingInPos} đơn</span>
+                                </button>
+                              )}
                             </div>
 
                             {/* New Level: Employee Accordion */}
@@ -3786,9 +3825,19 @@ const Approvals: React.FC = () => {
                       {(bulkConfirmModal as any).approvalItems.length > 0 ? (bulkConfirmModal as any).approvalItems.map((item: any, idx: number) => (
                         <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
                           <div className="flex flex-col">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className="text-[10px] font-black text-slate-700 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              <span className="text-[10px] font-extrabold text-slate-800 leading-none">{item.employee_name}</span>
+                              <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-black rounded border border-indigo-100 uppercase tracking-tighter">
+                                {item.employee_position || item.position_name || 'NV'}
+                              </span>
+                              <span className="h-0.5 w-0.5 rounded-full bg-slate-200"></span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase leading-none">{getRequestTypeLabel(item)}</span>
                               <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded uppercase">Duyệt</span>
+                              {item.is_penalty && (
+                                <span className="text-amber-600 font-black ml-1 uppercase text-[8px]">
+                                  (Bị trừ công)
+                                </span>
+                              )}
                             </div>
                             <span className="text-[9px] font-bold text-slate-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
                           </div>
@@ -3815,8 +3864,13 @@ const Approvals: React.FC = () => {
                         {(bulkConfirmModal as any).rejectionItems.map((item: any, idx: number) => (
                           <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-xl border border-rose-100/50 grayscale-[0.5]">
                             <div className="flex flex-col">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <span className="text-[10px] font-black text-rose-800/70 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                <span className="text-[10px] font-extrabold text-rose-800/80 leading-none">{item.employee_name}</span>
+                                <span className="px-1.5 py-0.5 bg-rose-50 text-rose-800/60 text-[8px] font-black rounded border border-rose-100 uppercase tracking-tighter">
+                                  {item.employee_position || item.position_name || 'NV'}
+                                </span>
+                                <span className="h-0.5 w-0.5 rounded-full bg-rose-100"></span>
+                                <span className="text-[10px] font-black text-rose-800/50 uppercase leading-none">{getRequestTypeLabel(item)}</span>
                                 <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
                               </div>
                               <span className="text-[9px] font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
