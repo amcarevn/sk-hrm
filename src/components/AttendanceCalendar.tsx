@@ -289,14 +289,19 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         if (rawLogs.length > 0) {
           rawLogs.forEach(logTime => {
             const hour = parseInt(logTime.split(':')[0]);
-            if (hour < 12) {
+            
+            // Morning: < 12 (standard) but we can allow up to 12:00 as checkout
+            if (hour < 12 || logTime === '12:00') {
               if (processedMorningShift) {
                 if (!processedMorningShift.check_in) processedMorningShift.check_in = logTime;
                 else if (!processedMorningShift.check_out && processedMorningShift.check_in !== logTime) processedMorningShift.check_out = logTime;
               } else {
                 processedMorningShift = { shift_type: 'MORNING', check_in: logTime, check_out: null, status: 'INCOMPLETE_ATTENDANCE' };
               }
-            } else if (hour < 18) {
+            }
+            
+            // Afternoon: 12:00 up to 18:00
+            if (hour >= 12 && hour <= 18) {
               if (processedAfternoonShift) {
                 if (!processedAfternoonShift.check_in && !processedAfternoonShift.check_out) processedAfternoonShift.check_in = logTime;
                 else if (!processedAfternoonShift.check_out && processedAfternoonShift.check_in !== logTime) processedAfternoonShift.check_out = logTime;
@@ -304,7 +309,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               } else {
                 processedAfternoonShift = { shift_type: 'AFTERNOON', check_in: logTime, check_out: null, status: 'INCOMPLETE_ATTENDANCE' };
               }
-            } else {
+            }
+            
+            // Evening: 18:00 onwards
+            if (hour >= 18) {
               if (processedEveningShift) {
                 if (!processedEveningShift.check_in) processedEveningShift.check_in = logTime;
                 else if (!processedEveningShift.check_out && processedEveningShift.check_in !== logTime) processedEveningShift.check_out = logTime;
@@ -319,6 +327,11 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         let morning = dayItem.is_holiday ? 'holiday' : mapShiftStatus(processedMorningShift);
         let afternoon = dayItem.is_holiday ? 'holiday' : mapShiftStatus(processedAfternoonShift);
         let evening = dayItem.is_holiday ? 'holiday' : mapShiftStatus(processedEveningShift);
+
+        // Logic: Inheritance - If Evening is present, make Afternoon present too (Green)
+        if (evening === 'present' && (afternoon === 'absent' || afternoon === 'no_data' || afternoon === 'incomplete_attendance')) {
+          afternoon = 'present';
+        }
 
         // If day is incomplete or has FORGOT_CC status, force absent shifts to incomplete_attendance (purple)
         const isForgotCC = dayItem.day_status === 'FORGOT_CC' || dayItem.engine_context?.is_incomplete;
@@ -815,15 +828,16 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       ].includes(t);
     });
 
-    const isMorningTime = (time: string | null) => !!time && parseInt(time.split(':')[0]) < 12;
-    const isAfternoonTime = (time: string | null) => !!time && parseInt(time.split(':')[0]) >= 12;
+    const isMorningTime = (time: string | null) => !!time && (parseInt(time.split(':')[0]) < 12 || time === '12:00');
+    const isAfternoonTime = (time: string | null) => !!time && parseInt(time.split(':')[0]) >= 12 && parseInt(time.split(':')[0]) < 18;
+    const isEveningTime = (time: string | null) => !!time && parseInt(time.split(':')[0]) >= 18;
 
     const morningIn  = isMorningTime(day.morningData?.check_in)   ? day.morningData?.check_in   : '';
     const morningOut = isMorningTime(day.morningData?.check_out)  ? day.morningData?.check_out  : '';
     const afternoonIn  = isAfternoonTime(day.afternoonData?.check_in)  ? day.afternoonData?.check_in  : '';
     const afternoonOut = isAfternoonTime(day.afternoonData?.check_out) ? day.afternoonData?.check_out : '';
-    const eveningIn  = day.eveningData?.check_in  || '';
-    const eveningOut = day.eveningData?.check_out || '';
+    const eveningIn  = isEveningTime(day.eveningData?.check_in)  ? day.eveningData?.check_in  : '';
+    const eveningOut = isEveningTime(day.eveningData?.check_out) ? day.eveningData?.check_out : '';
 
     const shifts = [
       { label: 'Sáng',  status: day.morning,    inn: morningIn,   out: morningOut   },
@@ -1353,12 +1367,17 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                           const isMorningTime = (time: string | null) => {
                             if (!time) return false;
                             const h = parseInt(time.split(':')[0]);
-                            return h < 12;
+                            return h < 12 || time === '12:00';
                           };
                           const isAfternoonTime = (time: string | null) => {
                             if (!time) return false;
                             const h = parseInt(time.split(':')[0]);
-                            return h >= 12;
+                            return h >= 12 && h < 18;
+                          };
+                          const isEveningTime = (time: string | null) => {
+                            if (!time) return false;
+                            const h = parseInt(time.split(':')[0]);
+                            return h >= 18;
                           };
 
                           const morningIn = isMorningTime(day.morningData?.check_in) ? day.morningData?.check_in : '';
@@ -1366,6 +1385,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
                           const afternoonIn = isAfternoonTime(day.afternoonData?.check_in) ? day.afternoonData?.check_in : '';
                           const afternoonOut = isAfternoonTime(day.afternoonData?.check_out) ? day.afternoonData?.check_out : '';
+
+                          const eveningIn = isEveningTime(day.eveningData?.check_in) ? day.eveningData?.check_in : '';
+                          const eveningOut = isEveningTime(day.eveningData?.check_out) ? day.eveningData?.check_out : '';
 
                           const morningInfo = {
                             in: morningIn,
@@ -1380,10 +1402,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                             hasOut: !!afternoonOut
                           };
                           const eveningInfo = {
-                            in: day.eveningData?.check_in || '',
-                            out: day.eveningData?.check_out || '',
-                            hasIn: !!day.eveningData?.check_in,
-                            hasOut: !!day.eveningData?.check_out
+                            in: eveningIn,
+                            out: eveningOut,
+                            hasIn: !!eveningIn,
+                            hasOut: !!eveningOut
                           };
 
                           return [
@@ -1533,12 +1555,17 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                       const isMorningTime = (time: string | null) => {
                         if (!time) return false;
                         const h = parseInt(time.split(':')[0]);
-                        return h < 12;
+                        return h < 12 || time === '12:00';
                       };
                       const isAfternoonTime = (time: string | null) => {
                         if (!time) return false;
                         const h = parseInt(time.split(':')[0]);
-                        return h >= 12;
+                        return h >= 12 && h < 18;
+                      };
+                      const isEveningTime = (time: string | null) => {
+                        if (!time) return false;
+                        const h = parseInt(time.split(':')[0]);
+                        return h >= 18;
                       };
 
                       const morningIn = isMorningTime(day.morningData?.check_in) ? day.morningData?.check_in : '';
@@ -1546,6 +1573,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
                       const afternoonIn = isAfternoonTime(day.afternoonData?.check_in) ? day.afternoonData?.check_in : '';
                       const afternoonOut = isAfternoonTime(day.afternoonData?.check_out) ? day.afternoonData?.check_out : '';
+
+                      const eveningIn = isEveningTime(day.eveningData?.check_in) ? day.eveningData?.check_in : '';
+                      const eveningOut = isEveningTime(day.eveningData?.check_out) ? day.eveningData?.check_out : '';
 
                       const morningInfo = {
                         in: morningIn,
@@ -1560,16 +1590,16 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                         hasOut: !!afternoonOut
                       };
                       const eveningInfo = {
-                        in: day.eveningData?.check_in || '',
-                        out: day.eveningData?.check_out || '',
-                        hasIn: !!day.eveningData?.check_in,
-                        hasOut: !!day.eveningData?.check_out
+                        in: eveningIn,
+                        out: eveningOut,
+                        hasIn: !!eveningIn,
+                        hasOut: !!eveningOut
                       };
 
                       const dayShifts = [
                         { label: 'SÁNG', status: day.morning, info: morningInfo, iconColor: 'text-amber-500', alwaysShow: false },
                         { label: 'CHIỀU', status: day.afternoon, info: afternoonInfo, iconColor: 'text-orange-500', alwaysShow: false },
-                        { label: 'TỐI', status: 'no_data' as AttendanceStatus, info: { in: '', out: '', hasIn: false, hasOut: false }, iconColor: 'text-indigo-500', alwaysShow: true },
+                        { label: 'TỐI', status: day.evening, info: eveningInfo, iconColor: 'text-indigo-500', alwaysShow: true },
                       ];
                       return dayShifts.filter(shift => shift.alwaysShow || shift.status !== 'no_data').map((shift, idx) => (
                         <div key={idx} className="flex items-center justify-between">

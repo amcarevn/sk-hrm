@@ -680,12 +680,18 @@ const Approvals: React.FC = () => {
       (typeof req.employee === 'object' ? req.employee.id : req.employee);
     const isOwner = requesterId === currentEmployee.id;
 
-    // QUY TẮC MỚI: Admin, HR và Quản lý chỉ được phép xóa ở tab "Đã duyệt" để xử lý các trường hợp duyệt nhầm
-    if (activeTab === 'approved' && (isAdmin || isHR || isManagement)) {
+    // QUY TẮC MỚI: 
+    // 1. Admin có toàn quyền xóa ở cả hai tab
+    if (isAdmin && (activeTab === 'approved' || activeTab === 'pending')) {
       return true;
     }
 
-    // Đối với người tạo đơn (Owner): Chỉ được xóa ở tab "Chờ duyệt" (hoặc đơn chưa được duyệt)
+    // 2. Nhân sự (HR) chỉ được phép xóa ở tab "Đã duyệt" để xử lý các trường hợp duyệt nhầm
+    if (isHR && activeTab === 'approved') {
+      return true;
+    }
+
+    // 2. Đối với người tạo đơn (Owner): Chỉ được xóa ở tab "Chờ duyệt" (hoặc đơn chưa được duyệt)
     if (isOwner) {
       // Nếu đã có cấp nào duyệt hoặc trạng thái là APPROVED thì không được xóa (hủy) nữa 
       if (req.direct_manager_approved || req.hr_approved || req.status === 'APPROVED') {
@@ -1089,7 +1095,7 @@ const Approvals: React.FC = () => {
     );
   };
 
-  const getStatusBadge = (item: any) => {
+  const getStatusBadge = (item: any, onlyBadge?: boolean) => {
     const status = item.status;
     const isApproved = status === 'APPROVED';
     const isRejected = status === 'REJECTED';
@@ -1100,6 +1106,29 @@ const Approvals: React.FC = () => {
     // Xác định trạng thái từng bước
     const step1 = { label: 'QLTT', active: mgrApproved || isApproved, rejected: isRejected && !mgrApproved };
     const step2 = { label: 'Nhân sự', active: hrApproved || isApproved, rejected: isRejected && mgrApproved };
+
+    if (onlyBadge) {
+      return (
+        <div className="flex items-center shrink-0">
+          {isApproved ? (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 border border-emerald-100 rounded-full">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-emerald-700 whitespace-nowrap">Hoàn tất</span>
+            </div>
+          ) : isRejected ? (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-50 border border-rose-100 rounded-full">
+              <div className="w-1.5 h-1.5 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-rose-700 whitespace-nowrap">Từ chối</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 border border-amber-100 rounded-full">
+              <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+              <span className="text-[10px] font-bold uppercase tracking-tighter text-amber-700 whitespace-nowrap text-nowrap">Đang duyệt</span>
+            </div>
+          )}
+        </div>
+      );
+    }
 
     return (
       <div className="flex flex-col gap-2.5 min-w-[140px] group">
@@ -1276,7 +1305,7 @@ const Approvals: React.FC = () => {
       explanation.status === 'APPROVED' ||
       explanation.status === 'REJECTED'
     ) {
-      const requestName = explanation._itemType === 'REGISTRATION' ? 'Đăng ký' : 'Giải trình';
+      const requestName = getRequestTypeLabel(explanation);
       const finalStatus =
         explanation.status === 'APPROVED'
           ? `${requestName} đã duyệt`
@@ -1375,6 +1404,7 @@ const Approvals: React.FC = () => {
 
     // Bước 4: Tổng hợp trạng thái cuối cùng
     if (request.status === 'APPROVED' || request.status === 'REJECTED') {
+      const requestName = getRequestTypeLabel(request);
       const finalStatus =
         request.status === 'APPROVED'
           ? `${requestName} đã duyệt`
@@ -2447,26 +2477,28 @@ const Approvals: React.FC = () => {
                                                       <div className="flex flex-col items-center gap-2">
                                                         <div className="flex items-center justify-center gap-2">
                                                           {activeTab === 'pending' && canApproveRequest(item) && (
-                                                            <div className="flex items-center gap-1 mr-1">
+                                                            <div className="flex items-center gap-2 mr-2">
                                                               <button
                                                                 onClick={() => openApproveModal(item)}
-                                                                className="p-2 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-all border border-emerald-100 shadow-sm bg-emerald-50/50"
-                                                                title="Duyệt nhanh"
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-all border border-emerald-100 shadow-sm group"
+                                                                title="Phê duyệt yêu cầu"
                                                               >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                                <span className="text-[10px] font-black uppercase tracking-wider">Phê duyệt</span>
                                                               </button>
                                                               <button
                                                                 onClick={() => openRejectModal(item)}
-                                                                className="p-2 text-rose-500 hover:bg-rose-600 hover:text-white rounded-lg transition-all border border-rose-100 shadow-sm bg-rose-50/50"
-                                                                title="Từ chối nhanh"
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-500 hover:bg-rose-600 hover:text-white rounded-lg transition-all border border-rose-100 shadow-sm group"
+                                                                title="Từ chối yêu cầu"
                                                               >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                                <span className="text-[10px] font-black uppercase tracking-wider">Từ chối</span>
                                                               </button>
                                                             </div>
                                                           )}
 
                                                           <button
-                                                            onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
+                                                            onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
                                                             className="group flex items-center gap-2 px-4 py-2 bg-slate-900 text-white hover:bg-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-slate-200 hover:shadow-indigo-200"
                                                           >
                                                             <span>Chi tiết</span>
@@ -2526,64 +2558,124 @@ const Approvals: React.FC = () => {
                                             const itemTypeConfig = getItemTypeConfig(item);
                                             return (
                                               <div key={itemKey} className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm active:scale-[0.98] transition-all">
-                                                <div className="flex justify-between items-start mb-4">
-                                                  <div className="flex items-center gap-3">
-                                                    <div className={`p-2.5 rounded-xl shadow-md ${itemTypeConfig.mobileBg} text-white`}>
+                                                <div className="flex justify-between items-start mb-4 gap-2">
+                                                  <div className="flex items-center gap-3 min-w-0">
+                                                    <div className={`p-2.5 rounded-xl shadow-md ${itemTypeConfig.mobileBg} text-white shrink-0`}>
                                                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={itemTypeConfig.iconPath} /></svg>
                                                     </div>
-                                                    <div>
-                                                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{getRequestTypeLabel(item)}</h4>
-                                                      <p className="text-[10px] font-bold text-slate-400 uppercase">
-                                                        {getDayOfWeek(item.attendance_date || item.registration_date || item.work_date || item.start_date)}, {formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}
-                                                      </p>
+                                                    <div className="flex flex-col min-w-0">
+                                                      <h3 className="text-[14px] font-black text-slate-900 leading-tight mb-0.5 truncate">{item.employee_name}</h3>
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter shrink-0">{item.employee_position || item.position_name || 'NV'}</span>
+                                                        <span className="w-1 h-1 rounded-full bg-slate-200 shrink-0"></span>
+                                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{getRequestTypeLabel(item)}</h4>
+                                                      </div>
                                                     </div>
                                                   </div>
-                                                  {getStatusBadge(item)}
-                                                </div>
-                                                <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                                                  <div className="flex flex-col gap-1 max-w-[70%]">
-                                                    <div className="text-[11px] font-bold text-slate-500 italic line-clamp-1">"{cleanReasonText(item.reason || item.work_plan || '', getRequestTypeLabel(item))}"</div>
-                                                    {item.late_minutes > 0 && (
-                                                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">Đi muộn: {item.late_minutes}m</span>
-                                                    )}
-                                                    {item.early_leave_minutes > 0 && (
-                                                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-tight">Về sớm: {item.early_leave_minutes}m</span>
-                                                    )}
-                                                  </div>
-                                                  <div className="flex flex-col items-end gap-1 shrink-0">
-                                                    {item.penalty_amount > 0 && <span className="text-[11px] font-black text-rose-600">-{item.penalty_amount.toLocaleString('vi-VN')} VNĐ</span>}
-                                                    {item._itemType === 'REGISTRATION' && calculateDuration(item.start_time, item.end_time) && (
-                                                      <span className="text-[11px] font-black text-blue-600">
-                                                        {calculateDuration(item.start_time, item.end_time)}
-                                                      </span>
-                                                    )}
-                                                    {(item.event_type === 'live' || item.registration_type === 'LIVE') && item.sessions != null && (
-                                                      <span className="text-[11px] font-black text-blue-600">{item.sessions} phiên live</span>
-                                                    )}
-                                                    {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && item.forgot_checkin_time && (
-                                                      <span className="text-[11px] font-black text-amber-600">Check-in: {item.forgot_checkin_time}</span>
-                                                    )}
+                                                  <div className="shrink-0 pt-1">
+                                                    {getStatusBadge(item, true)}
                                                   </div>
                                                 </div>
-                                                <div className="mt-4 space-y-3">
-                                                  <div className="flex gap-2">
-                                                    <button onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)} className="flex-1 py-3.5 bg-slate-900 text-white rounded-xl text-[11px] font-black uppercase tracking-wider shadow-lg shadow-slate-200 active:scale-95 transition-all outline-none border-none">Chi tiết</button>
-                                                    {activeTab === 'pending' && canApproveRequest(item) && (
-                                                      <button onClick={() => openApproveModal(item)} className="p-3.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-100 active:scale-95 transition-all outline-none border-none"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg></button>
-                                                    )}
-                                                    {canDeleteRequest(item) && (
-                                                      <button
-                                                        onClick={() => openDeleteModal(item)}
-                                                        className="p-3.5 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-100 active:scale-95 transition-all outline-none border-none"
-                                                        title="Xóa đơn"
-                                                      >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                      </button>
+
+                                                {/* Reason Box - Thiết kế hiện đại & nổi bật */}
+                                                <div className="relative p-4 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden">
+                                                  <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500/20"></div>
+                                                  <div className="flex justify-between items-start gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                      <div className="text-[12px] font-bold text-slate-700 leading-relaxed italic line-clamp-2">
+                                                        "{cleanReasonText(item.reason || item.work_plan || '', getRequestTypeLabel(item))}"
+                                                      </div>
+                                                      <div className="mt-2.5 flex flex-wrap gap-1.5">
+                                                        <span className="px-2 py-0.5 bg-white text-slate-400 text-[9px] font-black rounded-lg border border-slate-100 uppercase tracking-tighter">
+                                                          {getDayOfWeek(item.attendance_date || item.registration_date || item.work_date || item.start_date)}, {formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}
+                                                        </span>
+                                                        {item.late_minutes > 0 && <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-tighter">Muộn {item.late_minutes}m</span>}
+                                                        {item.early_leave_minutes > 0 && <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-[9px] font-black rounded-lg border border-orange-100 uppercase tracking-tighter">Về sớm {item.early_leave_minutes}m</span>}
+                                                      </div>
+                                                    </div>
+                                                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                                      {item.penalty_amount > 0 && (
+                                                        <div className="px-3 py-1 bg-rose-500 text-white rounded-lg shadow-sm">
+                                                          <span className="text-[11px] font-black">-{item.penalty_amount.toLocaleString('vi-VN')}</span>
+                                                        </div>
+                                                      )}
+                                                      {item._itemType === 'REGISTRATION' && calculateDuration(item.start_time, item.end_time) && (
+                                                        <div className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg border border-blue-200">
+                                                          <span className="text-[10px] font-black">{calculateDuration(item.start_time, item.end_time)}</span>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                {/* Mobile Stepper Timeline */}
+                                                <div className="mt-3 px-3 py-2.5 bg-indigo-50/30 rounded-2xl border border-indigo-100/50 flex items-center justify-between">
+                                                  <div className="flex items-center gap-1.5">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
+                                                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Tiến độ</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-2.5">
+                                                    {/* Step 1: QLTT */}
+                                                    <div className="flex items-center gap-1.5">
+                                                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black border-2 transition-all ${
+                                                        item.direct_manager_approved ? 'bg-emerald-500 border-emerald-100 text-white' : 
+                                                        (item.status === 'REJECTED' && !item.direct_manager_approved) ? 'bg-rose-500 border-rose-100 text-white' : 
+                                                        'bg-white border-slate-200 text-slate-400'
+                                                      }`}>
+                                                        {item.direct_manager_approved ? '✓' : '1'}
+                                                      </div>
+                                                      <span className={`text-[9px] font-black uppercase ${item.direct_manager_approved ? 'text-emerald-600' : 'text-slate-400'}`}>QLTT</span>
+                                                    </div>
+
+                                                    <div className="w-3 h-[1px] bg-slate-200"></div>
+
+                                                    {/* Step 2: HR */}
+                                                    {!item.employee_is_hr && (
+                                                      <div className="flex items-center gap-1.5">
+                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black border-2 transition-all ${
+                                                          item.hr_approved ? 'bg-emerald-500 border-emerald-100 text-white' : 
+                                                          (item.status === 'REJECTED' && item.direct_manager_approved) ? 'bg-rose-500 border-rose-100 text-white' : 
+                                                          'bg-white border-slate-200 text-slate-400'
+                                                        }`}>
+                                                          {item.hr_approved ? '✓' : '2'}
+                                                        </div>
+                                                        <span className={`text-[9px] font-black uppercase ${item.hr_approved ? 'text-emerald-600' : 'text-slate-400'}`}>NS</span>
+                                                      </div>
                                                     )}
                                                   </div>
-                                                  <div className="flex items-center justify-center gap-2 py-2 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                                                </div>
+                                                <div className="mt-4 space-y-2">
+                                                  {( (activeTab === 'pending' && canApproveRequest(item)) || canDeleteRequest(item) ) && (
+                                                    <div className="flex gap-2">
+                                                      {activeTab === 'pending' && canApproveRequest(item) && (
+                                                        <>
+                                                          <button onClick={() => openApproveModal(item)} className="flex-[2] py-3.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-100 active:scale-95 transition-all outline-none border-none flex items-center justify-center gap-2" title="Phê duyệt nhanh">
+                                                            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                            <span className="text-[11px] font-black uppercase tracking-wider">Phê duyệt</span>
+                                                          </button>
+                                                          <button onClick={() => openRejectModal(item)} className="flex-[2] py-3.5 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-100 active:scale-95 transition-all outline-none border-none flex items-center justify-center gap-2" title="Từ chối nhanh">
+                                                            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                            <span className="text-[11px] font-black uppercase tracking-wider">Từ chối</span>
+                                                          </button>
+                                                        </>
+                                                      )}
+                                                      {canDeleteRequest(item) && (
+                                                        <button
+                                                          onClick={() => openDeleteModal(item)}
+                                                          className="flex-1 py-3.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl active:scale-95 transition-all outline-none flex items-center justify-center gap-2"
+                                                          title="Xóa đơn"
+                                                        >
+                                                          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                          </svg>
+                                                          <span className="text-[10px] font-black uppercase tracking-tight">Xóa đơn</span>
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                  <button onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)} className="w-full py-3.5 bg-slate-900 text-white rounded-xl text-[11px] font-black uppercase tracking-wider shadow-lg shadow-slate-200 active:scale-95 transition-all outline-none border-none">Chi tiết</button>
+                                                  
+                                                  <div className="flex items-center justify-center gap-2 py-2 bg-slate-50 rounded-xl border border-dashed border-slate-200 mt-3">
                                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
                                                       Gửi lúc: <span className="text-slate-600 font-black">{formatTimeOnly(item.created_at)}</span> • {formatDate(item.created_at)}
                                                     </span>
@@ -2722,7 +2814,7 @@ const Approvals: React.FC = () => {
                             handleViewWfDetails(item);
                             return;
                           }
-                          (item._itemType === 'ONLINE_WORK') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item);
+                          (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item);
                         }}>
                           <td className="px-6 py-5 whitespace-nowrap text-base font-black text-slate-300 border-r border-slate-50">
                             {(index + 1).toString().padStart(2, '0')}
@@ -2836,7 +2928,7 @@ const Approvals: React.FC = () => {
                           handleViewWfDetails(item);
                           return;
                         }
-                        (item._itemType === 'ONLINE_WORK') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item);
+                        (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item);
                       }}
                       className="p-5 bg-white active:bg-slate-50 transition-all border-b border-slate-50"
                     >
@@ -3441,7 +3533,7 @@ const Approvals: React.FC = () => {
                               </span>
                             </div>
                             {/* Giờ bắt đầu / Giờ kết thúc / Tổng thời gian — luôn hiện cho REGISTRATION */}
-                            {selectedOnlineWorkRequest._itemType === 'REGISTRATION' && (
+                            {(selectedOnlineWorkRequest._itemType === 'REGISTRATION' || selectedOnlineWorkRequest._itemType === 'OVERTIME') && (
                               <>
                                 <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
                                   <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Giờ bắt đầu</span>
