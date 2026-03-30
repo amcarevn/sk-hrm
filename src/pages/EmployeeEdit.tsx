@@ -54,8 +54,8 @@ const CONTRACT_TYPE_OPTIONS = [
   { label: 'Hợp đồng thử việc', value: 'PROBATION' },
   { label: 'Hợp đồng thực tập sinh', value: 'INTERN' },
   { label: 'Hợp đồng cộng tác viên', value: 'COLLABORATOR' },
-  { label: 'Hợp đồng lao động 1 năm', value: 'ONE_YEAR' },
-  { label: 'Hợp đồng lao động 3 năm', value: 'THREE_YEAR' },
+  { label: 'Hợp đồng lao động 12 tháng', value: 'ONE_YEAR' },
+  { label: 'Hợp đồng lao động 24 tháng', value: 'TWO_YEAR' },
   { label: 'Hợp đồng vô thời hạn', value: 'INDEFINITE' },
   { label: 'Hợp đồng dịch vụ', value: 'SERVICE' },
 ];
