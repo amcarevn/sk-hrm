@@ -69,17 +69,30 @@ const SUB_DEPARTMENT_OPTIONS = [
 ];
 
 const SECTION_OPTIONS = [
-  'ADS',
-  'Bệnh viện Hà Thành', 'Bệnh viện 30/4', 'Bệnh viện An Việt', 'Bệnh viện Hồng Hà', 'Bệnh Viện Tân Hưng',
-  'Bệnh viện Sao Hàn', 'Bệnh viện Vạn Hạnh',
-  'Check page', 'Xây Group', 'Tiktok',
-  'Giám sát chất lượng', 'Giám sát nội bộ',
-  'Media', 'Nội dung 01',
-  'Phòng HCNS', 'Phòng kế toán', 'Phòng TTTH',
-  'Kinh doanh - VP miền Bắc', 'Kinh doanh - VP miền Nam',
-  'Pháp chế',
-  'Mua hàng',
-  'Bộ phận IT', 'Bộ phận AI',
+  { value: 'ADS', label: 'ADS' },
+  { value: 'BENH_VIEN_HA_THANH', label: 'Bệnh viện Hà Thành' },
+  { value: 'BENH_VIEN_30_4', label: 'Bệnh viện 30/4' },
+  { value: 'BENH_VIEN_AN_VIET', label: 'Bệnh viện An Việt' },
+  { value: 'BENH_VIEN_HONG_HA', label: 'Bệnh viện Hồng Hà' },
+  { value: 'BENH_VIEN_TAN_HUNG', label: 'Bệnh Viện Tân Hưng' },
+  { value: 'BENH_VIEN_SAO_HAN', label: 'Bệnh viện Sao Hàn' },
+  { value: 'BENH_VIEN_VAN_HANH', label: 'Bệnh viện Vạn Hạnh' },
+  { value: 'CHECK_PAGE', label: 'Check page' },
+  { value: 'XAY_GROUP', label: 'Xây Group' },
+  { value: 'TIKTOK', label: 'Tiktok' },
+  { value: 'GIAM_SAT_CHAT_LUONG', label: 'Giám sát chất lượng' },
+  { value: 'GIAM_SAT_NOI_BO', label: 'Giám sát nội bộ' },
+  { value: 'MEDIA', label: 'Media' },
+  { value: 'NOI_DUNG_01', label: 'Nội dung 01' },
+  { value: 'PHONG_HCNS', label: 'Phòng HCNS' },
+  { value: 'PHONG_KE_TOAN', label: 'Phòng kế toán' },
+  { value: 'PHONG_TTTH', label: 'Phòng TTTH' },
+  { value: 'KINH_DOANH_VP_MIEN_BAC', label: 'Kinh doanh - VP miền Bắc' },
+  { value: 'KINH_DOANH_VP_MIEN_NAM', label: 'Kinh doanh - VP miền Nam' },
+  { value: 'PHAP_CHE', label: 'Pháp chế' },
+  { value: 'MUA_HANG', label: 'Mua hàng' },
+  { value: 'BO_PHAN_IT', label: 'Bộ phận IT' },
+  { value: 'BO_PHAN_AI', label: 'Bộ phận AI' },
 ];
 
 const POSITION_OPTIONS = [
@@ -122,6 +135,12 @@ const CITIZEN_ID_ISSUE_PLACE_OPTIONS = [
 ];
 const STEP_ICONS = [Person, Apartment, Description, Home, Contacts, AttachMoney];
 const STEP_LABELS = ['Cơ bản', 'Công việc', 'CCCD', 'Địa chỉ', 'Liên hệ', 'Lương'];
+
+/** Khớp ALLOWED_IMAGE_TYPES trên backend (beautycare/settings.py) */
+const VNEID_ALLOWED_MIME = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif',
+]);
+const VNEID_MAX_BYTES = 10 * 1024 * 1024;
 
 // ============================================
 // TYPES
@@ -297,6 +316,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; msg: string } | null>(null);
   const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
+  const [vneidScreenshotFile, setVneidScreenshotFile] = useState<File | null>(null);
   const [workType, setWorkType] = useState('');
 
   const [values, setValues] = useState<FormValues>({
@@ -382,6 +402,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
     if (step === 3) {
       if (!values.citizen_id.trim()) { showToast('error', 'Vui lòng nhập số CCCD'); return false; }
       if (!citizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return false; }
+      if (!vneidScreenshotFile) { showToast('error', 'Vui lòng upload ảnh chụp màn hình thông tin VNeID'); return false; }
       if (!values.citizen_id_issue_date) { showToast('error', 'Vui lòng chọn ngày cấp CCCD'); return false; }
       if (!values.citizen_id_issue_place.trim()) { showToast('error', 'Vui lòng nhập nơi cấp CCCD'); return false; }
     }
@@ -420,12 +441,33 @@ export const EmployeeOnboardingForm: React.FC = () => {
     setCitizenIdFile(file);
   };
 
+  const handleVneidScreenshotChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const mime = (file.type || '').toLowerCase();
+    const okMime = !mime || VNEID_ALLOWED_MIME.has(mime);
+    const ext = file.name.toLowerCase().split('.').pop() || '';
+    const okExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'].includes(ext);
+    if (!okMime && !okExt) {
+      showToast('error', 'Ảnh VNeID: chỉ chấp nhận JPG, PNG, GIF, WEBP, HEIC/HEIF');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > VNEID_MAX_BYTES) {
+      showToast('error', 'Ảnh VNeID không được vượt quá 10MB');
+      e.target.value = '';
+      return;
+    }
+    setVneidScreenshotFile(file);
+  };
+
   // ===== SUBMIT =====
   const handleSubmit = async () => {
     for (let step = 1; step <= 5; step++) {
       if (!validateStep(step)) return;
     }
     if (!citizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return; }
+    if (!vneidScreenshotFile) { showToast('error', 'Vui lòng upload ảnh chụp màn hình thông tin VNeID'); return; }
     setSubmitting(true);
     try {
       const payload = new FormData();
@@ -456,6 +498,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('work_location', values.work_location);
       ap('citizen_id', values.citizen_id);
       if (citizenIdFile) payload.append('citizen_id_file', citizenIdFile);
+      if (vneidScreenshotFile) payload.append('vneid_screenshot', vneidScreenshotFile);
       ap('citizen_id_issue_date', values.citizen_id_issue_date);
       ap('citizen_id_issue_place', values.citizen_id_issue_place);
       ap('old_id_number', values.old_id_number);
@@ -666,6 +709,34 @@ export const EmployeeOnboardingForm: React.FC = () => {
             </label>
           </div>
 
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-1">
+              Ảnh chụp màn hình thông tin VNeID <span className="text-red-500">*</span>
+            </p>
+            <p className="text-xs text-gray-500 mb-2">
+              Đăng nhập VNEID mức 2 - Ví giấy tờ - Căn cước điện tử - Chụp màn hình chứa các thông tin nơi đăng ký khai sinh, nơi thường trú, tạm trú, ....
+            </p>
+            <label
+              className={`flex items-center gap-3 w-full border-2 border-dashed rounded-lg px-4 py-3 cursor-pointer transition-colors
+              ${vneidScreenshotFile ? 'border-green-400 bg-green-50' : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'}`}
+            >
+              <span className="text-2xl">{vneidScreenshotFile ? '✅' : '🖼️'}</span>
+              <div className="flex-1 min-w-0">
+                {vneidScreenshotFile ? (
+                  <p className="text-sm text-green-700 font-medium truncate">{vneidScreenshotFile.name}</p>
+                ) : (
+                  <p className="text-sm text-gray-500">Nhấn để chọn ảnh (JPG, PNG, WEBP, HEIC...)</p>
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,.heic,.heif"
+                onChange={handleVneidScreenshotChange}
+                className="hidden"
+              />
+            </label>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <TF label="Ngày cấp" value={values.citizen_id_issue_date}
               onChange={handleChange('citizen_id_issue_date')} type="date" required />
@@ -830,6 +901,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
                 ['Cấp bậc', values.job_rank],
                 ['CCCD', values.citizen_id],
                 ['File CCCD', citizenIdFile ? `✓ ${citizenIdFile.name}` : null],
+                ['Ảnh VNeID', vneidScreenshotFile ? `✓ ${vneidScreenshotFile.name}` : null],
                 ['Lương', values.salary ? `${parseInt(values.salary).toLocaleString()} VNĐ` : null],
                 ['Phụ cấp', values.allowance ? `${parseInt(values.allowance).toLocaleString()} VNĐ` : null],
               ].map(([label, val]) => (

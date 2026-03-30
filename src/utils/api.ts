@@ -1689,7 +1689,7 @@ export interface Employee {
   personal_email?: string;
   bank_name?: string;
   bank_account?: string;
-  employment_status: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | 'PROBATION';
+  employment_status: 'ACTIVE' | 'PAUSED' | 'INACTIVE' | 'PROBATION';
   start_date?: string;
   end_date?: string;
   position?: {
