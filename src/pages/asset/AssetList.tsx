@@ -14,47 +14,10 @@ import {
   CurrencyDollarIcon,
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
-
-interface Asset {
-  id: number;
-  asset_code: string;
-  name: string;
-  asset_type: string;
-  asset_type_display: string;
-  brand: string;
-  model: string;
-  status: string;
-  status_display: string;
-  condition: string;
-  condition_display: string;
-  department_name?: string;
-  assigned_to_name?: string;
-  assigned_date?: string;
-  purchase_date?: string;
-  purchase_price: number;
-  warranty_expiry?: string;
-}
-
-interface AssetStats {
-  total: number;
-  in_use: number;
-  idle: number;
-  under_maintenance: number;
-  damaged: number;
-  retired: number;
-  total_value: number;
-  expired_warranty: number;
-  type_stats: Array<{
-    asset_type: string;
-    asset_type_display: string;
-    count: number;
-  }>;
-  department_stats: Array<{
-    department_id: number;
-    department_name: string;
-    count: number;
-  }>;
-}
+import AssetCreateModal from './AssetCreateModal';
+import AssetEditModal from './AssetEditModal';
+import AssetDetailModal from './AssetDetailModal';
+import { Asset, AssetStats } from '../../utils/api';
 
 export default function AssetList() {
   const { user } = useAuth();
@@ -65,6 +28,12 @@ export default function AssetList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+
 
   useEffect(() => {
     fetchAssets();
@@ -74,7 +43,7 @@ export default function AssetList() {
   const fetchAssets = async () => {
     try {
       setLoading(true);
-      const data = await assetsAPI.list();
+      const data = await assetsAPI.list({});
       setAssets(data.results || []);
       setError(null);
     } catch (err: any) {
@@ -109,6 +78,8 @@ export default function AssetList() {
     }
   };
 
+
+
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = 
       asset.asset_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -133,6 +104,16 @@ export default function AssetList() {
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('vi-VN');
+  };
+
+  const handleEditClick = (asset: Asset) => {
+    setEditingAsset(asset);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDetailClick = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setIsDetailModalOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -193,19 +174,19 @@ export default function AssetList() {
           </p>
         </div>
         <div className="mt-4 sm:mt-0">
-          <Link
-            to="/dashboard/assets/create"
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
           >
             <PlusIcon className="h-5 w-5 mr-2" />
             Thêm tài sản mới
-          </Link>
+          </button>
         </div>
       </div>
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -226,20 +207,6 @@ export default function AssetList() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Đang sử dụng</p>
                 <p className="text-2xl font-semibold text-gray-900">{stats.in_use}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CurrencyDollarIcon className="h-8 w-8 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Tổng giá trị</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {formatCurrency(stats.total_value)}
-                </p>
               </div>
             </div>
           </div>
@@ -334,6 +301,8 @@ export default function AssetList() {
         </div>
       )}
 
+
+
       {/* Assets Table */}
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
         <div className="overflow-x-auto">
@@ -341,19 +310,25 @@ export default function AssetList() {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Mã tài sản
+                  Mã TS
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tên & Thông số
+                  Tên tài sản
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trạng thái
+                  Model
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tình trạng
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Người sử dụng
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Thông tin mua
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Nhà cung cấp
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Thao tác
@@ -363,14 +338,19 @@ export default function AssetList() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredAssets.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <ComputerDesktopIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">Không có tài sản nào</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
-                        ? 'Không tìm thấy tài sản phù hợp với bộ lọc.'
-                        : 'Bắt đầu bằng cách thêm tài sản mới.'}
-                    </p>
+                  <td colSpan={8} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center">
+                      <ComputerDesktopIcon className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">
+                        Không có tài sản nào
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
+                          ? 'Không tìm thấy tài sản phù hợp với bộ lọc.'
+                          : 'Bắt đầu bằng cách thêm tài sản mới.'
+                        }
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -382,23 +362,16 @@ export default function AssetList() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-900">{asset.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {asset.brand} {asset.model}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900 font-medium">
+                        {asset.model || '-'}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getConditionColor(asset.condition)}`}>
                         {asset.condition_display}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(asset.status)}`}>
-                        {asset.status_display}
-                      </span>
-                      {asset.assigned_date && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          <CalendarIcon className="inline h-3 w-3 mr-1" />
-                          {formatDate(asset.assigned_date)}
-                        </div>
-                      )}
                     </td>
                     <td className="px-6 py-4">
                       {asset.assigned_to_name ? (
@@ -414,31 +387,32 @@ export default function AssetList() {
                       <div className="text-sm font-medium text-gray-900">
                         {formatDate(asset.purchase_date)}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {formatCurrency(asset.purchase_price)}
-                      </div>
                       {asset.warranty_expiry && (
                         <div className="text-xs text-gray-500 mt-1">
                           BH: {formatDate(asset.warranty_expiry)}
                         </div>
                       )}
                     </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={asset.supplier || ''}>
+                      {asset.supplier || '-'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex space-x-2">
-                        <Link
-                          to={`/dashboard/assets/${asset.id}`}
-                          className="text-primary-600 hover:text-primary-900"
+                        <button
+                          onClick={() => handleDetailClick(asset)}
+                          className="text-primary-600 hover:text-primary-900 transition-colors"
                           title="Xem chi tiết"
                         >
                           <EyeIcon className="h-5 w-5" />
-                        </Link>
-                        <Link
-                          to={`/dashboard/assets/${asset.id}/edit`}
+                        </button>
+                        
+                        <button
+                          onClick={() => handleEditClick(asset)}
                           className="text-blue-600 hover:text-blue-900"
                           title="Chỉnh sửa"
                         >
                           <PencilIcon className="h-5 w-5" />
-                        </Link>
+                        </button>
                         <button
                           onClick={() => handleDelete(asset.id)}
                           className="text-red-600 hover:text-red-900"
@@ -455,6 +429,36 @@ export default function AssetList() {
           </table>
         </div>
       </div>
+      <AssetCreateModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={() => {
+          fetchAssets();
+          fetchStats();
+        }}
+      />
+
+      <AssetEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingAsset(null);
+        }}
+        onSuccess={() => {
+          fetchAssets();
+          fetchStats();
+        }}
+        asset={editingAsset}
+      />
+
+      <AssetDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedAsset(null);
+        }}
+        asset={selectedAsset}
+      />
     </div>
   );
 }
