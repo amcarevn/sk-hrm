@@ -65,6 +65,8 @@ const ShiftConfiguration: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
+  const [positionSearchQuery, setPositionSearchQuery] = useState('');
+  const [departmentSearchQuery, setDepartmentSearchQuery] = useState('');
   // FIX: Modal is now an overlay — state kept separately, not used to swap views
   const [showEmployeeShiftsModal, setShowEmployeeShiftsModal] = useState(false);
   const [selectedEmployeeForShifts, setSelectedEmployeeForShifts] = useState<EmployeeShiftInfo | null>(null);
@@ -189,8 +191,8 @@ const ShiftConfiguration: React.FC = () => {
 
       const response = await companyConfigAPI.assignShiftConfig(selectedShift.id, {
         employee_ids: allEmployeeIds,
-        position_ids: selectedItems.positions,
-        department_ids: selectedItems.departments,
+        ...(selectedItems.positions.length > 0 && { position_ids: selectedItems.positions }),
+        ...(selectedItems.departments.length > 0 && { department_ids: selectedItems.departments }),
       });
 
       setSuccessMessage(response.message || 'Cấu hình ca làm thành công!');
@@ -217,6 +219,8 @@ const ShiftConfiguration: React.FC = () => {
     setAssignOptions(null);
     setSelectedItems({ employees: [], positions: [], departments: [] });
     setEmployeeSearchQuery('');
+    setPositionSearchQuery('');
+    setDepartmentSearchQuery('');
     setError(null);
     setSuccessMessage(null);
   };
@@ -306,14 +310,51 @@ const ShiftConfiguration: React.FC = () => {
     }
   };
 
-  const filteredEmployees = assignOptions
-    ? assignOptions.available_options.employees.filter((employee: any) => {
-        const query = employeeSearchQuery.toLowerCase();
-        const fullName = employee.full_name?.toLowerCase() || '';
-        const employeeCode = employee.employee_id?.toLowerCase() || '';
-        return fullName.includes(query) || employeeCode.includes(query);
-      })
-    : [];
+const filteredEmployees = assignOptions
+  ? (() => {
+      const query = employeeSearchQuery.trim().toLowerCase();
+      const unique = assignOptions.available_options.employees.filter(
+        (item: any, index: number, self: any[]) =>
+          index === self.findIndex((x: any) => x.id === item.id)
+      );
+      if (!query) return unique;
+      return unique.filter((employee: any) =>
+        (employee.full_name?.toLowerCase() || '').includes(query) ||
+        (employee.employee_id?.toLowerCase() || '').includes(query)
+      );
+    })()
+  : [];
+
+const filteredPositions = assignOptions
+  ? (() => {
+      const query = positionSearchQuery.trim().toLowerCase();
+      const unique = assignOptions.available_options.positions.filter(
+        (item: any, index: number, self: any[]) =>
+          index === self.findIndex((x: any) => x.id === item.id)
+      );
+      if (!query) return unique;
+      return unique.filter((position: any) =>
+        (position.title?.toLowerCase() || '').includes(query) ||
+        (position.name?.toLowerCase() || '').includes(query) ||   // fallback nếu API dùng 'name'
+        (position.code?.toLowerCase() || '').includes(query)
+      );
+    })()
+  : [];
+
+const filteredDepartments = assignOptions
+  ? (() => {
+      const query = departmentSearchQuery.trim().toLowerCase();
+      const unique = assignOptions.available_options.departments.filter(
+        (item: any, index: number, self: any[]) =>
+          index === self.findIndex((x: any) => x.id === item.id)
+      );
+      if (!query) return unique;
+      return unique.filter((department: any) =>
+        (department.name?.toLowerCase() || '').includes(query) ||
+        (department.code?.toLowerCase() || '').includes(query)
+      );
+    })()
+  : [];
 
   // ─── VIEW 1: List of Shifts ───────────────────────────────────────────────
   if (!selectedShift || !assignOptions) {
@@ -616,7 +657,12 @@ const ShiftConfiguration: React.FC = () => {
                 {(['employees', 'positions', 'departments'] as AssignmentTab[]).map((tab) => (
                   <button
                     key={tab}
-                    onClick={() => setAssignmentTab(tab)}
+                    onClick={() => {
+                      setAssignmentTab(tab);
+                      setEmployeeSearchQuery('');
+                      setPositionSearchQuery('');
+                      setDepartmentSearchQuery('');
+                    }}
                     className={`py-4 px-1 border-b-2 font-medium text-sm ${
                       assignmentTab === tab
                         ? 'border-blue-500 text-blue-600'
@@ -639,7 +685,7 @@ const ShiftConfiguration: React.FC = () => {
             {/* Content Area */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Available Items */}
-              <div>
+              <div key={`available-${assignmentTab}`}>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   {assignmentTab === 'employees' && 'Danh sách nhân viên'}
                   {assignmentTab === 'positions' && 'Danh sách vị trí'}
@@ -650,10 +696,39 @@ const ShiftConfiguration: React.FC = () => {
                   <div className="mb-4 relative">
                     <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                     <input
+                      key={`employee-search-${assignmentTab}`}
                       type="text"
                       placeholder="Tìm kiếm theo mã nhân viên hoặc tên..."
                       value={employeeSearchQuery}
                       onChange={(e) => setEmployeeSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                )}
+
+                {assignmentTab === 'positions' && (
+                  <div className="mb-4 relative">
+                    <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                    <input
+                      key={`position-search-${assignmentTab}`}
+                      type="text"
+                      placeholder="Tìm kiếm theo mã vị trí hoặc tên..."
+                      value={positionSearchQuery}
+                      onChange={(e) => setPositionSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                )}
+
+                {assignmentTab === 'departments' && (
+                  <div className="mb-4 relative">
+                    <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                    <input
+                      key={`department-search-${assignmentTab}`}
+                      type="text"
+                      placeholder="Tìm kiếm theo mã phòng ban hoặc tên..."
+                      value={departmentSearchQuery}
+                      onChange={(e) => setDepartmentSearchQuery(e.target.value)}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -667,10 +742,12 @@ const ShiftConfiguration: React.FC = () => {
                   </div>
                 )}
 
-                <div className="bg-white rounded-lg border border-gray-200">
+                <div key={`list-${assignmentTab}`} className="bg-white rounded-lg border border-gray-200">
                   {(assignmentTab === 'employees'
                     ? filteredEmployees
-                    : assignOptions.available_options[assignmentTab]
+                    : assignmentTab === 'positions'
+                    ? filteredPositions
+                    : filteredDepartments
                   ).length === 0 ? (
                     <div className="p-8 text-center">
                       <InformationCircleIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -688,10 +765,12 @@ const ShiftConfiguration: React.FC = () => {
                     <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
                       {(assignmentTab === 'employees'
                         ? filteredEmployees
-                        : assignOptions.available_options[assignmentTab]
+                        : assignmentTab === 'positions'
+                        ? filteredPositions
+                        : filteredDepartments
                       ).map((item: any) => (
                         <div
-                          key={item.id}
+                          key={`${assignmentTab}-${item.id}`}
                           className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
                         >
                           <label className="flex items-center flex-1 cursor-pointer">
@@ -703,15 +782,27 @@ const ShiftConfiguration: React.FC = () => {
                             />
                             <div className="ml-3 flex-1">
                               <p className="text-sm font-medium text-gray-900">
-                                {item.full_name || item.title || item.name}
+                                {assignmentTab === 'employees' && (item.full_name || 'N/A')}
+                                {assignmentTab === 'positions' && (item.title || item.name || 'N/A')}
+                                {assignmentTab === 'departments' && (item.name || 'N/A')}
                               </p>
-                              {item.employee_id && (
+                              {assignmentTab === 'employees' && item.employee_id && (
                                 <p className="text-xs text-gray-600 font-mono">{item.employee_id}</p>
                               )}
-                              {item.code && (
+                              {assignmentTab === 'positions' && item.code && (
                                 <p className="text-xs text-gray-600">{item.code}</p>
                               )}
-                              {item.department__name && (
+                              {assignmentTab === 'positions' && item.department && (
+                                <p className="text-xs text-gray-600">
+                                  {Array.isArray(item.department)
+                                    ? item.department.map((d: any) => d.name).join(', ')
+                                    : item.department.name}
+                                </p>
+                              )}
+                              {assignmentTab === 'departments' && item.code && (
+                                <p className="text-xs text-gray-600">{item.code}</p>
+                              )}
+                              {assignmentTab === 'employees' && item.department__name && (
                                 <p className="text-xs text-gray-600">{item.department__name}</p>
                               )}
                             </div>
@@ -734,7 +825,7 @@ const ShiftConfiguration: React.FC = () => {
               </div>
 
               {/* Selected Items */}
-              <div>
+              <div key={`selected-${assignmentTab}`}>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   {assignmentTab === 'employees' && 'Nhân viên được chọn'}
                   {assignmentTab === 'positions' && 'Vị trí được chọn'}
@@ -761,15 +852,30 @@ const ShiftConfiguration: React.FC = () => {
                         .filter(Boolean)
                         .map((item: any) => (
                           <div
-                            key={item.id}
+                            key={`${assignmentTab}-${item.id}`}
                             className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
                           >
                             <div>
                               <p className="text-sm font-medium text-gray-900">
-                                {item.full_name || item.title || item.name}
+                                {assignmentTab === 'employees' && (item.full_name || 'N/A')}
+                                {assignmentTab === 'positions' && (item.title || item.name || 'N/A')}
+                                {assignmentTab === 'departments' && (item.name || 'N/A')}
                               </p>
-                              {item.employee_id && (
+                              {assignmentTab === 'employees' && item.employee_id && (
                                 <p className="text-xs text-gray-600">{item.employee_id}</p>
+                              )}
+                              {assignmentTab === 'positions' && item.code && (
+                                <p className="text-xs text-gray-600">{item.code}</p>
+                              )}
+                              {assignmentTab === 'positions' && item.department && (
+                                <p className="text-xs text-gray-600">
+                                  {Array.isArray(item.department)
+                                    ? item.department.map((d: any) => d.name).join(', ')
+                                    : item.department.name}
+                                </p>
+                              )}
+                              {assignmentTab === 'departments' && item.code && (
+                                <p className="text-xs text-gray-600">{item.code}</p>
                               )}
                             </div>
                             <div className="flex items-center space-x-2">
