@@ -58,6 +58,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         (isManager && (currentPath === '/dashboard/onboarding' || currentPath.startsWith('/dashboard/onboarding/'))) ||
         (employeePermission?.can_manage_departments && (currentPath === '/dashboard/departments' || currentPath.startsWith('/dashboard/departments/'))) ||
         (employeePermission?.can_manage_positions && (currentPath === '/dashboard/positions' || currentPath.startsWith('/dashboard/positions/'))) ||
+        currentPath === '/dashboard/assigned-assets' ||
         currentPath === '/dashboard/ai';
       
       if (!isAllowedForStaff) {
@@ -78,6 +79,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         currentPath === '/dashboard/approvals' ||
         currentPath === '/dashboard/onboarding' ||  
         currentPath.startsWith('/dashboard/onboarding/') ||
+        currentPath === '/dashboard/assigned-assets' ||
         currentPath === '/dashboard/ai';
 
       if (!isAllowedForCustomer) {

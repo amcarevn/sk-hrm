@@ -2196,8 +2196,11 @@ export interface Asset {
   condition_display: string;
   department?: number;
   department_name?: string;
+  managed_by?: number;
+  managed_by_name?: string;
   assigned_to?: number;
   assigned_to_name?: string;
+  assigned_to_department_name?: string;
   assigned_date?: string;
   purchase_date?: string;
   purchase_price: number;
@@ -2206,7 +2209,14 @@ export interface Asset {
   supplier?: string;
   location?: string;
   description?: string;
-  specifications?: any;
+  specifications?: {
+    cpu?: string;
+    ram?: string;
+    vga?: string;
+    storage?: string;
+    mainboard?: string;
+    power_supply?: string;
+  };
   warranty_period?: number;
   created_at: string;
   updated_at: string;
@@ -2350,6 +2360,11 @@ export const assetsAPI = {
     notes?: string;
   }): Promise<Asset> => {
     const response: AxiosResponse<Asset> = await managementApi.post(`/api-hrm/assets/${id}/return_asset/`, data);
+    return response.data;
+  },
+
+  assignedAssets: async (): Promise<Asset[]> => {
+    const response: AxiosResponse<Asset[]> = await managementApi.get('/api-hrm/assets/assigned_assets/');
     return response.data;
   },
 

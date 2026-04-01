@@ -58,6 +58,7 @@ import Onboarding from './pages/Onboarding';
 import OnboardingDetail from './pages/OnboardingDetail';
 import Offboarding from './pages/Offboarding';
 import AssetList from './pages/asset/AssetList';
+import AssignedAssetList from './pages/asset/AssignedAssetList';
 import OrganizationChart from './pages/OrganizationChart';
 import Profile from './pages/Profile';
 import CompanyConfigList from './pages/CompanyConfigList';
@@ -610,6 +611,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AssetList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* My Assets Route (End-User) */}
+          <Route
+            path="/dashboard/assigned-assets"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AssignedAssetList />
                 </Layout>
               </ProtectedRoute>
             }

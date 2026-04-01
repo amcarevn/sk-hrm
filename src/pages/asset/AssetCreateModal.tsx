@@ -46,7 +46,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     warranty_period: '12',
     supplier: '',
     department: '',
-    assigned_to: '',
+    managed_by: '',
     description: '',
     // Desktop specific fields
     cpu: '',
@@ -159,9 +159,10 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       
       const payload = {
         ...baseData,
-        warranty_period: parseInt(formData.warranty_period),
+        purchase_date: formData.purchase_date || null,
+        warranty_period: parseInt(formData.warranty_period) || 0,
         department: formData.department ? parseInt(formData.department) : null,
-        assigned_to: formData.assigned_to ? parseInt(formData.assigned_to) : null,
+        managed_by: formData.managed_by ? parseInt(formData.managed_by) : null,
         specifications: formData.asset_type === 'DESKTOP' ? {
           cpu,
           mainboard,
@@ -199,7 +200,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         storage: '',
         vga: '',
         power_supply: '',
-        assigned_to: '',
+        managed_by: '',
       });
     } catch (error) {
       console.error('Error creating asset:', error);
@@ -455,15 +456,6 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                           />
                         </div>
 
-                        {/* Người sử dụng/quản lý */}
-                        <SelectBox
-                          label="Người sử dụng/quản lý"
-                          value={formData.assigned_to}
-                          options={employees}
-                          onChange={(val) => handleSelectChange('assigned_to', val)}
-                          placeholder="-- Chọn nhân viên --"
-                        />
-
                         {/* Phòng ban quản lý */}
                         <SelectBox
                           label="Phòng ban quản lý"
@@ -472,6 +464,17 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                           onChange={(val) => handleSelectChange('department', val)}
                           placeholder="-- Chọn phòng ban --"
                         />
+
+                        {/* Người quản lý (Kho) */}
+                        {formData.department && (
+                          <SelectBox
+                            label="Người quản lý (Kho)"
+                            value={formData.managed_by}
+                            options={employees}
+                            onChange={(val) => handleSelectChange('managed_by', val)}
+                            placeholder="-- Chọn người quản lý kho --"
+                          />
+                        )}
 
                         {/* Mô tả / Ghi chú */}
                         <div className="sm:col-span-2">

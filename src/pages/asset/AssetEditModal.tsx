@@ -40,13 +40,14 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
   const [employees, setEmployees] = useState<SelectOption<string>[]>([]);
   const [formData, setFormData] = useState({
     name: '',
+    asset_type: 'LAPTOP',
     model: '',
     condition: 'EXCELLENT',
     purchase_date: '',
     warranty_period: '12',
     supplier: '',
     department: '',
-    assigned_to: '',
+    managed_by: '',
     description: '',
     // Desktop specific fields
     cpu: '',
@@ -62,26 +63,57 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
    */
   useEffect(() => {
     if (isOpen && asset) {
-      const specs = asset.specifications || {};
-      setFormData({
-        name: asset.name || '',
-        asset_type: asset.asset_type || 'LAPTOP',
-        model: asset.model || '',
-        condition: asset.condition || 'EXCELLENT',
-        purchase_date: asset.purchase_date || '',
-        warranty_period: String(asset.warranty_period || '12'),
-        supplier: asset.supplier || '',
-        department: asset.department ? String(asset.department) : '',
-        assigned_to: asset.assigned_to ? String(asset.assigned_to) : '',
-        description: asset.description || '',
-        // Desktop specific fields từ JSON specifications
-        cpu: specs.cpu || '',
-        mainboard: specs.mainboard || '',
-        ram: specs.ram || '',
-        storage: specs.storage || '',
-        vga: specs.vga || '',
-        power_supply: specs.power_supply || '',
-      });
+      setLoading(true);
+      assetsAPI.getById(asset.id)
+        .then((fullAsset) => {
+          const specs = fullAsset.specifications || {};
+          setFormData({
+            name: fullAsset.name || '',
+            asset_type: fullAsset.asset_type || 'LAPTOP',
+            model: fullAsset.model || '',
+            condition: fullAsset.condition || 'EXCELLENT',
+            purchase_date: fullAsset.purchase_date || '',
+            warranty_period: String(fullAsset.warranty_period || '12'),
+            supplier: fullAsset.supplier || '',
+            department: fullAsset.department ? String(fullAsset.department) : '',
+            managed_by: fullAsset.managed_by ? String(fullAsset.managed_by) : '',
+            description: fullAsset.description || '',
+            // Desktop specific fields từ JSON specifications
+            cpu: specs.cpu || '',
+            mainboard: specs.mainboard || '',
+            ram: specs.ram || '',
+            storage: specs.storage || '',
+            vga: specs.vga || '',
+            power_supply: specs.power_supply || '',
+          });
+        })
+        .catch((error) => {
+          console.error('Error fetching asset details:', error);
+          // Fallback to list item data
+          const specs = asset.specifications || {};
+          setFormData({
+            name: asset.name || '',
+            asset_type: asset.asset_type || 'LAPTOP',
+            model: asset.model || '',
+            condition: asset.condition || 'EXCELLENT',
+            purchase_date: asset.purchase_date || '',
+            warranty_period: String(asset.warranty_period || '12'),
+            supplier: asset.supplier || '',
+            department: '',
+            managed_by: '',
+            description: asset.description || '',
+            cpu: specs.cpu || '',
+            mainboard: specs.mainboard || '',
+            ram: specs.ram || '',
+            storage: specs.storage || '',
+            vga: specs.vga || '',
+            power_supply: specs.power_supply || '',
+          });
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+      
       fetchDepartments();
     }
   }, [isOpen, asset]);
@@ -160,9 +192,10 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       
       const payload = {
         ...baseData,
-        warranty_period: parseInt(formData.warranty_period),
+        purchase_date: formData.purchase_date || null,
+        warranty_period: parseInt(formData.warranty_period) || 0,
         department: formData.department ? parseInt(formData.department) : null,
-        assigned_to: formData.assigned_to ? parseInt(formData.assigned_to) : null,
+        managed_by: formData.managed_by ? parseInt(formData.managed_by) : null,
         specifications: formData.asset_type === 'DESKTOP' ? {
           cpu,
           mainboard,
@@ -335,11 +368,13 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           <input type="number" name="warranty_period" id="warranty_period" value={formData.warranty_period} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
                         </div>
 
-                        {/* Người sử dụng/quản lý */}
-                        <SelectBox label="Người sử dụng/quản lý" value={formData.assigned_to} options={employees} onChange={(val) => handleSelectChange('assigned_to', val)} placeholder="-- Chọn nhân viên --" />
-
                         {/* Phòng ban quản lý */}
                         <SelectBox label="Phòng ban quản lý" value={formData.department} options={departments} onChange={(val) => handleSelectChange('department', val)} placeholder="-- Chọn phòng ban --" />
+
+                        {/* Người quản lý (Kho) */}
+                        {formData.department && (
+                          <SelectBox label="Người quản lý (Kho)" value={formData.managed_by} options={employees} onChange={(val) => handleSelectChange('managed_by', val)} placeholder="-- Chọn người quản lý --" />
+                        )}
 
                         {/* Mô tả / Ghi chú */}
                         <div className="sm:col-span-2">

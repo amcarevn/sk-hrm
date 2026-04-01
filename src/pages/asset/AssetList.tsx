@@ -13,10 +13,14 @@ import {
   CalendarIcon,
   CurrencyDollarIcon,
   ShieldCheckIcon,
+  UserPlusIcon,
+  ArrowPathRoundedSquareIcon,
 } from '@heroicons/react/24/outline';
 import AssetCreateModal from './AssetCreateModal';
 import AssetEditModal from './AssetEditModal';
 import AssetDetailModal from './AssetDetailModal';
+import AssetAssignModal from './AssetAssignModal';
+import AssetReturnModal from './AssetReturnModal';
 import { Asset, AssetStats } from '../../utils/api';
 
 export default function AssetList() {
@@ -31,8 +35,12 @@ export default function AssetList() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [assetToDelete, setAssetToDelete] = useState<number | null>(null);
 
 
   useEffect(() => {
@@ -63,15 +71,20 @@ export default function AssetList() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa tài sản này?')) {
-      return;
-    }
+  const confirmDelete = (id: number) => {
+    setAssetToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (assetToDelete === null) return;
 
     try {
-      await assetsAPI.delete(id);
-      setAssets(assets.filter(asset => asset.id !== id));
+      await assetsAPI.delete(assetToDelete);
+      setAssets(assets.filter(asset => asset.id !== assetToDelete));
       fetchStats(); // Refresh stats after deletion
+      setIsDeleteDialogOpen(false);
+      setAssetToDelete(null);
     } catch (err: any) {
       console.error('Error deleting asset:', err);
       alert('Không thể xóa tài sản. Vui lòng thử lại sau.');
@@ -114,6 +127,16 @@ export default function AssetList() {
   const handleDetailClick = (asset: Asset) => {
     setSelectedAsset(asset);
     setIsDetailModalOpen(true);
+  };
+
+  const handleAssignClick = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setIsAssignModalOpen(true);
+  };
+
+  const handleReturnClick = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setIsReturnModalOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -322,7 +345,10 @@ export default function AssetList() {
                   Tình trạng
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Người sử dụng
+                  Kiểm soát
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Sử dụng
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Thông tin mua
@@ -338,7 +364,7 @@ export default function AssetList() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredAssets.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
+                  <td colSpan={9} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center">
                       <ComputerDesktopIcon className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-gray-900">
@@ -374,13 +400,33 @@ export default function AssetList() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      {asset.assigned_to_name ? (
+                      {asset.managed_by_name || asset.department_name ? (
                         <>
-                          <div className="text-sm font-medium text-gray-900">{asset.assigned_to_name}</div>
-                          <div className="text-sm text-gray-500">{asset.department_name}</div>
+                          {asset.managed_by_name && (
+                            <div className="text-sm font-medium text-gray-900">{asset.managed_by_name}</div>
+                          )}
+                          {asset.department_name && (
+                            <div className="text-sm text-gray-500">{asset.department_name}</div>
+                          )}
                         </>
                       ) : (
-                        <span className="text-sm text-gray-500">Chưa gán</span>
+                        <span className="text-sm text-gray-500">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {asset.assigned_to_name ? (
+                        <div className="flex flex-col">
+                          <div className="text-sm font-medium text-green-700 bg-green-50 inline-flex rounded-full px-2 py-0.5 w-fit">
+                            {asset.assigned_to_name}
+                          </div>
+                          {asset.assigned_to_department_name && (
+                            <div className="text-xs text-gray-500 mt-1 ml-1 italic">
+                              {asset.assigned_to_department_name}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500">Chưa bàn giao</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -409,12 +455,26 @@ export default function AssetList() {
                         <button
                           onClick={() => handleEditClick(asset)}
                           className="text-blue-600 hover:text-blue-900"
-                          title="Chỉnh sửa"
+                          title="Chỉnh sửa chung"
                         >
                           <PencilIcon className="h-5 w-5" />
                         </button>
                         <button
-                          onClick={() => handleDelete(asset.id)}
+                          onClick={() => handleAssignClick(asset)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                          title="Bàn giao (Chuyển người dùng)"
+                        >
+                          <UserPlusIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleReturnClick(asset)}
+                          className="text-amber-600 hover:text-amber-900"
+                          title="Thu hồi tài sản về kho"
+                        >
+                          <ArrowPathRoundedSquareIcon className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => confirmDelete(asset.id)}
                           className="text-red-600 hover:text-red-900"
                           title="Xóa"
                         >
@@ -459,6 +519,80 @@ export default function AssetList() {
         }}
         asset={selectedAsset}
       />
+
+      {selectedAsset && (
+        <AssetAssignModal
+          isOpen={isAssignModalOpen}
+          onClose={() => setIsAssignModalOpen(false)}
+          onSuccess={() => {
+            fetchAssets();
+            fetchStats();
+          }}
+          asset={selectedAsset}
+        />
+      )}
+
+      {selectedAsset && (
+        <AssetReturnModal
+          isOpen={isReturnModalOpen}
+          onClose={() => setIsReturnModalOpen(false)}
+          onSuccess={() => {
+            fetchAssets();
+            fetchStats();
+          }}
+          asset={selectedAsset}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {isDeleteDialogOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setIsDeleteDialogOpen(false)}></div>
+
+            {/* This element is to trick the browser into centering the modal contents. */}
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="sm:flex sm:items-start">
+                  <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                      Xác nhận xóa tài sản
+                    </h3>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">
+                        Bạn có chắc chắn muốn xóa tài sản này không? Hành động này không thể hoàn tác.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={handleDelete}
+                >
+                  Xóa
+                </button>
+                <button
+                  type="button"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
