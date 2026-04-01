@@ -36,8 +36,17 @@ const Approvals: React.FC = () => {
   const [filterRegistrationSubTypes, setFilterRegistrationSubTypes] = useState<string[]>([]);
   const [filterName, setFilterName] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
-  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth() + 1);
-  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+  const nowForInit = new Date();
+  const isEarlyMonth = nowForInit.getDate() <= 15;
+  const initialMonth = isEarlyMonth
+    ? (nowForInit.getMonth() === 0 ? 12 : nowForInit.getMonth())
+    : nowForInit.getMonth() + 1;
+  const initialYear = isEarlyMonth && nowForInit.getMonth() === 0
+    ? nowForInit.getFullYear() - 1
+    : nowForInit.getFullYear();
+
+  const [filterMonth, setFilterMonth] = useState<number>(initialMonth);
+  const [filterYear, setFilterYear] = useState<number>(initialYear);
   const [filterOnlyMine, setFilterOnlyMine] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const isFetchingRef = useRef<boolean>(false);
@@ -1655,8 +1664,13 @@ const Approvals: React.FC = () => {
 
 
   const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
+  const isEarly = now.getDate() <= 15;
+  const currentMonth = isEarly
+    ? (now.getMonth() === 0 ? 12 : now.getMonth())
+    : now.getMonth() + 1;
+  const currentYear = isEarly && now.getMonth() === 0
+    ? now.getFullYear() - 1
+    : now.getFullYear();
 
   const hasActiveFilters = filterTypes.length > 0 || filterName !== '' || filterDepartment !== '' || filterOnlyMine || filterMonth !== currentMonth || filterYear !== currentYear;
 
