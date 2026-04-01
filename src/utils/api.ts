@@ -2043,7 +2043,7 @@ export const employeesAPI = {
 
   setManager: async (managerEmployeeId: string | null): Promise<Employee> => {
     const response: AxiosResponse<Employee> = await managementApi.post(
-      '/api/employees/set-manager/',
+      '/api-hrm/employees/set-manager/',
       { manager_employee_id: managerEmployeeId }
     );
     return response.data;
