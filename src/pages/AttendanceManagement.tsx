@@ -975,19 +975,40 @@ const AttendanceManagement: React.FC = () => {
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
 
-      // 1. NGĂN CHẶN NẾU ĐƠN ĐÃ PHÊ DUYỆT (LỚP PHÒNG THỦ THỨ 2 SAU UI)
+      // 1. NGĂN CHẶN NẾU ĐƠN CỦA LOẠI ĐANG CHỌN ĐÃ PHÊ DUYỆT (LỚP PHÒNG THỦ THỨ 2)
       const registrations = selectedDayData?.registrations || [];
-      const hasApprovedAttendance = registrations.some((r: any) => {
-        return r.status?.toUpperCase() === 'APPROVED' && 
-               ['EXPLANATION', 'ONLINE_WORK', 'LEAVE'].includes(r.event_type?.toUpperCase());
+      const hasApprovedSameType = registrations.some((r: any) => {
+        if (r.status?.toUpperCase() !== 'APPROVED') return false;
+        const rType = r.event_type?.toUpperCase();
+        const rData = r.data || r;
+        const rExplType = rData.explanation_type?.toUpperCase();
+        const rReason = (rData.reason || '').toLowerCase();
+
+        if (selectedContext === 'explanation') {
+          const targetType = (({
+            late_minutes: 'LATE', early_leave_minutes: 'EARLY_LEAVE', incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
+            business_trip: 'BUSINESS_TRIP', first_day: 'FIRST_DAY'
+          } as Record<string, string>)[selectedReason as string]);
+          return rType === 'EXPLANATION' && rExplType === targetType;
+        }
+        if (selectedContext === 'monthly_leave') {
+          const isLeave = rType === 'EXPLANATION' && rExplType === 'LEAVE';
+          return isLeave && (rReason === selectedReason || rReason === 'full_day');
+        }
+        if (selectedContext === 'online_work') {
+          const isOnline = rType === 'ONLINE_WORK';
+          return isOnline && (rReason === selectedReason || rReason === 'full_day');
+        }
+        return false;
       });
 
-      if (hasApprovedAttendance && selectedContext !== 'registration') {
+      if (hasApprovedSameType && selectedContext !== 'registration') {
         showNotify(
           'warning',
           'Đã có đơn được duyệt',
-          'Ngày này đã có một đơn (Giải trình/Nghỉ phép/Online) được phê duyệt. Bạn không thể gửi thêm đơn cùng loại.'
+          'Bạn đã có một đơn cùng loại/ca này được phê duyệt cho ngày đang chọn.'
         );
+        setIsSubmitting(false);
         return;
       }
 
@@ -2792,9 +2813,20 @@ const AttendanceManagement: React.FC = () => {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {(() => {
-                          const hasApprovedAttendance = (selectedDayData?.registrations || []).some((r: any) => 
+                          const registrations = selectedDayData?.registrations || [];
+                          const hasApprovedExplanation = registrations.some((r: any) => 
                             r.status?.toUpperCase() === 'APPROVED' && 
-                            ['EXPLANATION', 'ONLINE_WORK', 'LEAVE'].includes(r.event_type?.toUpperCase())
+                            r.event_type?.toUpperCase() === 'EXPLANATION' &&
+                            r.data?.explanation_type !== 'LEAVE'
+                          );
+                          const hasApprovedOnlineWork = registrations.some((r: any) => 
+                            r.status?.toUpperCase() === 'APPROVED' && 
+                            r.event_type?.toUpperCase() === 'ONLINE_WORK'
+                          );
+                          const hasApprovedLeave = registrations.some((r: any) => 
+                            r.status?.toUpperCase() === 'APPROVED' && 
+                            r.event_type?.toUpperCase() === 'EXPLANATION' &&
+                            r.data?.explanation_type === 'LEAVE'
                           );
 
                           const detail = attendanceDetails[0];
@@ -2802,9 +2834,9 @@ const AttendanceManagement: React.FC = () => {
                           const isViolationStatus = ['LATE', 'EARLY_LEAVE', 'LATE_EARLY', 'INCOMPLETE_ATTENDANCE'].includes(statusStr);
                           const hasViolations = (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || isViolationStatus;
                           
-                          const showExplanationCard = (!isFullPresent || hasViolations) && !hasApprovedAttendance;
-                          const showMonthlyLeaveCard = !isFullPresent && !hasApprovedAttendance;
-                          const showOnlineWorkCard = !isFullPresent && !hasApprovedAttendance;
+                          const showExplanationCard = (!isFullPresent || hasViolations) && !hasApprovedExplanation;
+                          const showMonthlyLeaveCard = !isFullPresent && !hasApprovedLeave;
+                          const showOnlineWorkCard = !isFullPresent && !hasApprovedOnlineWork;
                           const isLeaveDisabled = isViolationStatus;
 
                           return (
@@ -2994,10 +3026,20 @@ const AttendanceManagement: React.FC = () => {
                               if (selectedContext === 'registration') {
                                 const dateStr = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : '';
                                 const hasOnline = monthlyRequestHistory.onlineWorks.some(w => (w.work_date === dateStr || w.attendance_date === dateStr));
-                                if (hasOnline) {
-                                  // Nếu làm online thì chỉ cho phép OT, Extra, Night, Live. Ẩn Vào/Ra trực
-                                  return reasons.filter(r => r.id !== 'off_duty');
-                                }
+                                
+                                return reasons.filter(r => {
+                                  // 1. Ẩn Vào/Ra trực nếu đã có đơn Online
+                                  if (r.id === 'off_duty' && hasOnline) return false;
+                                  
+                                  // 2. Ẩn nếu đã có đơn cùng loại được PHÊ DUYỆT
+                                  const isAlreadyApproved = (selectedDayData?.registrations || []).some((reg: any) => {
+                                    if (reg.status?.toUpperCase() !== 'APPROVED') return false;
+                                    const regType = (reg.event_type || '').toLowerCase();
+                                    return regType === r.id; 
+                                  });
+                                  
+                                  return !isAlreadyApproved;
+                                });
                               }
 
                               // Lọc lý do cho Nghỉ phép tháng và Làm việc online
@@ -3031,11 +3073,12 @@ const AttendanceManagement: React.FC = () => {
                                   const rExplType = rData.explanation_type?.toUpperCase();
 
                                   if (isLeave) {
-                                    return rType === 'EXPLANATION' && rExplType === 'LEAVE';
+                                    const isLeaveType = rType === 'EXPLANATION' && rExplType === 'LEAVE';
+                                    return isLeaveType && (rReason === session || rReason === 'full_day');
                                   } else { // online_work
-                                    return rType === 'ONLINE_WORK';
+                                    const isOnlineType = rType === 'ONLINE_WORK';
+                                    return isOnlineType && (rReason === session || rReason === 'full_day');
                                   }
-                                  return false;
                                 });
 
                                 if (isOccupied('MORNING') || hasApproved('morning')) {
