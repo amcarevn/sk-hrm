@@ -13,11 +13,14 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
   EyeIcon,
+  ShieldExclamationIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { departmentsAPI, employeesAPI, Department, Employee } from '../utils/api';
 import { workFinalizationService, WorkFinalizationRecord } from '../services/workFinalization.service';
 import type { FinalizeAllResponse, FinalizeDepartmentResponse } from '../services/workFinalization.service';
+import deptAttendanceViolationReportService from '../services/deptAttendanceViolationReport.service';
+import type { DeptAttendanceViolationResponse } from '../services/deptAttendanceViolationReport.service';
 import AttendanceCalendar from '../components/AttendanceCalendar';
 
 // --- Optimizations: Global Helpers & Memoized Sub-components ---
@@ -150,6 +153,11 @@ const WorkFinalization: React.FC = () => {
   const [records, setRecords] = useState<WorkFinalizationRecord[]>([]);
 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  const [showViolationModal, setShowViolationModal] = useState(false);
+  const [violationReport, setViolationReport] = useState<DeptAttendanceViolationResponse | null>(null);
+  const [loadingViolation, setLoadingViolation] = useState(false);
+  const [exportingViolation, setExportingViolation] = useState(false);
 
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [loadingRecords, setLoadingRecords] = useState(false);
@@ -497,6 +505,161 @@ const WorkFinalization: React.FC = () => {
     handleExport();
   };
 
+  const handleOpenViolationReport = async () => {
+    if (!selectedDepartment) return;
+    setShowViolationModal(true);
+    setLoadingViolation(true);
+    setViolationReport(null);
+    try {
+      const res = await deptAttendanceViolationReportService.get({
+        department_id: Number(selectedDepartment),
+        year: selectedYear,
+        month: selectedMonth,
+      });
+      setViolationReport(res);
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.error ||
+        'Không thể tải báo cáo vi phạm. Vui lòng thử lại.'
+      );
+      setShowViolationModal(false);
+    } finally {
+      setLoadingViolation(false);
+    }
+  };
+
+  const handleExportViolation = async () => {
+    if (!violationReport) return;
+    setExportingViolation(true);
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet(
+        `Vi_Pham_T${violationReport.month}_${violationReport.year}`
+      );
+
+      const HEADER_FILL = {
+        type: 'pattern' as const,
+        pattern: 'solid' as const,
+        fgColor: { argb: 'FFD32F2F' },
+      };
+      const HEADER_FONT = {
+        bold: true,
+        color: { argb: 'FFFFFFFF' },
+        size: 10,
+      };
+      const BORDER = {
+        top: { style: 'thin' as const },
+        left: { style: 'thin' as const },
+        bottom: { style: 'thin' as const },
+        right: { style: 'thin' as const },
+      };
+
+      const headers = [
+        { header: 'Ngày', key: 'ngay', width: 12 },
+        { header: 'Thứ', key: 'thu', width: 8 },
+        { header: 'Mã NV', key: 'ma_nhan_vien', width: 12 },
+        { header: 'Tên Nhân Viên', key: 'ten_nhan_vien', width: 24 },
+        { header: 'Phòng Ban', key: 'phong_ban', width: 18 },
+        { header: 'Vị Trí', key: 'vi_tri', width: 16 },
+        { header: 'Bác Sĩ', key: 'bac_si', width: 16 },
+        { header: 'Chức Danh', key: 'chuc_danh', width: 16 },
+        { header: 'Giờ Vào', key: 'gio_vao', width: 10 },
+        { header: 'Giờ Ra', key: 'gio_ra', width: 10 },
+        { header: 'Tổng Công', key: 'tong_cong', width: 12 },
+        { header: 'Số Lần Vi Phạm', key: 'so_lan_vi_pham', width: 16 },
+        { header: 'Về Sớm', key: 've_som', width: 10 },
+        { header: 'Phạt Về Sớm', key: 'phat_ve_som', width: 14 },
+        { header: 'Đi Muộn', key: 'di_muon', width: 10 },
+        { header: 'Phạt Đi Muộn', key: 'phat_di_muon', width: 14 },
+        { header: 'Thiếu Vân Tay', key: 'thieu_van_tay', width: 20 },
+        { header: 'Tổng Phạt', key: 'tong_phat', width: 14 },
+        { header: 'Giải Trình Công', key: 'giai_trinh_cong', width: 20 },
+        { header: 'Giải Trình Về Sớm', key: 'giai_trinh_ve_som', width: 20 },
+        { header: 'Giải Trình Đi Muộn', key: 'giai_trinh_di_muon', width: 20 },
+      ];
+
+      sheet.columns = headers;
+
+      const headerRow = sheet.getRow(1);
+      headerRow.eachCell((cell) => {
+        cell.fill = HEADER_FILL;
+        cell.font = HEADER_FONT;
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = BORDER;
+      });
+      headerRow.height = 36;
+
+      violationReport.data.forEach((item, idx) => {
+        const row = sheet.addRow({
+          ngay: item.ngay,
+          thu: item.thu,
+          ma_nhan_vien: item.ma_nhan_vien,
+          ten_nhan_vien: item.ten_nhan_vien,
+          phong_ban: item.phong_ban,
+          vi_tri: item.vi_tri,
+          bac_si: item.bac_si,
+          chuc_danh: item.chuc_danh,
+          gio_vao: item.gio_vao,
+          gio_ra: item.gio_ra,
+          tong_cong: item.tong_cong,
+          so_lan_vi_pham: item.so_lan_vi_pham,
+          ve_som: item.ve_som,
+          phat_ve_som: item.phat_ve_som,
+          di_muon: item.di_muon,
+          phat_di_muon: item.phat_di_muon,
+          thieu_van_tay: item.thieu_van_tay,
+          tong_phat: item.tong_phat,
+          giai_trinh_cong: item.giai_trinh_cong,
+          giai_trinh_ve_som: item.giai_trinh_ve_som,
+          giai_trinh_di_muon: item.giai_trinh_di_muon,
+        });
+
+        const isEvenRow = idx % 2 === 0;
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          cell.border = BORDER;
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: isEvenRow ? 'FFFFFFFF' : 'FFFFF8F8' },
+          };
+          if (colNumber >= 11) {
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          } else {
+            cell.alignment = { vertical: 'middle' };
+          }
+        });
+
+        const phatVeSomCol = headers.findIndex((h) => h.key === 'phat_ve_som') + 1;
+        const phatDiMuonCol = headers.findIndex((h) => h.key === 'phat_di_muon') + 1;
+        const tongPhatCol = headers.findIndex((h) => h.key === 'tong_phat') + 1;
+        row.getCell(phatVeSomCol).numFmt = '#,##0';
+        row.getCell(phatDiMuonCol).numFmt = '#,##0';
+        row.getCell(tongPhatCol).numFmt = '#,##0';
+      });
+
+      sheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `BaoCao_ViPham_${violationReport.department_name}_T${violationReport.month}_${violationReport.year}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export violation error:', err);
+      setError('Không thể xuất file Excel báo cáo vi phạm. Vui lòng thử lại.');
+    } finally {
+      setExportingViolation(false);
+    }
+  };
+
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -557,6 +720,14 @@ const WorkFinalization: React.FC = () => {
           >
             <EyeIcon className="w-4 h-4 mr-2" />
             Xem trước
+          </button>
+          <button
+            onClick={handleOpenViolationReport}
+            disabled={!selectedDepartment || selectedDepartment === 'all' || loadingViolation}
+            className="inline-flex items-center px-4 py-2 border border-orange-300 rounded-md shadow-sm text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ShieldExclamationIcon className="w-4 h-4 mr-2" />
+            {loadingViolation ? 'Đang tải...' : 'Báo cáo vi phạm'}
           </button>
           <button
             onClick={handleExport}
@@ -984,6 +1155,129 @@ const WorkFinalization: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setShowPreviewModal(false)}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Violation Report Modal */}
+      {showViolationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-orange-100 flex items-center justify-center">
+                  <ShieldExclamationIcon className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">
+                    Báo cáo vi phạm chấm công
+                  </h2>
+                  {violationReport && (
+                    <p className="text-xs text-gray-500">
+                      {violationReport.department_name} · Tháng {violationReport.month}/{violationReport.year} ·{' '}
+                      {violationReport.total_violations} vi phạm / {violationReport.total_employees} nhân viên
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowViolationModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-auto">
+              {loadingViolation ? (
+                <div className="flex items-center justify-center h-40">
+                  <ArrowPathIcon className="w-6 h-6 animate-spin text-orange-500" />
+                  <span className="ml-2 text-sm text-gray-500">Đang tải dữ liệu...</span>
+                </div>
+              ) : violationReport && violationReport.data.length > 0 ? (
+                <table className="min-w-full text-xs border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    <tr>
+                      {[
+                        'Ngày', 'Thứ', 'Mã NV', 'Tên Nhân Viên', 'Phòng Ban',
+                        'Vị Trí', 'Bác Sĩ', 'Chức Danh', 'Giờ Vào', 'Giờ Ra',
+                        'Tổng Công', 'Số Lần VP', 'Về Sớm', 'Phạt Về Sớm',
+                        'Đi Muộn', 'Phạt Đi Muộn', 'Thiếu Vân Tay', 'Tổng Phạt',
+                        'GT Công', 'GT Về Sớm', 'GT Đi Muộn',
+                      ].map((h) => (
+                        <th
+                          key={h}
+                          className="whitespace-nowrap px-3 py-2 text-center font-semibold text-white bg-red-700 border border-red-800"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {violationReport.data.map((item, idx) => {
+                      const rowCls = idx % 2 === 0 ? 'bg-white' : 'bg-red-50';
+                      return (
+                        <tr key={`${item.ma_nhan_vien}-${item.ngay}-${idx}`} className={`${rowCls} hover:bg-orange-50 transition-colors`}>
+                          <td className="px-3 py-1.5 text-center whitespace-nowrap border border-gray-200">{item.ngay}</td>
+                          <td className="px-3 py-1.5 text-center border border-gray-200">{item.thu}</td>
+                          <td className="px-3 py-1.5 font-mono border border-gray-200">{item.ma_nhan_vien}</td>
+                          <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.ten_nhan_vien}</td>
+                          <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.phong_ban}</td>
+                          <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.vi_tri}</td>
+                          <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.bac_si}</td>
+                          <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.chuc_danh}</td>
+                          <td className="px-3 py-1.5 text-center border border-gray-200">{item.gio_vao}</td>
+                          <td className="px-3 py-1.5 text-center border border-gray-200">{item.gio_ra}</td>
+                          <td className="px-3 py-1.5 text-right border border-gray-200">{item.tong_cong}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold text-red-700 border border-gray-200">{item.so_lan_vi_pham}</td>
+                          <td className="px-3 py-1.5 text-right border border-gray-200">{item.ve_som}</td>
+                          <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(item.phat_ve_som)}</td>
+                          <td className="px-3 py-1.5 text-right border border-gray-200">{item.di_muon}</td>
+                          <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(item.phat_di_muon)}</td>
+                          <td className="px-3 py-1.5 border border-gray-200">{item.thieu_van_tay}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold text-red-600 border border-gray-200">{formatNumber(item.tong_phat)}</td>
+                          <td className="px-3 py-1.5 border border-gray-200">{item.giai_trinh_cong}</td>
+                          <td className="px-3 py-1.5 border border-gray-200">{item.giai_trinh_ve_som}</td>
+                          <td className="px-3 py-1.5 border border-gray-200">{item.giai_trinh_di_muon}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="flex items-center justify-center h-40">
+                  <p className="text-sm text-gray-500">Không có dữ liệu vi phạm.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+              <span className="text-xs text-gray-500">
+                {violationReport
+                  ? `${violationReport.total_violations} vi phạm · Tháng ${violationReport.month}/${violationReport.year}`
+                  : ''}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportViolation}
+                  disabled={exportingViolation || !violationReport || violationReport.data.length === 0}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ArrowDownTrayIcon className="w-4 h-4 mr-1.5" />
+                  {exportingViolation ? 'Đang xuất...' : 'Tải Excel'}
+                </button>
+                <button
+                  onClick={() => setShowViolationModal(false)}
                   className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                 >
                   Đóng
