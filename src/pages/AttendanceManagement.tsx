@@ -2800,13 +2800,13 @@ const AttendanceManagement: React.FC = () => {
                       <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                         Chọn loại yêu cầu
                       </h3>
-                      {/* Thêm thông báo dựa trên trạng thái ngày (chỉ hiện khi đã Đủ công) */}
+                      {/* Thông báo trạng thái ngày */}
                       {isFullPresent && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 animate-fadeIn">
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 animate-fadeIn mb-4">
                           <CheckCircleIcon className="h-5 w-5 text-amber-600 shrink-0" />
                           <div className="text-xs text-amber-800">
                             Ngày này bạn đã <strong>{selectedDayData?.status_badge || 'Đủ công'}</strong>. 
-                            Hệ thống tự động ẩn các đơn Nghỉ phép và Làm việc online vì ngày này đã tính đủ công.
+                            Bạn vẫn có thể làm đơn bổ sung nếu còn quota (lượt đăng ký).
                           </div>
                         </div>
                       )}
@@ -2831,13 +2831,11 @@ const AttendanceManagement: React.FC = () => {
 
                           const detail = attendanceDetails[0];
                           const statusStr = detail?.status?.toUpperCase() || '';
-                          const isViolationStatus = ['LATE', 'EARLY_LEAVE', 'LATE_EARLY', 'INCOMPLETE_ATTENDANCE'].includes(statusStr);
-                          const hasViolations = (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || isViolationStatus;
+                          const hasViolations = (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || ['LATE', 'EARLY_LEAVE', 'LATE_EARLY', 'INCOMPLETE_ATTENDANCE'].includes(statusStr);
                           
                           const showExplanationCard = (!isFullPresent || hasViolations) && !hasApprovedExplanation;
-                          const showMonthlyLeaveCard = !isFullPresent && !hasApprovedLeave;
-                          const showOnlineWorkCard = !isFullPresent && !hasApprovedOnlineWork;
-                          const isLeaveDisabled = isViolationStatus;
+                          const showMonthlyLeaveCard = !hasApprovedLeave;
+                          const showOnlineWorkCard = !hasApprovedOnlineWork;
 
                           return (
                             <>
@@ -2891,15 +2889,15 @@ const AttendanceManagement: React.FC = () => {
                               {showMonthlyLeaveCard && (() => {
                                 const maxLeave = attendanceStats?.max_leave_per_month || 1;
                                 const remainingLeave = attendanceStats?.remaining_leave ?? 1;
-                                const isActuallyDisabled = remainingLeave <= 0 || isLeaveDisabled;
+                                const isQuotaExhausted = remainingLeave <= 0;
 
                                 return (
                                   <button
                                     type="button"
-                                    disabled={isActuallyDisabled}
-                                    onClick={() => !isActuallyDisabled && handleContextSelect('monthly_leave')}
+                                    disabled={isQuotaExhausted}
+                                    onClick={() => !isQuotaExhausted && handleContextSelect('monthly_leave')}
                                     className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left 
-                                      ${isActuallyDisabled 
+                                      ${isQuotaExhausted 
                                         ? 'opacity-60 grayscale-[0.5] cursor-not-allowed bg-gray-50/50 border-gray-100' 
                                         : selectedContext === 'monthly_leave' 
                                           ? 'border-purple-500 ring-2 ring-purple-100' 
@@ -2913,17 +2911,15 @@ const AttendanceManagement: React.FC = () => {
                                         </svg>
                                       </div>
                                       <div className="flex-1">
-                                        <h4 className={`text-base font-semibold ${isActuallyDisabled ? 'text-gray-500' : 'text-gray-900'}`}>Nghỉ phép tháng</h4>
+                                        <h4 className={`text-base font-semibold ${isQuotaExhausted ? 'text-gray-500' : 'text-gray-900'}`}>Nghỉ phép tháng</h4>
                                         <p className="mt-1 text-sm text-gray-500">
-                                          {isLeaveDisabled 
-                                            ? (statusStr === 'INCOMPLETE_ATTENDANCE' ? 'Không thể nghỉ phép khi Quên chấm công' : 'Không thể nghỉ phép khi có dữ liệu đi muộn/về sớm') 
-                                            : remainingLeave <= 0 
-                                              ? 'Đã hết lượt nghỉ phép tháng này'
-                                              : `Đăng ký nghỉ phép (Còn ${remainingLeave}/${maxLeave} ngày)`}
+                                          {isQuotaExhausted 
+                                            ? 'Đã hết lượt nghỉ phép tháng này'
+                                            : `Đăng ký nghỉ phép (Còn ${remainingLeave}/${maxLeave} ngày)`}
                                         </p>
                                       </div>
                                     </div>
-                                    {isActuallyDisabled && (
+                                    {isQuotaExhausted && (
                                       <div className="absolute top-2 right-2">
                                         <div className="bg-gray-200 rounded-full p-1">
                                           <svg className="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
@@ -2940,11 +2936,19 @@ const AttendanceManagement: React.FC = () => {
                               {showOnlineWorkCard && (() => {
                                 const maxOnline = attendanceStats?.max_online_work_per_month || 3;
                                 const remainingOnline = attendanceStats?.remaining_online_work || 0;
+                                const isOnlineQuotaExhausted = remainingOnline <= 0;
                                 return (
                                   <button
                                     type="button"
-                                    onClick={() => handleContextSelect('online_work')}
-                                    className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left ${selectedContext === 'online_work' ? 'border-purple-500 ring-2 ring-purple-100' : 'border-gray-200'}`}
+                                    disabled={isOnlineQuotaExhausted}
+                                    onClick={() => !isOnlineQuotaExhausted && handleContextSelect('online_work')}
+                                    className={`group relative p-5 bg-white border-2 rounded-xl shadow-sm transition-all duration-200 text-left 
+                                      ${isOnlineQuotaExhausted 
+                                        ? 'opacity-60 grayscale-[0.5] cursor-not-allowed bg-gray-50/50 border-gray-100' 
+                                        : selectedContext === 'online_work' 
+                                          ? 'border-purple-500 ring-2 ring-purple-100 hover:border-purple-600' 
+                                          : 'border-gray-200 hover:border-purple-400'
+                                      }`}
                                   >
                                     <div className="flex items-start space-x-4">
                                       <div className={`p-3 rounded-lg ${selectedContext === 'online_work' ? 'bg-purple-100' : 'bg-teal-50'}`}>
@@ -2953,10 +2957,23 @@ const AttendanceManagement: React.FC = () => {
                                         </svg>
                                       </div>
                                       <div className="flex-1">
-                                        <h4 className="text-base font-semibold text-gray-900">Làm việc online</h4>
-                                        <p className="mt-1 text-sm text-gray-500">Làm việc từ xa (Còn {remainingOnline}/{maxOnline} ngày)</p>
+                                        <h4 className={`text-base font-semibold ${isOnlineQuotaExhausted ? 'text-gray-500' : 'text-gray-900'}`}>Làm việc online</h4>
+                                        <p className="mt-1 text-sm text-gray-500">
+                                          {isOnlineQuotaExhausted 
+                                            ? 'Đã hết lượt làm online tháng này' 
+                                            : `Làm việc từ xa (Còn ${remainingOnline}/${maxOnline} ngày)`}
+                                        </p>
                                       </div>
                                     </div>
+                                    {isOnlineQuotaExhausted && (
+                                      <div className="absolute top-2 right-2">
+                                        <div className="bg-gray-200 rounded-full p-1">
+                                          <svg className="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                          </svg>
+                                        </div>
+                                      </div>
+                                    )}
                                   </button>
                                 );
                               })()}
