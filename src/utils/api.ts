@@ -2041,6 +2041,14 @@ export const employeesAPI = {
     return response.data;
   },
 
+  setManager: async (managerEmployeeId: string | null): Promise<Employee> => {
+    const response: AxiosResponse<Employee> = await managementApi.post(
+      '/api/employees/set-manager/',
+      { manager_employee_id: managerEmployeeId }
+    );
+    return response.data;
+  },
+
   birthdays_today: async (date?: string): Promise<Array<{
     employee_id: number;
     full_name: string;

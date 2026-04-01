@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   employeesAPI,
@@ -28,6 +28,8 @@ import {
   MapPinIcon,
   HomeIcon,
   AcademicCapIcon,
+  MagnifyingGlassIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 
@@ -46,8 +48,6 @@ const Profile: React.FC = () => {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
   const [manager, setManager] = useState<Employee | null>(null);
-  console.log('Fetched manager:', manager);
-  console.log('Fetched employee:', employee);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -59,6 +59,14 @@ const Profile: React.FC = () => {
     bank_name: '',
     bank_account: '',
   });
+
+  // Manager assignment state
+  const [showManagerModal, setShowManagerModal] = useState(false);
+  const [managerSearch, setManagerSearch] = useState('');
+  const [managerResults, setManagerResults] = useState<Employee[]>([]);
+  const [managerSearchLoading, setManagerSearchLoading] = useState(false);
+  const [managerSaving, setManagerSaving] = useState(false);
+  const managerSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetchProfileData();
@@ -208,6 +216,54 @@ const Profile: React.FC = () => {
 
   const handleInputChange = (field: string, value: string) => {
     setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleManagerSearch = (query: string) => {
+    setManagerSearch(query);
+    if (managerSearchTimer.current) clearTimeout(managerSearchTimer.current);
+    if (!query.trim()) {
+      setManagerResults([]);
+      return;
+    }
+    managerSearchTimer.current = setTimeout(async () => {
+      setManagerSearchLoading(true);
+      try {
+        const res = await employeesAPI.list({ search: query, page_size: 10 });
+        setManagerResults(res.results);
+      } catch {
+        setManagerResults([]);
+      } finally {
+        setManagerSearchLoading(false);
+      }
+    }, 300);
+  };
+
+  const handleSelectManager = async (selectedEmployee: Employee) => {
+    setManagerSaving(true);
+    try {
+      await employeesAPI.setManager(selectedEmployee.employee_id);
+      setManager(selectedEmployee);
+      setShowManagerModal(false);
+      setManagerSearch('');
+      setManagerResults([]);
+    } catch {
+      alert('Cập nhật quản lý thất bại. Vui lòng thử lại.');
+    } finally {
+      setManagerSaving(false);
+    }
+  };
+
+  const handleClearManager = async () => {
+    if (!window.confirm('Bạn có chắc muốn xoá quản lý trực tiếp?')) return;
+    setManagerSaving(true);
+    try {
+      await employeesAPI.setManager(null);
+      setManager(null);
+    } catch {
+      alert('Xoá quản lý thất bại. Vui lòng thử lại.');
+    } finally {
+      setManagerSaving(false);
+    }
   };
 
   const formatDate = (dateString?: string) => {
@@ -634,9 +690,31 @@ const Profile: React.FC = () => {
 
           {/* Manager Info Card */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-6">
-              Quản lý trực tiếp
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-medium text-gray-900">
+                Quản lý trực tiếp
+              </h2>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowManagerModal(true)}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-300 rounded-md hover:bg-indigo-50 disabled:opacity-50"
+                  disabled={managerSaving}
+                >
+                  <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
+                  Tìm &amp; gán quản lý
+                </button>
+                {(manager || employee?.manager_name) && (
+                  <button
+                    onClick={handleClearManager}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-600 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50"
+                    disabled={managerSaving}
+                    title="Xoá quản lý trực tiếp"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
 
             {manager || employee.manager_name ? (
               <div className="space-y-4">
@@ -652,32 +730,29 @@ const Profile: React.FC = () => {
                   </div>
                 </div>
 
-                {/* <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mã nhân viên
-                  </label>
-                  <div className="p-3 bg-gray-50 rounded-md">
-                    <span className="text-gray-900">
-                      {manager?.employee_id ||
-                        (typeof employee.manager === 'number'
-                          ? String(employee.manager)
-                          : 'N/A')}
-                    </span>
+                {manager?.employee_id && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Mã nhân viên
+                    </label>
+                    <div className="p-3 bg-gray-50 rounded-md">
+                      <span className="text-gray-900">{manager.employee_id}</span>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Chức vụ
-                  </label>
-                  <div className="p-3 bg-gray-50 rounded-md">
-                    <span className="text-gray-900">
-                      {manager?.position?.title || 'Chưa phân chức vụ'}
-                    </span>
+                {manager?.position?.title && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Chức vụ
+                    </label>
+                    <div className="p-3 bg-gray-50 rounded-md">
+                      <span className="text-gray-900">{manager.position.title}</span>
+                    </div>
                   </div>
-                </div> */}
+                )}
 
-                {(manager?.phone_number || false) && (
+                {manager?.phone_number && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Số điện thoại
@@ -685,7 +760,7 @@ const Profile: React.FC = () => {
                     <div className="flex items-center p-3 bg-gray-50 rounded-md">
                       <PhoneIcon className="h-5 w-5 text-gray-400 mr-2" />
                       <span className="text-gray-900">
-                        {manager?.phone_number}
+                        {manager.phone_number}
                       </span>
                     </div>
                   </div>
@@ -1116,6 +1191,96 @@ const Profile: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manager Search Modal */}
+      {showManagerModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="manager-modal-title"
+        >
+          <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 id="manager-modal-title" className="text-lg font-bold text-gray-900">
+                Tìm kiếm quản lý trực tiếp
+              </h2>
+              <button
+                onClick={() => {
+                  setShowManagerModal(false);
+                  setManagerSearch('');
+                  setManagerResults([]);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Đóng"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-6 py-4 border-b">
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Nhập tên hoặc mã nhân viên..."
+                  value={managerSearch}
+                  onChange={(e) => handleManagerSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-2">
+              {managerSearchLoading && (
+                <div className="flex justify-center py-6">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600" />
+                </div>
+              )}
+
+              {!managerSearchLoading && managerSearch && managerResults.length === 0 && (
+                <p className="text-center text-sm text-gray-500 py-6">
+                  Không tìm thấy nhân viên nào
+                </p>
+              )}
+
+              {!managerSearchLoading && !managerSearch && (
+                <p className="text-center text-sm text-gray-400 py-6">
+                  Nhập tên hoặc mã nhân viên để tìm kiếm
+                </p>
+              )}
+
+              {managerResults.map((emp) => (
+                <button
+                  key={emp.id}
+                  onClick={() => handleSelectManager(emp)}
+                  disabled={managerSaving}
+                  className="w-full text-left border border-gray-200 rounded-lg p-4 hover:bg-indigo-50 hover:border-indigo-300 transition-colors disabled:opacity-50"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">{emp.full_name}</p>
+                      <p className="text-sm text-gray-500">
+                        Mã NV: {emp.employee_id}
+                        {emp.position?.title ? ` · ${emp.position.title}` : ''}
+                      </p>
+                    </div>
+                    <CheckIcon className="h-5 w-5 text-indigo-400 opacity-0 hover:opacity-100" />
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {managerSaving && (
+              <div className="px-6 py-3 border-t flex items-center justify-center text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mr-2" />
+                Đang lưu...
+              </div>
+            )}
           </div>
         </div>
       )}
