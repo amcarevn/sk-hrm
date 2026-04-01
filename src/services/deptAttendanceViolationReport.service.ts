@@ -1,27 +1,20 @@
 import { managementApi } from '../utils/api';
 
 export interface DeptAttendanceViolationItem {
-  tong_cong: number;
-  tong_phat: number;
-  so_lan_vi_pham: number;
-  ve_som: number;
-  phat_ve_som: number;
-  di_muon: number;
-  phat_di_muon: number;
-  thieu_van_tay: string;
-  giai_trinh_cong: string;
-  giai_trinh_ve_som: string;
-  giai_trinh_di_muon: string;
-  chuc_danh: string;
   ma_nhan_vien: string;
   ten_nhan_vien: string;
   phong_ban: string;
+  chuc_danh: string;
   vi_tri: string;
   bac_si: string;
-  ngay: string;
-  thu: string;
-  gio_vao: string;
-  gio_ra: string;
+  tong_cong: number;
+  tong_phat: number;
+  so_lan_vi_pham: number;
+  so_lan_di_muon: number;
+  so_lan_ve_som: number;
+  so_lan_quen_cham_cong: number;
+  tong_phat_di_muon: number;
+  tong_phat_ve_som: number;
 }
 
 export interface DeptAttendanceViolationResponse {

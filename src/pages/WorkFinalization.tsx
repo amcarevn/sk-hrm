@@ -556,28 +556,22 @@ const WorkFinalization: React.FC = () => {
       };
 
       const headers = [
-        { header: 'Ngày', key: 'ngay', width: 12 },
-        { header: 'Thứ', key: 'thu', width: 8 },
         { header: 'Mã NV', key: 'ma_nhan_vien', width: 12 },
         { header: 'Tên Nhân Viên', key: 'ten_nhan_vien', width: 24 },
         { header: 'Phòng Ban', key: 'phong_ban', width: 18 },
+        { header: 'Chức Danh', key: 'chuc_danh', width: 16 },
         { header: 'Vị Trí', key: 'vi_tri', width: 16 },
         { header: 'Bác Sĩ', key: 'bac_si', width: 16 },
-        { header: 'Chức Danh', key: 'chuc_danh', width: 16 },
-        { header: 'Giờ Vào', key: 'gio_vao', width: 10 },
-        { header: 'Giờ Ra', key: 'gio_ra', width: 10 },
         { header: 'Tổng Công', key: 'tong_cong', width: 12 },
         { header: 'Số Lần Vi Phạm', key: 'so_lan_vi_pham', width: 16 },
-        { header: 'Về Sớm', key: 've_som', width: 10 },
-        { header: 'Phạt Về Sớm', key: 'phat_ve_som', width: 14 },
-        { header: 'Đi Muộn', key: 'di_muon', width: 10 },
-        { header: 'Phạt Đi Muộn', key: 'phat_di_muon', width: 14 },
-        { header: 'Thiếu Vân Tay', key: 'thieu_van_tay', width: 20 },
+        { header: 'Số Lần Đi Muộn', key: 'so_lan_di_muon', width: 16 },
+        { header: 'Số Lần Về Sớm', key: 'so_lan_ve_som', width: 16 },
+        { header: 'Quên Chấm Công', key: 'so_lan_quen_cham_cong', width: 16 },
+        { header: 'Phạt Đi Muộn', key: 'tong_phat_di_muon', width: 16 },
+        { header: 'Phạt Về Sớm', key: 'tong_phat_ve_som', width: 14 },
         { header: 'Tổng Phạt', key: 'tong_phat', width: 14 },
-        { header: 'Giải Trình Công', key: 'giai_trinh_cong', width: 20 },
-        { header: 'Giải Trình Về Sớm', key: 'giai_trinh_ve_som', width: 20 },
-        { header: 'Giải Trình Đi Muộn', key: 'giai_trinh_di_muon', width: 20 },
       ];
+      const firstNumericCol = headers.findIndex((h) => h.key === 'tong_cong') + 1;
 
       sheet.columns = headers;
 
@@ -592,27 +586,20 @@ const WorkFinalization: React.FC = () => {
 
       violationReport.data.forEach((item, idx) => {
         const row = sheet.addRow({
-          ngay: item.ngay,
-          thu: item.thu,
           ma_nhan_vien: item.ma_nhan_vien,
           ten_nhan_vien: item.ten_nhan_vien,
           phong_ban: item.phong_ban,
+          chuc_danh: item.chuc_danh,
           vi_tri: item.vi_tri,
           bac_si: item.bac_si,
-          chuc_danh: item.chuc_danh,
-          gio_vao: item.gio_vao,
-          gio_ra: item.gio_ra,
           tong_cong: item.tong_cong,
           so_lan_vi_pham: item.so_lan_vi_pham,
-          ve_som: item.ve_som,
-          phat_ve_som: item.phat_ve_som,
-          di_muon: item.di_muon,
-          phat_di_muon: item.phat_di_muon,
-          thieu_van_tay: item.thieu_van_tay,
+          so_lan_di_muon: item.so_lan_di_muon,
+          so_lan_ve_som: item.so_lan_ve_som,
+          so_lan_quen_cham_cong: item.so_lan_quen_cham_cong,
+          tong_phat_di_muon: item.tong_phat_di_muon,
+          tong_phat_ve_som: item.tong_phat_ve_som,
           tong_phat: item.tong_phat,
-          giai_trinh_cong: item.giai_trinh_cong,
-          giai_trinh_ve_som: item.giai_trinh_ve_som,
-          giai_trinh_di_muon: item.giai_trinh_di_muon,
         });
 
         const isEvenRow = idx % 2 === 0;
@@ -623,18 +610,18 @@ const WorkFinalization: React.FC = () => {
             pattern: 'solid',
             fgColor: { argb: isEvenRow ? 'FFFFFFFF' : 'FFFFF8F8' },
           };
-          if (colNumber >= 11) {
+          if (colNumber >= firstNumericCol) {
             cell.alignment = { horizontal: 'right', vertical: 'middle' };
           } else {
             cell.alignment = { vertical: 'middle' };
           }
         });
 
-        const phatVeSomCol = headers.findIndex((h) => h.key === 'phat_ve_som') + 1;
-        const phatDiMuonCol = headers.findIndex((h) => h.key === 'phat_di_muon') + 1;
+        const tongPhatDiMuonCol = headers.findIndex((h) => h.key === 'tong_phat_di_muon') + 1;
+        const tongPhatVeSomCol = headers.findIndex((h) => h.key === 'tong_phat_ve_som') + 1;
         const tongPhatCol = headers.findIndex((h) => h.key === 'tong_phat') + 1;
-        row.getCell(phatVeSomCol).numFmt = '#,##0';
-        row.getCell(phatDiMuonCol).numFmt = '#,##0';
+        row.getCell(tongPhatDiMuonCol).numFmt = '#,##0';
+        row.getCell(tongPhatVeSomCol).numFmt = '#,##0';
         row.getCell(tongPhatCol).numFmt = '#,##0';
       });
 
@@ -1207,11 +1194,10 @@ const WorkFinalization: React.FC = () => {
                   <thead className="sticky top-0 z-10">
                     <tr>
                       {[
-                        'Ngày', 'Thứ', 'Mã NV', 'Tên Nhân Viên', 'Phòng Ban',
-                        'Vị Trí', 'Bác Sĩ', 'Chức Danh', 'Giờ Vào', 'Giờ Ra',
-                        'Tổng Công', 'Số Lần VP', 'Về Sớm', 'Phạt Về Sớm',
-                        'Đi Muộn', 'Phạt Đi Muộn', 'Thiếu Vân Tay', 'Tổng Phạt',
-                        'GT Công', 'GT Về Sớm', 'GT Đi Muộn',
+                        'Mã NV', 'Tên Nhân Viên', 'Phòng Ban', 'Chức Danh',
+                        'Vị Trí', 'Bác Sĩ', 'Tổng Công', 'Số Lần VP',
+                        'Số Lần Đi Muộn', 'Số Lần Về Sớm', 'Quên Chấm Công',
+                        'Phạt Đi Muộn', 'Phạt Về Sớm', 'Tổng Phạt',
                       ].map((h) => (
                         <th
                           key={h}
@@ -1226,28 +1212,21 @@ const WorkFinalization: React.FC = () => {
                     {violationReport.data.map((item, idx) => {
                       const rowCls = idx % 2 === 0 ? 'bg-white' : 'bg-red-50';
                       return (
-                        <tr key={`${item.ma_nhan_vien}-${item.ngay}-${idx}`} className={`${rowCls} hover:bg-orange-50 transition-colors`}>
-                          <td className="px-3 py-1.5 text-center whitespace-nowrap border border-gray-200">{item.ngay}</td>
-                          <td className="px-3 py-1.5 text-center border border-gray-200">{item.thu}</td>
+                        <tr key={`${item.ma_nhan_vien}-${idx}`} className={`${rowCls} hover:bg-orange-50 transition-colors`}>
                           <td className="px-3 py-1.5 font-mono border border-gray-200">{item.ma_nhan_vien}</td>
                           <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.ten_nhan_vien}</td>
                           <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.phong_ban}</td>
+                          <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.chuc_danh}</td>
                           <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.vi_tri}</td>
                           <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.bac_si}</td>
-                          <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">{item.chuc_danh}</td>
-                          <td className="px-3 py-1.5 text-center border border-gray-200">{item.gio_vao}</td>
-                          <td className="px-3 py-1.5 text-center border border-gray-200">{item.gio_ra}</td>
                           <td className="px-3 py-1.5 text-right border border-gray-200">{item.tong_cong}</td>
                           <td className="px-3 py-1.5 text-right font-semibold text-red-700 border border-gray-200">{item.so_lan_vi_pham}</td>
-                          <td className="px-3 py-1.5 text-right border border-gray-200">{item.ve_som}</td>
-                          <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(item.phat_ve_som)}</td>
-                          <td className="px-3 py-1.5 text-right border border-gray-200">{item.di_muon}</td>
-                          <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(item.phat_di_muon)}</td>
-                          <td className="px-3 py-1.5 border border-gray-200">{item.thieu_van_tay}</td>
+                          <td className="px-3 py-1.5 text-right border border-gray-200">{item.so_lan_di_muon}</td>
+                          <td className="px-3 py-1.5 text-right border border-gray-200">{item.so_lan_ve_som}</td>
+                          <td className="px-3 py-1.5 text-right border border-gray-200">{item.so_lan_quen_cham_cong}</td>
+                          <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(item.tong_phat_di_muon)}</td>
+                          <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(item.tong_phat_ve_som)}</td>
                           <td className="px-3 py-1.5 text-right font-semibold text-red-600 border border-gray-200">{formatNumber(item.tong_phat)}</td>
-                          <td className="px-3 py-1.5 border border-gray-200">{item.giai_trinh_cong}</td>
-                          <td className="px-3 py-1.5 border border-gray-200">{item.giai_trinh_ve_som}</td>
-                          <td className="px-3 py-1.5 border border-gray-200">{item.giai_trinh_di_muon}</td>
                         </tr>
                       );
                     })}
