@@ -1,38 +1,54 @@
 import { useState, useEffect } from 'react';
 import { assetsAPI, Asset } from '../../utils/api';
-import { ComputerDesktopIcon, EyeIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { ComputerDesktopIcon, EyeIcon, ShieldCheckIcon, ArrowPathRoundedSquareIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import AssetDetailModal from './AssetDetailModal';
 
-const STATUS_COLORS: Record<string, string> = {
-  IN_USE: 'bg-green-100 text-green-800',
-  IDLE: 'bg-gray-100 text-gray-700',
-  UNDER_MAINTENANCE: 'bg-yellow-100 text-yellow-800',
-  DAMAGED: 'bg-red-100 text-red-800',
-  RETIRED: 'bg-purple-100 text-purple-700',
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'IN_USE':
+      return 'bg-green-100 text-green-800 border-green-200';
+    case 'IDLE':
+      return 'bg-amber-100 text-amber-800 border-amber-200';
+    case 'UNDER_MAINTENANCE':
+      return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+    case 'DAMAGED':
+      return 'bg-rose-100 text-rose-800 border-rose-200';
+    case 'RETIRED':
+      return 'bg-slate-100 text-slate-800 border-slate-200';
+    case 'LOST':
+      return 'bg-black text-white border-black';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  IN_USE: 'Đang dùng',
-  IDLE: 'Chờ cấp',
-  UNDER_MAINTENANCE: 'Bảo trì',
-  DAMAGED: 'Hỏng',
-  RETIRED: 'Thanh lý',
+const getConditionColor = (condition: string) => {
+  switch (condition) {
+    case 'EXCELLENT':
+      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    case 'GOOD':
+      return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'FAIR':
+      return 'bg-amber-100 text-amber-800 border-amber-200';
+    case 'POOR':
+      return 'bg-orange-100 text-orange-800 border-orange-200';
+    case 'BROKEN':
+      return 'bg-red-100 text-red-800 border-red-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
 };
 
-const CONDITION_COLORS: Record<string, string> = {
-  EXCELLENT: 'bg-emerald-100 text-emerald-800',
-  GOOD: 'bg-blue-100 text-blue-800',
-  FAIR: 'bg-yellow-100 text-yellow-800',
-  POOR: 'bg-orange-100 text-orange-800',
-  BROKEN: 'bg-red-100 text-red-800',
-};
-
-const CONDITION_LABELS: Record<string, string> = {
-  EXCELLENT: 'Mới tốt',
-  GOOD: 'Tốt',
-  FAIR: 'Trung bình',
-  POOR: 'Yếu',
-  BROKEN: 'Hỏng',
+const getTypeColor = (type: string) => {
+  switch (type) {
+    case 'LAPTOP': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
+    case 'DESKTOP': return 'bg-blue-50 text-blue-700 border-blue-100';
+    case 'MONITOR': return 'bg-cyan-50 text-cyan-700 border-cyan-100';
+    case 'PHONE': return 'bg-rose-50 text-rose-700 border-rose-100';
+    case 'PRINTER': return 'bg-orange-50 text-orange-700 border-orange-100';
+    case 'NETWORK': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    default: return 'bg-gray-50 text-gray-700 border-gray-100';
+  }
 };
 
 function formatDate(dateStr?: string) {
@@ -146,22 +162,23 @@ export default function AssignedAssetList() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã TS</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên tài sản</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Model</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tình trạng</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày nhận</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bảo hành đến</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kiểm soát</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Tên tài sản</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Model</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Loại tài sản</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Trạng thái vận hành</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Tình trạng vật lý</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Quản lý kho</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Ngày nhận</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Trạng thái bàn giao</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Ghi chú</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 [...Array(4)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(9)].map((__, j) => (
+                    {[...Array(11)].map((__, j) => (
                       <td key={j} className="px-6 py-4">
                         <div className="h-4 bg-gray-200 rounded animate-pulse" />
                       </td>
@@ -169,79 +186,131 @@ export default function AssignedAssetList() {
                   </tr>
                 ))
               ) : filteredAssets.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="px-6 py-16 text-center">
+                <tr> 
+                  <td colSpan={11} className="px-6 py-16 text-center">
                     <ComputerDesktopIcon className="mx-auto h-12 w-12 text-gray-300 mb-3" />
                     <p className="text-gray-500 font-medium">Bạn chưa được bàn giao tài sản nào.</p>
                     <p className="text-sm text-gray-400 mt-1">Liên hệ phòng IT để được hỗ trợ.</p>
                   </td>
                 </tr>
               ) : (
-                filteredAssets.map(asset => {
+                filteredAssets.map((asset) => {
+                  const isReturned = !asset.assigned_to;
+                  const isUnderMaintenance = asset.status === 'UNDER_MAINTENANCE';
                   const warrantyExpiring = isWarrantyExpiringSoon(asset.warranty_expiry);
                   const warrantyExpired = isWarrantyExpired(asset.warranty_expiry);
+                  
                   return (
-                    <tr key={asset.id} className="hover:bg-gray-50 transition-colors">
-                      {/* Mã TS */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-mono font-semibold text-gray-700">{asset.asset_code}</span>
-                      </td>
+                    <tr key={asset.id} className={`hover:bg-gray-50 transition-colors ${(isReturned || isUnderMaintenance) ? 'bg-gray-50/50 opacity-50 grayscale-[0.5]' : ''}`}>
                       {/* Tên tài sản */}
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{asset.name}</div>
-                        {asset.brand && <div className="text-xs text-gray-400">{asset.brand}</div>}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-bold text-primary-700 bg-primary-50 px-2 py-1 rounded inline-block">
+                          {asset.name}
+                        </div>
                       </td>
                       {/* Model */}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{asset.model || '-'}</td>
-                      {/* Trạng thái */}
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900 font-medium">
+                          {asset.model || '-'}
+                        </div>
+                      </td>
+                      {/* Loại tài sản */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[asset.status] || 'bg-gray-100 text-gray-600'}`}>
-                          {STATUS_LABELS[asset.status] || asset.status}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getTypeColor(asset.asset_type)} uppercase tracking-tight`}>
+                          {asset.asset_type === 'OTHER' && (asset as any).other_type_name 
+                            ? `Khác (${(asset as any).other_type_name})` 
+                            : asset.asset_type_display}
                         </span>
                       </td>
-                      {/* Tình trạng */}
+                      {/* Trạng thái vận hành */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${CONDITION_COLORS[asset.condition] || 'bg-gray-100 text-gray-600'}`}>
-                          {CONDITION_LABELS[asset.condition] || asset.condition}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(asset.status)} uppercase tracking-tight`}>
+                          {asset.status_display}
                         </span>
                       </td>
-                      {/* Ngày nhận */}
+                      {/* Tình trạng vật lý */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getConditionColor(asset.condition)} uppercase tracking-tight`}>
+                          {asset.condition_display}
+                        </span>
+                      </td>
+                      {/* Quản lý kho nội bộ */}
+                      <td className="px-6 py-4">
+                        {asset.managed_by_name || asset.department_name ? (
+                          <>
+                            {asset.managed_by_name && (
+                              <div className="text-sm font-medium text-gray-900">{asset.managed_by_name}</div>
+                            )}
+                            {asset.department_name && (
+                              <div className="text-sm text-gray-400">{asset.department_name}</div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-sm text-gray-500">-</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {formatDate(asset.assigned_date)}
                       </td>
-                      {/* Bảo hành đến */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className={`text-sm ${warrantyExpired ? 'text-red-500 font-medium' : warrantyExpiring ? 'text-amber-500 font-medium' : 'text-gray-600'}`}>
-                          {formatDate(asset.warranty_expiry)}
-                        </div>
-                        {warrantyExpiring && !warrantyExpired && (
-                          <div className="text-xs text-amber-500 flex items-center gap-1 mt-0.5">
-                            <ShieldCheckIcon className="h-3 w-3" /> Sắp hết hạn
+                      {/* Trạng thái bàn giao */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {isReturned ? (
+                          <div className="flex flex-col">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-tight w-fit">
+                              Đã thu hồi
+                            </span>
+                          </div>
+                        ) : isUnderMaintenance ? (
+                          <div className="flex flex-col">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-tight w-fit">
+                              Đang bảo hành
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-700 border border-green-200 uppercase tracking-tight w-fit">
+                              Đang sử dụng
+                            </span>
                           </div>
                         )}
-                        {warrantyExpired && (
-                          <div className="text-xs text-red-400 mt-0.5">Đã hết hạn</div>
-                        )}
                       </td>
-                      {/* Người kiểm soát kho */}
+                      {/* Ghi chú */}
                       <td className="px-6 py-4">
-                        {asset.managed_by_name ? (
-                          <>
-                            <div className="text-sm font-medium text-gray-900">{asset.managed_by_name}</div>
-                            {asset.department_name && <div className="text-xs text-gray-400">{asset.department_name}</div>}
-                          </>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
+                        <div className="flex flex-col gap-2 max-w-sm">
+                          {asset.description && (
+                            <div className="flex items-start space-x-1.5 opacity-80" title="Mô tả kỹ thuật/Lưu ý vật lý">
+                              <span className="mt-0.5"><SparklesIcon className="h-3 w-3 text-slate-400" /></span>
+                              <p className="text-[10px] text-gray-500 italic leading-relaxed line-clamp-2">
+                                {asset.description}
+                              </p>
+                            </div>
+                          )}
+                          <div className="flex items-start space-x-1.5" title={isReturned ? (asset as any).return_notes : (asset as any).assignment_notes}>
+                            <span className="mt-0.5">
+                              {isReturned ? (
+                                <ArrowPathRoundedSquareIcon className="h-3 w-3 text-amber-500" />
+                              ) : (
+                                <ShieldCheckIcon className="h-3 w-3 text-green-500" />
+                              )}
+                            </span>
+                            <div className="text-xs">
+                              {isReturned ? (
+                                <span className="text-amber-600 line-clamp-2 font-medium">Thu hồi: {(asset as any).return_notes || '-'}</span>
+                              ) : (
+                                <span className="text-green-700 line-clamp-2 font-semibold">Bàn giao: {(asset as any).assignment_notes || '-'}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </td>
                       {/* Thao tác */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
                           onClick={() => { setSelectedAsset(asset); setIsDetailModalOpen(true); }}
-                          className="text-indigo-600 hover:text-indigo-900 transition-colors"
-                          title="Xem chi tiết"
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-700 transition-all font-bold text-[11px] uppercase tracking-wide shadow-sm hover:shadow active:scale-95"
                         >
-                          <EyeIcon className="h-5 w-5" />
+                          <EyeIcon className="h-4 w-4" />
+                          <span>Chi tiết</span>
                         </button>
                       </td>
                     </tr>

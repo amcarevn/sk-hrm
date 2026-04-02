@@ -2216,7 +2216,11 @@ export interface Asset {
     storage?: string;
     mainboard?: string;
     power_supply?: string;
+    phone_number?: string;
+    network_provider?: string;
+    details?: string;
   };
+  other_details?: string;
   warranty_period?: number;
   created_at: string;
   updated_at: string;
@@ -2349,6 +2353,7 @@ export const assetsAPI = {
     employee_id: number;
     assigned_date?: string;
     notes?: string;
+    force?: boolean;
   }): Promise<Asset> => {
     const response: AxiosResponse<Asset> = await managementApi.post(`/api-hrm/assets/${id}/assign/`, data);
     return response.data;

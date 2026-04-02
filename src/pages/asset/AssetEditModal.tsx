@@ -1,5 +1,5 @@
 import React, { Fragment, useState, useEffect } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
+import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { assetsAPI, departmentsAPI, employeesAPI, Asset } from '../../utils/api';
 import { SelectBox, SelectOption } from '../../components/LandingLayout/SelectBox';
@@ -15,6 +15,7 @@ const ASSET_TYPES: SelectOption<string>[] = [
   { value: 'LAPTOP', label: 'Laptop' },
   { value: 'DESKTOP', label: 'Máy tính để bàn' },
   { value: 'MONITOR', label: 'Màn hình' },
+  { value: 'SIM', label: 'Sim' },
   { value: 'PHONE', label: 'Điện thoại' },
   { value: 'TABLET', label: 'Máy tính bảng' },
   { value: 'PRINTER', label: 'Máy in' },
@@ -27,11 +28,28 @@ const ASSET_TYPES: SelectOption<string>[] = [
 ];
 
 const ASSET_CONDITIONS: SelectOption<string>[] = [
-  { value: 'EXCELLENT', label: 'Rất tốt' },
-  { value: 'GOOD', label: 'Tốt' },
-  { value: 'FAIR', label: 'Khá' },
-  { value: 'POOR', label: 'Kém' },
-  { value: 'BROKEN', label: 'Hỏng' },
+  { value: 'EXCELLENT', label: 'Mới 100%' },
+  { value: 'GOOD', label: 'Cũ (Chất lượng tốt)' },
+  { value: 'FAIR', label: 'Cũ (Trầy xước / Cấn móp)' },
+  { value: 'POOR', label: 'Cũ (Kém / Lỗi chức năng)' },
+  { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
+];
+
+const ASSET_STATUSES: SelectOption<string>[] = [
+  { value: 'NEW', label: 'Sẵn dùng (Mới 100%)' },
+  { value: 'IDLE', label: 'Sẵn dùng (Trong kho)' },
+  { value: 'IN_USE', label: 'Đang sử dụng' },
+  { value: 'UNDER_MAINTENANCE', label: 'Đang sửa chữa / Bảo hành' },
+  { value: 'DAMAGED', label: 'Lỗi / Chờ thanh lý' },
+  { value: 'RETIRED', label: 'Đã thanh lý' },
+  { value: 'LOST', label: 'Bị mất' },
+];
+
+const NETWORK_PROVIDERS: SelectOption<string>[] = [
+  { value: 'Viettel', label: 'Viettel' },
+  { value: 'Vinaphone', label: 'Vinaphone' },
+  { value: 'Mobifone', label: 'Mobifone' },
+  { value: 'Vietnamobile', label: 'Vietnamobile' },
 ];
 
 export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: AssetEditModalProps) {
@@ -42,6 +60,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     name: '',
     asset_type: 'LAPTOP',
     model: '',
+    status: 'NEW',
     condition: 'EXCELLENT',
     purchase_date: '',
     warranty_period: '12',
@@ -56,6 +75,11 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     storage: '',
     vga: '',
     power_supply: '',
+    // SIM specific fields
+    phone_number: '',
+    network_provider: '',
+    // OTHER specific fields
+    other_type_name: '',
   });
 
   /**
@@ -71,6 +95,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             name: fullAsset.name || '',
             asset_type: fullAsset.asset_type || 'LAPTOP',
             model: fullAsset.model || '',
+            status: fullAsset.status || 'NEW',
             condition: fullAsset.condition || 'EXCELLENT',
             purchase_date: fullAsset.purchase_date || '',
             warranty_period: String(fullAsset.warranty_period || '12'),
@@ -78,23 +103,26 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             department: fullAsset.department ? String(fullAsset.department) : '',
             managed_by: fullAsset.managed_by ? String(fullAsset.managed_by) : '',
             description: fullAsset.description || '',
-            // Desktop specific fields từ JSON specifications
+            // Specs fields
             cpu: specs.cpu || '',
             mainboard: specs.mainboard || '',
             ram: specs.ram || '',
             storage: specs.storage || '',
             vga: specs.vga || '',
             power_supply: specs.power_supply || '',
+            phone_number: (specs as any).phone_number || '',
+            network_provider: (specs as any).network_provider || '',
+            other_type_name: (specs as any).type_name || '',
           });
         })
         .catch((error) => {
           console.error('Error fetching asset details:', error);
-          // Fallback to list item data
           const specs = asset.specifications || {};
           setFormData({
             name: asset.name || '',
             asset_type: asset.asset_type || 'LAPTOP',
             model: asset.model || '',
+            status: asset.status || 'NEW',
             condition: asset.condition || 'EXCELLENT',
             purchase_date: asset.purchase_date || '',
             warranty_period: String(asset.warranty_period || '12'),
@@ -108,6 +136,9 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             storage: specs.storage || '',
             vga: specs.vga || '',
             power_supply: specs.power_supply || '',
+            phone_number: (specs as any).phone_number || '',
+            network_provider: (specs as any).network_provider || '',
+            other_type_name: (specs as any).type_name || '',
           });
         })
         .finally(() => {
@@ -188,22 +219,24 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     
     setLoading(true);
     try {
-      const { cpu, mainboard, ram, storage, vga, power_supply, ...baseData } = formData;
+      const { cpu, mainboard, ram, storage, vga, power_supply, phone_number, network_provider, other_type_name, ...baseData } = formData;
       
+      let specifications = {};
+      if (formData.asset_type === 'DESKTOP') {
+        specifications = { cpu, mainboard, ram, storage, vga, power_supply };
+      } else if (formData.asset_type === 'SIM') {
+        specifications = { phone_number, network_provider };
+      } else if (formData.asset_type === 'OTHER') {
+        specifications = { type_name: other_type_name };
+      }
+
       const payload = {
         ...baseData,
         purchase_date: formData.purchase_date || null,
         warranty_period: parseInt(formData.warranty_period) || 0,
-        department: formData.department ? parseInt(formData.department) : null,
-        managed_by: formData.managed_by ? parseInt(formData.managed_by) : null,
-        specifications: formData.asset_type === 'DESKTOP' ? {
-          cpu,
-          mainboard,
-          ram,
-          storage,
-          vga,
-          power_supply
-        } : {}
+        department_id: formData.department ? parseInt(formData.department) : null,
+        managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
+        specifications
       };
       
       console.log('--- Cập nhật tài sản ---');
@@ -225,9 +258,9 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
   };
 
   return (
-    <Transition.Root show={isOpen} as={Fragment}>
+    <Transition show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
+        <TransitionChild
           as={Fragment}
           enter="ease-out duration-300"
           enterFrom="opacity-0"
@@ -237,11 +270,11 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
           leaveTo="opacity-0"
         >
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-        </Transition.Child>
+        </TransitionChild>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <Transition.Child
+            <TransitionChild
               as={Fragment}
               enter="ease-out duration-300"
               enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
@@ -250,7 +283,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
+              <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                   <button
                     type="button"
@@ -263,9 +296,9 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                 </div>
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 w-full text-center sm:mt-0 sm:text-left">
-                    <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900 border-b pb-3">
+                    <DialogTitle as="h3" className="text-lg font-semibold leading-6 text-gray-900 border-b pb-3">
                       Chỉnh sửa tài sản
-                    </Dialog.Title>
+                    </DialogTitle>
                     <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                       <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
                         <div className="sm:col-span-1">
@@ -276,13 +309,13 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                         </div>
 
                         <div className="sm:col-span-1">
-                          <label htmlFor="name" className="block text-sm font-medium text-gray-700">Tên tài sản</label>
-                          <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="Nhập tên tài sản (vd: Laptop MSI, Màn hình Dell,...)" />
+                          <label htmlFor="name" className="block text-sm font-medium text-gray-700">Mã thiết bị (Dán nhãn)</label>
+                          <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="Nhập mã thiết bị (VD: TA0123...)" />
                         </div>
 
-                        {/* Loại tài sản */}
+                        {/* Thay đổi Loại tài sản thành Tên tài sản */}
                         <SelectBox
-                          label="Loại tài sản"
+                          label="Tên tài sản (Phân loại)"
                           value={formData.asset_type}
                           options={ASSET_TYPES}
                           onChange={(val) => handleSelectChange('asset_type', val)}
@@ -290,13 +323,21 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
 
                         {/* Tình trạng */}
                         <SelectBox
-                          label="Tình trạng"
+                          label="Tình trạng (Vật lý)"
                           value={formData.condition}
                           options={ASSET_CONDITIONS}
                           onChange={(val) => handleSelectChange('condition', val)}
                         />
 
-                        {/* Desktop Specific Fields */}
+                        {/* Trạng thái */}
+                        <SelectBox
+                          label="Trạng thái (Vận hành)"
+                          value={formData.status}
+                          options={ASSET_STATUSES}
+                          onChange={(val) => handleSelectChange('status', val)}
+                        />
+
+                        {/* Desktop Specific Fields (CPU, MAIN, RAM, Ổ CỨNG, VGA, NGUỒN) */}
                         {formData.asset_type === 'DESKTOP' && (
                           <div className="sm:col-span-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 bg-blue-50/50 p-4 rounded-xl border border-blue-100 mb-4">
                             <div className="sm:col-span-2">
@@ -309,40 +350,88 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                             {/* CPU */}
                             <div>
                               <label htmlFor="cpu" className="block text-sm font-medium text-gray-700">Cpu</label>
-                              <input type="text" name="cpu" id="cpu" value={formData.cpu} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                              <input type="text" name="cpu" id="cpu" value={formData.cpu} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="VD: Core i7-13700K" />
                             </div>
 
                             {/* Mainboard */}
                             <div>
                               <label htmlFor="mainboard" className="block text-sm font-medium text-gray-700">Main</label>
-                              <input type="text" name="mainboard" id="mainboard" value={formData.mainboard} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                              <input type="text" name="mainboard" id="mainboard" value={formData.mainboard} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="VD: ASUS Z790-P" />
                             </div>
 
                             {/* RAM */}
                             <div>
                               <label htmlFor="ram" className="block text-sm font-medium text-gray-700">Ram</label>
-                              <input type="text" name="ram" id="ram" value={formData.ram} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                              <input type="text" name="ram" id="ram" value={formData.ram} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="VD: 32GB (16GBx2) DDR5" />
                             </div>
 
                             {/* Storage */}
                             <div>
                               <label htmlFor="storage" className="block text-sm font-medium text-gray-700">Ổ cứng</label>
-                              <input type="text" name="storage" id="storage" value={formData.storage} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                              <input type="text" name="storage" id="storage" value={formData.storage} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="VD: SSD 1TB Samsung 980 Pro" />
                             </div>
 
                             {/* VGA */}
                             <div>
                               <label htmlFor="vga" className="block text-sm font-medium text-gray-700">Vga</label>
-                              <input type="text" name="vga" id="vga" value={formData.vga} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                              <input type="text" name="vga" id="vga" value={formData.vga} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="VD: RTX 4070 Ti 12GB" />
                             </div>
 
                             {/* Power Supply */}
                             <div>
                               <label htmlFor="power_supply" className="block text-sm font-medium text-gray-700">Nguồn</label>
-                              <input type="text" name="power_supply" id="power_supply" value={formData.power_supply} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                              <input type="text" name="power_supply" id="power_supply" value={formData.power_supply} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="VD: Corsair RM850e 850W" />
                             </div>
                           </div>
                         )}
+
+                        {/* SIM Specific Fields (Số điện thoại, Nhà mạng) */}
+                        {formData.asset_type === 'SIM' && (
+                          <div className="sm:col-span-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 bg-green-50/50 p-4 rounded-xl border border-green-100 mb-4">
+                            <div className="sm:col-span-2">
+                              <h4 className="text-sm font-semibold text-green-900 flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                Thông tin Sim
+                              </h4>
+                            </div>
+                            
+                            <div>
+                              <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">Số điện thoại</label>
+                              <input type="text" name="phone_number" id="phone_number" value={(formData as any).phone_number} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="VD: 0912345678" />
+                            </div>
+
+                            <SelectBox
+                              label="Nhà mạng"
+                              value={(formData as any).network_provider}
+                              options={NETWORK_PROVIDERS}
+                              onChange={(val) => handleSelectChange('network_provider', val)}
+                            />
+                          </div>
+                        )}
+
+                        {/* OTHER Specific Fields (Tên loại chi tiết) */}
+                        {formData.asset_type === 'OTHER' && (
+                          <div className="sm:col-span-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 bg-gray-50/50 p-4 rounded-xl border border-gray-200 mb-4">
+                            <div className="sm:col-span-2">
+                              <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                                Tên loại tài sản (Khác)
+                              </h4>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <input
+                                type="text"
+                                name="other_type_name"
+                                id="other_type_name"
+                                value={(formData as any).other_type_name}
+                                onChange={handleChange}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                placeholder="Ví dụ: Máy chiếu, Camera, Bàn làm việc..."
+                              />
+                            </div>
+                          </div>
+                        )}
+
 
                         {/* Model */}
                         <div>
@@ -396,11 +485,11 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                     </form>
                   </div>
                 </div>
-              </Dialog.Panel>
-            </Transition.Child>
+              </DialogPanel>
+            </TransitionChild>
           </div>
         </div>
       </Dialog>
-    </Transition.Root>
+    </Transition>
   );
 }

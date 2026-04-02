@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Fragment } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
+import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Asset, assetsAPI } from '../../utils/api';
 import { SelectBox } from '../../components/LandingLayout/SelectBox';
@@ -11,12 +11,12 @@ interface AssetReturnModalProps {
   asset: Asset;
 }
 
-const CONDITION_OPTIONS = [
-  { value: 'EXCELLENT', label: 'Rất tốt' },
-  { value: 'GOOD', label: 'Tốt' },
-  { value: 'FAIR', label: 'Khá' },
-  { value: 'POOR', label: 'Kém' },
-  { value: 'BROKEN', label: 'Hỏng' },
+const ASSET_CONDITIONS = [
+  { value: 'EXCELLENT', label: 'Mới 100%' },
+  { value: 'GOOD', label: 'Cũ (Chất lượng tốt)' },
+  { value: 'FAIR', label: 'Cũ (Trầy xước / Cấn móp)' },
+  { value: 'POOR', label: 'Cũ (Kém / Lỗi chức năng)' },
+  { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
 ];
 
 export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: AssetReturnModalProps) {
@@ -67,9 +67,9 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
   };
 
   return (
-    <Transition.Root show={isOpen} as={Fragment}>
+    <Transition show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
+        <TransitionChild
           as={Fragment}
           enter="ease-out duration-300"
           enterFrom="opacity-0"
@@ -79,11 +79,11 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
           leaveTo="opacity-0"
         >
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-        </Transition.Child>
+        </TransitionChild>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <Transition.Child
+            <TransitionChild
               as={Fragment}
               enter="ease-out duration-300"
               enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
@@ -92,7 +92,7 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md sm:p-6">
+              <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md sm:p-6">
                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                   <button
                     type="button"
@@ -105,9 +105,9 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
                 </div>
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                    <Dialog.Title as="h3" className="text-xl font-semibold leading-6 text-gray-900 border-b pb-3 border-gray-200">
+                    <DialogTitle as="h3" className="text-xl font-semibold leading-6 text-gray-900 border-b pb-3 border-gray-200">
                       Thu hồi tài sản về kho
-                    </Dialog.Title>
+                    </DialogTitle>
                     <div className="mt-4 mb-4 bg-amber-50 p-3 rounded-md">
                       <p className="text-sm text-amber-800">
                         <strong>Tài sản đang thu hồi:</strong> [{asset.asset_code}] {asset.name}
@@ -131,7 +131,7 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
                       <SelectBox
                         label="Tình trạng lúc thu hồi"
                         value={formData.condition}
-                        options={CONDITION_OPTIONS}
+                        options={ASSET_CONDITIONS}
                         onChange={(val) => handleChange('condition', val)}
                       />
 
@@ -166,11 +166,11 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
                     </form>
                   </div>
                 </div>
-              </Dialog.Panel>
-            </Transition.Child>
+              </DialogPanel>
+            </TransitionChild>
           </div>
         </div>
       </Dialog>
-    </Transition.Root>
+    </Transition>
   );
 }

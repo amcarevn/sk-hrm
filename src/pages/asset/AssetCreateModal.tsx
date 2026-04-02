@@ -1,5 +1,5 @@
 import React, { Fragment, useState, useEffect } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
+import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { assetsAPI, departmentsAPI, employeesAPI } from '../../utils/api';
 import { SelectBox, SelectOption } from '../../components/LandingLayout/SelectBox';
@@ -14,6 +14,7 @@ const ASSET_TYPES: SelectOption<string>[] = [
   { value: 'LAPTOP', label: 'Laptop' },
   { value: 'DESKTOP', label: 'Máy tính để bàn' },
   { value: 'MONITOR', label: 'Màn hình' },
+  { value: 'SIM', label: 'Sim' },
   { value: 'PHONE', label: 'Điện thoại' },
   { value: 'TABLET', label: 'Máy tính bảng' },
   { value: 'PRINTER', label: 'Máy in' },
@@ -26,11 +27,18 @@ const ASSET_TYPES: SelectOption<string>[] = [
 ];
 
 const ASSET_CONDITIONS: SelectOption<string>[] = [
-  { value: 'EXCELLENT', label: 'Rất tốt' },
-  { value: 'GOOD', label: 'Tốt' },
-  { value: 'FAIR', label: 'Khá' },
-  { value: 'POOR', label: 'Kém' },
-  { value: 'BROKEN', label: 'Hỏng' },
+  { value: 'EXCELLENT', label: 'Mới 100%' },
+  { value: 'GOOD', label: 'Cũ (Chất lượng tốt)' },
+  { value: 'FAIR', label: 'Cũ (Trầy xước / Cấn móp)' },
+  { value: 'POOR', label: 'Cũ (Kém / Lỗi chức năng)' },
+  { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
+];
+
+const NETWORK_PROVIDERS: SelectOption<string>[] = [
+  { value: 'Viettel', label: 'Viettel' },
+  { value: 'Vinaphone', label: 'Vinaphone' },
+  { value: 'Mobifone', label: 'Mobifone' },
+  { value: 'Vietnamobile', label: 'Vietnamobile' },
 ];
 
 export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCreateModalProps) {
@@ -55,6 +63,11 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     storage: '',
     vga: '',
     power_supply: '',
+    // SIM specific fields
+    phone_number: '',
+    network_provider: '',
+    // OTHER specific fields
+    other_type_name: '',
   });
 
   /**
@@ -91,7 +104,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       setDepartments(options);
 
       // Set default department to HCNS if found
-      const hcnsDept = options.find(opt => 
+      const hcnsDept = options.find(opt =>
         opt.label.toUpperCase().includes('HCNS')
       );
       if (hcnsDept && !formData.department) {
@@ -112,7 +125,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       if (departmentId) {
         params.department = parseInt(departmentId);
       }
-      
+
       const data = await employeesAPI.list(params);
       const options = (data.results || []).map(emp => ({
         value: String(emp.id),
@@ -155,32 +168,34 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     setLoading(true);
     try {
       // Split technical specs into a separate object if it's a Desktop
-      const { cpu, mainboard, ram, storage, vga, power_supply, ...baseData } = formData;
-      
+      const { cpu, mainboard, ram, storage, vga, power_supply, phone_number, network_provider, other_type_name, ...baseData } = formData;
+
+      let specifications = {};
+      if (formData.asset_type === 'DESKTOP') {
+        specifications = { cpu, mainboard, ram, storage, vga, power_supply };
+      } else if (formData.asset_type === 'SIM') {
+        specifications = { phone_number, network_provider };
+      } else if (formData.asset_type === 'OTHER') {
+        specifications = { type_name: other_type_name };
+      }
+
       const payload = {
         ...baseData,
         purchase_date: formData.purchase_date || null,
         warranty_period: parseInt(formData.warranty_period) || 0,
-        department: formData.department ? parseInt(formData.department) : null,
-        managed_by: formData.managed_by ? parseInt(formData.managed_by) : null,
-        specifications: formData.asset_type === 'DESKTOP' ? {
-          cpu,
-          mainboard,
-          ram,
-          storage,
-          vga,
-          power_supply
-        } : {}
+        department_id: formData.department ? parseInt(formData.department) : null,
+        managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
+        specifications
       };
-      
+
       console.log('--- Gửi yêu cầu tạo tài sản mới ---');
       console.log('Payload:', JSON.stringify(payload, null, 2));
-      
+
       const response = await assetsAPI.create(payload as any);
-      
+
       console.log('--- Phản hồi từ Server ---');
       console.log('Data:', response);
-      
+
       onSuccess();
       onClose();
       // Reset form
@@ -193,6 +208,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         warranty_period: '12',
         supplier: '',
         department: '',
+        managed_by: '',
         description: '',
         cpu: '',
         mainboard: '',
@@ -200,7 +216,9 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         storage: '',
         vga: '',
         power_supply: '',
-        managed_by: '',
+        phone_number: '',
+        network_provider: '',
+        other_type_name: '',
       });
     } catch (error) {
       console.error('Error creating asset:', error);
@@ -211,9 +229,9 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
   };
 
   return (
-    <Transition.Root show={isOpen} as={Fragment}>
+    <Transition show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
+        <TransitionChild
           as={Fragment}
           enter="ease-out duration-300"
           enterFrom="opacity-0"
@@ -223,11 +241,11 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
           leaveTo="opacity-0"
         >
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-        </Transition.Child>
+        </TransitionChild>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <Transition.Child
+            <TransitionChild
               as={Fragment}
               enter="ease-out duration-300"
               enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
@@ -236,7 +254,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
+              <DialogPanel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
                 <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
                   <button
                     type="button"
@@ -249,14 +267,14 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                 </div>
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 w-full text-center sm:mt-0 sm:text-left">
-                    <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900 border-b pb-3">
+                    <DialogTitle as="h3" className="text-lg font-semibold leading-6 text-gray-900 border-b pb-3">
                       Thêm tài sản mới
-                    </Dialog.Title>
+                    </DialogTitle>
                     <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                       <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
                         <div className="sm:col-span-2">
                           <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                            Tên tài sản
+                            Mã thiết bị (Dán nhãn)
                           </label>
                           <input
                             type="text"
@@ -265,13 +283,13 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                             value={formData.name}
                             onChange={handleChange}
                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                            placeholder="Tên tài sản (VD: Laptop Gaming MSI, Màn hình Dell...)"
+                            placeholder="Nhập mã tên tài sản (VD: TA0123131...)"
                           />
                         </div>
 
                         {/* Loại tài sản */}
                         <SelectBox
-                          label="Loại tài sản"
+                          label="Tên tài sản (Phân loại)"
                           value={formData.asset_type}
                           options={ASSET_TYPES}
                           onChange={(val) => handleSelectChange('asset_type', val)}
@@ -294,7 +312,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                                 Cấu hình chi tiết (Máy tính để bàn)
                               </h4>
                             </div>
-                            
+
                             {/* CPU */}
                             <div>
                               <label htmlFor="cpu" className="block text-sm font-medium text-gray-700">
@@ -388,6 +406,65 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                                 onChange={handleChange}
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                                 placeholder="VD: Corsair RM850e 850W"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* SIM Specific Fields (Số điện thoại, Nhà mạng) */}
+                        {formData.asset_type === 'SIM' && (
+                          <div className="sm:col-span-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 bg-green-50/50 p-4 rounded-xl border border-green-100 mb-4">
+                            <div className="sm:col-span-2">
+                              <h4 className="text-sm font-semibold text-green-900 flex items-center gap-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                Thông tin Sim
+                              </h4>
+                            </div>
+
+                            {/* Số điện thoại */}
+                            <div>
+                              <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">
+                                Số điện thoại
+                              </label>
+                              <input
+                                type="text"
+                                name="phone_number"
+                                id="phone_number"
+                                value={(formData as any).phone_number}
+                                onChange={handleChange}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                placeholder="VD: 0912345678"
+                              />
+                            </div>
+
+                            {/* Nhà mạng */}
+                            <SelectBox
+                              label="Nhà mạng"
+                              value={(formData as any).network_provider}
+                              options={NETWORK_PROVIDERS}
+                              onChange={(val) => handleSelectChange('network_provider', val)}
+                            />
+                          </div>
+                        )}
+
+                        {/* OTHER Specific Fields (Tên loại chi tiết) */}
+                        {formData.asset_type === 'OTHER' && (
+                          <div className="sm:col-span-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 bg-gray-50/50 p-4 rounded-xl border border-gray-200 mb-4">
+                            <div className="sm:col-span-2">
+                              <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                                Tên loại tài sản (Khác)
+                              </h4>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <input
+                                type="text"
+                                name="other_type_name"
+                                id="other_type_name"
+                                value={(formData as any).other_type_name}
+                                onChange={handleChange}
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                placeholder="Ví dụ: Máy chiếu, Camera, Bàn làm việc..."
                               />
                             </div>
                           </div>
@@ -497,11 +574,10 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                         <button
                           type="submit"
                           disabled={loading || !isFormValid()}
-                          className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto transition-all ${
-                            isFormValid() 
-                              ? 'bg-primary-600 hover:bg-primary-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600' 
+                          className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto transition-all ${isFormValid()
+                              ? 'bg-primary-600 hover:bg-primary-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600'
                               : 'bg-gray-300 cursor-not-allowed opacity-70'
-                          }`}
+                            }`}
                           title={!isFormValid() ? 'Vui lòng điền đầy đủ các thông tin bắt buộc (*)' : ''}
                         >
                           {loading ? (
@@ -525,11 +601,11 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                     </form>
                   </div>
                 </div>
-              </Dialog.Panel>
-            </Transition.Child>
+              </DialogPanel>
+            </TransitionChild>
           </div>
         </div>
       </Dialog>
-    </Transition.Root>
+    </Transition>
   );
 }

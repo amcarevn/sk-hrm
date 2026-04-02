@@ -22,6 +22,44 @@ import AssetDetailModal from './AssetDetailModal';
 import AssetAssignModal from './AssetAssignModal';
 import AssetReturnModal from './AssetReturnModal';
 import { Asset, AssetStats } from '../../utils/api';
+import { SelectBox, SelectOption } from '../../components/LandingLayout/SelectBox';
+
+const ASSET_TYPE_OPTIONS: SelectOption<string>[] = [
+  { value: 'all', label: 'Tất cả loại' },
+  { value: 'LAPTOP', label: 'Laptop' },
+  { value: 'DESKTOP', label: 'Máy tính để bàn' },
+  { value: 'MONITOR', label: 'Màn hình' },
+  { value: 'PHONE', label: 'Điện thoại' },
+  { value: 'TABLET', label: 'Máy tính bảng' },
+  { value: 'PRINTER', label: 'Máy in' },
+  { value: 'SCANNER', label: 'Máy scan' },
+  { value: 'NETWORK', label: 'Thiết bị mạng' },
+  { value: 'SERVER', label: 'Máy chủ' },
+  { value: 'SIM', label: 'Sim' },
+  { value: 'FURNITURE', label: 'Nội thất' },
+  { value: 'VEHICLE', label: 'Phương tiện' },
+  { value: 'OTHER', label: 'Khác' },
+];
+
+const ASSET_STATUS_OPTIONS: SelectOption<string>[] = [
+  { value: 'all', label: 'Tất cả trạng thái' },
+  { value: 'NEW', label: 'Sẵn dùng (Mới 100%)' },
+  { value: 'IN_USE', label: 'Đang sử dụng' },
+  { value: 'IDLE', label: 'Sẵn dùng (Trong kho)' },
+  { value: 'UNDER_MAINTENANCE', label: 'Đang sửa chữa / Bảo hành' },
+  { value: 'DAMAGED', label: 'Lỗi / Chờ thanh lý' },
+  { value: 'RETIRED', label: 'Đã thanh lý' },
+  { value: 'LOST', label: 'Bị mất' },
+];
+
+const ASSET_CONDITION_OPTIONS: SelectOption<string>[] = [
+  { value: 'all', label: 'Tất cả tình trạng' },
+  { value: 'EXCELLENT', label: 'Mới 100%' },
+  { value: 'GOOD', label: 'Cũ (Chất lượng tốt)' },
+  { value: 'FAIR', label: 'Cũ (Trầy xước / Cấn móp)' },
+  { value: 'POOR', label: 'Cũ (Kém / Lỗi chức năng)' },
+  { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
+];
 
 export default function AssetList() {
   const { user } = useAuth();
@@ -32,6 +70,7 @@ export default function AssetList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [conditionFilter, setConditionFilter] = useState('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -102,8 +141,9 @@ export default function AssetList() {
     
     const matchesStatus = statusFilter === 'all' || asset.status === statusFilter;
     const matchesType = typeFilter === 'all' || asset.asset_type === typeFilter;
+    const matchesCondition = conditionFilter === 'all' || asset.condition === conditionFilter;
     
-    return matchesSearch && matchesStatus && matchesType;
+    return matchesSearch && matchesStatus && matchesType && matchesCondition;
   });
 
   const formatCurrency = (amount: number) => {
@@ -142,17 +182,17 @@ export default function AssetList() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'IN_USE':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'IDLE':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-amber-100 text-amber-800 border border-amber-200';
       case 'UNDER_MAINTENANCE':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 border border-blue-200';
       case 'DAMAGED':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border border-red-200';
       case 'RETIRED':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
       case 'NEW':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-purple-100 text-purple-800 border border-purple-200';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -161,17 +201,39 @@ export default function AssetList() {
   const getConditionColor = (condition: string) => {
     switch (condition) {
       case 'EXCELLENT':
-        return 'bg-green-100 text-green-800';
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'GOOD':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-green-100 text-green-800 border-green-200';
       case 'FAIR':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'POOR':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'BROKEN':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border-red-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'LAPTOP':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'DESKTOP':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'MONITOR':
+        return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+      case 'PHONE':
+        return 'bg-teal-100 text-teal-800 border-teal-200';
+      case 'SIM':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'NETWORK':
+      case 'SERVER':
+        return 'bg-slate-100 text-slate-800 border-slate-200';
+      case 'FURNITURE':
+        return 'bg-stone-100 text-stone-800 border-stone-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -249,8 +311,8 @@ export default function AssetList() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label htmlFor="search" className="block text-sm font-medium text-gray-700">
               Tìm kiếm
@@ -265,46 +327,26 @@ export default function AssetList() {
             />
           </div>
           
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700">
-              Trạng thái
-            </label>
-            <select
-              id="status"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">Tất cả trạng thái</option>
-              <option value="NEW">Mới</option>
-              <option value="IN_USE">Đang sử dụng</option>
-              <option value="IDLE">Không sử dụng</option>
-              <option value="UNDER_MAINTENANCE">Đang bảo trì</option>
-              <option value="DAMAGED">Hư hỏng</option>
-              <option value="RETIRED">Đã thanh lý</option>
-            </select>
-          </div>
+          <SelectBox
+            label="Trạng thái vận hành"
+            value={statusFilter}
+            options={ASSET_STATUS_OPTIONS}
+            onChange={(val) => setStatusFilter(val)}
+          />
           
-          <div>
-            <label htmlFor="type" className="block text-sm font-medium text-gray-700">
-              Loại tài sản
-            </label>
-            <select
-              id="type"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-            >
-              <option value="all">Tất cả loại</option>
-              <option value="LAPTOP">Laptop</option>
-              <option value="DESKTOP">Máy tính để bàn</option>
-              <option value="MONITOR">Màn hình</option>
-              <option value="PHONE">Điện thoại</option>
-              <option value="TABLET">Máy tính bảng</option>
-              <option value="PRINTER">Máy in</option>
-              <option value="OTHER">Khác</option>
-            </select>
-          </div>
+          <SelectBox
+            label="Tình trạng vật lý"
+            value={conditionFilter}
+            options={ASSET_CONDITION_OPTIONS}
+            onChange={(val) => setConditionFilter(val)}
+          />
+
+          <SelectBox
+            label="Loại tài sản"
+            value={typeFilter}
+            options={ASSET_TYPE_OPTIONS}
+            onChange={(val) => setTypeFilter(val)}
+          />
         </div>
       </div>
 
@@ -333,22 +375,25 @@ export default function AssetList() {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Mã TS
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tên tài sản
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Model
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tình trạng
+                  Loại tài sản
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Kiểm soát
+                  Trạng thái vận hành
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Sử dụng
+                  Tình trạng vật lý
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Quản lý kho
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Người sử dụng
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Thông tin mua
@@ -364,7 +409,7 @@ export default function AssetList() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredAssets.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center">
+                  <td colSpan={11} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center">
                       <ComputerDesktopIcon className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-gray-900">
@@ -382,12 +427,10 @@ export default function AssetList() {
               ) : (
                 filteredAssets.map((asset) => (
                   <tr key={asset.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{asset.asset_code}</div>
-                      <div className="text-sm text-gray-500">{asset.asset_type_display}</div>
-                    </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">{asset.name}</div>
+                      <div className="text-sm font-bold text-primary-700 bg-primary-50 px-2 py-1 rounded inline-block">
+                        {asset.name}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900 font-medium">
@@ -395,7 +438,19 @@ export default function AssetList() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getConditionColor(asset.condition)}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getTypeColor(asset.asset_type)} uppercase tracking-tight`}>
+                        {asset.asset_type === 'OTHER' && (asset.specifications as any)?.type_name 
+                          ? `Khác (${(asset.specifications as any).type_name})` 
+                          : asset.asset_type_display}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(asset.status)} uppercase tracking-tight`}>
+                        {asset.status_display}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getConditionColor(asset.condition)} uppercase tracking-tight`}>
                         {asset.condition_display}
                       </span>
                     </td>
@@ -420,7 +475,7 @@ export default function AssetList() {
                             {asset.assigned_to_name}
                           </div>
                           {asset.assigned_to_department_name && (
-                            <div className="text-xs text-gray-500 mt-1 ml-1 italic">
+                            <div className="text-sm text-gray-500">
                               {asset.assigned_to_department_name}
                             </div>
                           )}
@@ -443,42 +498,55 @@ export default function AssetList() {
                       {asset.supplier || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex space-x-2">
+                      <div className="flex items-center space-x-2">
+                        {/* Chi tiết */}
                         <button
                           onClick={() => handleDetailClick(asset)}
-                          className="text-primary-600 hover:text-primary-900 transition-colors"
+                          className="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-primary-600 bg-primary-50 hover:bg-primary-100 transition-all font-bold text-[10px] uppercase tracking-tight"
                           title="Xem chi tiết"
                         >
-                          <EyeIcon className="h-5 w-5" />
+                          <EyeIcon className="h-3.5 w-3.5" />
+                          <span>Chi tiết</span>
                         </button>
                         
+                        {/* Sửa */}
                         <button
                           onClick={() => handleEditClick(asset)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="Chỉnh sửa chung"
+                          className="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all font-bold text-[10px] uppercase tracking-tight"
+                          title="Chỉnh sửa thông tin"
                         >
-                          <PencilIcon className="h-5 w-5" />
+                          <PencilIcon className="h-3.5 w-3.5" />
+                          <span>Sửa</span>
                         </button>
+
+                        {/* Bàn giao */}
                         <button
                           onClick={() => handleAssignClick(asset)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                          title="Bàn giao (Chuyển người dùng)"
+                          className="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all font-bold text-[10px] uppercase tracking-tight"
+                          title="Bàn giao người dùng"
                         >
-                          <UserPlusIcon className="h-5 w-5" />
+                          <UserPlusIcon className="h-3.5 w-3.5" />
+                          <span>Bàn giao</span>
                         </button>
+
+                        {/* Thu hồi */}
                         <button
                           onClick={() => handleReturnClick(asset)}
-                          className="text-amber-600 hover:text-amber-900"
-                          title="Thu hồi tài sản về kho"
+                          className="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-amber-600 bg-amber-50 hover:bg-amber-100 transition-all font-bold text-[10px] uppercase tracking-tight"
+                          title="Thu hồi về kho"
                         >
-                          <ArrowPathRoundedSquareIcon className="h-5 w-5" />
+                          <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5" />
+                          <span>Thu hồi</span>
                         </button>
+
+                        {/* Xóa */}
                         <button
                           onClick={() => confirmDelete(asset.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Xóa"
+                          className="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition-all font-bold text-[10px] uppercase tracking-tight"
+                          title="Xóa tài sản"
                         >
-                          <TrashIcon className="h-5 w-5" />
+                          <TrashIcon className="h-3.5 w-3.5" />
+                          <span>Xóa</span>
                         </button>
                       </div>
                     </td>

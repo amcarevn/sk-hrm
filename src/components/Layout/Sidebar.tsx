@@ -108,7 +108,7 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN', 'HR'],
   },
   {
-    name: 'Thiết bị bàn giao',
+    name: 'Tài sản được bàn giao',
     href: '/dashboard/assigned-assets',
     icon: ComputerDesktopIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
