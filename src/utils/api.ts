@@ -1,8 +1,8 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 export const API_BASE_URL = 'https://backend-hrm.amcare.vn';
-// export const API_BASE_URL = 'https://app-uat.amcare.vn';
-// export const API_BASE_URL = 'http://localhost:8000';
+//export const API_BASE_URL = 'https://app-uat.amcare.vn';
+//export const API_BASE_URL = 'http://localhost:8000';
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -2204,8 +2204,11 @@ export interface Asset {
   condition_display: string;
   department?: number;
   department_name?: string;
+  managed_by?: number;
+  managed_by_name?: string;
   assigned_to?: number;
   assigned_to_name?: string;
+  assigned_to_department_name?: string;
   assigned_date?: string;
   purchase_date?: string;
   purchase_price: number;
@@ -2213,9 +2216,24 @@ export interface Asset {
   invoice_number?: string;
   supplier?: string;
   location?: string;
-  notes?: string;
+  description?: string;
+  specifications?: {
+    cpu?: string;
+    ram?: string;
+    vga?: string;
+    storage?: string;
+    mainboard?: string;
+    power_supply?: string;
+    phone_number?: string;
+    network_provider?: string;
+    details?: string;
+  };
+  other_details?: string;
+  warranty_period?: number;
   created_at: string;
   updated_at: string;
+  is_deleted?: boolean;
+  deleted_at?: string;
 }
 
 export interface AssetAssignmentHistory {
@@ -2271,10 +2289,10 @@ export interface AssetStats {
     count: number;
   }>;
   department_stats: Array<{
-    department_id: number;
     department_name: string;
     count: number;
   }>;
+  deleted_count: number;
 }
 
 // Assets API
@@ -2289,6 +2307,7 @@ export const assetsAPI = {
     department?: number;
     assigned_to?: number;
     ordering?: string;
+    show_deleted?: boolean;
   }): Promise<{
     count: number;
     next: string | null;
@@ -2319,13 +2338,18 @@ export const assetsAPI = {
     return response.data;
   },
 
-  partialUpdate: async (id: number, data: Partial<Asset>): Promise<Asset> => {
-    const response: AxiosResponse<Asset> = await managementApi.patch(`/api-hrm/assets/${id}/`, data);
+  delete: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/assets/${id}/`);
+  },
+
+  restore: async (id: number): Promise<Asset> => {
+    const response: AxiosResponse<Asset> = await managementApi.post(`/api-hrm/assets/${id}/restore/`);
     return response.data;
   },
 
-  delete: async (id: number): Promise<void> => {
-    await managementApi.delete(`/api-hrm/assets/${id}/`);
+  partialUpdate: async (id: number, data: Partial<Asset>): Promise<Asset> => {
+    const response: AxiosResponse<Asset> = await managementApi.patch(`/api-hrm/assets/${id}/`, data);
+    return response.data;
   },
 
   stats: async (): Promise<AssetStats> => {
@@ -2337,6 +2361,7 @@ export const assetsAPI = {
     employee_id: number;
     assigned_date?: string;
     notes?: string;
+    force?: boolean;
   }): Promise<Asset> => {
     const response: AxiosResponse<Asset> = await managementApi.post(`/api-hrm/assets/${id}/assign/`, data);
     return response.data;
@@ -2348,6 +2373,11 @@ export const assetsAPI = {
     notes?: string;
   }): Promise<Asset> => {
     const response: AxiosResponse<Asset> = await managementApi.post(`/api-hrm/assets/${id}/return_asset/`, data);
+    return response.data;
+  },
+
+  assignedAssets: async (): Promise<Asset[]> => {
+    const response: AxiosResponse<Asset[]> = await managementApi.get('/api-hrm/assets/assigned_assets/');
     return response.data;
   },
 

@@ -108,6 +108,12 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN', 'HR'],
   },
   {
+    name: 'Tài sản được bàn giao',
+    href: '/dashboard/assigned-assets',
+    icon: ComputerDesktopIcon,
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
+  {
     name: 'Cấu hình công ty',
     href: '/dashboard/company-configs',
     icon: Cog6ToothIcon,

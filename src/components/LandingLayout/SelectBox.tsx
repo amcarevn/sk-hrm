@@ -1,4 +1,5 @@
-import { Listbox } from "@headlessui/react";
+import React, { useState, memo, useMemo } from "react";
+import { Listbox, Combobox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 
 export interface SelectOption<T> {
@@ -12,48 +13,114 @@ interface SelectBoxProps<T> {
   options: SelectOption<T>[];
   onChange: (value: T) => void;
   placeholder?: string;
+  searchable?: boolean;
 }
 
-export function SelectBox<T>({
+function SelectBoxInner<T>({
   label,
   value,
   options,
   onChange,
   placeholder,
+  searchable = false,
 }: SelectBoxProps<T>) {
-  const selected =
-    options.find((o) => o.value === value) ||
-    (placeholder ? { value, label: placeholder } : options[0]);
+  const [query, setQuery] = useState("");
+
+  const selected = options.find((o) => o.value === value) || null;
+
+  const filteredOptions = useMemo(() => {
+    const filtered = query === ""
+      ? options
+      : options.filter((option) =>
+          option.label.toLowerCase().includes(query.toLowerCase())
+        );
+    
+    // Limit to 100 results to keep UI snappy with large lists
+    return filtered.slice(0, 100);
+  }, [options, query]);
+
+  // COMBBOX MODE (Searchable)
+  if (searchable) {
+    return (
+      <div className="w-full">
+        <label className="block text-sm font-medium mb-1 text-gray-700">{label}</label>
+        <Combobox
+          value={selected}
+          onChange={(v: SelectOption<T> | null) => {
+            if (v) onChange(v.value);
+          }}
+        >
+          <div className="relative mt-1">
+            <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left shadow-sm sm:text-sm border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+              <Combobox.Input
+                className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
+                displayValue={(option: SelectOption<T> | null) => option?.label || ""}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={placeholder || "Tìm kiếm..."}
+              />
+              <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+                <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+              </Combobox.Button>
+            </div>
+            <Combobox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+              {filteredOptions.length === 0 && query !== "" ? (
+                <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
+                  Không tìm thấy kết quả.
+                </div>
+              ) : (
+                filteredOptions.map((option) => (
+                  <Combobox.Option
+                    key={String(option.value)}
+                    className={({ active }) =>
+                      `relative cursor-default select-none py-2 pl-10 pr-4 ${
+                        active ? "bg-blue-600 text-white" : "text-gray-900"
+                      }`
+                    }
+                    value={option}
+                  >
+                    {({ selected, active }) => (
+                      <>
+                        <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                          {option.label}
+                        </span>
+                        {selected ? (
+                          <span
+                            className={`absolute inset-y-0 left-0 flex items-center pl-3 ${
+                              active ? "text-white" : "text-blue-600"
+                            }`}
+                          >
+                            <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                          </span>
+                        ) : null}
+                      </>
+                    )}
+                  </Combobox.Option>
+                ))
+              )}
+            </Combobox.Options>
+          </div>
+        </Combobox>
+      </div>
+    );
+  }
+
+  // LISTBOX MODE (Standard)
+  const fallbackSelected = selected || (placeholder ? { value, label: placeholder } : options[0]);
 
   return (
     <div className="w-full">
-      <label className="block text-sm font-medium mb-1">{label}</label>
+      <label className="block text-sm font-medium mb-1 text-gray-700">{label}</label>
 
-      <Listbox value={selected} onChange={(v) => onChange(v.value)}>
-        <div className="relative">
-          <Listbox.Button
-            className="
-              relative w-full cursor-pointer rounded-lg border border-gray-300
-              bg-white py-2 pl-3 pr-10 text-left
-              focus:outline-none focus:ring-2 focus:ring-blue-500
-              
-            "
-          >
-            <span className="block truncate">
-              {selected?.label || placeholder || "Chọn"}
-            </span>
-            <span className="absolute inset-y-0 right-0 flex items-center pr-3">
-              <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+      <Listbox value={fallbackSelected} onChange={(v: any) => onChange(v.value)}>
+        <div className="relative mt-1">
+          <Listbox.Button className="relative w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm shadow-sm">
+            <span className="block truncate">{fallbackSelected?.label || placeholder || "Chọn"}</span>
+            <span className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer">
+              <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
             </span>
           </Listbox.Button>
 
-          <Listbox.Options
-            className="
-              absolute z-50 mt-1 max-h-60 w-full overflow-auto
-              rounded-lg bg-white shadow-lg ring-1 ring-black/5
-              
-            "
-          >
+          <Listbox.Options className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
             {options.map((option) => (
               <Listbox.Option
                 key={String(option.value)}
@@ -66,16 +133,12 @@ export function SelectBox<T>({
               >
                 {({ selected }) => (
                   <>
-                    <span
-                      className={`block truncate ${
-                        selected ? "font-medium" : "font-normal"
-                      }`}
-                    >
+                    <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
                       {option.label}
                     </span>
                     {selected && (
                       <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
-                        <CheckIcon className="h-5 w-5" />
+                        <CheckIcon className="h-5 w-5" aria-hidden="true" />
                       </span>
                     )}
                   </>
@@ -88,3 +151,6 @@ export function SelectBox<T>({
     </div>
   );
 }
+
+// Ensure the component is correctly typed when memoized
+export const SelectBox = memo(SelectBoxInner) as typeof SelectBoxInner;
