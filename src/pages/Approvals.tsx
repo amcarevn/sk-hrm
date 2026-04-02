@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useDebounce } from '../hooks/useDebounce';
 import { approvalService } from '../services/approval.service';
 import { attendanceService } from '../services/attendance.service';
 import { workFinalizationApprovalService } from '../services/workFinalizationApproval.service';
@@ -35,7 +36,9 @@ const Approvals: React.FC = () => {
   const [filterExplanationSubTypes, setFilterExplanationSubTypes] = useState<string[]>([]);
   const [filterRegistrationSubTypes, setFilterRegistrationSubTypes] = useState<string[]>([]);
   const [filterName, setFilterName] = useState('');
+  const debouncedFilterName = useDebounce(filterName, 300);
   const [filterDepartment, setFilterDepartment] = useState('');
+  const [fetchProgress, setFetchProgress] = useState<{ loaded: number; total: number | null } | null>(null);
   const nowForInit = new Date();
   const isEarlyMonth = nowForInit.getDate() <= 15;
   const initialMonth = isEarlyMonth
@@ -51,6 +54,7 @@ const Approvals: React.FC = () => {
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const isFetchingRef = useRef<boolean>(false);
   const lastFetchTimeRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [selectedExplanation, setSelectedExplanation] = useState<any>(null);
   const [selectedOnlineWorkRequest, setSelectedOnlineWorkRequest] =
     useState<any>(null);
@@ -230,65 +234,91 @@ const Approvals: React.FC = () => {
     }
   };
 
-  const fetchPendingRequests = async () => {
+  const fetchPendingRequests = async (signal?: AbortSignal) => {
     try {
-      const result = await (approvalService as any).getAllPendingRequests({ day: 0, month: filterMonth, year: filterYear });
+      const applyPendingResult = (result: any) => {
+        if (signal?.aborted) return;
+        setAttendanceExplanations(result.attendance_explanations);
+        setPendingRegistrations(result.registration_requests || []);
+        setPendingLeaveRequests(result.leave_requests || []);
+        setPendingOvertimeRequests(result.overtime_requests || []);
+        setPendingOnlineWorkRequests(result.online_work_requests || []);
+        setStats((prev: StatsType) => ({
+          ...prev,
+          pending_leave: result.leave_requests.length,
+          pending_overtime: result.overtime_requests.length,
+          pending_explanation: result.attendance_explanations.length,
+          pending_registration: (result.registration_requests || []).length,
+          pending_online_work: result.online_work_requests.length,
+          total_pending: result.total_pending || 0,
+        }));
+      };
 
-      const allExplanations = result.attendance_explanations;
-      setAttendanceExplanations(allExplanations);
-      setPendingRegistrations(result.registration_requests || []);
-      setPendingLeaveRequests(result.leave_requests || []);
-      setPendingOvertimeRequests(result.overtime_requests || []);
-
-      setPendingOnlineWorkRequests(result.online_work_requests || []);
-
-      setStats((prev: StatsType) => ({
-        ...prev,
-        pending_leave: result.leave_requests.length,
-        pending_overtime: result.overtime_requests.length,
-        pending_explanation: result.attendance_explanations.length,
-        pending_registration: (result.registration_requests || []).length,
-        pending_online_work: result.online_work_requests.length,
-        total_pending: result.total_pending || 0,
-      }));
-    } catch (error) {
+      const result = await (approvalService as any).getAllPendingRequests(
+        { day: 0, month: filterMonth, year: filterYear },
+        (loaded: number, total: number | null) => { if (!signal?.aborted) setFetchProgress({ loaded, total }); },
+        applyPendingResult,
+        signal
+      );
+      applyPendingResult(result);
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error('× [APPROVALS] Error fetching pending requests:', error);
     }
   };
 
-  const fetchApprovedRequests = async () => {
+  const fetchApprovedRequests = async (signal?: AbortSignal) => {
     try {
-      const result = await (approvalService as any).getAllApprovedRequests({ day: 0, month: filterMonth, year: filterYear });
+      const applyApprovedResult = (result: any) => {
+        if (signal?.aborted) return;
+        setApprovedExplanations(result.attendance_explanations);
+        setApprovedRegistrations(result.registration_requests || []);
+        setApprovedLeaveRequests(result.leave_requests || []);
+        setApprovedOvertimeRequests(result.overtime_requests || []);
+        setApprovedOnlineWorkRequests(result.online_work_requests || []);
+        setStats((prev: StatsType) => ({
+          ...prev,
+          total_approved: result.total_approved || 0,
+        }));
+      };
 
-      setApprovedExplanations(result.attendance_explanations);
-      setApprovedRegistrations(result.registration_requests || []);
-      setApprovedLeaveRequests(result.leave_requests || []);
-      setApprovedOvertimeRequests(result.overtime_requests || []);
-      setApprovedOnlineWorkRequests(result.online_work_requests || []);
-
-      setStats((prev: StatsType) => ({
-        ...prev,
-        total_approved: result.total_approved || 0,
-      }));
-    } catch (error) {
+      const result = await (approvalService as any).getAllApprovedRequests(
+        { day: 0, month: filterMonth, year: filterYear },
+        (loaded: number, total: number | null) => { if (!signal?.aborted) setFetchProgress({ loaded, total }); },
+        applyApprovedResult,
+        signal
+      );
+      applyApprovedResult(result);
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error('Error fetching approved requests:', error);
     }
   };
 
-  const fetchRejectedRequests = async () => {
+  const fetchRejectedRequests = async (signal?: AbortSignal) => {
     try {
-      const result = await (approvalService as any).getAllRejectedRequests({ day: 0, month: filterMonth, year: filterYear });
+      const applyRejectedResult = (result: any) => {
+        if (signal?.aborted) return;
+        setRejectedExplanations(result.attendance_explanations);
+        setRejectedRegistrations(result.registration_requests || []);
+        setRejectedLeaveRequests(result.leave_requests || []);
+        setRejectedOvertimeRequests(result.overtime_requests || []);
+        setRejectedOnlineWorkRequests(result.online_work_requests || []);
+        setStats((prev: StatsType) => ({
+          ...prev,
+          total_rejected: result.total_rejected || 0,
+        }));
+      };
 
-      setRejectedExplanations(result.attendance_explanations);
-      setRejectedRegistrations(result.registration_requests || []);
-      setRejectedLeaveRequests(result.leave_requests || []);
-      setRejectedOvertimeRequests(result.overtime_requests || []);
-      setRejectedOnlineWorkRequests(result.online_work_requests || []);
-      setStats((prev: StatsType) => ({
-        ...prev,
-        total_rejected: result.total_rejected || 0,
-      }));
-    } catch (error) {
+      const result = await (approvalService as any).getAllRejectedRequests(
+        { day: 0, month: filterMonth, year: filterYear },
+        (loaded: number, total: number | null) => { if (!signal?.aborted) setFetchProgress({ loaded, total }); },
+        applyRejectedResult,
+        signal
+      );
+      applyRejectedResult(result);
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error('Error fetching rejected requests:', error);
     }
   };
@@ -353,16 +383,18 @@ const Approvals: React.FC = () => {
   const fetchAllData = async (force = false) => {
     const nowValue = Date.now();
 
-    // Prevent concurrent fetches
-    if (isFetchingRef.current) {
-      return;
-    }
+    // Cancel any in-flight pagination loop
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const signal = controller.signal;
 
     try {
       isFetchingRef.current = true;
       const prevFetchTime = lastFetchTimeRef.current;
       lastFetchTimeRef.current = nowValue;
       setLoading(true);
+      setFetchProgress(null);
 
       const emp = await fetchCurrentEmployee();
       const currentIsAdmin = emp?.user?.is_staff || emp?.user?.is_superuser || (user as any)?.is_superuser || (user as any)?.is_staff || user?.role?.toUpperCase() === 'ADMIN';
@@ -372,16 +404,18 @@ const Approvals: React.FC = () => {
 
       // Only fetch the active tab to optimize performance
       if (activeTab === 'pending') {
-        tasks.push(fetchPendingRequests());
+        tasks.push(fetchPendingRequests(signal));
         // Work Finalization data is typically only shown/relevant in the Pending tab
         tasks.push(fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR));
       } else if (activeTab === 'approved') {
-        tasks.push(fetchApprovedRequests());
+        tasks.push(fetchApprovedRequests(signal));
       } else if (activeTab === 'rejected') {
-        tasks.push(fetchRejectedRequests());
+        tasks.push(fetchRejectedRequests(signal));
       }
 
       await Promise.all(tasks);
+
+      if (signal.aborted) return;
 
       setLastRefreshedAt(new Date());
       // Chỉ hiện toast nếu là refresh thủ công/focus sau khi đã có dữ liệu (không hiện lần đầu)
@@ -389,10 +423,14 @@ const Approvals: React.FC = () => {
         setShowRefreshToast(true);
         setTimeout(() => setShowRefreshToast(false), 3000);
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') return;
       console.error('❌ [APPROVALS] Error fetching all data:', error);
     } finally {
-      setLoading(false);
+      if (!signal.aborted) {
+        setLoading(false);
+        setFetchProgress(null);
+      }
       isFetchingRef.current = false;
     }
   };
@@ -1480,10 +1518,10 @@ const Approvals: React.FC = () => {
   const matchesTextFilters = (req: any) => {
     const name = (req.employee_name || '').toLowerCase();
     const dept = (req.employee_department || req.department_name || '').toLowerCase();
-    const nameFilter = filterName.toLowerCase();
+    const nameFilter = debouncedFilterName.toLowerCase();
     const deptFilter = filterDepartment.toLowerCase();
 
-    if (filterName && !name.includes(nameFilter) && !(req.employee_code || '').toLowerCase().includes(nameFilter)) return false;
+    if (debouncedFilterName && !name.includes(nameFilter) && !(req.employee_code || '').toLowerCase().includes(nameFilter)) return false;
     if (filterDepartment && !dept.includes(deptFilter)) return false;
     return true;
   };
@@ -1618,7 +1656,7 @@ const Approvals: React.FC = () => {
     pendingOnlineWorkRequests, approvedOnlineWorkRequests, rejectedOnlineWorkRequests,
     filterOnlyMine,
     filterTypes, filterExplanationSubTypes, filterRegistrationSubTypes,
-    filterName, filterDepartment,
+    debouncedFilterName, filterDepartment,
     currentEmployee,
     user
   ]);
@@ -2168,6 +2206,22 @@ const Approvals: React.FC = () => {
 
 
         <div className="space-y-4">
+          {loading && fetchProgress && (
+            <div className="px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl flex flex-col gap-1.5">
+              <div className="flex justify-between text-xs text-blue-600 font-medium">
+                <span>Đang tải dữ liệu...</span>
+                <span>{fetchProgress.loaded}{fetchProgress.total ? ` / ${fetchProgress.total}` : ''} đơn</span>
+              </div>
+              {fetchProgress.total && (
+                <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, (fetchProgress.loaded / fetchProgress.total) * 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
           {loading && Object.keys(getGroupedRequests()).length === 0 ? (
             <div className="space-y-6">
               <SkeletonItem />

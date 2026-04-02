@@ -356,33 +356,63 @@ class ApprovalService {
   }
 
   // Lấy danh sách tất cả các đơn theo trạng thái từ API tổng hợp
-  async getDuyetDonList(status: string, params?: { day?: number; month?: number; year?: number }): Promise<any[]> {
-    try {
-      const response = await managementApi.get('/api-hrm/duyet-don/', {
-        params: {
-          status,
-          ordering: '-created_at',
-          day: params?.day && params.day !== 0 ? params.day : undefined,
-          month: params?.month,
-          year: params?.year,
-          page_size: 1000
-        }
-      });
+  async getDuyetDonList(
+    status: string,
+    params?: { day?: number; month?: number; year?: number },
+    onProgress?: (loaded: number, total: number | null) => void,
+    onPage?: (accumulated: any[]) => void,
+    signal?: AbortSignal
+  ): Promise<any[]> {
+    const PAGE_SIZE = 200;
+    const accumulated: any[] = [];
+    let page = 1;
+    let total: number | null = null;
 
-      let items: any[] = [];
-      if (Array.isArray(response.data)) {
-        items = response.data;
-      } else if (response.data?.results && Array.isArray(response.data.results)) {
-        items = response.data.results;
-      } else if (response.data?.data && Array.isArray(response.data.data)) {
-        items = response.data.data;
-      } else {
-        console.warn('[ApprovalService] Unexpected duyet-don response format:', response.data);
+    try {
+      while (true) {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+
+        const response = await managementApi.get('/api-hrm/duyet-don/', {
+          params: {
+            status,
+            ordering: '-created_at',
+            day: params?.day && params.day !== 0 ? params.day : undefined,
+            month: params?.month,
+            year: params?.year,
+            page_size: PAGE_SIZE,
+            page,
+          },
+          signal,
+        });
+
+        let items: any[] = [];
+        if (Array.isArray(response.data)) {
+          items = response.data;
+        } else if (response.data?.results && Array.isArray(response.data.results)) {
+          items = response.data.results;
+          if (total === null && response.data.count != null) total = response.data.count;
+        } else if (response.data?.data && Array.isArray(response.data.data)) {
+          items = response.data.data;
+        } else {
+          console.warn('[ApprovalService] Unexpected response format:', response.data);
+        }
+
+        accumulated.push(...items);
+        onProgress?.(accumulated.length, total);
+        onPage?.(accumulated);
+
+        if (items.length < PAGE_SIZE) break;
+        if (total !== null && accumulated.length >= total) break;
+        page++;
       }
 
-      console.debug(`[ApprovalService] getDuyetDonList(${status}): ${items.length} items`, items.slice(0, 3).map(i => ({ id: i.id, request_type: i.request_type })));
-      return items;
-    } catch (error) {
+      console.debug(`[ApprovalService] getDuyetDonList(${status}): ${accumulated.length} items (${page} pages)`);
+      return accumulated;
+    } catch (error: any) {
+      if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') {
+        console.debug(`[ApprovalService] getDuyetDonList(${status}) cancelled`);
+        throw error;
+      }
       console.error(`Error fetching duyet-don list with status ${status}:`, error);
       throw error;
     }
@@ -457,7 +487,12 @@ class ApprovalService {
   }
 
   // Tổng hợp tất cả các loại đơn chờ duyệt
-  async getAllPendingRequests(params?: { day?: number; month?: number; year?: number }): Promise<{
+  async getAllPendingRequests(
+    params?: { day?: number; month?: number; year?: number },
+    onProgress?: (loaded: number, total: number | null) => void,
+    onPartialResult?: (result: { attendance_explanations: any[]; leave_requests: any[]; overtime_requests: any[]; online_work_requests: any[]; registration_requests: any[]; total_pending: number }) => void,
+    signal?: AbortSignal
+  ): Promise<{
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
@@ -466,7 +501,10 @@ class ApprovalService {
     total_pending: number;
   }> {
     try {
-      const allRequests = await this.getDuyetDonList('PENDING', params);
+      const allRequests = await this.getDuyetDonList('PENDING', params, onProgress, onPartialResult ? (acc) => {
+        const cat = this.categorizeDuyetDonList(acc);
+        onPartialResult({ ...cat, overtime_requests: [], total_pending: acc.length });
+      } : undefined, signal);
       const { attendance_explanations, leave_requests, online_work_requests, registration_requests } = this.categorizeDuyetDonList(allRequests);
       const total_pending = allRequests.length;
 
@@ -485,7 +523,12 @@ class ApprovalService {
   }
 
   // Tổng hợp tất cả các loại đơn đã duyệt
-  async getAllApprovedRequests(params?: { day?: number; month?: number; year?: number }): Promise<{
+  async getAllApprovedRequests(
+    params?: { day?: number; month?: number; year?: number },
+    onProgress?: (loaded: number, total: number | null) => void,
+    onPartialResult?: (result: { attendance_explanations: any[]; leave_requests: any[]; overtime_requests: any[]; online_work_requests: any[]; registration_requests: any[]; total_approved: number }) => void,
+    signal?: AbortSignal
+  ): Promise<{
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
@@ -494,7 +537,10 @@ class ApprovalService {
     total_approved: number;
   }> {
     try {
-      const allRequests = await this.getDuyetDonList('APPROVED', params);
+      const allRequests = await this.getDuyetDonList('APPROVED', params, onProgress, onPartialResult ? (acc) => {
+        const cat = this.categorizeDuyetDonList(acc);
+        onPartialResult({ ...cat, overtime_requests: [], total_approved: acc.length });
+      } : undefined, signal);
       const { attendance_explanations, leave_requests, online_work_requests, registration_requests } = this.categorizeDuyetDonList(allRequests);
       const total_approved = allRequests.length;
 
@@ -513,7 +559,12 @@ class ApprovalService {
   }
 
   // Tổng hợp tất cả các loại đơn đã từ chối
-  async getAllRejectedRequests(params?: { day?: number; month?: number; year?: number }): Promise<{
+  async getAllRejectedRequests(
+    params?: { day?: number; month?: number; year?: number },
+    onProgress?: (loaded: number, total: number | null) => void,
+    onPartialResult?: (result: { attendance_explanations: any[]; leave_requests: any[]; overtime_requests: any[]; online_work_requests: any[]; registration_requests: any[]; total_rejected: number }) => void,
+    signal?: AbortSignal
+  ): Promise<{
     attendance_explanations: any[];
     leave_requests: any[];
     overtime_requests: any[];
@@ -522,7 +573,10 @@ class ApprovalService {
     total_rejected: number;
   }> {
     try {
-      const allRequests = await this.getDuyetDonList('REJECTED', params);
+      const allRequests = await this.getDuyetDonList('REJECTED', params, onProgress, onPartialResult ? (acc) => {
+        const cat = this.categorizeDuyetDonList(acc);
+        onPartialResult({ ...cat, overtime_requests: [], total_rejected: acc.length });
+      } : undefined, signal);
       const { attendance_explanations, leave_requests, online_work_requests, registration_requests } = this.categorizeDuyetDonList(allRequests);
       const total_rejected = allRequests.length;
 
