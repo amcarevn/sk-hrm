@@ -1,4 +1,5 @@
-import { managementApi } from '../utils/api';
+import { managementApi } from "@/utils/api";
+
 
 export interface ApprovalRequest {
   id: number;
