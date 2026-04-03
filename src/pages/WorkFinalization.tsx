@@ -444,6 +444,7 @@ const WorkFinalization: React.FC = () => {
           cong_thuc_te: rec.cong_thuc_te,
           tong_cong: rec.tong_cong,
           nghi_phep: rec.nghi_phep,
+          lam_viec_online:rec.lam_viec_online,
           tong_phat: rec.tong_phat,
           tang_ca: rec.tang_ca,
           lam_toi: rec.lam_toi ?? '',
