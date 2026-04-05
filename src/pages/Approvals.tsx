@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { approvalService } from '../services/approval.service';
 import { attendanceService } from '../services/attendance.service';
+import FinalizationLockBanner from '../components/FinalizationLockBanner';
 import { workFinalizationApprovalService } from '../services/workFinalizationApproval.service';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import { useAuth } from '../contexts/AuthContext';
@@ -900,8 +901,9 @@ const Approvals: React.FC = () => {
     } catch (error: any) {
       console.error(`Error ${actionType}:`, error);
       const data = error.response?.data;
-      if (data?.quota_exceeded) {
-        // Quota exceeded — build a descriptive message
+      if (error.response?.status === 423 && data?.error === 'FINALIZATION_LOCKED') {
+        setErrorMessage(data.message || 'Tháng này đã đóng chốt công. Không thể phê duyệt/từ chối. Vui lòng liên hệ HCNS để biết chi tiết.');
+      } else if (data?.quota_exceeded) {
         let msg = data.error || 'Hết hạn mức';
         if (targetItem?._itemType === 'LEAVE') {
           const used = data.leave_used ?? '?';
@@ -916,8 +918,7 @@ const Approvals: React.FC = () => {
         }
         setErrorMessage(msg);
       } else {
-        const msg = data?.error || data?.detail || 'Thao tác thất bại';
-        setErrorMessage(msg);
+        setErrorMessage(data?.error || data?.detail || 'Thao tác thất bại');
       }
       setErrorModalOpen(true);
     } finally {
@@ -1192,7 +1193,10 @@ const Approvals: React.FC = () => {
       fetchAllData(true);
     } catch (error: any) {
       console.error(`Error bulk approving ${groupName}:`, error);
-      setErrorMessage(`Lỗi khi duyệt hàng loạt ${groupName}: ` + (error.response?.data?.error || error.message));
+      const msg = error.response?.status === 423 && error.response?.data?.error === 'FINALIZATION_LOCKED'
+        ? error.response.data.message || 'Tháng này đã đóng chốt công. Không thể phê duyệt. Vui lòng liên hệ HCNS để biết chi tiết.'
+        : `Lỗi khi duyệt hàng loạt ${groupName}: ` + (error.response?.data?.error || error.message);
+      setErrorMessage(msg);
       setErrorModalOpen(true);
     } finally {
       setIsBulkProcessing(false);
@@ -1825,6 +1829,11 @@ const Approvals: React.FC = () => {
           Duyệt các đơn xin nghỉ phép, giải trình chấm công và các
           yêu cầu khác.
         </p>
+      </div>
+
+      {/* Banner hạn chốt công */}
+      <div className="mb-4">
+        <FinalizationLockBanner year={filterYear} month={filterMonth} bypassRoles={['ADMIN', 'HR']} />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 md:p-6 border border-gray-100">

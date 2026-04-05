@@ -103,6 +103,56 @@ export interface FinalizeAllResponse {
   errors: FinalizeAllErrorItem[];
 }
 
+// ─── Finalization Lock types ───
+
+export interface LockStatusResponse {
+  id?: number;
+  year: number;
+  month: number;
+  is_locked: boolean;
+  lock_start_at: string | null;
+  locked_by: string | null;
+  locked_by_id?: number | null;
+  locked_by_role?: string | null;
+  locked_at: string | null;
+  unlocked_by?: string | null;
+  unlocked_at?: string | null;
+  note?: string;
+}
+
+export interface ToggleLockRequest {
+  year: number;
+  month: number;
+  is_locked: boolean;
+  note?: string;
+  lock_start_at?: string | null;
+}
+
+export interface ToggleLockResponse extends LockStatusResponse {
+  message: string;
+  performed_by: string;
+  performed_by_role: string;
+}
+
+export interface LockCheckResponse {
+  year: number;
+  month: number;
+  is_locked: boolean;
+  message: string | null;
+  lock_start_at?: string | null;
+  locked_at?: string | null;
+}
+
+export interface LockLogEntry {
+  id: number;
+  action: 'LOCKED' | 'UNLOCKED';
+  action_display: string;
+  performed_by: string | null;
+  performed_by_role: string;
+  note: string;
+  created_at: string;
+}
+
 class WorkFinalizationService {
   async list(params: WorkFinalizationParams): Promise<WorkFinalizationListResponse> {
     const response = await managementApi.get('/api-hrm/work-finalization/', { params });
@@ -132,6 +182,39 @@ class WorkFinalizationService {
     const response = await managementApi.get(
       `/api-hrm/work-finalization/${employeeCode}/${year}/${month}/`
     );
+    return response.data;
+  }
+
+  // ─── Finalization Lock ───
+
+  async getLockStatus(year: number, month: number): Promise<LockStatusResponse> {
+    const response = await managementApi.get('/api-hrm/finalization-lock/status/', {
+      params: { year, month },
+    });
+    return response.data;
+  }
+
+  async toggleLock(data: ToggleLockRequest): Promise<ToggleLockResponse> {
+    const response = await managementApi.post('/api-hrm/finalization-lock/toggle/', data);
+    return response.data;
+  }
+
+  async checkLock(year: number, month: number): Promise<LockCheckResponse> {
+    const response = await managementApi.get('/api-hrm/finalization-lock/check/', {
+      params: { year, month },
+    });
+    return response.data;
+  }
+
+  async getLockList(year?: number): Promise<LockStatusResponse[]> {
+    const response = await managementApi.get('/api-hrm/finalization-lock/list/', {
+      params: year ? { year } : {},
+    });
+    return response.data;
+  }
+
+  async getLockLogs(lockId: number): Promise<LockLogEntry[]> {
+    const response = await managementApi.get(`/api-hrm/finalization-lock/${lockId}/logs/`);
     return response.data;
   }
 }

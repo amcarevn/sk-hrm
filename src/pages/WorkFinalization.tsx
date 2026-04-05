@@ -14,11 +14,14 @@ import {
   XMarkIcon,
   EyeIcon,
   ShieldExclamationIcon,
+  LockClosedIcon,
+  LockOpenIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { departmentsAPI, employeesAPI, Department, Employee } from '../utils/api';
 import { workFinalizationService, WorkFinalizationRecord } from '../services/workFinalization.service';
-import type { FinalizeAllResponse, FinalizeDepartmentResponse } from '../services/workFinalization.service';
+import type { FinalizeAllResponse, FinalizeDepartmentResponse, LockStatusResponse } from '../services/workFinalization.service';
 import deptAttendanceViolationReportService from '../services/deptAttendanceViolationReport.service';
 import type { DeptAttendanceViolationResponse } from '../services/deptAttendanceViolationReport.service';
 import AttendanceCalendar from '../components/AttendanceCalendar';
@@ -43,13 +46,17 @@ const EmployeeListItem = React.memo(({
   rec,
   isSelected,
   isBeingFinalized,
+  isLocked,
+  canBypassLock,
   onSelect,
-  onFinalize
+  onFinalize,
 }: {
   emp: Employee;
   rec?: WorkFinalizationRecord;
   isSelected: boolean;
   isBeingFinalized: boolean;
+  isLocked: boolean;
+  canBypassLock: boolean;
   onSelect: (emp: Employee) => void;
   onFinalize: (emp: Employee) => void;
 }) => {
@@ -102,7 +109,8 @@ const EmployeeListItem = React.memo(({
               e.stopPropagation();
               onFinalize(emp);
             }}
-            disabled={isBeingFinalized}
+            disabled={isBeingFinalized || (isLocked && !canBypassLock)}
+            title={isLocked ? 'Tháng này đã khóa chốt công' : undefined}
             className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded disabled:opacity-50 disabled:cursor-not-allowed ${
               rec
                 ? 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
@@ -132,6 +140,7 @@ const EmployeeListItem = React.memo(({
 const WorkFinalization: React.FC = () => {
   const { user } = useAuth();
   const userRole = user?.role ? user.role.toUpperCase() : 'USER';
+  const canBypassLock = userRole === 'ADMIN' || userRole === 'HR';
 
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
@@ -172,6 +181,64 @@ const WorkFinalization: React.FC = () => {
 
   // Selected employee for calendar view
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+
+  // Finalization Lock state
+  const [lockStatus, setLockStatus] = useState<LockStatusResponse | null>(null);
+  const [togglingLock, setTogglingLock] = useState(false);
+  const [showLockConfirm, setShowLockConfirm] = useState(false);
+  const [lockNote, setLockNote] = useState('');
+  const [lockStartAt, setLockStartAt] = useState('');
+
+  const isLocked = lockStatus?.is_locked ?? false;
+
+  // Helper: ISO string → datetime-local value
+  const toLocalInput = (iso: string | null) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    // Format theo local timezone cho input datetime-local
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // Load lock status when month/year changes
+  useEffect(() => {
+    workFinalizationService
+      .getLockStatus(selectedYear, selectedMonth)
+      .then((res) => {
+        setLockStatus(res);
+        setLockStartAt(toLocalInput(res.lock_start_at));
+      })
+      .catch(() => setLockStatus(null));
+  }, [selectedYear, selectedMonth]);
+
+  const handleToggleLock = async () => {
+    setTogglingLock(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await workFinalizationService.toggleLock({
+        year: selectedYear,
+        month: selectedMonth,
+        is_locked: !isLocked,
+        note: lockNote,
+        lock_start_at: lockStartAt ? new Date(lockStartAt).toISOString() : null,
+      });
+      setLockStatus(res);
+      setSuccessMsg(res.message);
+      setShowLockConfirm(false);
+      setLockNote('');
+      setLockStartAt(toLocalInput(res.lock_start_at));
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Không thể thay đổi trạng thái khóa.');
+    } finally {
+      setTogglingLock(false);
+    }
+  };
 
   // Load departments once
   useEffect(() => {
@@ -673,7 +740,33 @@ const WorkFinalization: React.FC = () => {
             Quản lý bảng tính công hàng tháng và xuất báo cáo tính lương
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Nút Đóng/Mở chốt công */}
+          <button
+            onClick={() => {
+              setLockStartAt(toLocalInput(lockStatus?.lock_start_at ?? null));
+              setLockNote(lockStatus?.note ?? '');
+              setShowLockConfirm(true);
+            }}
+            disabled={togglingLock}
+            className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+              isLocked
+                ? 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100 focus:ring-red-500'
+                : 'border-green-300 text-green-700 bg-green-50 hover:bg-green-100 focus:ring-green-500'
+            }`}
+          >
+            {isLocked ? (
+              <LockClosedIcon className="w-4 h-4 mr-2" />
+            ) : (
+              <LockOpenIcon className="w-4 h-4 mr-2" />
+            )}
+            {isLocked
+              ? `Đang khóa T${selectedMonth}/${selectedYear}`
+              : lockStatus?.lock_start_at
+                ? `Hẹn khóa ${new Date(lockStatus.lock_start_at).toLocaleDateString('vi-VN')}`
+                : `Đang mở T${selectedMonth}/${selectedYear}`}
+          </button>
+
           <Link
             to="/dashboard/work-finalization/approvals"
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -683,16 +776,18 @@ const WorkFinalization: React.FC = () => {
           </Link>
           <button
             onClick={handleFinalizeAll}
-            disabled={finalizingAll || finalizingDepartment || finalizing !== null || exporting}
+            disabled={(isLocked && !canBypassLock) || finalizingAll || finalizingDepartment || finalizing !== null || exporting}
+            title={isLocked ? 'Tháng này đã khóa chốt công' : undefined}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <BoltIcon className="w-4 h-4 mr-2" />
             {finalizingAll ? 'Đang chốt...' : `Chốt tất cả (Tháng ${selectedMonth}/${selectedYear})`}
           </button>
-          {selectedDepartment && (
+          {selectedDepartment && selectedDepartment !== 'all' && (
             <button
               onClick={handleFinalizeDepartment}
-              disabled={finalizingDepartment || finalizingAll || finalizing !== null || exporting}
+              disabled={(isLocked && !canBypassLock) || finalizingDepartment || finalizingAll || finalizing !== null || exporting}
+              title={isLocked ? 'Tháng này đã khóa chốt công' : undefined}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <BoltIcon className="w-4 h-4 mr-2" />
@@ -739,6 +834,42 @@ const WorkFinalization: React.FC = () => {
         <div className="flex items-center p-4 text-sm text-green-800 bg-green-50 rounded-lg border border-green-200">
           <CheckCircleIcon className="w-5 h-5 mr-2 flex-shrink-0" />
           {successMsg}
+        </div>
+      )}
+
+      {/* Lock banner */}
+      {isLocked && (
+        <div className="flex items-center justify-between p-4 text-sm bg-red-50 rounded-lg border border-red-200">
+          <div className="flex items-center gap-2 text-red-800">
+            <LockClosedIcon className="w-5 h-5 flex-shrink-0" />
+            <div>
+              <span className="font-semibold">
+                Tháng {selectedMonth}/{selectedYear} đã khóa chốt công.
+              </span>
+              <span className="ml-1">
+                Không thể tạo đơn, phê duyệt hoặc chốt công cho tháng này.
+              </span>
+              {lockStatus?.locked_by && (
+                <span className="ml-1 text-red-600">
+                  (Khóa bởi: {lockStatus.locked_by}
+                  {lockStatus.locked_at && (
+                    <> lúc {new Date(lockStatus.locked_at).toLocaleString('vi-VN')}</>
+                  )})
+                </span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setLockStartAt(toLocalInput(lockStatus?.lock_start_at ?? null));
+              setLockNote(lockStatus?.note ?? '');
+              setShowLockConfirm(true);
+            }}
+            className="flex-shrink-0 inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50"
+          >
+            <LockOpenIcon className="w-3.5 h-3.5 mr-1" />
+            Mở khóa
+          </button>
         </div>
       )}
 
@@ -938,6 +1069,8 @@ const WorkFinalization: React.FC = () => {
                   rec={recordsMap.get(emp.employee_id)}
                   isSelected={selectedEmployee?.id === emp.id}
                   isBeingFinalized={finalizing === emp.employee_id}
+                  isLocked={isLocked}
+                  canBypassLock={canBypassLock}
                   onSelect={handleSelectEmployee}
                   onFinalize={handleFinalize}
                 />
@@ -984,11 +1117,14 @@ const WorkFinalization: React.FC = () => {
                   )}
                   <button
                     onClick={() => handleFinalize(selectedEmployee)}
-                    disabled={finalizing === selectedEmployee.employee_id}
+                    disabled={(isLocked && !canBypassLock) || finalizing === selectedEmployee.employee_id}
+                    title={isLocked ? 'Tháng này đã khóa chốt công' : undefined}
                     className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {finalizing === selectedEmployee.employee_id ? (
                       <ArrowPathIcon className="w-4 h-4 animate-spin mr-1" />
+                    ) : isLocked ? (
+                      <LockClosedIcon className="w-4 h-4 mr-1" />
                     ) : (
                       <CheckCircleIcon className="w-4 h-4 mr-1" />
                     )}
@@ -1263,6 +1399,157 @@ const WorkFinalization: React.FC = () => {
                   Đóng
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lock Confirm Modal */}
+      {showLockConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className={`px-6 py-4 flex items-center gap-3 ${isLocked ? 'bg-green-50 border-b border-green-200' : 'bg-red-50 border-b border-red-200'}`}>
+              {isLocked ? (
+                <LockOpenIcon className="w-6 h-6 text-green-600" />
+              ) : (
+                <LockClosedIcon className="w-6 h-6 text-red-600" />
+              )}
+              <div>
+                <h3 className={`text-base font-semibold ${isLocked ? 'text-green-900' : 'text-red-900'}`}>
+                  {isLocked ? 'Mở khóa chốt công' : 'Khóa chốt công'}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Tháng {selectedMonth}/{selectedYear}
+                </p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-sm text-gray-700">
+                {isLocked ? (
+                  <>
+                    Mở khóa sẽ cho phép <strong>tạo đơn</strong>, <strong>phê duyệt</strong> và <strong>chốt công</strong> cho tháng {selectedMonth}/{selectedYear}.
+                  </>
+                ) : (
+                  <>
+                    Khóa sẽ <strong>chặn toàn bộ</strong> tạo đơn, phê duyệt và chốt công cho tháng {selectedMonth}/{selectedYear}. Tất cả nhân viên, quản lý và HR đều bị ảnh hưởng.
+                  </>
+                )}
+              </p>
+
+              {/* Đặt lịch tự động */}
+              <div className="rounded-lg border border-gray-200 overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+                  <div className="flex items-center gap-2 text-xs font-medium text-gray-700">
+                    <ClockIcon className="w-4 h-4 text-indigo-500" />
+                    Đặt lịch tự động
+                  </div>
+                  {lockStartAt && (
+                    <button
+                      type="button"
+                      onClick={() => setLockStartAt('')}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
+                    >
+                      <XMarkIcon className="w-3.5 h-3.5" />
+                      Xóa lịch
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-3 space-y-3">
+                  {lockStartAt ? (
+                    <div className="flex items-start gap-3 bg-indigo-50 rounded-lg px-3 py-2.5">
+                      <div className="flex-shrink-0 mt-0.5 h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center">
+                        <ClockIcon className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <div className="flex-1 min-w-0 text-xs">
+                        <p className="font-medium text-indigo-800 mb-1">Lịch đã đặt</p>
+                        <p className="text-indigo-700">
+                          <span className="text-indigo-500">Tự động khóa lúc:</span>{' '}
+                          <strong>{new Date(lockStartAt).toLocaleString('vi-VN')}</strong>
+                        </p>
+                        <p className="text-amber-600 mt-0.5">
+                          Mở khóa thủ công khi cần.
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">
+                      Bắt đầu khóa
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={lockStartAt}
+                      onChange={(e) => setLockStartAt(e.target.value)}
+                      className="block w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {!lockStartAt && (
+                    <p className="text-xs text-gray-400 italic">
+                      Để trống nếu muốn khóa/mở thủ công.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Ghi chú (tùy chọn)
+                </label>
+                <textarea
+                  value={lockNote}
+                  onChange={(e) => setLockNote(e.target.value)}
+                  placeholder={isLocked ? 'Lý do mở khóa...' : 'Lý do khóa...'}
+                  rows={2}
+                  className="block w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              {lockStatus?.locked_by && isLocked && (
+                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-md px-3 py-2">
+                  <ClockIcon className="w-4 h-4" />
+                  <span>
+                    Khóa bởi <strong>{lockStatus.locked_by}</strong>
+                    {lockStatus.locked_at && (
+                      <> lúc {new Date(lockStatus.locked_at).toLocaleString('vi-VN')}</>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
+              <button
+                onClick={() => { setShowLockConfirm(false); setLockNote(''); }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleToggleLock}
+                disabled={togglingLock}
+                className={`inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isLocked
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                {togglingLock ? (
+                  <ArrowPathIcon className="w-4 h-4 animate-spin mr-1.5" />
+                ) : isLocked ? (
+                  <LockOpenIcon className="w-4 h-4 mr-1.5" />
+                ) : (
+                  <LockClosedIcon className="w-4 h-4 mr-1.5" />
+                )}
+                {togglingLock
+                  ? 'Đang xử lý...'
+                  : isLocked
+                    ? 'Xác nhận mở khóa'
+                    : 'Xác nhận khóa'}
+              </button>
             </div>
           </div>
         </div>

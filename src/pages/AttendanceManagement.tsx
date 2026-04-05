@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceCalendar from '../components/AttendanceCalendar';
+import FinalizationLockBanner from '../components/FinalizationLockBanner';
 import {
   attendanceService,
   AttendanceRecord,
@@ -1118,11 +1119,16 @@ const AttendanceManagement: React.FC = () => {
             error.response?.data
           );
 
+          // Kiểm tra khóa chốt công (HTTP 423)
+          if (error.response?.status === 423 && error.response?.data?.error === 'FINALIZATION_LOCKED') {
+            showNotify('error', 'Đã khóa chốt công', error.response.data.message || 'Tháng này đã đóng chốt công. Không thể tạo đơn. Vui lòng liên hệ HCNS để biết chi tiết.');
+            return;
+          }
+
           // Hiển thị error message từ Backend
           let errorMessage = 'Lỗi khi tạo đơn làm việc online';
 
           if (error.response?.data?.detail) {
-            // Backend trả về error message cụ thể (ví dụ: duplicate date)
             errorMessage = error.response.data.detail;
           } else if (error.response?.data?.message) {
             errorMessage = error.response.data.message;
@@ -1311,13 +1317,19 @@ const AttendanceManagement: React.FC = () => {
       handleCloseSupplementaryRequest();
     } catch (error: any) {
       console.error('Error submitting supplementary request:', error);
-      const errorMessage =
-        error.response?.data?.detail ||
-        error.response?.data?.message ||
-        (selectedContext === 'online_work'
-          ? 'Gửi đơn làm việc online thất bại. Vui lòng thử lại.'
-          : 'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.');
-      showNotify('error', 'Lỗi hệ thống', errorMessage);
+
+      // Kiểm tra khóa chốt công (HTTP 423)
+      if (error.response?.status === 423 && error.response?.data?.error === 'FINALIZATION_LOCKED') {
+        showNotify('error', 'Đã khóa chốt công', error.response.data.message || `Tháng này đã đóng chốt công. Không thể tạo đơn. Vui lòng liên hệ HCNS để biết chi tiết.`);
+      } else {
+        const errorMessage =
+          error.response?.data?.detail ||
+          error.response?.data?.message ||
+          (selectedContext === 'online_work'
+            ? 'Gửi đơn làm việc online thất bại. Vui lòng thử lại.'
+            : 'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.');
+        showNotify('error', 'Lỗi hệ thống', errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1422,6 +1434,13 @@ const AttendanceManagement: React.FC = () => {
           )}
         </button>
       </div>
+
+      {/* Banner hạn chốt công */}
+      <FinalizationLockBanner
+        year={currentDate.getFullYear()}
+        month={currentDate.getMonth() + 1}
+        bypassRoles={['ADMIN']}
+      />
 
       {/* Upload Section - Only visible for users with permission */}
       {canUploadAttendance && (
