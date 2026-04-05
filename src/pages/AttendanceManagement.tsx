@@ -200,7 +200,6 @@ const AttendanceManagement: React.FC = () => {
   const [forgotPunchType, setForgotPunchType] = useState<'checkin' | 'checkout' | 'both'>('checkin');
   const [forgotCheckinTime, setForgotCheckinTime] = useState<string | null>(null);
   const [forgotCheckoutTime, setForgotCheckoutTime] = useState<string | null>(null);
-  const [forgotShiftType, setForgotShiftType] = useState<string | null>(null); // 'MORNING' | 'AFTERNOON' | 'FULL_DAY' | null
 
   // Confirmation modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -413,7 +412,6 @@ const AttendanceManagement: React.FC = () => {
       );
       if (incompleteShifts.length === 1) {
         const shift = incompleteShifts[0];
-        setForgotShiftType(shift.shift_type || 'FULL_DAY');
         // Auto-detect loại quên và suggest giờ
         if (shift.check_in && !shift.check_out) {
           setForgotPunchType('checkout');
@@ -430,15 +428,9 @@ const AttendanceManagement: React.FC = () => {
         }
       } else if (incompleteShifts.length > 1) {
         // Nhiều ca bị incomplete → reset để user chọn
-        setForgotShiftType(null);
         setForgotPunchType('checkin');
         setForgotCheckinTime(null);
         setForgotCheckoutTime(null);
-      } else {
-        // Không detect được → fallback FULL_DAY
-        setForgotShiftType(selectedDayData.shifts.length === 1
-          ? selectedDayData.shifts[0].shift_type || 'FULL_DAY'
-          : 'FULL_DAY');
       }
     }
   };
@@ -460,7 +452,6 @@ const AttendanceManagement: React.FC = () => {
     setForgotPunchType('checkin');
     setForgotCheckinTime(null);
     setForgotCheckoutTime(null);
-    setForgotShiftType(null);
   };
 
   // Icon render helper
@@ -1232,12 +1223,40 @@ const AttendanceManagement: React.FC = () => {
         };
 
         if (explanationType === 'INCOMPLETE_ATTENDANCE') {
+          // Validate: phải chọn giờ bị quên
+          if ((forgotPunchType === 'checkin' || forgotPunchType === 'both') && !forgotCheckinTime) {
+            showNotify('error', 'Thiếu thông tin', 'Vui lòng chọn giờ check-in bị quên');
+            return;
+          }
+          if ((forgotPunchType === 'checkout' || forgotPunchType === 'both') && !forgotCheckoutTime) {
+            showNotify('error', 'Thiếu thông tin', 'Vui lòng chọn giờ check-out bị quên');
+            return;
+          }
+
           explanationData.forgot_punch_type = forgotPunchType;
           explanationData.forgot_checkin_time = forgotCheckinTime;
           explanationData.forgot_checkout_time = forgotCheckoutTime;
-          explanationData.actual_check_in = forgotCheckinTime;
-          explanationData.actual_check_out = forgotCheckoutTime;
-          explanationData.shift_type = forgotShiftType || 'FULL_DAY';
+          // Lấy check_in/check_out thật từ máy chấm công (raw_checkin_checkout)
+          // Khi chỉ có 1 lần quẹt, máy chấm công luôn ghi vào check_in
+          // → dựa vào forgotPunchType để map đúng actual_check_in/out
+          const rawLogs = selectedDayData?.raw_checkin_checkout || [];
+          const firstLog = rawLogs[0];
+          const rawCheckIn = firstLog?.check_in || null;
+          const rawCheckOut = firstLog?.check_out || null;
+
+          if (forgotPunchType === 'checkin') {
+            // NV quên vào → lần quẹt duy nhất (nằm ở check_in) thực ra là giờ ra
+            explanationData.actual_check_in = null;
+            explanationData.actual_check_out = rawCheckOut || rawCheckIn;
+          } else if (forgotPunchType === 'checkout') {
+            // NV quên ra → check_in là đúng
+            explanationData.actual_check_in = rawCheckIn;
+            explanationData.actual_check_out = null;
+          } else {
+            // Quên cả hai → không có dữ liệu thật
+            explanationData.actual_check_in = null;
+            explanationData.actual_check_out = null;
+          }
         }
 
         // Gửi kèm tiền phạt và số phút của vi phạm tương ứng (Snapshot data)
@@ -4163,97 +4182,6 @@ const AttendanceManagement: React.FC = () => {
                     {selectedContext === 'explanation' &&
                       selectedReason === 'incomplete_attendance' && (
                         <div className="space-y-4 mb-6 animate-fadeIn">
-
-                          {/* Bước 0: Chọn ca (nếu nhiều ca bị incomplete) */}
-                          {(() => {
-                            const incompleteShifts = (selectedDayData?.shifts || []).filter(
-                              (s: any) =>
-                                s.status?.toUpperCase() === 'INCOMPLETE_ATTENDANCE' ||
-                                (s.check_in && !s.check_out) ||
-                                (!s.check_in && s.check_out)
-                            );
-                            if (incompleteShifts.length > 1 && !forgotShiftType) {
-                              return (
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <div className="w-1 h-5 bg-purple-500 rounded-full"></div>
-                                    <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
-                                      Chọn ca bị quên chấm công
-                                    </h3>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {incompleteShifts.map((shift: any, idx: number) => (
-                                      <button
-                                        key={idx}
-                                        type="button"
-                                        onClick={() => {
-                                          setForgotShiftType(shift.shift_type || 'FULL_DAY');
-                                          if (shift.check_in && !shift.check_out) {
-                                            setForgotPunchType('checkout');
-                                            setForgotCheckinTime(null);
-                                            setForgotCheckoutTime(shift.scheduled_end || null);
-                                          } else if (!shift.check_in && shift.check_out) {
-                                            setForgotPunchType('checkin');
-                                            setForgotCheckinTime(shift.scheduled_start || null);
-                                            setForgotCheckoutTime(null);
-                                          } else {
-                                            setForgotPunchType('both');
-                                            setForgotCheckinTime(shift.scheduled_start || null);
-                                            setForgotCheckoutTime(shift.scheduled_end || null);
-                                          }
-                                        }}
-                                        className="p-4 bg-white border-2 border-gray-200 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all text-left"
-                                      >
-                                        <span className="text-sm font-bold text-gray-800">{shift.shift_label || shift.shift_type}</span>
-                                        <span className="block text-xs text-gray-500 mt-1">
-                                          {shift.scheduled_start || '--:--'} → {shift.scheduled_end || '--:--'}
-                                        </span>
-                                        <span className="block text-xs text-red-500 mt-1 font-medium">
-                                          {shift.check_in && !shift.check_out ? 'Thiếu Check-out' :
-                                           !shift.check_in && shift.check_out ? 'Thiếu Check-in' : 'Thiếu cả hai'}
-                                        </span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
-
-                          {/* Hiển thị ca đã detect/chọn */}
-                          {forgotShiftType && forgotShiftType !== 'FULL_DAY' && (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-xl">
-                              <span className="text-xs font-bold text-purple-700 uppercase">
-                                Ca: {forgotShiftType === 'MORNING' ? 'Ca sáng' : forgotShiftType === 'AFTERNOON' ? 'Ca chiều' : forgotShiftType}
-                              </span>
-                              {(() => {
-                                const incompleteShifts = (selectedDayData?.shifts || []).filter(
-                                  (s: any) =>
-                                    s.status?.toUpperCase() === 'INCOMPLETE_ATTENDANCE' ||
-                                    (s.check_in && !s.check_out) ||
-                                    (!s.check_in && s.check_out)
-                                );
-                                if (incompleteShifts.length > 1) {
-                                  return (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setForgotShiftType(null);
-                                        setForgotPunchType('checkin');
-                                        setForgotCheckinTime(null);
-                                        setForgotCheckoutTime(null);
-                                      }}
-                                      className="ml-auto text-xs text-purple-600 underline hover:text-purple-800"
-                                    >
-                                      Đổi ca
-                                    </button>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                          )}
 
                           {/* Tiêu đề */}
                           <div className="flex items-center gap-2 mb-1">
