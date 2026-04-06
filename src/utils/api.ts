@@ -103,6 +103,7 @@ export interface User {
   userRoles?: UserRole[];
   permissions?: Permission[];
   is_super_admin?: boolean;
+  is_superuser?: boolean;
   
   // Additional fields from HRM backend
   employee_profile?: {

@@ -39,7 +39,7 @@ const EmployeeList: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [totalCount, setTotalCount] = useState(0);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
-  const isSuperUser = (user as any)?.is_superuser === true || user?.is_super_admin === true;
+  const isSuperUser = user?.is_superuser === true || user?.is_super_admin === true;
 
   const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
   const COOLDOWN_DURATION = 120; // 2 phút (giây)
