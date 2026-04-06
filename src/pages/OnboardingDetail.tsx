@@ -224,21 +224,8 @@ const PROBATION_RATE_OPTIONS = [
   { value: 'OPTION_2', label: 'Tháng đầu 100%, tháng sau 100%' },
 ];
 
-const SECTION_OPTIONS = [
-  'ADS',
-  'Bệnh viện Hà Thành', 'Bệnh viện 30/4', 'Bệnh viện An Việt', 'Bệnh viện Hồng Hà', 'Bệnh Viện Tân Hưng',
-  'Bệnh viện Sao Hàn', 'Bệnh viện Vạn Hạnh',
-  'Check page', 'Xây Group', 'Tiktok',
-  'Giám sát chất lượng', 'Giám sát nội bộ',
-  'Media', 'Nội dung 01',
-  'Phòng HCNS', 'Phòng kế toán', 'Phòng TTTH',
-  'Kinh doanh - VP miền Bắc', 'Kinh doanh - VP miền Nam',
-  'Pháp chế',
-  'Mua hàng',
-  'Bộ phận IT', 'Bộ phận AI',
-];
 
-const toSelectOptions = (values: string[]) => values.map(opt => ({ value: opt, label: opt }));
+
 const withCurrentOption = (
   options: { value: string; label: string }[],
   currentValue: string | undefined
@@ -1505,7 +1492,7 @@ const OnboardingDetail: React.FC = () => {
               {ef('Phòng ban', 'department_id', undefined, departmentSelectOptions)}
               {ef('Vị trí', 'position_id', undefined, positionSelectOptions)}
               {ef('Cấp bậc', 'rank')}
-              {ef('Bộ phận', 'section', undefined, withCurrentOption(toSelectOptions(SECTION_OPTIONS), editData.section))}
+              {ef('Bộ phận', 'section', undefined, withCurrentOption(allDepartments.map(dep => ({ value: dep.name, label: dep.name })), editData.section))}
               {ef('Team Bác sĩ', 'doctor_team')}
               {ef('Hình thức làm việc', 'work_form', undefined, [
                 { value: 'FULL_TIME', label: 'Full-time' },
