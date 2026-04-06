@@ -1688,11 +1688,38 @@ export interface Employee {
   date_of_birth?: string;
   phone_number?: string;
   personal_email?: string;
+  facebook_link?: string;
+
+  // Thông tin tổ chức
+  region?: string;
+  block?: string;
+  section?: string;
+  rank?: string;
+  work_location?: string;
+  doctor_team?: string;
+
+  // Ngân hàng
   bank_name?: string;
   bank_account?: string;
+  bank_branch?: string;
+
+  // BHXH và thuế
+  social_insurance_number?: string;
+  tax_code?: string;
+  household_code?: string;
+  insurance_participation?: string;
+  insurance_increase_time?: string;
+
+  // Trạng thái
+  is_active?: boolean;
   employment_status: 'ACTIVE' | 'PAUSED' | 'INACTIVE' | 'PROBATION';
+  employment_status_notes?: string;
   start_date?: string;
   end_date?: string;
+  termination_reason?: string;
+  total_work_months?: number;
+
+  // Quan hệ tổ chức
   position?: {
     id: number;
     title: string;
@@ -1709,6 +1736,16 @@ export interface Employee {
     employee_id: string;
     full_name: string;
   };
+  manager_level_2?: {
+    id: number;
+    employee_id: string;
+    full_name: string;
+  };
+  manager_level_3?: {
+    id: number;
+    employee_id: string;
+    full_name: string;
+  };
   user?: {
     id: number;
     username: string;
@@ -1716,13 +1753,20 @@ export interface Employee {
     first_name?: string;
     last_name?: string;
   };
-  
-  // New fields for onboarding and HR
+
+  // Hình thức làm việc và trình độ
+  work_form?: string;
+  education_level?: string;
+
+  // Onboarding và HR
   basic_salary?: number;
+  allowance?: number;
   contract_type?: string;
   contract_type_display?: string;
   probation_end_date?: string;
+  official_start_date?: string;
   probation_months?: number;
+  probation_rate?: string;
   file_status?: string;
   file_status_display?: string;
   file_submission_deadline?: string;
@@ -1731,16 +1775,48 @@ export interface Employee {
   training_presentation_viewed?: boolean;
   training_presentation_viewed_at?: string;
   vneid_screenshot?: string;
+
+  // CCCD / VNEID
   cccd_number?: string;
+  old_id_number?: string;
   cccd_issue_date?: string;
   cccd_issue_place?: string;
   birth_place?: string;
   permanent_residence?: string;
+  current_address?: string;
+  marital_status?: string;
+  ethnicity?: string;
+  nationality?: string;
+
+  // Người liên hệ khẩn cấp
+  emergency_contact_name?: string;
+  emergency_contact_relationship?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_dob?: string;
+  emergency_contact_occupation?: string;
+  emergency_contact_address?: string;
+
+  // Ghi chú
+  notes?: string;
+  salary_notes?: string;
+  allowance_notes?: string;
+
+  // Phép năm
+  annual_leave_balance?: number;
+  annual_leave_balance_year?: number;
+
+  // JSON / misc
+  extra_info?: Record<string, unknown>;
+  salary_adjustments?: Record<string, unknown>;
+  contracts_info?: Record<string, unknown>;
+  reporting_path?: string;
+  qr_code?: string;
+
   // Senior Manager & Cấp bậc quản lý
   is_manager?: boolean;
   management_level?: number;
   is_senior_manager?: boolean;
-  
+
   // HR employee flag
   is_hr?: boolean;
   manager_name: string;
