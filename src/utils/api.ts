@@ -1850,7 +1850,7 @@ export interface EmployeePermissions {
 }
 
 export interface SuperAdminEmployee extends Employee {
-  allowance: string;
+  allowance?: number;
   qr_code?: string | null;
   extra_info?: string;
   reporting_path?: string;
