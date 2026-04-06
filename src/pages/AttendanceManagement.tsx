@@ -402,6 +402,37 @@ const AttendanceManagement: React.FC = () => {
     if (reason === 'live') {
       setLiveStartTime('21:00');
     }
+    // Auto-detect ca bị quên chấm công từ shifts[] của ngày đang chọn
+    if (reason === 'incomplete_attendance' && selectedDayData?.shifts?.length) {
+      const incompleteShifts = (selectedDayData.shifts as any[]).filter(
+        (s: any) =>
+          s.status?.toUpperCase() === 'INCOMPLETE_ATTENDANCE' ||
+          (s.check_in && !s.check_out) ||
+          (!s.check_in && s.check_out)
+      );
+      if (incompleteShifts.length === 1) {
+        const shift = incompleteShifts[0];
+        // Auto-detect loại quên và suggest giờ
+        if (shift.check_in && !shift.check_out) {
+          setForgotPunchType('checkout');
+          setForgotCheckinTime(null);
+          setForgotCheckoutTime(shift.scheduled_end || null);
+        } else if (!shift.check_in && shift.check_out) {
+          setForgotPunchType('checkin');
+          setForgotCheckinTime(shift.scheduled_start || null);
+          setForgotCheckoutTime(null);
+        } else {
+          setForgotPunchType('both');
+          setForgotCheckinTime(shift.scheduled_start || null);
+          setForgotCheckoutTime(shift.scheduled_end || null);
+        }
+      } else if (incompleteShifts.length > 1) {
+        // Nhiều ca bị incomplete → reset để user chọn
+        setForgotPunchType('checkin');
+        setForgotCheckinTime(null);
+        setForgotCheckoutTime(null);
+      }
+    }
   };
 
   // Reset form when modal closes
@@ -1192,11 +1223,40 @@ const AttendanceManagement: React.FC = () => {
         };
 
         if (explanationType === 'INCOMPLETE_ATTENDANCE') {
+          // Validate: phải chọn giờ bị quên
+          if ((forgotPunchType === 'checkin' || forgotPunchType === 'both') && !forgotCheckinTime) {
+            showNotify('error', 'Thiếu thông tin', 'Vui lòng chọn giờ check-in bị quên');
+            return;
+          }
+          if ((forgotPunchType === 'checkout' || forgotPunchType === 'both') && !forgotCheckoutTime) {
+            showNotify('error', 'Thiếu thông tin', 'Vui lòng chọn giờ check-out bị quên');
+            return;
+          }
+
           explanationData.forgot_punch_type = forgotPunchType;
           explanationData.forgot_checkin_time = forgotCheckinTime;
           explanationData.forgot_checkout_time = forgotCheckoutTime;
-          explanationData.actual_check_in = forgotCheckinTime;
-          explanationData.actual_check_out = forgotCheckoutTime;
+          // Lấy check_in/check_out thật từ máy chấm công (raw_checkin_checkout)
+          // Khi chỉ có 1 lần quẹt, máy chấm công luôn ghi vào check_in
+          // → dựa vào forgotPunchType để map đúng actual_check_in/out
+          const rawLogs = selectedDayData?.raw_checkin_checkout || [];
+          const firstLog = rawLogs[0];
+          const rawCheckIn = firstLog?.check_in || null;
+          const rawCheckOut = firstLog?.check_out || null;
+
+          if (forgotPunchType === 'checkin') {
+            // NV quên vào → lần quẹt duy nhất (nằm ở check_in) thực ra là giờ ra
+            explanationData.actual_check_in = null;
+            explanationData.actual_check_out = rawCheckOut || rawCheckIn;
+          } else if (forgotPunchType === 'checkout') {
+            // NV quên ra → check_in là đúng
+            explanationData.actual_check_in = rawCheckIn;
+            explanationData.actual_check_out = null;
+          } else {
+            // Quên cả hai → không có dữ liệu thật
+            explanationData.actual_check_in = null;
+            explanationData.actual_check_out = null;
+          }
         }
 
         // Gửi kèm tiền phạt và số phút của vi phạm tương ứng (Snapshot data)
@@ -3030,7 +3090,7 @@ const AttendanceManagement: React.FC = () => {
                                   const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
                                   if (reason.id === 'late_minutes') return !isIncomplete && (detail?.late_minutes || 0) > 0;
                                   if (reason.id === 'early_leave_minutes') return !isIncomplete && (detail?.early_leave_minutes || 0) > 0;
-                                  if (reason.id === 'incomplete_attendance') return isIncomplete || !detail || detail.status === 'ABSENT';
+                                  if (reason.id === 'incomplete_attendance') return isIncomplete;
                                   if (reason.id === 'first_day') return !detail || detail.status === 'ABSENT';
                                   if (reason.id === 'business_trip') {
                                     return !detail || detail.status === 'ABSENT' || (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || detail?.status === 'INCOMPLETE_ATTENDANCE';

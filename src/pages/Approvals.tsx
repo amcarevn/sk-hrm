@@ -2598,8 +2598,25 @@ const Approvals: React.FC = () => {
                                                             {calculateDuration(item.start_time, item.end_time)}
                                                           </span>
                                                         )}
-                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && item.forgot_checkin_time && (
-                                                          <span className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 w-fit">Check-in: {item.forgot_checkin_time}</span>
+                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (
+                                                          (() => {
+                                                            const checkIn = item.actual_check_in || item.forgot_checkin_time;
+                                                            const checkOut = item.actual_check_out || item.forgot_checkout_time;
+                                                            return (
+                                                              <>
+                                                                {checkIn && (
+                                                                  <span className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 w-fit">
+                                                                    Vào: {checkIn}
+                                                                  </span>
+                                                                )}
+                                                                {checkOut && (
+                                                                  <span className="text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100 w-fit">
+                                                                    Ra: {checkOut}
+                                                                  </span>
+                                                                )}
+                                                              </>
+                                                            );
+                                                          })()
                                                         )}
                                                       </div>
                                                     </td>
@@ -2722,6 +2739,8 @@ const Approvals: React.FC = () => {
                                                         </span>
                                                         {item.late_minutes > 0 && <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-tighter">Muộn {item.late_minutes}m</span>}
                                                         {item.early_leave_minutes > 0 && <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-[9px] font-black rounded-lg border border-orange-100 uppercase tracking-tighter">Về sớm {item.early_leave_minutes}m</span>}
+                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_in || item.forgot_checkin_time) && <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-tighter">Vào: {(item.actual_check_in || item.forgot_checkin_time)?.substring(0, 5)}</span>}
+                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_out || item.forgot_checkout_time) && <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-[9px] font-black rounded-lg border border-orange-100 uppercase tracking-tighter">Ra: {(item.actual_check_out || item.forgot_checkout_time)?.substring(0, 5)}</span>}
                                                       </div>
                                                     </div>
                                                     <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -3648,6 +3667,66 @@ const Approvals: React.FC = () => {
                                           </div>
                                         </div>
                                       )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Hiển thị timeline quên chấm công */}
+                                {selectedExplanation.explanation_type === 'INCOMPLETE_ATTENDANCE' && (
+                                  <div className="mt-4 p-4 rounded-xl bg-indigo-50/50 border border-indigo-100 shadow-sm">
+                                    <div className="flex items-center gap-3 mb-4">
+                                      <div className="flex-shrink-0 w-9 h-9 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                      </div>
+                                      <span className="text-sm font-extrabold text-indigo-800 uppercase tracking-widest">Timeline chấm công</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                      {/* Giờ vào */}
+                                      <div className="bg-white/80 p-3 rounded-xl border border-indigo-100/50 shadow-sm">
+                                        <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">Giờ vào</span>
+                                        <span className="text-lg font-black text-amber-600">
+                                          {(selectedExplanation.actual_check_in || selectedExplanation.forgot_checkin_time)?.substring(0, 5) || '--:--'}
+                                        </span>
+                                        {selectedExplanation.forgot_punch_type === 'checkin' || selectedExplanation.forgot_punch_type === 'both' ? (
+                                          <span className="block text-[9px] font-bold text-amber-500 uppercase mt-0.5">NV khai</span>
+                                        ) : (
+                                          <span className="block text-[9px] font-bold text-emerald-500 uppercase mt-0.5">Máy chấm</span>
+                                        )}
+                                      </div>
+                                      {/* Giờ ra */}
+                                      <div className="bg-white/80 p-3 rounded-xl border border-indigo-100/50 shadow-sm">
+                                        <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">Giờ ra</span>
+                                        <span className="text-lg font-black text-orange-600">
+                                          {(selectedExplanation.actual_check_out || selectedExplanation.forgot_checkout_time)?.substring(0, 5) || '--:--'}
+                                        </span>
+                                        {selectedExplanation.forgot_punch_type === 'checkout' || selectedExplanation.forgot_punch_type === 'both' ? (
+                                          <span className="block text-[9px] font-bold text-amber-500 uppercase mt-0.5">NV khai</span>
+                                        ) : (
+                                          <span className="block text-[9px] font-bold text-emerald-500 uppercase mt-0.5">Máy chấm</span>
+                                        )}
+                                      </div>
+                                      {/* Tổng giờ */}
+                                      {(() => {
+                                        const ci = (selectedExplanation.actual_check_in || selectedExplanation.forgot_checkin_time)?.substring(0, 5);
+                                        const co = (selectedExplanation.actual_check_out || selectedExplanation.forgot_checkout_time)?.substring(0, 5);
+                                        if (ci && co) {
+                                          const [h1, m1] = ci.split(':').map(Number);
+                                          const [h2, m2] = co.split(':').map(Number);
+                                          const hours = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+                                          return (
+                                            <div className={`p-3 rounded-xl border shadow-sm ${hours >= 5.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                                              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">Tổng giờ</span>
+                                              <span className={`text-lg font-black ${hours >= 5.5 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                                {hours.toFixed(1)}h
+                                              </span>
+                                              <span className={`block text-[9px] font-bold uppercase mt-0.5 ${hours >= 5.5 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                {hours >= 5.5 ? '→ 1.0 công' : '→ 0.5 công'}
+                                              </span>
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
                                     </div>
                                   </div>
                                 )}
