@@ -146,9 +146,19 @@ const Approvals: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   // States cho Duyệt hàng loạt (Bulk Action)
-  const [bulkActionResult, setBulkActionResult] = useState<{ success: number; error: number; groupName: string } | null>(null);
+  const [bulkActionResult, setBulkActionResult] = useState<{ success: number; error: number; groupName: string; approvalItems: any[]; rejectionItems: any[] } | null>(null);
   const [bulkConfirmModal, setBulkConfirmModal] = useState<{ items: any[]; name: string } | null>(null);
 
+  // Lock body scroll khi modal mở
+  useEffect(() => {
+    const anyModalOpen = actionModalOpen || deleteModalOpen || errorModalOpen || !!bulkConfirmModal || !!bulkActionResult || showDetailModal || showWfDetailModal;
+    if (anyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [actionModalOpen, deleteModalOpen, errorModalOpen, bulkConfirmModal, bulkActionResult, showDetailModal, showWfDetailModal]);
 
   const currentItem = selectedExplanation || selectedOnlineWorkRequest;
   const isViewingExp = currentItem?._itemType === 'EXPLANATION' || (!currentItem?._itemType && currentItem?.explanation_type && currentItem?.explanation_type !== 'LEAVE');
@@ -1158,6 +1168,8 @@ const Approvals: React.FC = () => {
   const executeBulkApprove = async () => {
     if (!bulkConfirmModal) return;
     const { items: approvableItems, name: groupName } = bulkConfirmModal;
+    const savedApprovalItems = (bulkConfirmModal as any).approvalItems || [];
+    const savedRejectionItems = (bulkConfirmModal as any).rejectionItems || [];
     setBulkConfirmModal(null);
 
     try {
@@ -1189,7 +1201,7 @@ const Approvals: React.FC = () => {
       });
 
       // Hiển thị kết quả qua Modal thay vì alert
-      setBulkActionResult({ success: totalSuccess, error: totalError, groupName: groupName });
+      setBulkActionResult({ success: totalSuccess, error: totalError, groupName: groupName, approvalItems: savedApprovalItems, rejectionItems: savedRejectionItems });
       fetchAllData(true);
     } catch (error: any) {
       console.error(`Error bulk approving ${groupName}:`, error);
@@ -4100,14 +4112,14 @@ const Approvals: React.FC = () => {
       {/* 4. Modal Xác nhận Duyệt hàng loạt (Smart) */}
       {bulkConfirmModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110]">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3 flex-shrink-0">
               <div className="p-2 bg-white/20 rounded-lg text-white">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
               </div>
               <h3 className="text-lg font-bold text-white">Xác nhận duyệt nhanh</h3>
             </div>
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto flex-1">
               <p className="text-gray-600 mb-2 leading-relaxed">
                 Bạn đang thực hiện duyệt nhanh cho <span className="font-black text-gray-900">{(bulkConfirmModal as any).name}</span>.
               </p>
@@ -4132,7 +4144,7 @@ const Approvals: React.FC = () => {
                       Danh sách phê duyệt
                       <span className="h-[1px] flex-1 bg-slate-100"></span>
                     </p>
-                    <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                    <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                       {(bulkConfirmModal as any).approvalItems.length > 0 ? (bulkConfirmModal as any).approvalItems.map((item: any, idx: number) => (
                         <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
                           <div className="flex flex-col">
@@ -4151,9 +4163,9 @@ const Approvals: React.FC = () => {
                               )}
                             </div>
                             <span className="text-[9px] font-bold text-slate-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
-                            {(item.reason || item.notes) && (
-                              <span className="text-[9px] text-slate-500 truncate max-w-[180px]" title={item.reason || item.notes}>
-                                {item.reason || item.notes}
+                            {(item.reason || item.notes || item.explanation) && (
+                              <span className="text-[9px] text-slate-500 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                                Lý do: {item.reason || item.notes || item.explanation}
                               </span>
                             )}
                           </div>
@@ -4176,7 +4188,7 @@ const Approvals: React.FC = () => {
                         Từ chối (Hết hạn mức)
                         <span className="h-[1px] flex-1 bg-rose-100"></span>
                       </p>
-                      <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                      <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                         {(bulkConfirmModal as any).rejectionItems.map((item: any, idx: number) => (
                           <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-xl border border-rose-100/50 grayscale-[0.5]">
                             <div className="flex flex-col">
@@ -4190,9 +4202,9 @@ const Approvals: React.FC = () => {
                                 <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
                               </div>
                               <span className="text-[9px] font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
-                              {(item.reason || item.notes) && (
-                                <span className="text-[9px] text-rose-400/70 truncate max-w-[180px]" title={item.reason || item.notes}>
-                                  {item.reason || item.notes}
+                              {(item.reason || item.notes || item.explanation) && (
+                                <span className="text-[9px] text-rose-400/70 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                                  Lý do: {item.reason || item.notes || item.explanation}
                                 </span>
                               )}
                             </div>
@@ -4210,7 +4222,7 @@ const Approvals: React.FC = () => {
               )}
 
 
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg mb-6">
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg mb-2">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
@@ -4219,12 +4231,13 @@ const Approvals: React.FC = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-yellow-700 font-medium leading-relaxed">
-                      Hệ thống sẽ tự động ưu tiên duyệt các đơn quan trọng (Quên công, Phạt cao) trong hạn mức Quota còn lại.
+                      Hệ thống sẽ tự động ưu tiên duyệt các đơn quan trọng (Quên công, Phạt cao) trong hạn mức còn lại.
                     </p>
                   </div>
                 </div>
               </div>
-
+            </div>
+            <div className="px-6 pb-6 flex-shrink-0">
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setBulkConfirmModal(null)}
@@ -4247,27 +4260,115 @@ const Approvals: React.FC = () => {
       {/* 5. Modal Kết quả Duyệt hàng loạt */}
       {bulkActionResult && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[120]">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 text-center">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
-                <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3 flex-shrink-0">
+              <div className="p-2 bg-white/20 rounded-lg text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Xử lý hoàn tất!</h3>
-              <p className="text-base text-gray-500 mb-6">Kết quả duyệt nhanh tại {bulkActionResult.groupName}</p>
+              <h3 className="text-lg font-bold text-white">Xử lý hoàn tất!</h3>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <p className="text-gray-600 mb-2 leading-relaxed">
+                Kết quả duyệt nhanh tại <span className="font-black text-gray-900">{bulkActionResult.groupName}</span>.
+              </p>
 
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
-                  <p className="text-2xl font-black text-green-600">{bulkActionResult.success}</p>
-                  <p className="text-xs font-bold text-green-700 uppercase tracking-widest mt-1">Được phê duyệt</p>
+              <div className="flex gap-2 mb-6">
+                <div className="flex-1 bg-emerald-50 border border-emerald-100 p-2 rounded-xl text-center">
+                  <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Đã phê duyệt</div>
+                  <div className="text-lg font-black text-emerald-700">{bulkActionResult.approvalItems.length}</div>
                 </div>
-                <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
-                  <p className="text-2xl font-black text-red-600">{bulkActionResult.error}</p>
-                  <p className="text-xs font-bold text-red-700 uppercase tracking-widest mt-1">Từ chối</p>
+                <div className="flex-1 bg-rose-50 border border-rose-100 p-2 rounded-xl text-center">
+                  <div className="text-[10px] font-bold text-rose-600 uppercase tracking-tighter">Đã từ chối</div>
+                  <div className="text-lg font-black text-rose-700">{bulkActionResult.rejectionItems.length}</div>
                 </div>
               </div>
 
+              {(bulkActionResult.approvalItems.length > 0 || bulkActionResult.rejectionItems.length > 0) && (
+                <div className="space-y-6 mb-6">
+                  {/* Đã được phê duyệt */}
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      Danh sách phê duyệt
+                      <span className="h-[1px] flex-1 bg-slate-100"></span>
+                    </p>
+                    <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                      {bulkActionResult.approvalItems.length > 0 ? bulkActionResult.approvalItems.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              <span className="text-[10px] font-extrabold text-slate-800 leading-none">{item.employee_name}</span>
+                              <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-black rounded border border-indigo-100 uppercase tracking-tighter">
+                                {item.employee_position || item.position_name || 'NV'}
+                              </span>
+                              <span className="h-0.5 w-0.5 rounded-full bg-slate-200"></span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded uppercase">Đã duyệt</span>
+                              {item.is_penalty && (
+                                <span className="text-amber-600 font-black ml-1 uppercase text-[8px]">
+                                  (Bị trừ công)
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                            {(item.reason || item.notes || item.explanation) && (
+                              <span className="text-[9px] text-slate-500 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                                Lý do: {item.reason || item.notes || item.explanation}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            {item.penalty_amount > 0 && (
+                              <div className="text-[11px] font-black text-emerald-600">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
+                            )}
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="text-center py-4 text-[10px] font-bold text-slate-300 uppercase italic">Trống</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Đã bị từ chối */}
+                  {bulkActionResult.rejectionItems.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-2">
+                        Từ chối (Hết hạn mức)
+                        <span className="h-[1px] flex-1 bg-rose-100"></span>
+                      </p>
+                      <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                        {bulkActionResult.rejectionItems.map((item: any, idx: number) => (
+                          <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-xl border border-rose-100/50 grayscale-[0.5]">
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                <span className="text-[10px] font-extrabold text-rose-800/80 leading-none">{item.employee_name}</span>
+                                <span className="px-1.5 py-0.5 bg-rose-50 text-rose-800/60 text-[8px] font-black rounded border border-rose-100 uppercase tracking-tighter">
+                                  {item.employee_position || item.position_name || 'NV'}
+                                </span>
+                                <span className="h-0.5 w-0.5 rounded-full bg-rose-100"></span>
+                                <span className="text-[10px] font-black text-rose-800/50 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                                <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
+                              </div>
+                              <span className="text-[9px] font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                              {(item.reason || item.notes || item.explanation) && (
+                                <span className="text-[9px] text-rose-400/70 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                                  Lý do: {item.reason || item.notes || item.explanation}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              {item.penalty_amount > 0 && (
+                                <div className="text-[10px] font-black text-rose-400 line-through">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="px-6 pb-6 flex-shrink-0">
               <button
                 onClick={() => setBulkActionResult(null)}
                 className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors"

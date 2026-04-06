@@ -2682,7 +2682,7 @@ const AttendanceManagement: React.FC = () => {
                                   )}
                                   {['overtime', 'extra_hours', 'night_shift', 'live', 'off_duty', 'online_work'].includes(ev.event_type) && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {!['off_duty', 'online_work'].includes(ev.event_type) && (ev.check_in || ev.check_out || ev.data?.start_time || ev.data?.end_time) && (
+                                      {!['online_work'].includes(ev.event_type) && (ev.check_in || ev.check_out || ev.data?.start_time || ev.data?.end_time) && (
                                         <p>
                                           Thời gian: {ev.check_in || ev.data?.start_time || '--'} —{' '}
                                           {ev.check_out || ev.data?.end_time || '--'}
@@ -3121,7 +3121,7 @@ const AttendanceManagement: React.FC = () => {
                               // Lọc lý do cho Đăng ký (OT, Trực...)
                               if (selectedContext === 'registration') {
                                 const dateStr = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : '';
-                                const hasOnline = monthlyRequestHistory.onlineWorks.some(w => (w.work_date === dateStr || w.attendance_date === dateStr));
+                                const hasOnline = monthlyRequestHistory.onlineWorks.some(w => (w.work_date === dateStr || w.attendance_date === dateStr) && w.status?.toUpperCase() !== 'REJECTED');
                                 
                                 return reasons.filter(r => {
                                   // 1. Ẩn Vào/Ra trực nếu đã có đơn Online
