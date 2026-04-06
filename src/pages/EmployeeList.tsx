@@ -39,6 +39,7 @@ const EmployeeList: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [totalCount, setTotalCount] = useState(0);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
+  const isSuperUser = user?.is_superuser === true || user?.is_super_admin === true;
 
   const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
   const COOLDOWN_DURATION = 120; // 2 phút (giây)
@@ -287,6 +288,215 @@ const EmployeeList: React.FC = () => {
       alert('Xuất file thất bại: ' + (err.message || 'Lỗi không xác định'));
     }
   };
+
+  const handleExportAll = async () => {
+    try {
+      const response = await employeesAPI.exportAll();
+      const allEmployees = response.results;
+
+      const getStatusLabel = (status: string) => {
+        switch (status) {
+          case 'ACTIVE': return 'Đang làm việc';
+          case 'INACTIVE': return 'Đã nghỉ';
+          case 'PROBATION': return 'Thử việc';
+          case 'PAUSED': return 'Tạm dừng';
+          default: return status;
+        }
+      };
+
+      const getGenderLabel = (gender: string) => {
+        switch (gender) {
+          case 'M': return 'Nam';
+          case 'F': return 'Nữ';
+          case 'O': return 'Khác';
+          default: return gender;
+        }
+      };
+
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Toàn bộ nhân viên');
+
+      const HEADER_FILL = {
+        type: 'pattern' as const,
+        pattern: 'solid' as const,
+        fgColor: { argb: 'FF1E3A5F' },
+      };
+
+      sheet.columns = [
+        // Thông tin cơ bản
+        { header: 'Mã NV', key: 'employee_id', width: 12 },
+        { header: 'Họ tên', key: 'full_name', width: 25 },
+        { header: 'Giới tính', key: 'gender', width: 10 },
+        { header: 'Ngày sinh', key: 'date_of_birth', width: 14 },
+        { header: 'Số điện thoại', key: 'phone_number', width: 15 },
+        { header: 'Email', key: 'personal_email', width: 28 },
+        { header: 'Facebook', key: 'facebook_link', width: 28 },
+        // CCCD / VNEID
+        { header: 'Số CCCD', key: 'cccd_number', width: 16 },
+        { header: 'Số CMND cũ', key: 'old_id_number', width: 14 },
+        { header: 'Ngày cấp CCCD', key: 'cccd_issue_date', width: 16 },
+        { header: 'Nơi cấp CCCD', key: 'cccd_issue_place', width: 20 },
+        { header: 'Quê quán', key: 'birth_place', width: 20 },
+        { header: 'Hộ khẩu thường trú', key: 'permanent_residence', width: 30 },
+        { header: 'Địa chỉ hiện tại', key: 'current_address', width: 30 },
+        { header: 'Tình trạng hôn nhân', key: 'marital_status', width: 20 },
+        { header: 'Dân tộc', key: 'ethnicity', width: 14 },
+        { header: 'Quốc tịch', key: 'nationality', width: 14 },
+        // Tổ chức
+        { header: 'Phòng ban', key: 'department', width: 20 },
+        { header: 'Chức vụ', key: 'position', width: 20 },
+        { header: 'Vùng/Miền', key: 'region', width: 14 },
+        { header: 'Khối', key: 'block', width: 14 },
+        { header: 'Bộ phận', key: 'section', width: 16 },
+        { header: 'Cấp bậc', key: 'rank', width: 14 },
+        { header: 'Địa điểm làm việc', key: 'work_location', width: 20 },
+        { header: 'Team Bác sĩ', key: 'doctor_team', width: 16 },
+        { header: 'Hình thức làm việc', key: 'work_form', width: 20 },
+        { header: 'Trình độ học vấn', key: 'education_level', width: 18 },
+        // Quản lý
+        { header: 'Quản lý trực tiếp', key: 'manager', width: 22 },
+        { header: 'Quản lý cấp 2', key: 'manager_level_2', width: 22 },
+        { header: 'Quản lý cấp 3', key: 'manager_level_3', width: 22 },
+        // Hợp đồng & trạng thái
+        { header: 'Trạng thái', key: 'employment_status', width: 16 },
+        { header: 'Ghi chú trạng thái', key: 'employment_status_notes', width: 24 },
+        { header: 'Loại hợp đồng', key: 'contract_type', width: 18 },
+        { header: 'Tỉ lệ thử việc', key: 'probation_rate', width: 16 },
+        { header: 'Số tháng thử việc', key: 'probation_months', width: 18 },
+        { header: 'Ngày vào làm', key: 'start_date', width: 14 },
+        { header: 'Ngày kết thúc', key: 'end_date', width: 14 },
+        { header: 'Ngày kết thúc thử việc', key: 'probation_end_date', width: 22 },
+        { header: 'Ngày lên chính thức', key: 'official_start_date', width: 20 },
+        { header: 'Lý do nghỉ việc', key: 'termination_reason', width: 24 },
+        { header: 'Tổng TG làm việc (tháng)', key: 'total_work_months', width: 24 },
+        // Hồ sơ
+        { header: 'Trạng thái hồ sơ', key: 'file_status', width: 18 },
+        { header: 'Hạn nộp hồ sơ', key: 'file_submission_deadline', width: 16 },
+        { header: 'Ngày nộp hồ sơ', key: 'file_submission_date', width: 16 },
+        // Lương & ngân hàng
+        { header: 'Lương cơ bản', key: 'basic_salary', width: 16 },
+        { header: 'Phụ cấp', key: 'allowance', width: 14 },
+        { header: 'Ghi chú lương', key: 'salary_notes', width: 24 },
+        { header: 'Ghi chú phụ cấp', key: 'allowance_notes', width: 24 },
+        { header: 'Ngân hàng', key: 'bank_name', width: 18 },
+        { header: 'Chi nhánh NH', key: 'bank_branch', width: 20 },
+        { header: 'Số tài khoản', key: 'bank_account', width: 20 },
+        // BHXH & thuế
+        { header: 'Mã số BHXH', key: 'social_insurance_number', width: 16 },
+        { header: 'Mã số thuế TNCN', key: 'tax_code', width: 16 },
+        { header: 'Mã hộ gia đình', key: 'household_code', width: 16 },
+        { header: 'Đóng BHXH tại', key: 'insurance_participation', width: 24 },
+        { header: 'Thời điểm báo tăng', key: 'insurance_increase_time', width: 20 },
+        // Nghỉ phép
+        { header: 'Số ngày phép còn lại', key: 'annual_leave_balance', width: 20 },
+        { header: 'Năm số dư phép', key: 'annual_leave_balance_year', width: 16 },
+        // Người liên hệ khẩn cấp
+        { header: 'Người LH khẩn cấp', key: 'emergency_contact_name', width: 22 },
+        { header: 'Mối quan hệ', key: 'emergency_contact_relationship', width: 16 },
+        { header: 'SĐT người thân', key: 'emergency_contact_phone', width: 16 },
+        { header: 'Ngày sinh người thân', key: 'emergency_contact_dob', width: 20 },
+        { header: 'Nghề nghiệp người thân', key: 'emergency_contact_occupation', width: 22 },
+        { header: 'Địa chỉ người LH', key: 'emergency_contact_address', width: 28 },
+        // Ghi chú
+        { header: 'Ghi chú', key: 'notes', width: 28 },
+        // Ngày tạo
+        { header: 'Ngày tạo', key: 'created_at', width: 14 },
+      ];
+
+      const headerRow = sheet.getRow(1);
+      headerRow.eachCell((cell) => {
+        cell.fill = HEADER_FILL;
+        cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      });
+
+      allEmployees.forEach((emp) => {
+        sheet.addRow({
+          employee_id: emp.employee_id,
+          full_name: emp.full_name,
+          gender: getGenderLabel(emp.gender),
+          date_of_birth: emp.date_of_birth || '',
+          phone_number: emp.phone_number || '',
+          personal_email: emp.personal_email || '',
+          facebook_link: emp.facebook_link || '',
+          cccd_number: emp.cccd_number || '',
+          old_id_number: emp.old_id_number || '',
+          cccd_issue_date: emp.cccd_issue_date || '',
+          cccd_issue_place: emp.cccd_issue_place || '',
+          birth_place: emp.birth_place || '',
+          permanent_residence: emp.permanent_residence || '',
+          current_address: emp.current_address || '',
+          marital_status: emp.marital_status || '',
+          ethnicity: emp.ethnicity || '',
+          nationality: emp.nationality || '',
+          department: emp.department?.name || '',
+          position: emp.position?.title || '',
+          region: emp.region || '',
+          block: emp.block || '',
+          section: emp.section || '',
+          rank: emp.rank || '',
+          work_location: emp.work_location || '',
+          doctor_team: emp.doctor_team || '',
+          work_form: emp.work_form || '',
+          education_level: emp.education_level || '',
+          manager: emp.manager?.full_name || emp.manager_name || '',
+          manager_level_2: emp.manager_level_2?.full_name || '',
+          manager_level_3: emp.manager_level_3?.full_name || '',
+          employment_status: getStatusLabel(emp.employment_status),
+          employment_status_notes: emp.employment_status_notes || '',
+          contract_type: emp.contract_type_display || emp.contract_type || '',
+          probation_rate: emp.probation_rate || '',
+          probation_months: emp.probation_months ?? '',
+          start_date: emp.start_date || '',
+          end_date: emp.end_date || '',
+          probation_end_date: emp.probation_end_date || '',
+          official_start_date: emp.official_start_date || '',
+          termination_reason: emp.termination_reason || '',
+          total_work_months: emp.total_work_months ?? '',
+          file_status: emp.file_status_display || emp.file_status || '',
+          file_submission_deadline: emp.file_submission_deadline || '',
+          file_submission_date: emp.file_submission_date || '',
+          basic_salary: emp.basic_salary ?? '',
+          allowance: emp.allowance ?? '',
+          salary_notes: emp.salary_notes || '',
+          allowance_notes: emp.allowance_notes || '',
+          bank_name: emp.bank_name || '',
+          bank_branch: emp.bank_branch || '',
+          bank_account: emp.bank_account || '',
+          social_insurance_number: emp.social_insurance_number || '',
+          tax_code: emp.tax_code || '',
+          household_code: emp.household_code || '',
+          insurance_participation: emp.insurance_participation || '',
+          insurance_increase_time: emp.insurance_increase_time || '',
+          annual_leave_balance: emp.annual_leave_balance ?? '',
+          annual_leave_balance_year: emp.annual_leave_balance_year ?? '',
+          emergency_contact_name: emp.emergency_contact_name || '',
+          emergency_contact_relationship: emp.emergency_contact_relationship || '',
+          emergency_contact_phone: emp.emergency_contact_phone || '',
+          emergency_contact_dob: emp.emergency_contact_dob || '',
+          emergency_contact_occupation: emp.emergency_contact_occupation || '',
+          emergency_contact_address: emp.emergency_contact_address || '',
+          notes: emp.notes || '',
+          created_at: emp.created_at ? emp.created_at.slice(0, 10) : '',
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `xuat-toan-bo-nhan-vien-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert('Xuất toàn bộ thất bại: ' + (err.message || 'Lỗi không xác định'));
+    }
+  };
+
   const handleSendAllEmails = async () => {
     if (isSendingEmails || emailCooldownRemaining > 0) return;
 
@@ -586,6 +796,17 @@ const EmployeeList: React.FC = () => {
                 </svg>
                 Xuất danh sách
               </button>
+              {(isAdmin || isSuperUser) && (
+                <button
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors flex items-center"
+                  onClick={handleExportAll}
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Xuất toàn bộ
+                </button>
+              )}
               <button 
                 className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center"
                 onClick={() => navigate('/dashboard/organization-chart')}
