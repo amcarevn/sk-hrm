@@ -383,12 +383,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         const late = dayItem.engine_context?.late_minutes || 0;
         const early = dayItem.engine_context?.early_leave_minutes || 0;
 
-        // Nếu ngày chỉ có đơn REJECTED (không có APPROVED hoặc PENDING) thì bỏ qua status_badge từ BE
-        const hasApprovedOrPending = registrations.some((r: any) => {
-          const st = (r.data?.status || '').toUpperCase();
-          return st === 'APPROVED' || st === 'PENDING';
-        });
-        let summaryText = hasApprovedOrPending ? dayItem.status_badge : (dayItem.is_holiday ? dayItem.status_badge : '');
+        let summaryText = dayItem.status_badge;
 
         // Ưu tiên hiển thị "Ra trực" nếu có đơn đã duyệt
         const approvedOffDuty = approvedRegistrations.find((r: any) => (r.event_type || '').toUpperCase() === 'OFF_DUTY');
