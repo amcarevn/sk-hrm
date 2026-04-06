@@ -1850,32 +1850,8 @@ export interface EmployeePermissions {
 }
 
 export interface SuperAdminEmployee extends Employee {
-  allowance?: number;
-  qr_code?: string | null;
-  extra_info?: string;
-  reporting_path?: string;
-  is_active?: boolean;
-  personal_email?: string;
-  ethnicity?: string;
-  nationality?: string;
   probation_salary_percentage?: number;
   probation_salary_percentage_display?: string;
-  social_insurance_number?: string;
-  current_address?: string;
-  birth_place?: string;
-  probation_rate?: string;
-  file_status_display?: string;
-  file_review_notes?: string;
-  rank?: string;
-  section?: string;
-  doctor_team?: string;
-  work_form?: string;
-  region?: string;
-  block?: string;
-  tax_code?: string;
-  education_level?: string;
-  bank_branch?: string;
-  marital_status?: string;
   permissions?: EmployeePermissions;
   user?: {
     id: number;
