@@ -561,7 +561,7 @@ const Approvals: React.FC = () => {
     const qUsed = item.quota_used ?? 0;
     const mExp = item.max_explanation_quota ?? 3;
     const owUsed = item.online_work_used ?? 0;
-    const mOnl = item.max_online_quota ?? 2;
+    const mOnl = item.max_online_quota ?? 3;
     const lUsed = item.leave_used ?? 0;
     const mLea = item.max_leave_quota ?? 1;
 
@@ -899,8 +899,26 @@ const Approvals: React.FC = () => {
       fetchAllData(true); // Forced refresh to update all stats counts after action
     } catch (error: any) {
       console.error(`Error ${actionType}:`, error);
-      const msg = error.response?.data?.error || error.response?.data?.detail || 'Thao tác thất bại';
-      setErrorMessage(msg);
+      const data = error.response?.data;
+      if (data?.quota_exceeded) {
+        // Quota exceeded — build a descriptive message
+        let msg = data.error || 'Hết hạn mức';
+        if (targetItem?._itemType === 'LEAVE') {
+          const used = data.leave_used ?? '?';
+          const max = data.max_leave ?? '?';
+          const remaining = data.remaining ?? 0;
+          msg = `Hết hạn mức nghỉ phép tháng này.\nĐã dùng: ${used}/${max} ngày — Còn lại: ${remaining} ngày.`;
+        } else if (targetItem?._itemType === 'ONLINE_WORK') {
+          const used = data.online_work_used ?? '?';
+          const max = data.max_online ?? '?';
+          const remaining = data.remaining ?? 0;
+          msg = `Hết hạn mức làm việc online tháng này.\nĐã dùng: ${used}/${max} ngày — Còn lại: ${remaining} ngày.`;
+        }
+        setErrorMessage(msg);
+      } else {
+        const msg = data?.error || data?.detail || 'Thao tác thất bại';
+        setErrorMessage(msg);
+      }
       setErrorModalOpen(true);
     } finally {
       setIsProcessing(false);
@@ -989,99 +1007,143 @@ const Approvals: React.FC = () => {
     // Các loại giải trình tính và quota
     const quotaSubjectTypes = ['LATE', 'EARLY_LEAVE', 'LATE_EARLY', 'INCOMPLETE_ATTENDANCE'];
 
-    let exceededCount = 0;
     let approvalItems: any[] = [];
     let rejectionItems: any[] = [];
 
     const quotaItems: any[] = [];
+    const leaveItems: any[] = [];
+    const onlineWorkItems: any[] = [];
     const freeItems: any[] = [];
 
     approvableItems.forEach(item => {
-      // Check _itemType mapped in getAllCurrentRequests
       const isExplanation = item._itemType === 'EXPLANATION' || (item.explanation_type && item._itemType !== 'LEAVE' && item._itemType !== 'REGISTRATION');
 
-      // Kiểm tra xem có phải là 1 trong 4 loại bị tính quota không (GIẢI TRÌNH)
       if (isExplanation && quotaSubjectTypes.includes(item.explanation_type)) {
         quotaItems.push(item);
+      } else if (item._itemType === 'LEAVE' || item.explanation_type === 'LEAVE') {
+        leaveItems.push(item);
+      } else if (item._itemType === 'ONLINE_WORK') {
+        onlineWorkItems.push(item);
       } else {
-        // Các đơn Nghỉ phép (LEAVE), Làm việc online, Đăng ký (REGISTRATION)... đều không tính quota chung
         freeItems.push(item);
       }
     });
 
-
-    // Mặc định các đơn không tính Quota là sẽ được duyệt
-    approvalItems = [...freeItems];
-
-    if (quotaItems.length > 0) {
-      // Gom nhóm theo nhân viên + tháng/năm để tính Quota chính xác
-      const empGroups: Record<string, any[]> = {};
-      quotaItems.forEach(e => {
-        const empId = Number(e.employee_id || (typeof e.employee === 'object' ? e.employee.id : e.employee));
-        // Lấy ngày tháng để phân tách quota từng tháng
-        const dateStr = e.event_date || e.attendance_date || e.date || e.created_at;
+    // Helper gom nhóm theo nhân viên + tháng
+    const groupByEmpMonth = (list: any[]): Record<string, any[]> => {
+      const groups: Record<string, any[]> = {};
+      list.forEach(item => {
+        const empId = Number(item.employee_id || (typeof item.employee === 'object' ? item.employee.id : item.employee));
+        const dateStr = item.event_date || item.attendance_date || item.date || item.created_at;
         const d = new Date(dateStr);
-        const monthKey = `${empId}-${d.getFullYear()}-${d.getMonth() + 1}`;
-
-        if (!empGroups[monthKey]) empGroups[monthKey] = [];
-        empGroups[monthKey].push(e);
+        const key = `${empId}-${d.getFullYear()}-${d.getMonth() + 1}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(item);
       });
+      return groups;
+    };
 
-      Object.entries(empGroups).forEach(([key, group]) => {
-        // Lấy định mức thấp nhất từ nhóm để đảm bảo an toàn bộ lọc
+    // 1. Đơn Giải trình — check quota (LATE, EARLY_LEAVE, LATE_EARLY, INCOMPLETE_ATTENDANCE)
+    if (quotaItems.length > 0) {
+      Object.entries(groupByEmpMonth(quotaItems)).forEach(([_key, group]) => {
+        const defaultMax = Number(group[0]?.max_explanation_quota) || 3;
         const minRemaining = group.reduce((min, item) => {
           const rem = item.quota_remaining !== undefined ? Number(item.quota_remaining) : (Number(item.max_explanation_quota || 3) - Number(item.quota_used || 0));
-          return Math.min(min, isNaN(rem) ? 3 : rem);
-        }, 3);
+          return Math.min(min, isNaN(rem) ? defaultMax : rem);
+        }, defaultMax);
 
-        const remaining = Math.max(0, minRemaining);
-
-        console.log(`[QUOTA DEBUG] Group: ${key}, Count: ${group.length}, Remaining: ${remaining}`);
-
-        // Sắp xếp đơn: Quên chấm công -> Tiền phạt lớn -> Đơn mới nhất
         const sortedGroup = [...group].sort((a, b) => {
-          // 1. Ưu tiên Quên chấm công
           const isAForget = (a.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
           const isBForget = (b.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
           if (isAForget !== isBForget) return isAForget ? -1 : 1;
-
-          // 2. Tiền phạt lớn nhất
           const penaltyA = Number(a.penalty_amount) || 0;
           const penaltyB = Number(b.penalty_amount) || 0;
           if (penaltyA !== penaltyB) return penaltyB - penaltyA;
-
-          // 3. Đơn cũ nhất (gửi trước duyệt trước)
-          const dateA = a.created_at || a.attendance_date || a.event_date || a.date || '';
-          const dateB = b.created_at || b.attendance_date || b.event_date || b.date || '';
-          return dateA.localeCompare(dateB);
+          // FCFS: đơn tạo sớm nhất được ưu tiên duyệt trước
+          const tsA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tsB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return tsA - tsB;
         });
 
-        let currentRemaining = remaining;
+        let currentRemaining = Math.max(0, minRemaining);
         sortedGroup.forEach(item => {
           const isForget = (item.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
           if (isForget) {
-            // Đơn Quên chấm công luôn được phê duyệt để đảm bảo công cho NV
-            if (currentRemaining > 0) {
-              approvalItems.push(item);
-              currentRemaining--;
-            } else {
-              // Hết hạn mức nhưng là Quên châm công -> Duyệt nhưng cảnh báo trừ công (Logic BE xử lý trừ)
-              approvalItems.push({ ...item, is_penalty: true });
-            }
+            if (currentRemaining > 0) { approvalItems.push(item); currentRemaining--; }
+            else { approvalItems.push({ ...item, is_penalty: true }); }
           } else {
-            // Các loại khác (Đi muộn/Về sớm) -> Chỉ phê duyệt nếu còn hạn mức 3 đơn
-            if (currentRemaining > 0) {
-              approvalItems.push(item);
-              currentRemaining--;
-            } else {
-              rejectionItems.push(item);
-              exceededCount++;
-            }
+            if (currentRemaining > 0) { approvalItems.push(item); currentRemaining--; }
+            else { rejectionItems.push(item); }
           }
         });
       });
     }
 
+    // 2. Đơn Nghỉ phép (LEAVE) — check quota từ item.max_leave_quota & item.leave_used
+    if (leaveItems.length > 0) {
+      Object.entries(groupByEmpMonth(leaveItems)).forEach(([_key, group]) => {
+        const firstItem = group[0];
+        const maxLeave = Number(firstItem.max_leave_quota ?? 1);
+        const leaveUsed = Number(firstItem.leave_used ?? 0);
+        let remaining = Math.max(0, maxLeave - leaveUsed);
+
+        // FCFS: đơn tạo sớm nhất được ưu tiên duyệt trước
+        const sorted = [...group].sort((a, b) => {
+          const tsA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tsB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return tsA - tsB;
+        });
+
+        sorted.forEach(item => {
+          const amount = item.expected_status === 'HALF_DAY' ? 0.5 : 1.0;
+          if (remaining >= amount) {
+            approvalItems.push(item);
+            remaining -= amount;
+          } else {
+            rejectionItems.push(item);
+          }
+        });
+      });
+    }
+
+    // 3. Đơn Online Work — check quota từ item.max_online_quota & item.online_work_used
+    if (onlineWorkItems.length > 0) {
+      Object.entries(groupByEmpMonth(onlineWorkItems)).forEach(([_key, group]) => {
+        const firstItem = group[0];
+        const maxOnline = Number(firstItem.max_online_quota ?? 3);
+        const onlineUsed = Number(firstItem.online_work_used ?? 0);
+        let remaining = Math.max(0, maxOnline - onlineUsed);
+
+        // FCFS: đơn tạo sớm nhất được ưu tiên duyệt trước
+        const sorted = [...group].sort((a, b) => {
+          const tsA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tsB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return tsA - tsB;
+        });
+
+        sorted.forEach(item => {
+          const amount = item.expected_status === 'HALF_DAY' ? 0.5 : 1.0;
+          if (remaining >= amount) {
+            approvalItems.push(item);
+            remaining -= amount;
+          } else {
+            rejectionItems.push(item);
+          }
+        });
+      });
+    }
+
+    // 4. Đơn tự do (Đăng ký OT, Live...) — approve hết, không tính quota
+    approvalItems = [...approvalItems, ...freeItems];
+
+    // Sort cả 2 danh sách theo FCFS (đơn gửi sớm nhất lên đầu)
+    const fcfsSort = (a: any, b: any) => {
+      const tsA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tsB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return tsA - tsB;
+    };
+    approvalItems.sort(fcfsSort);
+    rejectionItems.sort(fcfsSort);
 
     // Mở Modal xác nhận chi tiết
     setBulkConfirmModal({
@@ -1611,11 +1673,11 @@ const Approvals: React.FC = () => {
       });
     }
 
-    // 4. Sort by date descending
+    // 4. Sort by created_at ascending (FCFS: đơn gửi trước hiện trước)
     const sorted = all.sort((a, b) => {
-      const dateA = new Date(a.created_at || a.attendance_date || a.event_date || a.work_date || a.start_date).getTime();
-      const dateB = new Date(b.created_at || b.attendance_date || b.event_date || b.work_date || b.start_date).getTime();
-      return dateB - dateA;
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateA - dateB;
     });
 
     // 5. Group by Department -> Position -> Employee for Accordion view
@@ -4001,6 +4063,11 @@ const Approvals: React.FC = () => {
                               )}
                             </div>
                             <span className="text-[9px] font-bold text-slate-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                            {(item.reason || item.notes) && (
+                              <span className="text-[9px] text-slate-500 truncate max-w-[180px]" title={item.reason || item.notes}>
+                                {item.reason || item.notes}
+                              </span>
+                            )}
                           </div>
                           <div className="text-right">
                             {item.penalty_amount > 0 && (
@@ -4035,6 +4102,11 @@ const Approvals: React.FC = () => {
                                 <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
                               </div>
                               <span className="text-[9px] font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                              {(item.reason || item.notes) && (
+                                <span className="text-[9px] text-rose-400/70 truncate max-w-[180px]" title={item.reason || item.notes}>
+                                  {item.reason || item.notes}
+                                </span>
+                              )}
                             </div>
                             <div className="text-right">
                               {item.penalty_amount > 0 && (
