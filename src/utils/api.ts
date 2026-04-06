@@ -2064,6 +2064,17 @@ export const employeesAPI = {
     const data = response.data;
     return Array.isArray(data) ? data : (data?.results ?? []);
   },
+
+  exportAll: async (): Promise<{
+    count: number;
+    results: Employee[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      results: Employee[];
+    }> = await managementApi.get('/api-hrm/employees/export-all/');
+    return response.data;
+  },
 };
 
 // Departments API

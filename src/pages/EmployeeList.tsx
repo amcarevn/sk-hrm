@@ -39,6 +39,7 @@ const EmployeeList: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [totalCount, setTotalCount] = useState(0);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
+  const isSuperUser = (user as any)?.is_superuser === true || user?.is_super_admin === true;
 
   const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
   const COOLDOWN_DURATION = 120; // 2 phút (giây)
@@ -287,6 +288,117 @@ const EmployeeList: React.FC = () => {
       alert('Xuất file thất bại: ' + (err.message || 'Lỗi không xác định'));
     }
   };
+
+  const handleExportAll = async () => {
+    try {
+      const response = await employeesAPI.exportAll();
+      const allEmployees = response.results;
+
+      const getStatusLabel = (status: string) => {
+        switch (status) {
+          case 'ACTIVE': return 'Đang làm việc';
+          case 'INACTIVE': return 'Đã nghỉ';
+          case 'PROBATION': return 'Thử việc';
+          case 'PAUSED': return 'Tạm dừng';
+          default: return status;
+        }
+      };
+
+      const getGenderLabel = (gender: string) => {
+        switch (gender) {
+          case 'M': return 'Nam';
+          case 'F': return 'Nữ';
+          case 'O': return 'Khác';
+          default: return gender;
+        }
+      };
+
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Toàn bộ nhân viên');
+
+      const HEADER_FILL = {
+        type: 'pattern' as const,
+        pattern: 'solid' as const,
+        fgColor: { argb: 'FF1E3A5F' },
+      };
+
+      sheet.columns = [
+        { header: 'Mã NV', key: 'employee_id', width: 12 },
+        { header: 'Họ tên', key: 'full_name', width: 25 },
+        { header: 'Giới tính', key: 'gender', width: 10 },
+        { header: 'Ngày sinh', key: 'date_of_birth', width: 14 },
+        { header: 'Số điện thoại', key: 'phone_number', width: 15 },
+        { header: 'Email', key: 'personal_email', width: 28 },
+        { header: 'CCCD', key: 'cccd_number', width: 16 },
+        { header: 'Ngày cấp CCCD', key: 'cccd_issue_date', width: 16 },
+        { header: 'Nơi cấp CCCD', key: 'cccd_issue_place', width: 20 },
+        { header: 'Quê quán', key: 'birth_place', width: 20 },
+        { header: 'Hộ khẩu thường trú', key: 'permanent_residence', width: 30 },
+        { header: 'Phòng ban', key: 'department', width: 20 },
+        { header: 'Chức vụ', key: 'position', width: 20 },
+        { header: 'Quản lý trực tiếp', key: 'manager', width: 22 },
+        { header: 'Trạng thái', key: 'employment_status', width: 16 },
+        { header: 'Loại hợp đồng', key: 'contract_type', width: 18 },
+        { header: 'Ngày vào làm', key: 'start_date', width: 14 },
+        { header: 'Ngày kết thúc', key: 'end_date', width: 14 },
+        { header: 'Ngày kết thúc thử việc', key: 'probation_end_date', width: 22 },
+        { header: 'Lương cơ bản', key: 'basic_salary', width: 16 },
+        { header: 'Ngân hàng', key: 'bank_name', width: 18 },
+        { header: 'Số tài khoản', key: 'bank_account', width: 20 },
+        { header: 'Ngày tạo', key: 'created_at', width: 18 },
+      ];
+
+      const headerRow = sheet.getRow(1);
+      headerRow.eachCell((cell) => {
+        cell.fill = HEADER_FILL;
+        cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      });
+
+      allEmployees.forEach((emp) => {
+        sheet.addRow({
+          employee_id: emp.employee_id,
+          full_name: emp.full_name,
+          gender: getGenderLabel(emp.gender),
+          date_of_birth: emp.date_of_birth || '',
+          phone_number: emp.phone_number || '',
+          personal_email: emp.personal_email || '',
+          cccd_number: emp.cccd_number || '',
+          cccd_issue_date: emp.cccd_issue_date || '',
+          cccd_issue_place: emp.cccd_issue_place || '',
+          birth_place: emp.birth_place || '',
+          permanent_residence: emp.permanent_residence || '',
+          department: emp.department?.name || '',
+          position: emp.position?.title || '',
+          manager: emp.manager?.full_name || emp.manager_name || '',
+          employment_status: getStatusLabel(emp.employment_status),
+          contract_type: emp.contract_type || '',
+          start_date: emp.start_date || '',
+          end_date: emp.end_date || '',
+          probation_end_date: emp.probation_end_date || '',
+          basic_salary: emp.basic_salary ?? '',
+          bank_name: emp.bank_name || '',
+          bank_account: emp.bank_account || '',
+          created_at: emp.created_at ? emp.created_at.slice(0, 10) : '',
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `xuat-toan-bo-nhan-vien-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert('Xuất toàn bộ thất bại: ' + (err.message || 'Lỗi không xác định'));
+    }
+  };
+
   const handleSendAllEmails = async () => {
     if (isSendingEmails || emailCooldownRemaining > 0) return;
 
@@ -586,6 +698,17 @@ const EmployeeList: React.FC = () => {
                 </svg>
                 Xuất danh sách
               </button>
+              {isSuperUser && (
+                <button
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors flex items-center"
+                  onClick={handleExportAll}
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Xuất toàn bộ
+                </button>
+              )}
               <button 
                 className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors flex items-center"
                 onClick={() => navigate('/dashboard/organization-chart')}
