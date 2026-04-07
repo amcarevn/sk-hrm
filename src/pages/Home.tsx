@@ -112,8 +112,8 @@ const Home: React.FC = () => {
     setWishError(null);
     try {
       await birthdayWishesAPI.create({
-        recipient_id: wishModal.employee.employee_id,
-        sender_id: employee.id,
+        recipient: wishModal.employee.employee_id,
+        sender: employee.id,
         message: wishMessage.trim(),
         year: new Date().getFullYear(),
       });

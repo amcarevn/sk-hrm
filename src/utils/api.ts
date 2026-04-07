@@ -3495,8 +3495,8 @@ export const birthdayWishesAPI = {
   },
 
   create: async (data: {
-    recipient_id: number;
-    sender_id: number;
+    recipient: number;
+    sender: number;
     message: string;
     year: number;
   }): Promise<BirthdayWish> => {
