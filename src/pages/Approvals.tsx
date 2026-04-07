@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce';
 import { approvalService } from '../services/approval.service';
 import { attendanceService } from '../services/attendance.service';
+import FinalizationLockBanner from '../components/FinalizationLockBanner';
 import { workFinalizationApprovalService } from '../services/workFinalizationApproval.service';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import { useAuth } from '../contexts/AuthContext';
@@ -145,9 +146,19 @@ const Approvals: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   // States cho Duyệt hàng loạt (Bulk Action)
-  const [bulkActionResult, setBulkActionResult] = useState<{ success: number; error: number; groupName: string } | null>(null);
+  const [bulkActionResult, setBulkActionResult] = useState<{ success: number; error: number; groupName: string; approvalItems: any[]; rejectionItems: any[] } | null>(null);
   const [bulkConfirmModal, setBulkConfirmModal] = useState<{ items: any[]; name: string } | null>(null);
 
+  // Lock body scroll khi modal mở
+  useEffect(() => {
+    const anyModalOpen = actionModalOpen || deleteModalOpen || errorModalOpen || !!bulkConfirmModal || !!bulkActionResult || showDetailModal || showWfDetailModal;
+    if (anyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [actionModalOpen, deleteModalOpen, errorModalOpen, bulkConfirmModal, bulkActionResult, showDetailModal, showWfDetailModal]);
 
   const currentItem = selectedExplanation || selectedOnlineWorkRequest;
   const isViewingExp = currentItem?._itemType === 'EXPLANATION' || (!currentItem?._itemType && currentItem?.explanation_type && currentItem?.explanation_type !== 'LEAVE');
@@ -561,7 +572,7 @@ const Approvals: React.FC = () => {
     const qUsed = item.quota_used ?? 0;
     const mExp = item.max_explanation_quota ?? 3;
     const owUsed = item.online_work_used ?? 0;
-    const mOnl = item.max_online_quota ?? 2;
+    const mOnl = item.max_online_quota ?? 3;
     const lUsed = item.leave_used ?? 0;
     const mLea = item.max_leave_quota ?? 1;
 
@@ -899,8 +910,26 @@ const Approvals: React.FC = () => {
       fetchAllData(true); // Forced refresh to update all stats counts after action
     } catch (error: any) {
       console.error(`Error ${actionType}:`, error);
-      const msg = error.response?.data?.error || error.response?.data?.detail || 'Thao tác thất bại';
-      setErrorMessage(msg);
+      const data = error.response?.data;
+      if (error.response?.status === 423 && data?.error === 'FINALIZATION_LOCKED') {
+        setErrorMessage(data.message || 'Tháng này đã đóng chốt công. Không thể phê duyệt/từ chối. Vui lòng liên hệ HCNS để biết chi tiết.');
+      } else if (data?.quota_exceeded) {
+        let msg = data.error || 'Hết hạn mức';
+        if (targetItem?._itemType === 'LEAVE') {
+          const used = data.leave_used ?? '?';
+          const max = data.max_leave ?? '?';
+          const remaining = data.remaining ?? 0;
+          msg = `Hết hạn mức nghỉ phép tháng này.\nĐã dùng: ${used}/${max} ngày — Còn lại: ${remaining} ngày.`;
+        } else if (targetItem?._itemType === 'ONLINE_WORK') {
+          const used = data.online_work_used ?? '?';
+          const max = data.max_online ?? '?';
+          const remaining = data.remaining ?? 0;
+          msg = `Hết hạn mức làm việc online tháng này.\nĐã dùng: ${used}/${max} ngày — Còn lại: ${remaining} ngày.`;
+        }
+        setErrorMessage(msg);
+      } else {
+        setErrorMessage(data?.error || data?.detail || 'Thao tác thất bại');
+      }
       setErrorModalOpen(true);
     } finally {
       setIsProcessing(false);
@@ -989,99 +1018,143 @@ const Approvals: React.FC = () => {
     // Các loại giải trình tính và quota
     const quotaSubjectTypes = ['LATE', 'EARLY_LEAVE', 'LATE_EARLY', 'INCOMPLETE_ATTENDANCE'];
 
-    let exceededCount = 0;
     let approvalItems: any[] = [];
     let rejectionItems: any[] = [];
 
     const quotaItems: any[] = [];
+    const leaveItems: any[] = [];
+    const onlineWorkItems: any[] = [];
     const freeItems: any[] = [];
 
     approvableItems.forEach(item => {
-      // Check _itemType mapped in getAllCurrentRequests
       const isExplanation = item._itemType === 'EXPLANATION' || (item.explanation_type && item._itemType !== 'LEAVE' && item._itemType !== 'REGISTRATION');
 
-      // Kiểm tra xem có phải là 1 trong 4 loại bị tính quota không (GIẢI TRÌNH)
       if (isExplanation && quotaSubjectTypes.includes(item.explanation_type)) {
         quotaItems.push(item);
+      } else if (item._itemType === 'LEAVE' || item.explanation_type === 'LEAVE') {
+        leaveItems.push(item);
+      } else if (item._itemType === 'ONLINE_WORK') {
+        onlineWorkItems.push(item);
       } else {
-        // Các đơn Nghỉ phép (LEAVE), Làm việc online, Đăng ký (REGISTRATION)... đều không tính quota chung
         freeItems.push(item);
       }
     });
 
-
-    // Mặc định các đơn không tính Quota là sẽ được duyệt
-    approvalItems = [...freeItems];
-
-    if (quotaItems.length > 0) {
-      // Gom nhóm theo nhân viên + tháng/năm để tính Quota chính xác
-      const empGroups: Record<string, any[]> = {};
-      quotaItems.forEach(e => {
-        const empId = Number(e.employee_id || (typeof e.employee === 'object' ? e.employee.id : e.employee));
-        // Lấy ngày tháng để phân tách quota từng tháng
-        const dateStr = e.event_date || e.attendance_date || e.date || e.created_at;
+    // Helper gom nhóm theo nhân viên + tháng
+    const groupByEmpMonth = (list: any[]): Record<string, any[]> => {
+      const groups: Record<string, any[]> = {};
+      list.forEach(item => {
+        const empId = Number(item.employee_id || (typeof item.employee === 'object' ? item.employee.id : item.employee));
+        const dateStr = item.event_date || item.attendance_date || item.date || item.created_at;
         const d = new Date(dateStr);
-        const monthKey = `${empId}-${d.getFullYear()}-${d.getMonth() + 1}`;
-
-        if (!empGroups[monthKey]) empGroups[monthKey] = [];
-        empGroups[monthKey].push(e);
+        const key = `${empId}-${d.getFullYear()}-${d.getMonth() + 1}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(item);
       });
+      return groups;
+    };
 
-      Object.entries(empGroups).forEach(([key, group]) => {
-        // Lấy định mức thấp nhất từ nhóm để đảm bảo an toàn bộ lọc
+    // 1. Đơn Giải trình — check quota (LATE, EARLY_LEAVE, LATE_EARLY, INCOMPLETE_ATTENDANCE)
+    if (quotaItems.length > 0) {
+      Object.entries(groupByEmpMonth(quotaItems)).forEach(([_key, group]) => {
+        const defaultMax = Number(group[0]?.max_explanation_quota) || 3;
         const minRemaining = group.reduce((min, item) => {
           const rem = item.quota_remaining !== undefined ? Number(item.quota_remaining) : (Number(item.max_explanation_quota || 3) - Number(item.quota_used || 0));
-          return Math.min(min, isNaN(rem) ? 3 : rem);
-        }, 3);
+          return Math.min(min, isNaN(rem) ? defaultMax : rem);
+        }, defaultMax);
 
-        const remaining = Math.max(0, minRemaining);
-
-        console.log(`[QUOTA DEBUG] Group: ${key}, Count: ${group.length}, Remaining: ${remaining}`);
-
-        // Sắp xếp đơn: Quên chấm công -> Tiền phạt lớn -> Đơn mới nhất
         const sortedGroup = [...group].sort((a, b) => {
-          // 1. Ưu tiên Quên chấm công
           const isAForget = (a.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
           const isBForget = (b.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
           if (isAForget !== isBForget) return isAForget ? -1 : 1;
-
-          // 2. Tiền phạt lớn nhất
           const penaltyA = Number(a.penalty_amount) || 0;
           const penaltyB = Number(b.penalty_amount) || 0;
           if (penaltyA !== penaltyB) return penaltyB - penaltyA;
-
-          // 3. Đơn cũ nhất (gửi trước duyệt trước)
-          const dateA = a.created_at || a.attendance_date || a.event_date || a.date || '';
-          const dateB = b.created_at || b.attendance_date || b.event_date || b.date || '';
-          return dateA.localeCompare(dateB);
+          // FCFS: đơn tạo sớm nhất được ưu tiên duyệt trước
+          const tsA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tsB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return tsA - tsB;
         });
 
-        let currentRemaining = remaining;
+        let currentRemaining = Math.max(0, minRemaining);
         sortedGroup.forEach(item => {
           const isForget = (item.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
           if (isForget) {
-            // Đơn Quên chấm công luôn được phê duyệt để đảm bảo công cho NV
-            if (currentRemaining > 0) {
-              approvalItems.push(item);
-              currentRemaining--;
-            } else {
-              // Hết hạn mức nhưng là Quên châm công -> Duyệt nhưng cảnh báo trừ công (Logic BE xử lý trừ)
-              approvalItems.push({ ...item, is_penalty: true });
-            }
+            if (currentRemaining > 0) { approvalItems.push(item); currentRemaining--; }
+            else { approvalItems.push({ ...item, is_penalty: true }); }
           } else {
-            // Các loại khác (Đi muộn/Về sớm) -> Chỉ phê duyệt nếu còn hạn mức 3 đơn
-            if (currentRemaining > 0) {
-              approvalItems.push(item);
-              currentRemaining--;
-            } else {
-              rejectionItems.push(item);
-              exceededCount++;
-            }
+            if (currentRemaining > 0) { approvalItems.push(item); currentRemaining--; }
+            else { rejectionItems.push(item); }
           }
         });
       });
     }
 
+    // 2. Đơn Nghỉ phép (LEAVE) — check quota từ item.max_leave_quota & item.leave_used
+    if (leaveItems.length > 0) {
+      Object.entries(groupByEmpMonth(leaveItems)).forEach(([_key, group]) => {
+        const firstItem = group[0];
+        const maxLeave = Number(firstItem.max_leave_quota ?? 1);
+        const leaveUsed = Number(firstItem.leave_used ?? 0);
+        let remaining = Math.max(0, maxLeave - leaveUsed);
+
+        // FCFS: đơn tạo sớm nhất được ưu tiên duyệt trước
+        const sorted = [...group].sort((a, b) => {
+          const tsA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tsB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return tsA - tsB;
+        });
+
+        sorted.forEach(item => {
+          const amount = item.expected_status === 'HALF_DAY' ? 0.5 : 1.0;
+          if (remaining >= amount) {
+            approvalItems.push(item);
+            remaining -= amount;
+          } else {
+            rejectionItems.push(item);
+          }
+        });
+      });
+    }
+
+    // 3. Đơn Online Work — check quota từ item.max_online_quota & item.online_work_used
+    if (onlineWorkItems.length > 0) {
+      Object.entries(groupByEmpMonth(onlineWorkItems)).forEach(([_key, group]) => {
+        const firstItem = group[0];
+        const maxOnline = Number(firstItem.max_online_quota ?? 3);
+        const onlineUsed = Number(firstItem.online_work_used ?? 0);
+        let remaining = Math.max(0, maxOnline - onlineUsed);
+
+        // FCFS: đơn tạo sớm nhất được ưu tiên duyệt trước
+        const sorted = [...group].sort((a, b) => {
+          const tsA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const tsB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return tsA - tsB;
+        });
+
+        sorted.forEach(item => {
+          const amount = item.expected_status === 'HALF_DAY' ? 0.5 : 1.0;
+          if (remaining >= amount) {
+            approvalItems.push(item);
+            remaining -= amount;
+          } else {
+            rejectionItems.push(item);
+          }
+        });
+      });
+    }
+
+    // 4. Đơn tự do (Đăng ký OT, Live...) — approve hết, không tính quota
+    approvalItems = [...approvalItems, ...freeItems];
+
+    // Sort cả 2 danh sách theo FCFS (đơn gửi sớm nhất lên đầu)
+    const fcfsSort = (a: any, b: any) => {
+      const tsA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tsB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return tsA - tsB;
+    };
+    approvalItems.sort(fcfsSort);
+    rejectionItems.sort(fcfsSort);
 
     // Mở Modal xác nhận chi tiết
     setBulkConfirmModal({
@@ -1095,6 +1168,8 @@ const Approvals: React.FC = () => {
   const executeBulkApprove = async () => {
     if (!bulkConfirmModal) return;
     const { items: approvableItems, name: groupName } = bulkConfirmModal;
+    const savedApprovalItems = (bulkConfirmModal as any).approvalItems || [];
+    const savedRejectionItems = (bulkConfirmModal as any).rejectionItems || [];
     setBulkConfirmModal(null);
 
     try {
@@ -1126,11 +1201,14 @@ const Approvals: React.FC = () => {
       });
 
       // Hiển thị kết quả qua Modal thay vì alert
-      setBulkActionResult({ success: totalSuccess, error: totalError, groupName: groupName });
+      setBulkActionResult({ success: totalSuccess, error: totalError, groupName: groupName, approvalItems: savedApprovalItems, rejectionItems: savedRejectionItems });
       fetchAllData(true);
     } catch (error: any) {
       console.error(`Error bulk approving ${groupName}:`, error);
-      setErrorMessage(`Lỗi khi duyệt hàng loạt ${groupName}: ` + (error.response?.data?.error || error.message));
+      const msg = error.response?.status === 423 && error.response?.data?.error === 'FINALIZATION_LOCKED'
+        ? error.response.data.message || 'Tháng này đã đóng chốt công. Không thể phê duyệt. Vui lòng liên hệ HCNS để biết chi tiết.'
+        : `Lỗi khi duyệt hàng loạt ${groupName}: ` + (error.response?.data?.error || error.message);
+      setErrorMessage(msg);
       setErrorModalOpen(true);
     } finally {
       setIsBulkProcessing(false);
@@ -1611,11 +1689,11 @@ const Approvals: React.FC = () => {
       });
     }
 
-    // 4. Sort by date descending
+    // 4. Sort by created_at ascending (FCFS: đơn gửi trước hiện trước)
     const sorted = all.sort((a, b) => {
-      const dateA = new Date(a.created_at || a.attendance_date || a.event_date || a.work_date || a.start_date).getTime();
-      const dateB = new Date(b.created_at || b.attendance_date || b.event_date || b.work_date || b.start_date).getTime();
-      return dateB - dateA;
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateA - dateB;
     });
 
     // 5. Group by Department -> Position -> Employee for Accordion view
@@ -1763,6 +1841,11 @@ const Approvals: React.FC = () => {
           Duyệt các đơn xin nghỉ phép, giải trình chấm công và các
           yêu cầu khác.
         </p>
+      </div>
+
+      {/* Banner hạn chốt công */}
+      <div className="mb-4">
+        <FinalizationLockBanner year={filterYear} month={filterMonth} bypassRoles={['ADMIN', 'HR']} />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 md:p-6 border border-gray-100">
@@ -2536,8 +2619,25 @@ const Approvals: React.FC = () => {
                                                             {calculateDuration(item.start_time, item.end_time)}
                                                           </span>
                                                         )}
-                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && item.forgot_checkin_time && (
-                                                          <span className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 w-fit">Check-in: {item.forgot_checkin_time}</span>
+                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (
+                                                          (() => {
+                                                            const checkIn = item.actual_check_in || item.forgot_checkin_time;
+                                                            const checkOut = item.actual_check_out || item.forgot_checkout_time;
+                                                            return (
+                                                              <>
+                                                                {checkIn && (
+                                                                  <span className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 w-fit">
+                                                                    Vào: {checkIn}
+                                                                  </span>
+                                                                )}
+                                                                {checkOut && (
+                                                                  <span className="text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100 w-fit">
+                                                                    Ra: {checkOut}
+                                                                  </span>
+                                                                )}
+                                                              </>
+                                                            );
+                                                          })()
                                                         )}
                                                       </div>
                                                     </td>
@@ -2660,6 +2760,8 @@ const Approvals: React.FC = () => {
                                                         </span>
                                                         {item.late_minutes > 0 && <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-tighter">Muộn {item.late_minutes}m</span>}
                                                         {item.early_leave_minutes > 0 && <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-[9px] font-black rounded-lg border border-orange-100 uppercase tracking-tighter">Về sớm {item.early_leave_minutes}m</span>}
+                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_in || item.forgot_checkin_time) && <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-tighter">Vào: {(item.actual_check_in || item.forgot_checkin_time)?.substring(0, 5)}</span>}
+                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_out || item.forgot_checkout_time) && <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-[9px] font-black rounded-lg border border-orange-100 uppercase tracking-tighter">Ra: {(item.actual_check_out || item.forgot_checkout_time)?.substring(0, 5)}</span>}
                                                       </div>
                                                     </div>
                                                     <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -3589,6 +3691,66 @@ const Approvals: React.FC = () => {
                                     </div>
                                   </div>
                                 )}
+
+                                {/* Hiển thị timeline quên chấm công */}
+                                {selectedExplanation.explanation_type === 'INCOMPLETE_ATTENDANCE' && (
+                                  <div className="mt-4 p-4 rounded-xl bg-indigo-50/50 border border-indigo-100 shadow-sm">
+                                    <div className="flex items-center gap-3 mb-4">
+                                      <div className="flex-shrink-0 w-9 h-9 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                      </div>
+                                      <span className="text-sm font-extrabold text-indigo-800 uppercase tracking-widest">Timeline chấm công</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                      {/* Giờ vào */}
+                                      <div className="bg-white/80 p-3 rounded-xl border border-indigo-100/50 shadow-sm">
+                                        <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">Giờ vào</span>
+                                        <span className="text-lg font-black text-amber-600">
+                                          {(selectedExplanation.actual_check_in || selectedExplanation.forgot_checkin_time)?.substring(0, 5) || '--:--'}
+                                        </span>
+                                        {selectedExplanation.forgot_punch_type === 'checkin' || selectedExplanation.forgot_punch_type === 'both' ? (
+                                          <span className="block text-[9px] font-bold text-amber-500 uppercase mt-0.5">NV khai</span>
+                                        ) : (
+                                          <span className="block text-[9px] font-bold text-emerald-500 uppercase mt-0.5">Máy chấm</span>
+                                        )}
+                                      </div>
+                                      {/* Giờ ra */}
+                                      <div className="bg-white/80 p-3 rounded-xl border border-indigo-100/50 shadow-sm">
+                                        <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">Giờ ra</span>
+                                        <span className="text-lg font-black text-orange-600">
+                                          {(selectedExplanation.actual_check_out || selectedExplanation.forgot_checkout_time)?.substring(0, 5) || '--:--'}
+                                        </span>
+                                        {selectedExplanation.forgot_punch_type === 'checkout' || selectedExplanation.forgot_punch_type === 'both' ? (
+                                          <span className="block text-[9px] font-bold text-amber-500 uppercase mt-0.5">NV khai</span>
+                                        ) : (
+                                          <span className="block text-[9px] font-bold text-emerald-500 uppercase mt-0.5">Máy chấm</span>
+                                        )}
+                                      </div>
+                                      {/* Tổng giờ */}
+                                      {(() => {
+                                        const ci = (selectedExplanation.actual_check_in || selectedExplanation.forgot_checkin_time)?.substring(0, 5);
+                                        const co = (selectedExplanation.actual_check_out || selectedExplanation.forgot_checkout_time)?.substring(0, 5);
+                                        if (ci && co) {
+                                          const [h1, m1] = ci.split(':').map(Number);
+                                          const [h2, m2] = co.split(':').map(Number);
+                                          const hours = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
+                                          return (
+                                            <div className={`p-3 rounded-xl border shadow-sm ${hours >= 5.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                                              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">Tổng giờ</span>
+                                              <span className={`text-lg font-black ${hours >= 5.5 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                                {hours.toFixed(1)}h
+                                              </span>
+                                              <span className={`block text-[9px] font-bold uppercase mt-0.5 ${hours >= 5.5 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                {hours >= 5.5 ? '→ 1.0 công' : '→ 0.5 công'}
+                                              </span>
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
+                                  </div>
+                                )}
                               </>
                             )}
                           </>
@@ -3950,14 +4112,14 @@ const Approvals: React.FC = () => {
       {/* 4. Modal Xác nhận Duyệt hàng loạt (Smart) */}
       {bulkConfirmModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110]">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3 flex-shrink-0">
               <div className="p-2 bg-white/20 rounded-lg text-white">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
               </div>
               <h3 className="text-lg font-bold text-white">Xác nhận duyệt nhanh</h3>
             </div>
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto flex-1">
               <p className="text-gray-600 mb-2 leading-relaxed">
                 Bạn đang thực hiện duyệt nhanh cho <span className="font-black text-gray-900">{(bulkConfirmModal as any).name}</span>.
               </p>
@@ -3982,7 +4144,7 @@ const Approvals: React.FC = () => {
                       Danh sách phê duyệt
                       <span className="h-[1px] flex-1 bg-slate-100"></span>
                     </p>
-                    <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                    <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                       {(bulkConfirmModal as any).approvalItems.length > 0 ? (bulkConfirmModal as any).approvalItems.map((item: any, idx: number) => (
                         <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
                           <div className="flex flex-col">
@@ -4001,6 +4163,11 @@ const Approvals: React.FC = () => {
                               )}
                             </div>
                             <span className="text-[9px] font-bold text-slate-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                            {(item.reason || item.notes || item.explanation) && (
+                              <span className="text-[9px] text-slate-500 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                                Lý do: {item.reason || item.notes || item.explanation}
+                              </span>
+                            )}
                           </div>
                           <div className="text-right">
                             {item.penalty_amount > 0 && (
@@ -4021,7 +4188,7 @@ const Approvals: React.FC = () => {
                         Từ chối (Hết hạn mức)
                         <span className="h-[1px] flex-1 bg-rose-100"></span>
                       </p>
-                      <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                      <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                         {(bulkConfirmModal as any).rejectionItems.map((item: any, idx: number) => (
                           <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-xl border border-rose-100/50 grayscale-[0.5]">
                             <div className="flex flex-col">
@@ -4035,6 +4202,11 @@ const Approvals: React.FC = () => {
                                 <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
                               </div>
                               <span className="text-[9px] font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                              {(item.reason || item.notes || item.explanation) && (
+                                <span className="text-[9px] text-rose-400/70 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                                  Lý do: {item.reason || item.notes || item.explanation}
+                                </span>
+                              )}
                             </div>
                             <div className="text-right">
                               {item.penalty_amount > 0 && (
@@ -4050,7 +4222,7 @@ const Approvals: React.FC = () => {
               )}
 
 
-              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg mb-6">
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded-r-lg mb-2">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
@@ -4059,12 +4231,13 @@ const Approvals: React.FC = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm text-yellow-700 font-medium leading-relaxed">
-                      Hệ thống sẽ tự động ưu tiên duyệt các đơn quan trọng (Quên công, Phạt cao) trong hạn mức Quota còn lại.
+                      Hệ thống sẽ tự động ưu tiên duyệt các đơn quan trọng (Quên công, Phạt cao) trong hạn mức còn lại.
                     </p>
                   </div>
                 </div>
               </div>
-
+            </div>
+            <div className="px-6 pb-6 flex-shrink-0">
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setBulkConfirmModal(null)}
@@ -4087,27 +4260,115 @@ const Approvals: React.FC = () => {
       {/* 5. Modal Kết quả Duyệt hàng loạt */}
       {bulkActionResult && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[120]">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 text-center">
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
-                <svg className="h-10 w-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3 flex-shrink-0">
+              <div className="p-2 bg-white/20 rounded-lg text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Xử lý hoàn tất!</h3>
-              <p className="text-base text-gray-500 mb-6">Kết quả duyệt nhanh tại {bulkActionResult.groupName}</p>
+              <h3 className="text-lg font-bold text-white">Xử lý hoàn tất!</h3>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <p className="text-gray-600 mb-2 leading-relaxed">
+                Kết quả duyệt nhanh tại <span className="font-black text-gray-900">{bulkActionResult.groupName}</span>.
+              </p>
 
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
-                  <p className="text-2xl font-black text-green-600">{bulkActionResult.success}</p>
-                  <p className="text-xs font-bold text-green-700 uppercase tracking-widest mt-1">Được phê duyệt</p>
+              <div className="flex gap-2 mb-6">
+                <div className="flex-1 bg-emerald-50 border border-emerald-100 p-2 rounded-xl text-center">
+                  <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Đã phê duyệt</div>
+                  <div className="text-lg font-black text-emerald-700">{bulkActionResult.approvalItems.length}</div>
                 </div>
-                <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
-                  <p className="text-2xl font-black text-red-600">{bulkActionResult.error}</p>
-                  <p className="text-xs font-bold text-red-700 uppercase tracking-widest mt-1">Từ chối</p>
+                <div className="flex-1 bg-rose-50 border border-rose-100 p-2 rounded-xl text-center">
+                  <div className="text-[10px] font-bold text-rose-600 uppercase tracking-tighter">Đã từ chối</div>
+                  <div className="text-lg font-black text-rose-700">{bulkActionResult.rejectionItems.length}</div>
                 </div>
               </div>
 
+              {(bulkActionResult.approvalItems.length > 0 || bulkActionResult.rejectionItems.length > 0) && (
+                <div className="space-y-6 mb-6">
+                  {/* Đã được phê duyệt */}
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      Danh sách phê duyệt
+                      <span className="h-[1px] flex-1 bg-slate-100"></span>
+                    </p>
+                    <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                      {bulkActionResult.approvalItems.length > 0 ? bulkActionResult.approvalItems.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                              <span className="text-[10px] font-extrabold text-slate-800 leading-none">{item.employee_name}</span>
+                              <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-black rounded border border-indigo-100 uppercase tracking-tighter">
+                                {item.employee_position || item.position_name || 'NV'}
+                              </span>
+                              <span className="h-0.5 w-0.5 rounded-full bg-slate-200"></span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded uppercase">Đã duyệt</span>
+                              {item.is_penalty && (
+                                <span className="text-amber-600 font-black ml-1 uppercase text-[8px]">
+                                  (Bị trừ công)
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[9px] font-bold text-slate-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                            {(item.reason || item.notes || item.explanation) && (
+                              <span className="text-[9px] text-slate-500 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                                Lý do: {item.reason || item.notes || item.explanation}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            {item.penalty_amount > 0 && (
+                              <div className="text-[11px] font-black text-emerald-600">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
+                            )}
+                          </div>
+                        </div>
+                      )) : (
+                        <div className="text-center py-4 text-[10px] font-bold text-slate-300 uppercase italic">Trống</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Đã bị từ chối */}
+                  {bulkActionResult.rejectionItems.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-2">
+                        Từ chối (Hết hạn mức)
+                        <span className="h-[1px] flex-1 bg-rose-100"></span>
+                      </p>
+                      <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                        {bulkActionResult.rejectionItems.map((item: any, idx: number) => (
+                          <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-xl border border-rose-100/50 grayscale-[0.5]">
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                <span className="text-[10px] font-extrabold text-rose-800/80 leading-none">{item.employee_name}</span>
+                                <span className="px-1.5 py-0.5 bg-rose-50 text-rose-800/60 text-[8px] font-black rounded border border-rose-100 uppercase tracking-tighter">
+                                  {item.employee_position || item.position_name || 'NV'}
+                                </span>
+                                <span className="h-0.5 w-0.5 rounded-full bg-rose-100"></span>
+                                <span className="text-[10px] font-black text-rose-800/50 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                                <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
+                              </div>
+                              <span className="text-[9px] font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                              {(item.reason || item.notes || item.explanation) && (
+                                <span className="text-[9px] text-rose-400/70 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                                  Lý do: {item.reason || item.notes || item.explanation}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              {item.penalty_amount > 0 && (
+                                <div className="text-[10px] font-black text-rose-400 line-through">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="px-6 pb-6 flex-shrink-0">
               <button
                 onClick={() => setBulkActionResult(null)}
                 className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors"

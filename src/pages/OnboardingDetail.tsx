@@ -229,6 +229,7 @@ const SECTION_OPTIONS = SECTION_OPTIONS_RAW;
 
 const toSelectOptions = (values: ({ value: string; label: string } | string)[]) =>
   values.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt);
+
 const withCurrentOption = (
   options: { value: string; label: string }[],
   currentValue: string | undefined

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import AttendanceCalendar from '../components/AttendanceCalendar';
+import FinalizationLockBanner from '../components/FinalizationLockBanner';
 import {
   attendanceService,
   AttendanceRecord,
@@ -401,6 +402,37 @@ const AttendanceManagement: React.FC = () => {
     // Set default start time of 21:00 for live
     if (reason === 'live') {
       setLiveStartTime('21:00');
+    }
+    // Auto-detect ca bị quên chấm công từ shifts[] của ngày đang chọn
+    if (reason === 'incomplete_attendance' && selectedDayData?.shifts?.length) {
+      const incompleteShifts = (selectedDayData.shifts as any[]).filter(
+        (s: any) =>
+          s.status?.toUpperCase() === 'INCOMPLETE_ATTENDANCE' ||
+          (s.check_in && !s.check_out) ||
+          (!s.check_in && s.check_out)
+      );
+      if (incompleteShifts.length === 1) {
+        const shift = incompleteShifts[0];
+        // Auto-detect loại quên và suggest giờ
+        if (shift.check_in && !shift.check_out) {
+          setForgotPunchType('checkout');
+          setForgotCheckinTime(null);
+          setForgotCheckoutTime(shift.scheduled_end || null);
+        } else if (!shift.check_in && shift.check_out) {
+          setForgotPunchType('checkin');
+          setForgotCheckinTime(shift.scheduled_start || null);
+          setForgotCheckoutTime(null);
+        } else {
+          setForgotPunchType('both');
+          setForgotCheckinTime(shift.scheduled_start || null);
+          setForgotCheckoutTime(shift.scheduled_end || null);
+        }
+      } else if (incompleteShifts.length > 1) {
+        // Nhiều ca bị incomplete → reset để user chọn
+        setForgotPunchType('checkin');
+        setForgotCheckinTime(null);
+        setForgotCheckoutTime(null);
+      }
     }
   };
 
@@ -1087,11 +1119,16 @@ const AttendanceManagement: React.FC = () => {
             error.response?.data
           );
 
+          // Kiểm tra khóa chốt công (HTTP 423)
+          if (error.response?.status === 423 && error.response?.data?.error === 'FINALIZATION_LOCKED') {
+            showNotify('error', 'Đã khóa chốt công', error.response.data.message || 'Tháng này đã đóng chốt công. Không thể tạo đơn. Vui lòng liên hệ HCNS để biết chi tiết.');
+            return;
+          }
+
           // Hiển thị error message từ Backend
           let errorMessage = 'Lỗi khi tạo đơn làm việc online';
 
           if (error.response?.data?.detail) {
-            // Backend trả về error message cụ thể (ví dụ: duplicate date)
             errorMessage = error.response.data.detail;
           } else if (error.response?.data?.message) {
             errorMessage = error.response.data.message;
@@ -1192,11 +1229,40 @@ const AttendanceManagement: React.FC = () => {
         };
 
         if (explanationType === 'INCOMPLETE_ATTENDANCE') {
+          // Validate: phải chọn giờ bị quên
+          if ((forgotPunchType === 'checkin' || forgotPunchType === 'both') && !forgotCheckinTime) {
+            showNotify('error', 'Thiếu thông tin', 'Vui lòng chọn giờ check-in bị quên');
+            return;
+          }
+          if ((forgotPunchType === 'checkout' || forgotPunchType === 'both') && !forgotCheckoutTime) {
+            showNotify('error', 'Thiếu thông tin', 'Vui lòng chọn giờ check-out bị quên');
+            return;
+          }
+
           explanationData.forgot_punch_type = forgotPunchType;
           explanationData.forgot_checkin_time = forgotCheckinTime;
           explanationData.forgot_checkout_time = forgotCheckoutTime;
-          explanationData.actual_check_in = forgotCheckinTime;
-          explanationData.actual_check_out = forgotCheckoutTime;
+          // Lấy check_in/check_out thật từ máy chấm công (raw_checkin_checkout)
+          // Khi chỉ có 1 lần quẹt, máy chấm công luôn ghi vào check_in
+          // → dựa vào forgotPunchType để map đúng actual_check_in/out
+          const rawLogs = selectedDayData?.raw_checkin_checkout || [];
+          const firstLog = rawLogs[0];
+          const rawCheckIn = firstLog?.check_in || null;
+          const rawCheckOut = firstLog?.check_out || null;
+
+          if (forgotPunchType === 'checkin') {
+            // NV quên vào → lần quẹt duy nhất (nằm ở check_in) thực ra là giờ ra
+            explanationData.actual_check_in = null;
+            explanationData.actual_check_out = rawCheckOut || rawCheckIn;
+          } else if (forgotPunchType === 'checkout') {
+            // NV quên ra → check_in là đúng
+            explanationData.actual_check_in = rawCheckIn;
+            explanationData.actual_check_out = null;
+          } else {
+            // Quên cả hai → không có dữ liệu thật
+            explanationData.actual_check_in = null;
+            explanationData.actual_check_out = null;
+          }
         }
 
         // Gửi kèm tiền phạt và số phút của vi phạm tương ứng (Snapshot data)
@@ -1251,13 +1317,19 @@ const AttendanceManagement: React.FC = () => {
       handleCloseSupplementaryRequest();
     } catch (error: any) {
       console.error('Error submitting supplementary request:', error);
-      const errorMessage =
-        error.response?.data?.detail ||
-        error.response?.data?.message ||
-        (selectedContext === 'online_work'
-          ? 'Gửi đơn làm việc online thất bại. Vui lòng thử lại.'
-          : 'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.');
-      showNotify('error', 'Lỗi hệ thống', errorMessage);
+
+      // Kiểm tra khóa chốt công (HTTP 423)
+      if (error.response?.status === 423 && error.response?.data?.error === 'FINALIZATION_LOCKED') {
+        showNotify('error', 'Đã khóa chốt công', error.response.data.message || `Tháng này đã đóng chốt công. Không thể tạo đơn. Vui lòng liên hệ HCNS để biết chi tiết.`);
+      } else {
+        const errorMessage =
+          error.response?.data?.detail ||
+          error.response?.data?.message ||
+          (selectedContext === 'online_work'
+            ? 'Gửi đơn làm việc online thất bại. Vui lòng thử lại.'
+            : 'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.');
+        showNotify('error', 'Lỗi hệ thống', errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1362,6 +1434,13 @@ const AttendanceManagement: React.FC = () => {
           )}
         </button>
       </div>
+
+      {/* Banner hạn chốt công */}
+      <FinalizationLockBanner
+        year={currentDate.getFullYear()}
+        month={currentDate.getMonth() + 1}
+        bypassRoles={['ADMIN']}
+      />
 
       {/* Upload Section - Only visible for users with permission */}
       {canUploadAttendance && (
@@ -2603,7 +2682,7 @@ const AttendanceManagement: React.FC = () => {
                                   )}
                                   {['overtime', 'extra_hours', 'night_shift', 'live', 'off_duty', 'online_work'].includes(ev.event_type) && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {!['off_duty', 'online_work'].includes(ev.event_type) && (ev.check_in || ev.check_out || ev.data?.start_time || ev.data?.end_time) && (
+                                      {!['online_work'].includes(ev.event_type) && (ev.check_in || ev.check_out || ev.data?.start_time || ev.data?.end_time) && (
                                         <p>
                                           Thời gian: {ev.check_in || ev.data?.start_time || '--'} —{' '}
                                           {ev.check_out || ev.data?.end_time || '--'}
@@ -3030,7 +3109,7 @@ const AttendanceManagement: React.FC = () => {
                                   const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
                                   if (reason.id === 'late_minutes') return !isIncomplete && (detail?.late_minutes || 0) > 0;
                                   if (reason.id === 'early_leave_minutes') return !isIncomplete && (detail?.early_leave_minutes || 0) > 0;
-                                  if (reason.id === 'incomplete_attendance') return isIncomplete || !detail || detail.status === 'ABSENT';
+                                  if (reason.id === 'incomplete_attendance') return isIncomplete;
                                   if (reason.id === 'first_day') return !detail || detail.status === 'ABSENT';
                                   if (reason.id === 'business_trip') {
                                     return !detail || detail.status === 'ABSENT' || (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || detail?.status === 'INCOMPLETE_ATTENDANCE';
@@ -3042,7 +3121,7 @@ const AttendanceManagement: React.FC = () => {
                               // Lọc lý do cho Đăng ký (OT, Trực...)
                               if (selectedContext === 'registration') {
                                 const dateStr = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : '';
-                                const hasOnline = monthlyRequestHistory.onlineWorks.some(w => (w.work_date === dateStr || w.attendance_date === dateStr));
+                                const hasOnline = monthlyRequestHistory.onlineWorks.some(w => (w.work_date === dateStr || w.attendance_date === dateStr) && w.status?.toUpperCase() !== 'REJECTED');
                                 
                                 return reasons.filter(r => {
                                   // 1. Ẩn Vào/Ra trực nếu đã có đơn Online
