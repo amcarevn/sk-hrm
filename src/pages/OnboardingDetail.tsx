@@ -1302,11 +1302,7 @@ const OnboardingDetail: React.FC = () => {
                     <div>
                       <label className="text-sm text-gray-600">Tỉ lệ thử việc</label>
                       <p className="font-medium">
-                        {(employeeProfile as any).probation_rate === 'OPTION_1'
-                          ? 'Tháng đầu 85%, tháng sau 100%'
-                          : (employeeProfile as any).probation_rate === 'OPTION_2'
-                          ? 'Tháng đầu 100%, tháng sau 100%'
-                          : (employeeProfile as any).probation_rate}
+                        {PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate}
                       </p>
                     </div>
                   )}
