@@ -15,6 +15,7 @@ import {
   CakeIcon,
   XMarkIcon,
   PaperAirplaneIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 
 const formatBirthDate = (dateOfBirth: string): string => {
@@ -48,6 +49,12 @@ const Home: React.FC = () => {
   const [wishSent, setWishSent] = useState<Set<number>>(new Set());
   const [wishSending, setWishSending] = useState(false);
   const [wishError, setWishError] = useState<string | null>(null);
+  const [wishListModal, setWishListModal] = useState<{
+    open: boolean;
+    employee: { employee_id: number; full_name: string } | null;
+    wishes: Array<{ id: number; sender: number; message: string; sender_name?: string }>;
+    loading: boolean;
+  }>({ open: false, employee: null, wishes: [], loading: false });
 
   useEffect(() => {
     fetchEmployeeData();
@@ -128,6 +135,20 @@ const Home: React.FC = () => {
     } finally {
       setWishSending(false);
     }
+  };
+
+  const openWishListModal = async (emp: { employee_id: number; full_name: string }) => {
+    setWishListModal({ open: true, employee: emp, wishes: [], loading: true });
+    try {
+      const wishes = await birthdayWishesAPI.list({ recipient: emp.employee_id, year: new Date().getFullYear() });
+      setWishListModal(prev => ({ ...prev, wishes, loading: false }));
+    } catch {
+      setWishListModal(prev => ({ ...prev, wishes: [], loading: false }));
+    }
+  };
+
+  const closeWishListModal = () => {
+    setWishListModal({ open: false, employee: null, wishes: [], loading: false });
   };
 
   const fetchEmployeeData = async () => {
@@ -260,7 +281,7 @@ const Home: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <div className="mt-3">
+                <div className="mt-3 flex items-center gap-2">
                   {wishSent.has(emp.employee_id) ? (
                     <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
                       ✅ Đã gửi lời chúc
@@ -274,6 +295,13 @@ const Home: React.FC = () => {
                       Gửi lời chúc
                     </button>
                   )}
+                  <button
+                    onClick={() => openWishListModal(emp)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-pink-300 hover:bg-pink-50 text-pink-600 text-xs font-medium rounded-lg transition-colors"
+                  >
+                    <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" />
+                    Xem lời chúc
+                  </button>
                 </div>
               </div>
             ))}
@@ -534,6 +562,54 @@ const Home: React.FC = () => {
               >
                 <PaperAirplaneIcon className="h-4 w-4" />
                 {wishSending ? 'Đang gửi...' : 'Gửi lời chúc'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wishes List Modal */}
+      {wishListModal.open && wishListModal.employee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-pink-100 rounded-full flex items-center justify-center">
+                  <ChatBubbleLeftRightIcon className="h-5 w-5 text-pink-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Danh sách lời chúc</h3>
+                  <p className="text-sm text-gray-500">{wishListModal.employee.full_name}</p>
+                </div>
+              </div>
+              <button
+                onClick={closeWishListModal}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1">
+              {wishListModal.loading ? (
+                <p className="text-sm text-gray-500 text-center py-4">Đang tải...</p>
+              ) : wishListModal.wishes.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">Chưa có lời chúc nào.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {wishListModal.wishes.map((wish) => (
+                    <li key={wish.id} className="p-3 bg-pink-50 rounded-xl text-sm text-gray-700 whitespace-pre-wrap">
+                      {wish.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="flex justify-end px-5 pb-5">
+              <button
+                onClick={closeWishListModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Đóng
               </button>
             </div>
           </div>
