@@ -3495,8 +3495,10 @@ export const birthdayWishesAPI = {
   },
 
   create: async (data: {
-    recipient: number;
+    recipient_id: number;
+    sender_id: number;
     message: string;
+    year: number;
   }): Promise<BirthdayWish> => {
     const response: AxiosResponse<BirthdayWish> = await managementApi.post('/api-hrm/birthday-wishes/', data);
     return response.data;

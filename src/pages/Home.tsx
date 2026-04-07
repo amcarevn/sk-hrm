@@ -103,13 +103,15 @@ const Home: React.FC = () => {
   };
 
   const sendWish = async () => {
-    if (!wishModal.employee || !wishMessage.trim()) return;
+    if (!wishModal.employee || !wishMessage.trim() || !employee) return;
     setWishSending(true);
     setWishError(null);
     try {
       await birthdayWishesAPI.create({
-        recipient: wishModal.employee.employee_id,
+        recipient_id: wishModal.employee.employee_id,
+        sender_id: employee.id,
         message: wishMessage.trim(),
+        year: new Date().getFullYear(),
       });
       setWishSent(prev => new Set(prev).add(wishModal.employee!.employee_id));
       closeWishModal();
