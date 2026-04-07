@@ -23,6 +23,11 @@ import TasksSection from './TasksSection';
 import DocumentsSection from './DocumentsSection';
 import { useAuth } from '../contexts/AuthContext';
 import { employeesAPI, SuperAdminEmployee, departmentsAPI, positionsAPI, Department, Position } from '../utils/api';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
+import {
+  SECTION_OPTIONS as SECTION_OPTIONS_RAW, CITIZEN_ID_ISSUE_PLACE_OPTIONS as CCCD_ISSUE_PLACE_OPTIONS,
+  PROBATION_RATE_OPTIONS, ETHNICITY_OPTIONS, NATIONALITY_OPTIONS, GENDER_OPTIONS, MARITAL_STATUS_OPTIONS,
+} from '../constants/onboarding';
 
 // ============================================
 // TYPE DEFINITIONS
@@ -101,6 +106,7 @@ type OnboardingDetail = {
   ethnicity?: string;
   nationality?: string;
   marital_status?: string;
+  company_unit?: string;
   work_form?: string;
   region?: string;
   block?: string;
@@ -219,26 +225,10 @@ const CONTRACT_OPTIONS = [
   { value: 'PART_TIME', label: 'Bán thời gian' },
 ];
 
-const PROBATION_RATE_OPTIONS = [
-  { value: 'OPTION_1', label: 'Tháng đầu 85%, tháng sau 100%' },
-  { value: 'OPTION_2', label: 'Tháng đầu 100%, tháng sau 100%' },
-];
+const SECTION_OPTIONS = SECTION_OPTIONS_RAW;
 
-const SECTION_OPTIONS = [
-  'ADS',
-  'Bệnh viện Hà Thành', 'Bệnh viện 30/4', 'Bệnh viện An Việt', 'Bệnh viện Hồng Hà', 'Bệnh Viện Tân Hưng',
-  'Bệnh viện Sao Hàn', 'Bệnh viện Vạn Hạnh',
-  'Check page', 'Xây Group', 'Tiktok',
-  'Giám sát chất lượng', 'Giám sát nội bộ',
-  'Media', 'Nội dung 01',
-  'Phòng HCNS', 'Phòng kế toán', 'Phòng TTTH',
-  'Kinh doanh - VP miền Bắc', 'Kinh doanh - VP miền Nam',
-  'Pháp chế',
-  'Mua hàng',
-  'Bộ phận IT', 'Bộ phận AI',
-];
-
-const toSelectOptions = (values: string[]) => values.map(opt => ({ value: opt, label: opt }));
+const toSelectOptions = (values: ({ value: string; label: string } | string)[]) =>
+  values.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt);
 const withCurrentOption = (
   options: { value: string; label: string }[],
   currentValue: string | undefined
@@ -248,11 +238,6 @@ const withCurrentOption = (
   return exists ? options : [{ value: currentValue, label: currentValue }, ...options];
 };
 
-const CCCD_ISSUE_PLACE_OPTIONS = [
-  { value: 'POLICE_ADMIN', label: 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội' },
-  { value: 'MINISTRY_PUBLIC_SECURITY', label: 'Bộ Công An' },
-];
-
 const formatDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return 'Chưa có dữ liệu';
   return new Date(dateStr).toLocaleDateString('vi-VN', {
@@ -260,6 +245,14 @@ const formatDate = (dateStr: string | null | undefined): string => {
     month: '2-digit',
     year: 'numeric',
   });
+};
+
+/** Hiển thị giá trị hoặc 'Chưa có dữ liệu', lọc cả string "NULL"/"null"/"None" */
+const safeDisplay = (value: any, fallback = 'Chưa có dữ liệu'): string => {
+  if (value === null || value === undefined) return fallback;
+  const str = String(value).trim();
+  if (!str || str === 'NULL' || str === 'null' || str === 'None' || str === 'undefined') return fallback;
+  return str;
 };
 
 // ============================================
@@ -274,10 +267,12 @@ interface EditFieldProps {
   readOnly?: boolean;
   editData: Record<string, any>;
   onChange: (name: string, value: any) => void;
+  placeholder?: string;
+  validate?: (value: string) => string;
 }
 
 const EditField: React.FC<EditFieldProps> = ({
-  label, name, type = 'text', options, readOnly = false, editData, onChange,
+  label, name, type = 'text', options, readOnly = false, editData, onChange, placeholder, validate,
 }) => {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -287,42 +282,48 @@ const EditField: React.FC<EditFieldProps> = ({
     onChange(name, value);
   };
 
-  const commonClass = `w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-    readOnly ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''
+  const val = editData[name] ?? '';
+  const error = validate && val ? validate(val) : '';
+  const baseClass = `w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+    readOnly ? 'bg-gray-50 text-gray-500 cursor-not-allowed border-gray-300 focus:ring-blue-500' :
+    error ? 'border-red-400 focus:ring-red-500/20' : 'border-gray-300 focus:ring-blue-500'
   }`;
+
+  if (options) {
+    return (
+      <SelectBox
+        label={label}
+        value={val}
+        options={[{ value: '', label: '-- Chọn --' }, ...options]}
+        onChange={(v) => { if (!readOnly) onChange(name, v); }}
+        searchable={options.length > 8}
+        placeholder="Tìm kiếm..."
+      />
+    );
+  }
 
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      {options ? (
-        <select
-          value={editData[name] ?? ''}
-          onChange={handleChange}
-          disabled={readOnly}
-          className={commonClass}
-        >
-          <option value="">-- Chọn --</option>
-          {options.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      ) : type === 'textarea' ? (
+      {type === 'textarea' ? (
         <textarea
-          value={editData[name] ?? ''}
+          value={val}
           onChange={handleChange}
           rows={3}
           readOnly={readOnly}
-          className={commonClass}
+          className={baseClass}
         />
       ) : (
         <input
           type={type}
-          value={editData[name] ?? ''}
+          value={val}
           onChange={handleChange}
           readOnly={readOnly}
-          className={commonClass}
+          placeholder={placeholder}
+          className={baseClass}
         />
       )}
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
 };
@@ -362,6 +363,16 @@ const OnboardingDetail: React.FC = () => {
   const [editSection, setEditSection] = useState<EditSection | null>(null);
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [editLoading, setEditLoading] = useState(false);
+
+  // Lock body scroll khi modal mở
+  useEffect(() => {
+    if (editSection) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [editSection]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [allPositions, setAllPositions] = useState<Position[]>([]);
 
@@ -492,6 +503,7 @@ const OnboardingDetail: React.FC = () => {
         const employeeData: Record<string, any> = {};
 
         // Fields to update in onboarding
+        if ('company_unit' in editData) onboardingData.company_unit = editData.company_unit;
         if ('department_id' in editData && editData.department_id) onboardingData.department = Number(editData.department_id);
         if ('position_id' in editData && editData.position_id) onboardingData.position = Number(editData.position_id);
         if ('rank' in editData) onboardingData.rank = editData.rank;
@@ -818,13 +830,13 @@ const OnboardingDetail: React.FC = () => {
             <div>
               <label className="text-sm text-gray-600">Dân tộc</label>
               <p className="font-medium">
-                {(employeeProfile as any)?.ethnicity || onboarding.ethnicity || 'Chưa có dữ liệu'}
+                {safeDisplay((employeeProfile as any)?.ethnicity || onboarding.ethnicity)}
               </p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Quốc tịch</label>
               <p className="font-medium">
-                {(employeeProfile as any)?.nationality || onboarding.nationality || 'Chưa có dữ liệu'}
+                {safeDisplay((employeeProfile as any)?.nationality || onboarding.nationality)}
               </p>
             </div>
             <div>
@@ -849,6 +861,7 @@ const OnboardingDetail: React.FC = () => {
             {userRole === 'ADMIN' && (
               <button
                 onClick={() => openEdit('job', {
+                  company_unit: onboarding.company_unit ?? '',
                   department_id: onboarding.department?.id ? String(onboarding.department.id) : '',
                   department_name: (employeeProfile as any)?.department?.name ?? onboarding.department?.name ?? '',
                   position_id: onboarding.position?.id ? String(onboarding.position.id) : '',
@@ -872,28 +885,32 @@ const OnboardingDetail: React.FC = () => {
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <label className="text-sm text-gray-600">Đơn vị làm việc</label>
+              <p className="font-medium">{onboarding.company_unit === 'HOMIE' ? 'Homie' : onboarding.company_unit === 'AMCARE' ? 'Amcare' : safeDisplay(onboarding.company_unit)}</p>
+            </div>
+            <div>
               <label className="text-sm text-gray-600">Phòng ban</label>
-              <p className="font-medium">{(employeeProfile as any)?.department?.name || onboarding.department?.name || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{safeDisplay((employeeProfile as any)?.department?.name || onboarding.department?.name)}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Cấp bậc</label>
-              <p className="font-medium">{employeeProfile?.rank || onboarding.rank || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{safeDisplay(employeeProfile?.rank || onboarding.rank)}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Vị trí</label>
-              <p className="font-medium">{(employeeProfile as any)?.position?.title || onboarding.position?.title || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{safeDisplay((employeeProfile as any)?.position?.title || onboarding.position?.title)}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Bộ phận</label>
-              <p className="font-medium">{employeeProfile?.section || onboarding.section || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{safeDisplay(employeeProfile?.section || onboarding.section)}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Quản lý trực tiếp</label>
-              <p className="font-medium">{onboarding.direct_manager?.full_name || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{safeDisplay(onboarding.direct_manager?.full_name)}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Bác sĩ phụ trách</label>
-              <p className="font-medium">{employeeProfile?.doctor_team || onboarding.doctor_team || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{safeDisplay(employeeProfile?.doctor_team || onboarding.doctor_team)}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Ngày bắt đầu làm việc</label>
@@ -911,11 +928,11 @@ const OnboardingDetail: React.FC = () => {
             </div>
             <div>
               <label className="text-sm text-gray-600">Vùng/Miền</label>
-              <p className="font-medium">{employeeProfile?.region || onboarding.region || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{safeDisplay(employeeProfile?.region || onboarding.region)}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Khối</label>
-              <p className="font-medium">{employeeProfile?.block || onboarding.block || 'Chưa có dữ liệu'}</p>
+              <p className="font-medium">{safeDisplay(employeeProfile?.block || onboarding.block)}</p>
             </div>
             <div>
               <label className="text-sm text-gray-600">Trạng thái làm việc</label>
@@ -926,13 +943,13 @@ const OnboardingDetail: React.FC = () => {
                   ? 'Tạm dừng'
                   : employeeProfile?.employment_status === 'INACTIVE'
                   ? 'Đã nghỉ'
-                  : employeeProfile?.employment_status || 'Chưa có dữ liệu'}
+                  : safeDisplay(employeeProfile?.employment_status)}
               </p>
             </div>
             <div className="col-span-2">
               <label className="text-sm text-gray-600">Ghi chú tình trạng công việc</label>
               <p className="font-medium whitespace-pre-wrap">
-                {(employeeProfile as any)?.employment_status_notes || onboarding.employment_status_notes || 'Chưa có dữ liệu'}
+                {safeDisplay((employeeProfile as any)?.employment_status_notes || onboarding.employment_status_notes)}
               </p>
             </div>
           </div>
@@ -972,8 +989,8 @@ const OnboardingDetail: React.FC = () => {
               <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                 <div>
                   <label className="text-sm text-gray-600">Số CCCD</label>
-                  <p className="font-medium font-mono">
-                    {employeeProfile?.cccd_number || 'Chưa có dữ liệu'}
+                  <p className="font-medium ">
+                    {safeDisplay(employeeProfile?.cccd_number)}
                   </p>
                 </div>
                 <div>
@@ -997,34 +1014,28 @@ const OnboardingDetail: React.FC = () => {
                 <div>
                   <label className="text-sm text-gray-600">Nơi đăng ký khai sinh</label>
                   <p className="font-medium">
-                    {employeeProfile?.birth_place || onboarding.birth_place || 'Chưa có dữ liệu'}
+                    {safeDisplay(employeeProfile?.birth_place || onboarding.birth_place)}
                   </p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Mã số BHXH</label>
                   <p className="font-medium">
-                    {employeeProfile?.social_insurance_number || onboarding.social_insurance_number || 'Chưa có dữ liệu'}
+                    {safeDisplay(employeeProfile?.social_insurance_number || onboarding.social_insurance_number)}
                   </p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Mã số thuế</label>
-                  <p className="font-medium">{onboarding.tax_code || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{safeDisplay(onboarding.tax_code)}</p>
                 </div>
               </div>
               <div className="mt-4 space-y-3">
                 <div>
                   <label className="text-sm text-gray-600">Địa chỉ thường trú</label>
-                  <p className="font-medium">
-                    {employeeProfile?.permanent_residence || onboarding.permanent_address || 'Chưa có dữ liệu'}
-                  </p>
+                  <p className="font-medium">{safeDisplay(employeeProfile?.permanent_residence || onboarding.permanent_address)}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Địa chỉ hiện tại</label>
-                  <p className="font-medium">
-                    {(employeeProfile?.current_address && employeeProfile.current_address !== '')
-                      ? employeeProfile.current_address
-                      : (onboarding.current_address || 'Chưa có dữ liệu')}
-                  </p>
+                  <p className="font-medium">{safeDisplay(employeeProfile?.current_address || onboarding.current_address)}</p>
                 </div>
               </div>
             </div>
@@ -1052,15 +1063,15 @@ const OnboardingDetail: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-gray-600">Trình độ</label>
-                  <p className="font-medium">{employeeProfile?.education_level || onboarding.education_level || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{safeDisplay(employeeProfile?.education_level || onboarding.education_level)}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Trường đại học / cao đẳng</label>
-                  <p className="font-medium">{(extraInfo.university || onboarding.university) || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{safeDisplay(extraInfo.university || onboarding.university)}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Chuyên ngành</label>
-                  <p className="font-medium">{(extraInfo.major || onboarding.major) || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{safeDisplay(extraInfo.major || onboarding.major)}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Năm tốt nghiệp</label>
@@ -1092,19 +1103,19 @@ const OnboardingDetail: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-gray-600">Ngân hàng</label>
-                  <p className="font-medium">{employeeProfile?.bank_name || onboarding.bank_name || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{safeDisplay(employeeProfile?.bank_name || onboarding.bank_name)}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Số tài khoản</label>
-                  <p className="font-medium">{employeeProfile?.bank_account || onboarding.bank_account || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{safeDisplay(employeeProfile?.bank_account || onboarding.bank_account)}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Chủ tài khoản</label>
-                  <p className="font-medium">{extraInfo.bank_account_holder || onboarding.bank_account_holder || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{safeDisplay(extraInfo.bank_account_holder || onboarding.bank_account_holder)}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Chi nhánh</label>
-                  <p className="font-medium">{employeeProfile?.bank_branch || onboarding.bank_branch || 'Chưa có dữ liệu'}</p>
+                  <p className="font-medium">{safeDisplay(employeeProfile?.bank_branch || onboarding.bank_branch)}</p>
                 </div>
               </div>
             </div>
@@ -1357,15 +1368,15 @@ const OnboardingDetail: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm text-gray-600">Họ và tên</label>
-                    <p className="font-medium">{(employeeProfile as any).emergency_contact_name || 'Chưa có dữ liệu'}</p>
+                    <p className="font-medium">{safeDisplay((employeeProfile as any).emergency_contact_name)}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">Mối quan hệ</label>
-                    <p className="font-medium">{(employeeProfile as any).emergency_contact_relationship || 'Chưa có dữ liệu'}</p>
+                    <p className="font-medium">{safeDisplay((employeeProfile as any).emergency_contact_relationship)}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">Số điện thoại</label>
-                    <p className="font-medium">{(employeeProfile as any).emergency_contact_phone || 'Chưa có dữ liệu'}</p>
+                    <p className="font-medium">{safeDisplay((employeeProfile as any).emergency_contact_phone)}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">Ngày sinh</label>
@@ -1377,11 +1388,11 @@ const OnboardingDetail: React.FC = () => {
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">Nghề nghiệp</label>
-                    <p className="font-medium">{(employeeProfile as any).emergency_contact_occupation || 'Chưa có dữ liệu'}</p>
+                    <p className="font-medium">{safeDisplay((employeeProfile as any).emergency_contact_occupation)}</p>
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">Địa chỉ</label>
-                    <p className="font-medium">{(employeeProfile as any).emergency_contact_address || 'Chưa có dữ liệu'}</p>
+                    <p className="font-medium">{safeDisplay((employeeProfile as any).emergency_contact_address)}</p>
                   </div>
                 </div>
               </div>
@@ -1449,9 +1460,13 @@ const OnboardingDetail: React.FC = () => {
       type?: string,
       options?: { value: string; label: string }[],
       readOnly?: boolean,
+      placeholder?: string,
+      validate?: (v: string) => string,
     ) => (
       <EditField
         key={name}
+        placeholder={placeholder}
+        validate={validate}
         label={label}
         name={name}
         type={type}
@@ -1469,24 +1484,30 @@ const OnboardingDetail: React.FC = () => {
         case 'employee_info':
           return (
             <div className="space-y-4">
-              {ef('Mã nhân viên', 'employee_id', 'text', undefined, true)}
-              {ef('Họ và tên', 'full_name')}
-              {ef('Email cá nhân', 'personal_email', 'email')}
-              {ef('Số điện thoại', 'phone_number')}
-              {ef('Giới tính', 'gender', undefined, [
-                { value: 'M', label: 'Nam' },
-                { value: 'F', label: 'Nữ' },
-                { value: 'O', label: 'Khác' },
-              ])}
-              {ef('Ngày sinh', 'date_of_birth', 'date')}
-              {ef('Dân tộc', 'ethnicity')}
-              {ef('Quốc tịch', 'nationality')}
-              {ef('Tình trạng hôn nhân', 'marital_status', undefined, [
-                { value: 'SINGLE', label: 'Độc thân' },
-                { value: 'MARRIED', label: 'Đã kết hôn' },
-                { value: 'DIVORCED', label: 'Ly hôn' },
-                { value: 'WIDOWED', label: 'Góa' },
-              ])}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Mã nhân viên', 'employee_id', 'text', undefined, true)}
+                {ef('Họ và tên', 'full_name', undefined, undefined, undefined, 'Nguyễn Văn A')}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Email cá nhân', 'personal_email', 'email', undefined, undefined, 'example@email.com', (v) =>
+                  v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Email không hợp lệ' : ''
+                )}
+                {ef('Số điện thoại', 'phone_number', undefined, undefined, undefined, '0123456789', (v) => {
+                  if (!/^\d*$/.test(v)) return 'Chỉ được nhập số';
+                  if (v.length > 10) return 'Tối đa 10 chữ số';
+                  if (v.length > 0 && v.length < 10) return `Còn thiếu ${10 - v.length} số`;
+                  return '';
+                })}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Giới tính', 'gender', undefined, GENDER_OPTIONS)}
+                {ef('Ngày sinh', 'date_of_birth', 'date')}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Dân tộc', 'ethnicity', undefined, ETHNICITY_OPTIONS.map(e => ({ value: e, label: e })))}
+                {ef('Quốc tịch', 'nationality', undefined, NATIONALITY_OPTIONS.map(n => ({ value: n, label: n })))}
+              </div>
+              {ef('Tình trạng hôn nhân', 'marital_status', undefined, MARITAL_STATUS_OPTIONS)}
             </div>
           );
 
@@ -1502,31 +1523,45 @@ const OnboardingDetail: React.FC = () => {
           );
           return (
             <div className="space-y-4">
-              {ef('Phòng ban', 'department_id', undefined, departmentSelectOptions)}
-              {ef('Vị trí', 'position_id', undefined, positionSelectOptions)}
-              {ef('Cấp bậc', 'rank')}
-              {ef('Bộ phận', 'section', undefined, withCurrentOption(toSelectOptions(SECTION_OPTIONS), editData.section))}
-              {ef('Team Bác sĩ', 'doctor_team')}
-              {ef('Hình thức làm việc', 'work_form', undefined, [
-                { value: 'FULL_TIME', label: 'Full-time' },
-                { value: 'PART_TIME', label: 'Part-time' },
-              ])}
-              {ef('Vùng/Miền', 'region', undefined, [
-                { value: 'Miền Bắc', label: 'Miền Bắc' },
-                { value: 'Miền Nam', label: 'Miền Nam' },
-              ])}
-              {ef('Khối', 'block', undefined, [
-                { value: 'Khối Back office', label: 'Khối Back office' },
-                { value: 'Khối Marketing', label: 'Khối Marketing' },
-                { value: 'Khối Kinh doanh', label: 'Khối Kinh doanh' },
-              ])}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Đơn vị làm việc', 'company_unit', undefined, [
+                  { value: 'HOMIE', label: 'Homie' },
+                  { value: 'AMCARE', label: 'Amcare' },
+                ])}
+                {ef('Phòng ban', 'department_id', undefined, departmentSelectOptions)}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Vị trí', 'position_id', undefined, positionSelectOptions)}
+                {ef('Cấp bậc', 'rank')}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Bộ phận', 'section', undefined, withCurrentOption(toSelectOptions(SECTION_OPTIONS), editData.section))}
+                {ef('Team Bác sĩ', 'doctor_team')}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Hình thức làm việc', 'work_form', undefined, [
+                  { value: 'FULL_TIME', label: 'Full-time' },
+                  { value: 'PART_TIME', label: 'Part-time' },
+                ])}
+                {ef('Ngày bắt đầu làm việc', 'start_date', 'date')}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Vùng/Miền', 'region', undefined, [
+                  { value: 'Miền Bắc', label: 'Miền Bắc' },
+                  { value: 'Miền Nam', label: 'Miền Nam' },
+                ])}
+                {ef('Khối', 'block', undefined, [
+                  { value: 'Khối Back office', label: 'Khối Back office' },
+                  { value: 'Khối Marketing', label: 'Khối Marketing' },
+                  { value: 'Khối Kinh doanh', label: 'Khối Kinh doanh' },
+                ])}
+              </div>
               {ef('Trạng thái làm việc', 'employment_status', undefined, [
                 { value: 'ACTIVE', label: 'Đang làm việc' },
                 { value: 'PAUSED', label: 'Tạm dừng' },
                 { value: 'INACTIVE', label: 'Đã nghỉ' },
               ])}
               {ef('Ghi chú tình trạng công việc', 'employment_status_notes', 'textarea')}
-              {ef('Ngày bắt đầu làm việc', 'start_date', 'date')}
             </div>
           );
 
@@ -1537,12 +1572,16 @@ const OnboardingDetail: React.FC = () => {
         case 'personal':
           return (
             <div className="space-y-4">
-              {ef('Số CCCD', 'cccd_number')}
-              {ef('Ngày cấp CCCD', 'cccd_issue_date', 'date')}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Số CCCD', 'cccd_number', undefined, undefined, undefined, '001234567890')}
+                {ef('Ngày cấp CCCD', 'cccd_issue_date', 'date')}
+              </div>
               {ef('Nơi cấp CCCD', 'cccd_issue_place', undefined, CCCD_ISSUE_PLACE_OPTIONS)}
-              {ef('Nơi đăng ký khai sinh', 'birth_place')}
-              {ef('Mã số BHXH', 'social_insurance_number')}
-              {ef('Mã số thuế', 'tax_code')}
+              {ef('Nơi đăng ký khai sinh', 'birth_place', undefined, undefined, undefined, 'Xã/Phường, Tỉnh/TP')}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Mã số BHXH', 'social_insurance_number', undefined, undefined, undefined, '1234567890')}
+                {ef('Mã số thuế', 'tax_code', undefined, undefined, undefined, '0123456789')}
+              </div>
               {ef('Địa chỉ thường trú', 'permanent_residence', 'textarea')}
               {ef('Địa chỉ hiện tại', 'current_address', 'textarea')}
             </div>
@@ -1552,10 +1591,12 @@ const OnboardingDetail: React.FC = () => {
         case 'education':
           return (
             <div className="space-y-4">
-              {ef('Trình độ học vấn', 'education_level')}
-              {ef('Trường đại học / cao đẳng', 'university')}
-              {ef('Chuyên ngành', 'major')}
-              {ef('Năm tốt nghiệp', 'graduation_year', 'number')}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Trình độ học vấn', 'education_level', undefined, undefined, undefined, 'Cử nhân đại học')}
+                {ef('Năm tốt nghiệp', 'graduation_year', 'number', undefined, undefined, '2020')}
+              </div>
+              {ef('Trường đại học / cao đẳng', 'university', undefined, undefined, undefined, 'Đại học Bách Khoa Hà Nội')}
+              {ef('Chuyên ngành', 'major', undefined, undefined, undefined, 'Công nghệ thông tin')}
             </div>
           );
 
@@ -1563,21 +1604,27 @@ const OnboardingDetail: React.FC = () => {
         case 'financial':
           return (
             <div className="space-y-4">
-              {ef('Ngân hàng', 'bank_name')}
-              {ef('Số tài khoản', 'bank_account')}
-              {ef('Chủ tài khoản', 'bank_account_holder')}
-              {ef('Chi nhánh', 'bank_branch')}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Ngân hàng', 'bank_name', undefined, undefined, undefined, 'ACB, Vietcombank...')}
+                {ef('Chi nhánh', 'bank_branch', undefined, undefined, undefined, 'Chi nhánh Hà Nội')}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Số tài khoản', 'bank_account', undefined, undefined, undefined, '123456789012')}
+                {ef('Chủ tài khoản', 'bank_account_holder', undefined, undefined, undefined, 'NGUYEN VAN A')}
+              </div>
             </div>
           );
 
-        // ── CCCD (không dùng trực tiếp trong UI hiện tại nhưng giữ lại) ──
+        // ── CCCD ──
         case 'emp_cccd':
           return (
             <div className="space-y-4">
-              {ef('Số CCCD', 'cccd_number')}
-              {ef('Ngày cấp CCCD', 'cccd_issue_date', 'date')}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Số CCCD', 'cccd_number', undefined, undefined, undefined, '001234567890')}
+                {ef('Ngày cấp CCCD', 'cccd_issue_date', 'date')}
+              </div>
               {ef('Nơi cấp CCCD', 'cccd_issue_place', undefined, CCCD_ISSUE_PLACE_OPTIONS)}
-              {ef('Nơi sinh', 'birth_place')}
+              {ef('Nơi sinh', 'birth_place', undefined, undefined, undefined, 'Xã/Phường, Tỉnh/TP')}
               {ef('Địa chỉ thường trú', 'permanent_residence', 'textarea')}
             </div>
           );
@@ -1588,11 +1635,15 @@ const OnboardingDetail: React.FC = () => {
         case 'emp_salary':
           return (
             <div className="space-y-4">
-              {ef('Lương cơ bản', 'basic_salary', 'number')}
-              {ef('Phụ cấp', 'allowance', 'number')}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Lương cơ bản', 'basic_salary', 'number', undefined, undefined, '10000000')}
+                {ef('Phụ cấp', 'allowance', 'number', undefined, undefined, '2000000')}
+              </div>
               {ef('Loại hợp đồng', 'contract_type', undefined, CONTRACT_OPTIONS)}
-              {ef('Thời gian thử việc (tháng)', 'probation_months', 'number')}
-              {ef('Ngày kết thúc thử việc', 'probation_end_date', 'date')}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Thời gian thử việc (tháng)', 'probation_months', 'number', undefined, undefined, '2')}
+                {ef('Ngày kết thúc thử việc', 'probation_end_date', 'date')}
+              </div>
               {ef('Tỉ lệ thử việc', 'probation_rate', undefined, PROBATION_RATE_OPTIONS)}
             </div>
           );
@@ -1604,39 +1655,55 @@ const OnboardingDetail: React.FC = () => {
 
     return (
       <div
-        className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto"
+        onClick={() => setEditSection(null)}
       >
+        <div className="flex items-center justify-center min-h-full p-4">
         <div
-          className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col animate-in fade-in zoom-in duration-200 overflow-visible"
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between px-5 py-4 border-b">
-            <h4 className="font-semibold text-gray-900">{sectionTitles[editSection]}</h4>
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <PencilIcon className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-gray-900">{sectionTitles[editSection]}</h4>
+                <p className="text-xs text-gray-500">Chỉnh sửa và lưu thay đổi</p>
+              </div>
+            </div>
             <button
               onClick={() => setEditSection(null)}
-              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-5">
+
+          {/* Body */}
+          <div className="flex-1 px-6 py-5">
             {renderFields()}
           </div>
-          <div className="flex items-center justify-end gap-3 px-5 py-4 border-t">
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
             <button
               onClick={() => setEditSection(null)}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
             >
               Hủy
             </button>
             <button
               onClick={handleSaveEdit}
               disabled={editLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-200 transition-colors"
             >
               {editLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
           </div>
+        </div>
         </div>
       </div>
     );
