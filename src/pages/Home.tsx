@@ -9,13 +9,12 @@ import {
   BellAlertIcon,
   DocumentTextIcon,
   ScaleIcon,
-  DocumentDuplicateIcon,
-  CogIcon,
   ArrowRightIcon,
-  ChartBarIcon,
   UserIcon,
   ClockIcon,
   CakeIcon,
+  XMarkIcon,
+  PaperAirplaneIcon,
 } from '@heroicons/react/24/outline';
 
 const formatBirthDate = (dateOfBirth: string): string => {
@@ -41,6 +40,12 @@ const Home: React.FC = () => {
     date_of_birth: string;
     department: { id: number; name: string; code: string } | null;
   }>>([]);
+  const [wishModal, setWishModal] = useState<{
+    open: boolean;
+    employee: { employee_id: number; full_name: string } | null;
+  }>({ open: false, employee: null });
+  const [wishMessage, setWishMessage] = useState('');
+  const [wishSent, setWishSent] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     fetchEmployeeData();
@@ -70,6 +75,22 @@ const Home: React.FC = () => {
     } catch (err) {
       console.error('Error fetching tomorrow birthdays:', err);
     }
+  };
+
+  const openWishModal = (emp: { employee_id: number; full_name: string }) => {
+    setWishMessage(`Chúc mừng sinh nhật ${emp.full_name}! 🎂🎉 Chúc bạn luôn vui vẻ, mạnh khỏe và thành công!`);
+    setWishModal({ open: true, employee: emp });
+  };
+
+  const closeWishModal = () => {
+    setWishModal({ open: false, employee: null });
+    setWishMessage('');
+  };
+
+  const sendWish = () => {
+    if (!wishModal.employee || !wishMessage.trim()) return;
+    setWishSent(prev => new Set(prev).add(wishModal.employee!.employee_id));
+    closeWishModal();
   };
 
   const fetchEmployeeData = async () => {
@@ -186,18 +207,35 @@ const Home: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {birthdayEmployees.map((emp) => (
-              <div key={emp.employee_id} className="flex items-center space-x-4 p-4 bg-pink-50 border border-pink-200 rounded-xl">
-                <div className="h-12 w-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">🎉</span>
+              <div key={emp.employee_id} className="flex flex-col p-4 bg-pink-50 border border-pink-200 rounded-xl">
+                <div className="flex items-center space-x-4">
+                  <div className="h-12 w-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl">🎉</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900">{emp.full_name}</p>
+                    {emp.department && (
+                      <p className="text-sm text-gray-500">{emp.department.name}</p>
+                    )}
+                    <p className="text-xs text-pink-600 mt-1">
+                      {formatBirthDate(emp.date_of_birth)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{emp.full_name}</p>
-                  {emp.department && (
-                    <p className="text-sm text-gray-500">{emp.department.name}</p>
+                <div className="mt-3">
+                  {wishSent.has(emp.employee_id) ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+                      ✅ Đã gửi lời chúc
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => openWishModal(emp)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-pink-500 hover:bg-pink-600 text-white text-xs font-medium rounded-lg transition-colors"
+                    >
+                      <PaperAirplaneIcon className="h-3.5 w-3.5" />
+                      Gửi lời chúc
+                    </button>
                   )}
-                  <p className="text-xs text-pink-600 mt-1">
-                    {formatBirthDate(emp.date_of_birth)}
-                  </p>
                 </div>
               </div>
             ))}
@@ -408,6 +446,57 @@ const Home: React.FC = () => {
         </svg>
         <span className="text-sm font-medium whitespace-nowrap">Order nhạc ở đây</span>
       </a>
+
+      {/* Birthday Wish Modal */}
+      {wishModal.open && wishModal.employee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-pink-100 rounded-full flex items-center justify-center">
+                  <span className="text-xl">🎂</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Gửi lời chúc sinh nhật</h3>
+                  <p className="text-sm text-gray-500">Tới: {wishModal.employee.full_name}</p>
+                </div>
+              </div>
+              <button
+                onClick={closeWishModal}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-5">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Lời chúc của bạn</label>
+              <textarea
+                value={wishMessage}
+                onChange={(e) => setWishMessage(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent resize-none"
+                placeholder="Nhập lời chúc..."
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 px-5 pb-5">
+              <button
+                onClick={closeWishModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={sendWish}
+                disabled={!wishMessage.trim()}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-pink-500 hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+              >
+                <PaperAirplaneIcon className="h-4 w-4" />
+                Gửi lời chúc
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
