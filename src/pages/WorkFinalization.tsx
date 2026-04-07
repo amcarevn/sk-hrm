@@ -25,6 +25,7 @@ import type { FinalizeAllResponse, FinalizeDepartmentResponse, LockStatusRespons
 import deptAttendanceViolationReportService from '../services/deptAttendanceViolationReport.service';
 import type { DeptAttendanceViolationResponse } from '../services/deptAttendanceViolationReport.service';
 import AttendanceCalendar from '../components/AttendanceCalendar';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 // --- Optimizations: Global Helpers & Memoized Sub-components ---
 
@@ -952,53 +953,31 @@ const WorkFinalization: React.FC = () => {
           <span className="text-sm font-medium text-gray-700">Bộ lọc & Tìm kiếm</span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Tháng</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              {months.map((m) => (
-                <option key={m} value={m}>
-                  Tháng {m}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Năm</label>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              {years.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Phòng Ban</label>
-            <select
-              value={selectedDepartment}
-              onChange={(e) => {
-                setSelectedDepartment(e.target.value);
-                setSelectedEmployee(null);
-              }}
-              className="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="">Chưa chọn phòng ban</option>
-              <option value="all">Tất cả phòng ban</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SelectBox
+            label="Tháng"
+            value={selectedMonth}
+            options={months.map((m) => ({ value: m, label: `Tháng ${m}` }))}
+            onChange={(v) => setSelectedMonth(v)}
+          />
+          <SelectBox
+            label="Năm"
+            value={selectedYear}
+            options={years.map((y) => ({ value: y, label: String(y) }))}
+            onChange={(v) => setSelectedYear(v)}
+          />
+          <SelectBox
+            label="Phòng Ban"
+            value={selectedDepartment}
+            options={[
+              { value: '', label: 'Chưa chọn phòng ban' },
+              { value: 'all', label: 'Tất cả phòng ban' },
+              ...departments.map((d) => ({ value: String(d.id), label: d.name })),
+            ]}
+            onChange={(v) => {
+              setSelectedDepartment(v);
+              setSelectedEmployee(null);
+            }}
+          />
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Tìm kiếm</label>
             <div className="relative">
@@ -1428,12 +1407,26 @@ const WorkFinalization: React.FC = () => {
               <p className="text-sm text-gray-700">
                 {isLocked ? (
                   <>
-                    Mở khóa sẽ cho phép <strong>tạo đơn</strong>, <strong>phê duyệt</strong> và <strong>chốt công</strong> cho tháng {selectedMonth}/{selectedYear}.
+                    Mở khóa sẽ cho phép <strong>tạo đơn</strong>, <strong>phê duyệt</strong> và <strong>chốt công</strong> cho tháng {selectedMonth}/{selectedYear} cho tất cả người dùng.
                   </>
                 ) : (
-                  <>
-                    Khóa sẽ <strong>chặn toàn bộ</strong> tạo đơn, phê duyệt và chốt công cho tháng {selectedMonth}/{selectedYear}. Tất cả nhân viên, quản lý và HR đều bị ảnh hưởng.
-                  </>
+                  <div className="space-y-2">
+                    <p>Khóa chốt công tháng {selectedMonth}/{selectedYear} sẽ ảnh hưởng như sau:</p>
+                    <ul className="text-xs space-y-1 ml-1">
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-red-500 mt-0.5 font-bold">✕</span>
+                        <span><strong>Nhân viên, Quản lý:</strong> Không thể tạo đơn, phê duyệt</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-amber-500 mt-0.5 font-bold">⚡</span>
+                        <span><strong>Admin:</strong> Vẫn được phê duyệt và từ chối</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <span className="text-amber-500 mt-0.5 font-bold">⚡</span>
+                        <span><strong>HR:</strong> Vẫn được phê duyệt và từ chối (không tạo đơn)</span>
+                      </li>
+                    </ul>
+                  </div>
                 )}
               </p>
 
