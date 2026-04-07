@@ -384,7 +384,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         const early = dayItem.engine_context?.early_leave_minutes || 0;
 
         let summaryText = dayItem.status_badge;
-        
+
         // Ưu tiên hiển thị "Ra trực" nếu có đơn đã duyệt
         const approvedOffDuty = approvedRegistrations.find((r: any) => (r.event_type || '').toUpperCase() === 'OFF_DUTY');
         
