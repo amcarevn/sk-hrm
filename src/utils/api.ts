@@ -3476,11 +3476,21 @@ export const sendAccountEmailsAPI = {
 // Birthday Wishes API
 export interface BirthdayWish {
   id: number;
-  recipient: number;
-  sender: number;
+  recipient: {
+    id: number;
+    employee_id: string;
+    full_name: string;
+  };
+  sender: {
+    id: number;
+    employee_id: string;
+    full_name: string;
+  };
   message: string;
   year: number;
+  is_liked: boolean;
   created_at?: string;
+  updated_at?: string;
 }
 
 export const birthdayWishesAPI = {
