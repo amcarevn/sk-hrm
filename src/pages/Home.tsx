@@ -103,7 +103,11 @@ const Home: React.FC = () => {
   };
 
   const sendWish = async () => {
-    if (!wishModal.employee || !wishMessage.trim() || !employee) return;
+    if (!wishModal.employee || !wishMessage.trim()) return;
+    if (!employee) {
+      setWishError('Không thể xác định thông tin người gửi. Vui lòng tải lại trang.');
+      return;
+    }
     setWishSending(true);
     setWishError(null);
     try {
