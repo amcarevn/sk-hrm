@@ -241,6 +241,28 @@ const WorkFinalization: React.FC = () => {
     }
   };
 
+  const handleCancelSchedule = async () => {
+    setTogglingLock(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const res = await workFinalizationService.toggleLock({
+        year: selectedYear,
+        month: selectedMonth,
+        is_locked: false,
+        note: 'Hủy lịch hẹn khóa',
+        lock_start_at: null,
+      });
+      setLockStatus(res);
+      setSuccessMsg('Đã hủy lịch hẹn khóa.');
+      setLockStartAt('');
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Không thể hủy lịch hẹn khóa.');
+    } finally {
+      setTogglingLock(false);
+    }
+  };
+
   // Load departments once
   useEffect(() => {
     departmentsAPI
@@ -745,7 +767,7 @@ const WorkFinalization: React.FC = () => {
           {/* Nút Đóng/Mở chốt công */}
           <button
             onClick={() => {
-              setLockStartAt(toLocalInput(lockStatus?.lock_start_at ?? null));
+              setLockStartAt(toLocalInput(lockStatus?.lock_start_at ?? null) || toLocalInput(new Date().toISOString()));
               setLockNote(lockStatus?.note ?? '');
               setShowLockConfirm(true);
             }}
@@ -767,6 +789,16 @@ const WorkFinalization: React.FC = () => {
                 ? `Hẹn khóa ${new Date(lockStatus.lock_start_at).toLocaleDateString('vi-VN')}`
                 : `Đang mở T${selectedMonth}/${selectedYear}`}
           </button>
+          {!isLocked && lockStatus?.lock_start_at && (
+            <button
+              onClick={handleCancelSchedule}
+              disabled={togglingLock}
+              className="inline-flex items-center px-3 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <XMarkIcon className="w-4 h-4 mr-1.5" />
+              Hủy hẹn
+            </button>
+          )}
 
           <Link
             to="/dashboard/work-finalization/approvals"
@@ -862,7 +894,7 @@ const WorkFinalization: React.FC = () => {
           </div>
           <button
             onClick={() => {
-              setLockStartAt(toLocalInput(lockStatus?.lock_start_at ?? null));
+              setLockStartAt(toLocalInput(lockStatus?.lock_start_at ?? null) || toLocalInput(new Date().toISOString()));
               setLockNote(lockStatus?.note ?? '');
               setShowLockConfirm(true);
             }}
