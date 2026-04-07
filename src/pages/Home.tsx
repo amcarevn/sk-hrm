@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { employeesAPI, departmentsAPI } from '../utils/api';
+import { employeesAPI, departmentsAPI, birthdayWishesAPI } from '../utils/api';
 import {
   BuildingOfficeIcon,
   UserGroupIcon,
@@ -46,6 +46,8 @@ const Home: React.FC = () => {
   }>({ open: false, employee: null });
   const [wishMessage, setWishMessage] = useState('');
   const [wishSent, setWishSent] = useState<Set<number>>(new Set());
+  const [wishSending, setWishSending] = useState(false);
+  const [wishError, setWishError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEmployeeData();
@@ -77,20 +79,49 @@ const Home: React.FC = () => {
     }
   };
 
+  const fetchSentWishes = async (senderEmployeeId: number) => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const wishes = await birthdayWishesAPI.list({ sender: senderEmployeeId, year: currentYear });
+      const sentIds = new Set(wishes.map((w) => w.recipient));
+      setWishSent(sentIds);
+    } catch (err) {
+      console.error('Error fetching sent wishes:', err);
+    }
+  };
+
   const openWishModal = (emp: { employee_id: number; full_name: string }) => {
     setWishMessage(`Chúc mừng sinh nhật ${emp.full_name}! 🎂🎉 Chúc bạn luôn vui vẻ, mạnh khỏe và thành công!`);
+    setWishError(null);
     setWishModal({ open: true, employee: emp });
   };
 
   const closeWishModal = () => {
     setWishModal({ open: false, employee: null });
     setWishMessage('');
+    setWishError(null);
   };
 
-  const sendWish = () => {
+  const sendWish = async () => {
     if (!wishModal.employee || !wishMessage.trim()) return;
-    setWishSent(prev => new Set(prev).add(wishModal.employee!.employee_id));
-    closeWishModal();
+    setWishSending(true);
+    setWishError(null);
+    try {
+      await birthdayWishesAPI.create({
+        recipient: wishModal.employee.employee_id,
+        message: wishMessage.trim(),
+      });
+      setWishSent(prev => new Set(prev).add(wishModal.employee!.employee_id));
+      closeWishModal();
+    } catch (err: any) {
+      const detail =
+        err?.response?.data?.detail ||
+        err?.response?.data?.non_field_errors?.[0] ||
+        'Gửi lời chúc thất bại. Vui lòng thử lại.';
+      setWishError(detail);
+    } finally {
+      setWishSending(false);
+    }
   };
 
   const fetchEmployeeData = async () => {
@@ -98,7 +129,8 @@ const Home: React.FC = () => {
       setLoading(true);
       const emp = await employeesAPI.me();
       setEmployee(emp);
-      
+      fetchSentWishes(emp.id);
+
       if (emp.department?.id) {
         try {
           const dept = await departmentsAPI.getById(emp.department.id);
@@ -477,21 +509,25 @@ const Home: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent resize-none"
                 placeholder="Nhập lời chúc..."
               />
+              {wishError && (
+                <p className="mt-2 text-xs text-red-600">{wishError}</p>
+              )}
             </div>
             <div className="flex items-center justify-end gap-3 px-5 pb-5">
               <button
                 onClick={closeWishModal}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={wishSending}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 rounded-lg transition-colors"
               >
                 Hủy
               </button>
               <button
                 onClick={sendWish}
-                disabled={!wishMessage.trim()}
+                disabled={!wishMessage.trim() || wishSending}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-pink-500 hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
                 <PaperAirplaneIcon className="h-4 w-4" />
-                Gửi lời chúc
+                {wishSending ? 'Đang gửi...' : 'Gửi lời chúc'}
               </button>
             </div>
           </div>
