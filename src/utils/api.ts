@@ -3473,6 +3473,42 @@ export const sendAccountEmailsAPI = {
     return response.data;
   },
 };
+// Birthday Wishes API
+export interface BirthdayWish {
+  id: number;
+  recipient: number;
+  sender: number;
+  message: string;
+  year: number;
+  created_at?: string;
+}
+
+export const birthdayWishesAPI = {
+  list: async (params?: {
+    recipient?: number;
+    sender?: number;
+    year?: number;
+  }): Promise<BirthdayWish[]> => {
+    const response = await managementApi.get('/api-hrm/birthday-wishes/', { params });
+    const data = response.data;
+    return Array.isArray(data) ? data : (data?.results ?? []);
+  },
+
+  create: async (data: {
+    recipient: number;
+    sender: number;
+    message: string;
+    year: number;
+  }): Promise<BirthdayWish> => {
+    const response: AxiosResponse<BirthdayWish> = await managementApi.post('/api-hrm/birthday-wishes/', data);
+    return response.data;
+  },
+
+  getByRecipient: async (recipientId: number, year?: number): Promise<BirthdayWish[]> => {
+    return birthdayWishesAPI.list({ recipient: recipientId, year });
+  },
+};
+
 // Update default export to include attendance rule APIs
 export default {
   auth: authAPI,
@@ -3495,4 +3531,5 @@ export default {
   assetMaintenance: assetMaintenanceAPI,
   hrm: hrmAPI,
   attendanceRule: attendanceRuleAPI,
+  birthdayWishes: birthdayWishesAPI,
 };
