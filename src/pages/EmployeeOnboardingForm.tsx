@@ -4,7 +4,7 @@
 // ==========================================
 
 import React, { useState, useEffect, ChangeEvent, useCallback } from 'react';
-import { API_BASE_URL, managementApi, CompanyUnit, Department, Position } from '../utils/api';
+import { API_BASE_URL } from '../utils/api';
 import { useParams } from 'react-router-dom';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
@@ -222,9 +222,9 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
   const [vneidScreenshotFile, setVneidScreenshotFile] = useState<File | null>(null);
   const [workType, setWorkType] = useState('');
-  const [companyUnits, setCompanyUnits] = useState<CompanyUnit[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [positions, setPositions] = useState<Position[]>([]);
+  const [companyUnits, setCompanyUnits] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [positions, setPositions] = useState<any[]>([]);
 
   const [values, setValues] = useState<FormValues>({
     candidate_name: '', candidate_email: '', candidate_phone: '',
@@ -257,18 +257,20 @@ export const EmployeeOnboardingForm: React.FC = () => {
   , []);
 
   // ===== FETCH =====
-  // Fetch company units
   useEffect(() => {
+    const fetchPublic = async (url: string) => {
+      const res = await fetch(`${API_BASE_URL}${url}`, { headers: { 'Content-Type': 'application/json' } });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data.results || []);
+    };
     Promise.all([
-      managementApi.get('/api-hrm/company-units/', { params: { active_only: true } }),
-      managementApi.get('/api-hrm/departments/', { params: { page_size: 1000 } }),
-      managementApi.get('/api-hrm/positions/', { params: { page_size: 1000 } }),
-    ]).then(([cuRes, deptRes, posRes]) => {
-      const cuList = Array.isArray(cuRes.data) ? cuRes.data : (cuRes.data.results || []);
+      fetchPublic('/api-hrm/company-units/?active_only=true'),
+      fetchPublic('/api-hrm/departments/?page_size=1000'),
+      fetchPublic('/api-hrm/positions/?page_size=1000'),
+    ]).then(([cuList, deptList, posList]) => {
       setCompanyUnits(cuList);
-      const deptList = Array.isArray(deptRes.data) ? deptRes.data : (deptRes.data.results || []);
       setDepartments(deptList);
-      const posList = Array.isArray(posRes.data) ? posRes.data : (posRes.data.results || []);
       setPositions(posList);
     }).catch(() => {
       setCompanyUnits([]);
