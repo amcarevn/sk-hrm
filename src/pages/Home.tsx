@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { employeesAPI, departmentsAPI, birthdayWishesAPI } from '../utils/api';
+import { employeesAPI, departmentsAPI, birthdayWishesAPI, BirthdayWish } from '../utils/api';
 import {
   BuildingOfficeIcon,
   UserGroupIcon,
@@ -17,6 +17,7 @@ import {
   PaperAirplaneIcon,
   ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
+import { HeartIcon } from '@heroicons/react/24/solid';
 
 const formatBirthDate = (dateOfBirth: string): string => {
   const parts = dateOfBirth.split('-');
@@ -52,7 +53,7 @@ const Home: React.FC = () => {
   const [wishListModal, setWishListModal] = useState<{
     open: boolean;
     employee: { employee_id: number; full_name: string } | null;
-    wishes: Array<{ id: number; sender: number; message: string; sender_name?: string }>;
+    wishes: BirthdayWish[];
     loading: boolean;
   }>({ open: false, employee: null, wishes: [], loading: false });
 
@@ -90,7 +91,7 @@ const Home: React.FC = () => {
     try {
       const currentYear = new Date().getFullYear();
       const wishes = await birthdayWishesAPI.list({ sender: senderEmployeeId, year: currentYear });
-      const sentIds = new Set(wishes.map((w) => w.recipient));
+      const sentIds = new Set(wishes.map((w) => w.recipient.id));
       setWishSent(sentIds);
     } catch (err) {
       console.error('Error fetching sent wishes:', err);
@@ -597,8 +598,24 @@ const Home: React.FC = () => {
               ) : (
                 <ul className="space-y-3">
                   {wishListModal.wishes.map((wish) => (
-                    <li key={wish.id} className="p-3 bg-pink-50 rounded-xl text-sm text-gray-700 whitespace-pre-wrap">
-                      {wish.message}
+                    <li key={wish.id} className="p-3 bg-pink-50 rounded-xl text-sm text-gray-700">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-pink-700 mb-1">{wish.sender.full_name}</p>
+                          <p className="whitespace-pre-wrap">{wish.message}</p>
+                        </div>
+                        {wish.is_liked && (
+                          <div
+                            className="flex-shrink-0 group relative"
+                            title={`Đã tim bởi ${wish.recipient.full_name}`}
+                          >
+                            <HeartIcon className="h-5 w-5 text-pink-500" />
+                            <span className="pointer-events-none absolute right-0 top-6 z-10 hidden w-max rounded bg-gray-800 px-2 py-1 text-xs text-white group-hover:block">
+                              Đã tim bởi {wish.recipient.full_name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>

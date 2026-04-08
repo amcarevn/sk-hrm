@@ -14,6 +14,7 @@ interface SelectBoxProps<T> {
   onChange: (value: T) => void;
   placeholder?: string;
   searchable?: boolean;
+  size?: 'default' | 'lg';
 }
 
 function SelectBoxInner<T>({
@@ -23,6 +24,7 @@ function SelectBoxInner<T>({
   onChange,
   placeholder,
   searchable = false,
+  size = 'default',
 }: SelectBoxProps<T>) {
   const [query, setQuery] = useState("");
 
@@ -34,26 +36,36 @@ function SelectBoxInner<T>({
       : options.filter((option) =>
           option.label.toLowerCase().includes(query.toLowerCase())
         );
-    
+
     // Limit to 100 results to keep UI snappy with large lists
     return filtered.slice(0, 100);
   }, [options, query]);
+
+  const isLg = size === 'lg';
+  const labelCls = isLg ? "block text-base font-semibold mb-1.5 text-gray-800" : "block text-sm font-medium mb-1 text-gray-700";
+  const inputCls = isLg ? "w-full border-none py-[13px] pl-4 pr-10 text-base leading-normal text-gray-900 focus:ring-0" : "w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0";
+  const wrapperCls = isLg
+    ? "relative w-full cursor-default overflow-hidden rounded-xl bg-white text-left shadow-sm border-2 border-gray-200 hover:border-gray-300 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all"
+    : "relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left shadow-sm sm:text-sm border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500";
+  const buttonCls = isLg
+    ? "relative w-full cursor-pointer rounded-xl border-2 border-gray-200 hover:border-gray-300 bg-white py-[13px] pl-4 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-base shadow-sm transition-all"
+    : "relative w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm shadow-sm";
 
   // COMBBOX MODE (Searchable)
   if (searchable) {
     return (
       <div className="w-full">
-        <label className="block text-sm font-medium mb-1 text-gray-700">{label}</label>
+        {label && <label className={labelCls}>{label}</label>}
         <Combobox
           value={selected}
           onChange={(v: SelectOption<T> | null) => {
             if (v) onChange(v.value);
           }}
         >
-          <div className="relative mt-1">
-            <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-white text-left shadow-sm sm:text-sm border border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+          <div className="relative">
+            <div className={wrapperCls}>
               <Combobox.Input
-                className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
+                className={inputCls}
                 displayValue={(option: SelectOption<T> | null) => option?.label || ""}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={placeholder || "Tìm kiếm..."}
@@ -109,11 +121,11 @@ function SelectBoxInner<T>({
 
   return (
     <div className="w-full">
-      <label className="block text-sm font-medium mb-1 text-gray-700">{label}</label>
+      {label && <label className={labelCls}>{label}</label>}
 
       <Listbox value={fallbackSelected} onChange={(v: any) => onChange(v.value)}>
-        <div className="relative mt-1">
-          <Listbox.Button className="relative w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm shadow-sm">
+        <div className="relative">
+          <Listbox.Button className={buttonCls}>
             <span className="block truncate">{fallbackSelected?.label || placeholder || "Chọn"}</span>
             <span className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer">
               <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />

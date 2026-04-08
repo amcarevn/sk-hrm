@@ -15,6 +15,7 @@ import {
 import onboardingService from '../services/onboarding.service';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 // ============================================
 // TYPES
@@ -173,6 +174,8 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
   const validate = (): boolean => {
     const errs: Partial<Record<keyof CreateOnboardingForm, string>> = {};
     if (!form.candidate_name.trim()) errs.candidate_name = 'Vui lòng nhập họ và tên';
+    else if (!/^[a-zA-ZÀ-ỹ\s]+$/.test(form.candidate_name.trim())) errs.candidate_name = 'Họ tên không được chứa số hoặc ký tự đặc biệt';
+    else if (form.candidate_name.trim().length > 50) errs.candidate_name = 'Họ tên tối đa 50 ký tự';
     if (!form.candidate_email.trim()) errs.candidate_email = 'Vui lòng nhập email';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.candidate_email))
       errs.candidate_email = 'Email không hợp lệ';
@@ -263,51 +266,61 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
           {field('candidate_name', 'Họ và tên', true,
             <input
               type="text"
+              maxLength={50}
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.candidate_name ? 'border-red-400' : 'border-gray-300'}`}
               placeholder="Nguyễn Văn A"
               value={form.candidate_name}
-              onChange={(e) => setForm({ ...form, candidate_name: e.target.value })}
+              onChange={(e) => {
+                const v = e.target.value;
+                setForm({ ...form, candidate_name: v });
+                if (v && !/^[a-zA-ZÀ-ỹ\s]+$/.test(v)) setErrors(prev => ({ ...prev, candidate_name: 'Không được chứa số hoặc ký tự đặc biệt' }));
+                else if (v.length > 50) setErrors(prev => ({ ...prev, candidate_name: 'Tối đa 50 ký tự' }));
+                else setErrors(prev => { const { candidate_name, ...rest } = prev; return rest; });
+              }}
             />
           )}
 
           {field('gender', 'Giới tính', true,
-            <select
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <SelectBox
+              label=""
               value={form.gender}
-              onChange={(e) => setForm({ ...form, gender: e.target.value as 'M' | 'F' | 'O' })}
-            >
-              <option value="M">Nam</option>
-              <option value="F">Nữ</option>
-              <option value="O">Khác</option>
-            </select>
+              options={[
+                { value: 'M', label: 'Nam' },
+                { value: 'F', label: 'Nữ' },
+                { value: 'O', label: 'Khác' },
+              ]}
+              onChange={(v) => setForm({ ...form, gender: v as 'M' | 'F' | 'O' })}
+            />
           )}
 
           {field('candidate_email', 'Email', true,
             <input
               type="email"
+              maxLength={100}
               className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.candidate_email ? 'border-red-400' : 'border-gray-300'}`}
               placeholder="example@email.com"
               value={form.candidate_email}
-              onChange={(e) => setForm({ ...form, candidate_email: e.target.value })}
+              onChange={(e) => {
+                const v = e.target.value;
+                setForm({ ...form, candidate_email: v });
+                if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) setErrors(prev => ({ ...prev, candidate_email: 'Email không hợp lệ' }));
+                else setErrors(prev => { const { candidate_email, ...rest } = prev; return rest; });
+              }}
             />
           )}
 
           {field('direct_manager_id', 'Quản lý trực tiếp', false,
-            <select
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+            <SelectBox
+              label=""
               value={form.direct_manager_id}
-              onChange={(e) => setForm({ ...form, direct_manager_id: e.target.value })}
-              disabled={loadingEmployees}
-            >
-              <option value="">
-                {loadingEmployees ? 'Đang tải...' : '-- Không có quản lý --'}
-              </option>
-              {employees.map((e) => (
-                <option key={e.id} value={String(e.id)}>
-                  {e.full_name} ({e.employee_id})
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: loadingEmployees ? 'Đang tải...' : '-- Không có quản lý --' },
+                ...employees.map((e) => ({ value: String(e.id), label: `${e.full_name} (${e.employee_id})` })),
+              ]}
+              onChange={(v) => setForm({ ...form, direct_manager_id: v })}
+              searchable
+              placeholder="Tìm quản lý..."
+            />
           )}
         </div>
 
@@ -320,14 +333,21 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
           >
             Hủy
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 font-medium"
-          >
-            {submitting && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
-            {submitting ? 'Đang tạo...' : 'Tạo quy trình'}
-          </button>
+          {(() => {
+            const nameValid = form.candidate_name.trim().length > 0 && /^[a-zA-ZÀ-ỹ\s]+$/.test(form.candidate_name.trim()) && form.candidate_name.trim().length <= 50;
+            const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.candidate_email.trim());
+            const isFormValid = nameValid && emailValid && Object.keys(errors).length === 0;
+            return (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting || !isFormValid}
+                className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
+              >
+                {submitting && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
+                {submitting ? 'Đang tạo...' : 'Tạo quy trình'}
+              </button>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -594,54 +614,59 @@ const Onboarding: React.FC = () => {
         </div>
 
         {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <select
-            value={filterStatus}
-            onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="DRAFT">Nháp</option>
-            <option value="IN_PROGRESS">Đang thực hiện</option>
-            <option value="COMPLETED">Hoàn thành</option>
-          </select>
-
-          <select
-            value={filterMonth}
-            onChange={(e) => { setFilterMonth(Number(e.target.value)); setCurrentPage(1); }}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value={0}>Tất cả tháng</option>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>Tháng {m}</option>
-            ))}
-          </select>
-
-          
-          <div className="relative">
-            <input
-              type="text"
-              value={filterSearch}
-              onChange={(e) => { setFilterSearch(e.target.value); setCurrentPage(1); }}
-              placeholder="Tìm tên hoặc mã NV..."
-              className="border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
+        <div className="flex flex-wrap items-end gap-3 mb-4">
+          <div className="w-44">
+            <SelectBox
+              label="Trạng thái"
+              value={filterStatus}
+              options={[
+                { value: '', label: 'Tất cả trạng thái' },
+                { value: 'DRAFT', label: 'Nháp' },
+                { value: 'IN_PROGRESS', label: 'Đang thực hiện' },
+                { value: 'COMPLETED', label: 'Hoàn thành' },
+              ]}
+              onChange={(v) => { setFilterStatus(v); setCurrentPage(1); }}
             />
-            <svg className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
           </div>
-
+          <div className="w-40">
+            <SelectBox
+              label="Tháng"
+              value={filterMonth}
+              options={[
+                { value: 0, label: 'Tất cả tháng' },
+                ...Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` })),
+              ]}
+              onChange={(v) => { setFilterMonth(v); setCurrentPage(1); }}
+            />
+          </div>
           {filterMonth > 0 && (
-            <select
-              value={filterYear}
-              onChange={(e) => { setFilterYear(Number(e.target.value)); setCurrentPage(1); }}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+            <div className="w-32">
+              <SelectBox
+                label="Năm"
+                value={filterYear}
+                options={Array.from({ length: 5 }, (_, i) => {
+                  const y = new Date().getFullYear() - i;
+                  return { value: y, label: String(y) };
+                })}
+                onChange={(v) => { setFilterYear(v); setCurrentPage(1); }}
+              />
+            </div>
           )}
+          <div className="relative">
+            <label className="block text-sm font-medium mb-1 text-gray-700">Tìm kiếm</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={filterSearch}
+                onChange={(e) => { setFilterSearch(e.target.value); setCurrentPage(1); }}
+                placeholder="Tìm tên hoặc mã NV..."
+                className="border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
+              />
+              <svg className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
 
           {(filterStatus !== '' || filterMonth > 0 || filterSearch !== '') && (
             <button
