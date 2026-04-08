@@ -4,16 +4,11 @@ import  API_BASE_URL from '../utils/api';
 import ContractSection from './ContractSection';
 import {
   CheckCircleIcon,
-  ClockIcon,
   DocumentTextIcon,
   ArrowPathIcon,
-  PlayIcon,
-  CheckIcon,
   XMarkIcon,
   ArrowLeftIcon,
   ExclamationTriangleIcon,
-  PlusIcon,
-  UserCircleIcon,
   EyeIcon,
   ArrowTopRightOnSquareIcon,
   PencilIcon,
@@ -22,7 +17,7 @@ import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
 import DocumentsSection from './DocumentsSection';
 import { useAuth } from '../contexts/AuthContext';
-import { employeesAPI, SuperAdminEmployee, departmentsAPI, positionsAPI, Department, Position } from '../utils/api';
+import { employeesAPI, SuperAdminEmployee, departmentsAPI, positionsAPI, companyUnitsAPI, Department, Position, CompanyUnit } from '../utils/api';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
   SECTION_OPTIONS as SECTION_OPTIONS_RAW, CITIZEN_ID_ISSUE_PLACE_OPTIONS as CCCD_ISSUE_PLACE_OPTIONS,
@@ -375,6 +370,7 @@ const OnboardingDetail: React.FC = () => {
   }, [editSection]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [allPositions, setAllPositions] = useState<Position[]>([]);
+  const [allCompanyUnits, setAllCompanyUnits] = useState<CompanyUnit[]>([]);
 
   // Stable handler — prevents EditField re-mount on every keystroke
   const handleEditFieldChange = React.useCallback((name: string, value: any) => {
@@ -734,12 +730,16 @@ const OnboardingDetail: React.FC = () => {
   useEffect(() => {
     const loadMasterData = async () => {
       try {
-        const [deptRes, posRes] = await Promise.all([
+        const [deptRes, posRes, cuRes] = await Promise.all([
           departmentsAPI.list({ page_size: 1000 }),
           positionsAPI.list({ page_size: 1000 }),
+          companyUnitsAPI.list({ active_only: true, page_size: 100 }),
         ]);
         setAllDepartments(deptRes.results || []);
         setAllPositions(posRes.results || []);
+        setAllCompanyUnits(Array.isArray(cuRes) ? cuRes : (cuRes.results || []));
+        console.log('[MasterData] CompanyUnits:', Array.isArray(cuRes) ? cuRes.length : cuRes.results?.length);
+        console.log('[MasterData] Departments:', deptRes.results?.length, 'Positions:', posRes.results?.length);
       } catch (e) {
         console.warn('Could not load departments/positions:', e);
       }
@@ -853,11 +853,11 @@ const OnboardingDetail: React.FC = () => {
             start_date: employeeProfile?.start_date ?? onboarding.start_date ?? '',
           })} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
-            <InfoField label="Đơn vị" value={onboarding.company_unit === 'HOMIE' ? 'Homie' : onboarding.company_unit === 'AMCARE' ? 'Amcare' : safeDisplay(onboarding.company_unit)} />
+            <InfoField label="Đơn vị" value={allCompanyUnits.find(cu => cu.code === onboarding.company_unit)?.name || safeDisplay(onboarding.company_unit)} />
             <InfoField label="Phòng ban" value={safeDisplay((employeeProfile as any)?.department?.name || onboarding.department?.name)} />
             <InfoField label="Vị trí" value={safeDisplay((employeeProfile as any)?.position?.title || onboarding.position?.title)} />
             <InfoField label="Cấp bậc" value={safeDisplay(employeeProfile?.rank || onboarding.rank)} />
-            <InfoField label="Bộ phận" value={safeDisplay(employeeProfile?.section || onboarding.section)} />
+            <InfoField label="Bộ phận" value={SECTION_OPTIONS.find(o => o.value === (employeeProfile?.section || onboarding.section))?.label || safeDisplay(employeeProfile?.section || onboarding.section)} />
             <InfoField label="Quản lý" value={safeDisplay(onboarding.direct_manager?.full_name)} />
             <InfoField label="Team BS" value={safeDisplay(employeeProfile?.doctor_team || onboarding.doctor_team)} />
             <InfoField label="Ngày BĐ" value={employeeProfile?.start_date ? formatDate(employeeProfile.start_date) : formatDate(onboarding.start_date)} />
@@ -1228,10 +1228,9 @@ const OnboardingDetail: React.FC = () => {
           return (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {ef('Đơn vị làm việc', 'company_unit', undefined, [
-                  { value: 'HOMIE', label: 'Homie' },
-                  { value: 'AMCARE', label: 'Amcare' },
-                ])}
+                {ef('Đơn vị làm việc', 'company_unit', undefined,
+                  allCompanyUnits.map(cu => ({ value: cu.code, label: cu.name }))
+                )}
                 {ef('Phòng ban', 'department_id', undefined, departmentSelectOptions)}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

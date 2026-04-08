@@ -85,7 +85,8 @@ export const SECTION_OPTIONS = [
   { value: 'KINH_DOANH_VP_MIEN_NAM', label: 'Kinh doanh - VP miền Nam' },
   { value: 'PHAP_CHE', label: 'Pháp chế' },
   { value: 'MUA_HANG', label: 'Mua hàng' },
-  { value: 'BO_PHAN_CNTT', label: 'Bộ phận Công nghệ thông tin' },
+  { value: 'BO_PHAN_AI', label: 'Bộ phận AI' },
+  { value: 'BO_PHAN_IT', label: 'Bộ phận IT' },
 ];
 
 export const WORK_FORM_OPTIONS = [

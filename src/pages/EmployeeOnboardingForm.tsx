@@ -4,13 +4,13 @@
 // ==========================================
 
 import React, { useState, useEffect, ChangeEvent, useCallback } from 'react';
-import { API_BASE_URL } from '../utils/api';
+import { API_BASE_URL, managementApi, CompanyUnit, Department, Position } from '../utils/api';
 import { useParams } from 'react-router-dom';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
   ETHNICITY_OPTIONS, NATIONALITY_OPTIONS, SECTION_OPTIONS, WORK_FORM_OPTIONS, WORK_LOCATION_OPTIONS,
-  CITIZEN_ID_ISSUE_PLACE_OPTIONS, EDUCATION_LEVEL_OPTIONS, SUB_DEPARTMENT_OPTIONS, RANK_OPTIONS,
-  POSITION_OPTIONS, COMPANY_UNIT_OPTIONS, REGION_OPTIONS, BLOCK_OPTIONS, MARITAL_STATUS_OPTIONS,
+  CITIZEN_ID_ISSUE_PLACE_OPTIONS, EDUCATION_LEVEL_OPTIONS, RANK_OPTIONS,
+  REGION_OPTIONS, BLOCK_OPTIONS, SUB_DEPARTMENT_OPTIONS, POSITION_OPTIONS,
   GENDER_OPTIONS, PROBATION_MONTHS_OPTIONS, PROBATION_RATE_OPTIONS,
 } from '../constants/onboarding';
 import {
@@ -222,6 +222,9 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
   const [vneidScreenshotFile, setVneidScreenshotFile] = useState<File | null>(null);
   const [workType, setWorkType] = useState('');
+  const [companyUnits, setCompanyUnits] = useState<CompanyUnit[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
 
   const [values, setValues] = useState<FormValues>({
     candidate_name: '', candidate_email: '', candidate_phone: '',
@@ -254,6 +257,26 @@ export const EmployeeOnboardingForm: React.FC = () => {
   , []);
 
   // ===== FETCH =====
+  // Fetch company units
+  useEffect(() => {
+    Promise.all([
+      managementApi.get('/api-hrm/company-units/', { params: { active_only: true } }),
+      managementApi.get('/api-hrm/departments/', { params: { page_size: 1000 } }),
+      managementApi.get('/api-hrm/positions/', { params: { page_size: 1000 } }),
+    ]).then(([cuRes, deptRes, posRes]) => {
+      const cuList = Array.isArray(cuRes.data) ? cuRes.data : (cuRes.data.results || []);
+      setCompanyUnits(cuList);
+      const deptList = Array.isArray(deptRes.data) ? deptRes.data : (deptRes.data.results || []);
+      setDepartments(deptList);
+      const posList = Array.isArray(posRes.data) ? posRes.data : (posRes.data.results || []);
+      setPositions(posList);
+    }).catch(() => {
+      setCompanyUnits([]);
+      setDepartments([]);
+      setPositions([]);
+    });
+  }, []);
+
   useEffect(() => {
     const fetch_ = async () => {
       setLoading(true);
@@ -588,7 +611,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
           Bạn sẽ được thông báo sau khi được duyệt.
         </p>
         <button
-          onClick={() => window.close()}
+          onClick={() => { try { window.close(); } catch {} setTimeout(() => window.location.href = 'about:blank', 200); }}
           className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
         >
           Đóng trang
@@ -638,17 +661,17 @@ export const EmployeeOnboardingForm: React.FC = () => {
         <div className="flex-1 flex flex-col gap-5 justify-evenly">
           <h3 className="text-3xl font-bold text-gray-900 text-center">Thông tin công việc chi tiết</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-            <RF label="Đơn vị làm việc" value={values.company_unit} onChange={handleSelect('company_unit')}
-              options={[{ value: 'HOMIE', label: 'Homie' }, { value: 'AMCARE', label: 'Amcare' }]} required />
-            <RF label="Vùng/Miền" value={values.region} onChange={handleSelect('region')} options={REGION_OPTIONS} required />
-            <RF label="Khối" value={values.block} onChange={handleSelect('block')} options={BLOCK_OPTIONS} required />
+            <SF label="Đơn vị làm việc" value={values.company_unit} onChange={handleSelect('company_unit')}
+              options={companyUnits.map(cu => ({ value: cu.code, label: cu.name }))} />
+            <SF label="Vùng/Miền" value={values.region} onChange={handleSelect('region')} options={REGION_OPTIONS} />
+            <SF label="Khối" value={values.block} onChange={handleSelect('block')} options={BLOCK_OPTIONS} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <SF label="Phòng/Ban" value={values.sub_department} onChange={handleSelect('sub_department')} options={SUB_DEPARTMENT_OPTIONS} required />
+            <SF label="Phòng/Ban" value={values.sub_department} onChange={handleSelect('sub_department')} options={departments.length > 0 ? departments.map(d => ({ value: d.name, label: d.name })) : SUB_DEPARTMENT_OPTIONS} searchable />
             <SF label="Bộ phận" value={values.section} onChange={handleSelect('section')} options={SECTION_OPTIONS} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <SF label="Vị trí" value={values.position} onChange={handleSelect('position')} options={POSITION_OPTIONS} required />
+            <SF label="Vị trí" value={values.position} onChange={handleSelect('position')} options={positions.length > 0 ? positions.map(p => ({ value: p.title, label: p.title })) : POSITION_OPTIONS} searchable />
             <SF label="Cấp bậc" value={values.job_rank} onChange={handleSelect('job_rank')} options={RANK_OPTIONS} required />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -833,7 +856,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
             ['Link Facebook', values.facebook_link],
           ]},
           { title: 'Công việc', color: 'indigo', fields: [
-            ['Đơn vị', values.company_unit === 'HOMIE' ? 'Homie' : values.company_unit === 'AMCARE' ? 'Amcare' : null],
+            ['Đơn vị', companyUnits.find(cu => cu.code === values.company_unit)?.name || values.company_unit || null],
             ['Vùng/Miền', values.region],
             ['Khối', values.block],
             ['Phòng/Ban', values.sub_department],
