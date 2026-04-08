@@ -8,6 +8,7 @@ import type {
   Department,
   Position,
   BirthdayWish,
+  CompanyUnit,
 } from './types';
 
 let mePromise: Promise<Employee> | null = null;
@@ -388,5 +389,37 @@ export const birthdayWishesAPI = {
 
   getByRecipient: async (recipientId: number, year?: number): Promise<BirthdayWish[]> => {
     return birthdayWishesAPI.list({ recipient: recipientId, year });
+  },
+};
+
+// Company Units API
+export const companyUnitsAPI = {
+  list: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    active_only?: boolean;
+  }): Promise<{ count: number; results: CompanyUnit[] }> => {
+    const response = await managementApi.get('/api-hrm/company-units/', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<CompanyUnit> => {
+    const response = await managementApi.get(`/api-hrm/company-units/${id}/`);
+    return response.data;
+  },
+
+  create: async (data: Partial<CompanyUnit>): Promise<CompanyUnit> => {
+    const response = await managementApi.post('/api-hrm/company-units/', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: Partial<CompanyUnit>): Promise<CompanyUnit> => {
+    const response = await managementApi.put(`/api-hrm/company-units/${id}/`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/company-units/${id}/`);
   },
 };

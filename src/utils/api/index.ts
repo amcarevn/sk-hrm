@@ -46,6 +46,7 @@ export type {
   AttendanceRuleEngineRequest,
   AttendanceRuleEngineResponse,
   BirthdayWish,
+  CompanyUnit,
 } from './types';
 
 // Re-export all APIs
@@ -66,6 +67,7 @@ export {
   positionsAPI,
   sendAccountEmailsAPI,
   birthdayWishesAPI,
+  companyUnitsAPI,
 } from './hrm.api';
 export {
   assetsAPI,
@@ -92,6 +94,7 @@ import {
   positionsAPI,
   sendAccountEmailsAPI,
   birthdayWishesAPI,
+  companyUnitsAPI,
 } from './hrm.api';
 import {
   assetsAPI,
@@ -126,4 +129,5 @@ export default {
   sendAccountEmails: sendAccountEmailsAPI,
   dashboard: dashboardAPI,
   companyConfig: companyConfigAPI,
+  companyUnits: companyUnitsAPI,
 };

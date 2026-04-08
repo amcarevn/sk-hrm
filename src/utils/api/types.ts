@@ -866,9 +866,20 @@ export interface AttendanceRuleEngineResponse {
 
 export interface BirthdayWish {
   id: number;
-  recipient: number;
-  sender: number;
+  recipient: { id: number; employee_id: number; full_name: string };
+  sender: { id: number; employee_id: number; full_name: string };
   message: string;
   year: number;
+  is_liked?: boolean;
   created_at?: string;
+}
+
+export interface CompanyUnit {
+  id: number;
+  name: string;
+  code: string;
+  description?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
