@@ -159,15 +159,7 @@ type OnboardingDetail = {
 // HELPER FUNCTIONS
 // ============================================
 
-const showError = (msg: string) => {
-  console.error('ERROR:', msg);
-  window.alert(msg);
-};
-
-const showSuccess = (msg: string) => {
-  console.log('SUCCESS:', msg);
-  window.alert(msg);
-};
+// showError / showSuccess sẽ dùng state dialog bên trong component
 
 const MARITAL_STATUS_LABELS: Record<string, string> = {
   SINGLE: 'Độc thân',
@@ -365,6 +357,13 @@ const OnboardingDetail: React.FC = () => {
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [editLoading, setEditLoading] = useState(false);
 
+  // Dialog states
+  const [dialogMsg, setDialogMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ text: string; onConfirm: () => void } | null>(null);
+
+  const showSuccess = (msg: string) => setDialogMsg({ type: 'success', text: msg });
+  const showError = (msg: string) => setDialogMsg({ type: 'error', text: msg });
+
   // Lock body scroll khi modal mở
   useEffect(() => {
     if (editSection) {
@@ -425,42 +424,57 @@ const OnboardingDetail: React.FC = () => {
     }
   };
 
-  const handleStartProcess = async () => {
+  const handleStartProcess = () => {
     if (!id || !onboarding) return;
-    if (!confirm('Bạn có chắc muốn bắt đầu quy trình onboarding này?')) return;
-    try {
-      await onboardingService.start(parseInt(id));
-      showSuccess('Đã bắt đầu quy trình onboarding');
-      await fetchOnboardingDetail();
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Không thể bắt đầu quy trình onboarding');
-    }
+    setConfirmDialog({
+      text: 'Bạn có chắc muốn bắt đầu quy trình onboarding này?',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await onboardingService.start(parseInt(id));
+          showSuccess('Đã bắt đầu quy trình onboarding');
+          await fetchOnboardingDetail();
+        } catch (error: any) {
+          showError(error.response?.data?.message || 'Không thể bắt đầu quy trình onboarding');
+        }
+      },
+    });
   };
 
-  const handleApproveEmployeeInfo = async () => {
+  const handleApproveEmployeeInfo = () => {
     if (!id || !onboarding) return;
-    if (!confirm('Xác nhận duyệt thông tin nhân viên đã điền?')) return;
-    try {
-      const task4 = onboarding.tasks?.find(t => t.order === 4);
-      if (!task4) return;
-      await onboardingService.completeTask(task4.id, 'Quản lý trực tiếp đã xác nhận thông tin nhân viên');
-      showSuccess('Đã duyệt thông tin nhân viên');
-      await fetchOnboardingDetail();
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Không thể duyệt thông tin');
-    }
+    setConfirmDialog({
+      text: 'Xác nhận duyệt thông tin nhân viên đã điền?',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const task4 = onboarding.tasks?.find(t => t.order === 4);
+          if (!task4) return;
+          await onboardingService.completeTask(task4.id, 'Quản lý trực tiếp đã xác nhận thông tin nhân viên');
+          showSuccess('Đã duyệt thông tin nhân viên');
+          await fetchOnboardingDetail();
+        } catch (error: any) {
+          showError(error.response?.data?.message || 'Không thể duyệt thông tin');
+        }
+      },
+    });
   };
 
-  const handleCompleteProcess = async () => {
+  const handleCompleteProcess = () => {
     if (!id || !onboarding) return;
-    if (!confirm('Bạn có chắc muốn hoàn thành quy trình onboarding này?')) return;
-    try {
-      await onboardingService.complete(parseInt(id));
-      showSuccess('Đã hoàn thành quy trình onboarding');
-      await fetchOnboardingDetail();
-    } catch (error: any) {
-      showError(error.response?.data?.message || 'Không thể hoàn thành quy trình onboarding');
-    }
+    setConfirmDialog({
+      text: 'Bạn có chắc muốn hoàn thành quy trình onboarding này?',
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          await onboardingService.complete(parseInt(id));
+          showSuccess('Đã hoàn thành quy trình onboarding');
+          await fetchOnboardingDetail();
+        } catch (error: any) {
+          showError(error.response?.data?.message || 'Không thể hoàn thành quy trình onboarding');
+        }
+      },
+    });
   };
 
   const openEdit = (section: EditSection, initialData: Record<string, any>) => {
@@ -755,204 +769,108 @@ const OnboardingDetail: React.FC = () => {
       (employeeProfile as any)?.vneid_screenshot_url ||
       normalizeFileUrl(employeeProfile?.vneid_screenshot);
 
+    // Helper: Section header with edit button
+    const SectionHeader: React.FC<{ title: string; color: string; onEdit?: () => void }> = ({ title, color, onEdit }) => {
+      const borderColors: Record<string, string> = { blue: 'border-blue-300', indigo: 'border-indigo-300', amber: 'border-amber-300', emerald: 'border-emerald-300', rose: 'border-rose-300', purple: 'border-purple-300', gray: 'border-gray-300' };
+      const textColors: Record<string, string> = { blue: 'text-blue-700', indigo: 'text-indigo-700', amber: 'text-amber-700', emerald: 'text-emerald-700', rose: 'text-rose-700', purple: 'text-purple-700', gray: 'text-gray-700' };
+      return (
+        <div className={`flex items-center justify-between pb-3 mb-4 border-b-2 ${borderColors[color] || 'border-gray-200'}`}>
+          <h3 className={`text-sm font-bold uppercase tracking-wide ${textColors[color] || 'text-gray-700'}`}>{title}</h3>
+          {onEdit && userRole === 'ADMIN' && (
+            <button onClick={onEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+              <PencilIcon className="w-3.5 h-3.5" />
+              Chỉnh sửa
+            </button>
+          )}
+        </div>
+      );
+    };
+
+    // Helper: Field display — inline label: value
+    const InfoField: React.FC<{ label: string; value?: string | null; highlight?: boolean; full?: boolean }> = ({ label, value, highlight, full }) => (
+      <div className={`flex items-baseline justify-between py-2 border-b border-gray-100 ${full ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
+        <span className="text-sm text-gray-500 shrink-0 mr-3">{label}</span>
+        <span className={`text-sm text-right truncate max-w-[60%] ${value && value !== 'Chưa có dữ liệu' ? (highlight ? 'font-semibold text-indigo-700' : 'font-medium text-gray-900') : 'text-gray-300 italic'}`}>
+          {value || '—'}
+        </span>
+      </div>
+    );
+
     return (
       <div className="space-y-6">
 
         {/* ── Thông tin nhân viên ── */}
-        <div className="bg-white rounded-lg border p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
-            <span className="flex items-center">
-              <span className="mr-2">👤</span>
-              Thông tin nhân viên
-            </span>
-            {userRole === 'ADMIN' && (
-              <button
-                onClick={() => openEdit('employee_info', {
-                  employee_id: employeeProfile?.employee_id ?? onboarding.employee?.employee_id ?? '',
-                  full_name: employeeProfile?.full_name ?? onboarding.candidate_name ?? '',
-                  personal_email: employeeProfile?.personal_email ?? onboarding.candidate_email ?? '',
-                  phone_number: employeeProfile?.phone_number ?? onboarding.candidate_phone ?? '',
-                  gender: employeeProfile?.gender ?? '',
-                  date_of_birth: employeeProfile?.date_of_birth ?? '',
-                  ethnicity: employeeProfile?.ethnicity || onboarding.ethnicity || 'Chưa có dữ liệu',
-                  nationality: employeeProfile?.nationality || onboarding.nationality || 'Chưa có dữ liệu',
-                  marital_status: (employeeProfile as any)?.marital_status ?? (onboarding as any)?.marital_status ?? '',
-                })}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                title="Sửa thông tin nhân viên"
-              >
-                <PencilIcon className="w-4 h-4" />
-              </button>
-            )}
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm text-gray-600">Mã nhân viên</label>
-              <p className="font-medium text-indigo-700">
-                {employeeProfile?.employee_id ?? onboarding.employee?.employee_id ?? 'Chưa có'}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Họ và tên</label>
-              <p className="font-medium">
-                {employeeProfile?.full_name ?? onboarding.candidate_name ?? 'Chưa có dữ liệu'}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Email cá nhân</label>
-              <p className="font-medium">
-                {employeeProfile?.personal_email ?? onboarding.candidate_email ?? 'Chưa có dữ liệu'}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Số điện thoại</label>
-              <p className="font-medium">
-                {employeeProfile?.phone_number ?? onboarding.candidate_phone ?? 'Chưa có dữ liệu'}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Giới tính</label>
-              <p className="font-medium">
-                {employeeProfile?.gender
-                  ? (employeeProfile.gender === 'M' ? 'Nam' : employeeProfile.gender === 'F' ? 'Nữ' : 'Khác')
-                  : onboarding.gender
-                  ? (onboarding.gender === 'MALE' ? 'Nam' : onboarding.gender === 'FEMALE' ? 'Nữ' : 'Khác')
-                  : 'Chưa có dữ liệu'}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Ngày sinh</label>
-              <p className="font-medium">
-                {employeeProfile?.date_of_birth
-                  ? formatDate(employeeProfile.date_of_birth)
-                  : formatDate(onboarding.date_of_birth)}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Dân tộc</label>
-              <p className="font-medium">
-                {safeDisplay((employeeProfile as any)?.ethnicity || onboarding.ethnicity)}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Quốc tịch</label>
-              <p className="font-medium">
-                {safeDisplay((employeeProfile as any)?.nationality || onboarding.nationality)}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Tình trạng hôn nhân</label>
-              <p className="font-medium">
-                {(() => {
-                  const ms = employeeProfile?.marital_status || (onboarding as any)?.marital_status;
-                  return ms ? (MARITAL_STATUS_LABELS[ms] || ms) : 'Chưa có dữ liệu';
-                })()}
-              </p>
-            </div>
+        <div className="bg-white rounded-xl border p-5">
+          <SectionHeader title="Thông tin nhân viên" color="blue" onEdit={() => openEdit('employee_info', {
+            employee_id: employeeProfile?.employee_id ?? onboarding.employee?.employee_id ?? '',
+            full_name: employeeProfile?.full_name ?? onboarding.candidate_name ?? '',
+            personal_email: employeeProfile?.personal_email ?? onboarding.candidate_email ?? '',
+            phone_number: employeeProfile?.phone_number ?? onboarding.candidate_phone ?? '',
+            gender: employeeProfile?.gender ?? '',
+            date_of_birth: employeeProfile?.date_of_birth ?? '',
+            ethnicity: employeeProfile?.ethnicity || onboarding.ethnicity || 'Chưa có dữ liệu',
+            nationality: employeeProfile?.nationality || onboarding.nationality || 'Chưa có dữ liệu',
+            marital_status: (employeeProfile as any)?.marital_status ?? (onboarding as any)?.marital_status ?? '',
+          })} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
+            <InfoField label="Mã nhân viên" value={employeeProfile?.employee_id ?? onboarding.employee?.employee_id ?? 'Chưa có'} highlight />
+            <InfoField label="Họ và tên" value={employeeProfile?.full_name ?? onboarding.candidate_name} />
+            <InfoField label="Email" value={employeeProfile?.personal_email ?? onboarding.candidate_email} />
+            <InfoField label="Số điện thoại" value={employeeProfile?.phone_number ?? onboarding.candidate_phone} />
+            <InfoField label="Giới tính" value={
+              employeeProfile?.gender
+                ? (employeeProfile.gender === 'M' ? 'Nam' : employeeProfile.gender === 'F' ? 'Nữ' : 'Khác')
+                : onboarding.gender
+                ? (onboarding.gender === 'MALE' ? 'Nam' : onboarding.gender === 'FEMALE' ? 'Nữ' : 'Khác')
+                : null
+            } />
+            <InfoField label="Ngày sinh" value={employeeProfile?.date_of_birth ? formatDate(employeeProfile.date_of_birth) : formatDate(onboarding.date_of_birth)} />
+            <InfoField label="Dân tộc" value={safeDisplay((employeeProfile as any)?.ethnicity || onboarding.ethnicity)} />
+            <InfoField label="Quốc tịch" value={safeDisplay((employeeProfile as any)?.nationality || onboarding.nationality)} />
+            <InfoField label="Hôn nhân" value={(() => {
+              const ms = employeeProfile?.marital_status || (onboarding as any)?.marital_status;
+              return ms ? (MARITAL_STATUS_LABELS[ms] || ms) : null;
+            })()} />
           </div>
         </div>
 
         {/* ── Thông tin công việc ── */}
-        <div className="bg-white rounded-lg border p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
-            <span className="flex items-center">
-              <span className="mr-2">💼</span>
-              Thông tin công việc
-            </span>
-            {userRole === 'ADMIN' && (
-              <button
-                onClick={() => openEdit('job', {
-                  company_unit: onboarding.company_unit ?? '',
-                  department_id: onboarding.department?.id ? String(onboarding.department.id) : '',
-                  department_name: (employeeProfile as any)?.department?.name ?? onboarding.department?.name ?? '',
-                  position_id: onboarding.position?.id ? String(onboarding.position.id) : '',
-                  position_title: (employeeProfile as any)?.position?.title ?? onboarding.position?.title ?? '',
-                  rank: employeeProfile?.rank ?? onboarding.rank ?? '',
-                  section: employeeProfile?.section ?? onboarding.section ?? '',
-                  doctor_team: employeeProfile?.doctor_team ?? onboarding.doctor_team ?? '',
-                  work_form: employeeProfile?.work_form ?? onboarding.work_form ?? '',
-                  region: employeeProfile?.region ?? onboarding.region ?? '',
-                  block: employeeProfile?.block ?? onboarding.block ?? '',
-                  employment_status: employeeProfile?.employment_status ?? '',
-                  employment_status_notes: (employeeProfile as any)?.employment_status_notes ?? onboarding.employment_status_notes ?? '',
-                  start_date: employeeProfile?.start_date ?? onboarding.start_date ?? '',
-                })}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                title="Sửa thông tin công việc"
-              >
-                <PencilIcon className="w-4 h-4" />
-              </button>
-            )}
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm text-gray-600">Đơn vị làm việc</label>
-              <p className="font-medium">{onboarding.company_unit === 'HOMIE' ? 'Homie' : onboarding.company_unit === 'AMCARE' ? 'Amcare' : safeDisplay(onboarding.company_unit)}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Phòng ban</label>
-              <p className="font-medium">{safeDisplay((employeeProfile as any)?.department?.name || onboarding.department?.name)}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Cấp bậc</label>
-              <p className="font-medium">{safeDisplay(employeeProfile?.rank || onboarding.rank)}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Vị trí</label>
-              <p className="font-medium">{safeDisplay((employeeProfile as any)?.position?.title || onboarding.position?.title)}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Bộ phận</label>
-              <p className="font-medium">{safeDisplay(employeeProfile?.section || onboarding.section)}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Quản lý trực tiếp</label>
-              <p className="font-medium">{safeDisplay(onboarding.direct_manager?.full_name)}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Bác sĩ phụ trách</label>
-              <p className="font-medium">{safeDisplay(employeeProfile?.doctor_team || onboarding.doctor_team)}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Ngày bắt đầu làm việc</label>
-              <p className="font-medium">
-                {employeeProfile?.start_date
-                  ? formatDate(employeeProfile.start_date)
-                  : formatDate(onboarding.start_date)}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Hình thức làm việc</label>
-              <p className="font-medium">
-                {(employeeProfile?.work_form || onboarding.work_form) ? (WORK_FORM_LABELS[employeeProfile?.work_form || onboarding.work_form!] || employeeProfile?.work_form || onboarding.work_form) : 'Chưa có dữ liệu'}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Vùng/Miền</label>
-              <p className="font-medium">{safeDisplay(employeeProfile?.region || onboarding.region)}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Khối</label>
-              <p className="font-medium">{safeDisplay(employeeProfile?.block || onboarding.block)}</p>
-            </div>
-            <div>
-              <label className="text-sm text-gray-600">Trạng thái làm việc</label>
-              <p className="font-medium">
-                {employeeProfile?.employment_status === 'ACTIVE'
-                  ? 'Đang làm việc'
-                  : employeeProfile?.employment_status === 'PAUSED'
-                  ? 'Tạm dừng'
-                  : employeeProfile?.employment_status === 'INACTIVE'
-                  ? 'Đã nghỉ'
-                  : safeDisplay(employeeProfile?.employment_status)}
-              </p>
-            </div>
-            <div className="col-span-2">
-              <label className="text-sm text-gray-600">Ghi chú tình trạng công việc</label>
-              <p className="font-medium whitespace-pre-wrap">
-                {safeDisplay((employeeProfile as any)?.employment_status_notes || onboarding.employment_status_notes)}
-              </p>
-            </div>
+        <div className="bg-white rounded-xl border p-5">
+          <SectionHeader title="Thông tin công việc" color="indigo" onEdit={() => openEdit('job', {
+            company_unit: onboarding.company_unit ?? '',
+            department_id: onboarding.department?.id ? String(onboarding.department.id) : '',
+            department_name: (employeeProfile as any)?.department?.name ?? onboarding.department?.name ?? '',
+            position_id: onboarding.position?.id ? String(onboarding.position.id) : '',
+            position_title: (employeeProfile as any)?.position?.title ?? onboarding.position?.title ?? '',
+            rank: employeeProfile?.rank ?? onboarding.rank ?? '',
+            section: employeeProfile?.section ?? onboarding.section ?? '',
+            doctor_team: employeeProfile?.doctor_team ?? onboarding.doctor_team ?? '',
+            work_form: employeeProfile?.work_form ?? onboarding.work_form ?? '',
+            region: employeeProfile?.region ?? onboarding.region ?? '',
+            block: employeeProfile?.block ?? onboarding.block ?? '',
+            employment_status: employeeProfile?.employment_status ?? '',
+            employment_status_notes: (employeeProfile as any)?.employment_status_notes ?? onboarding.employment_status_notes ?? '',
+            start_date: employeeProfile?.start_date ?? onboarding.start_date ?? '',
+          })} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
+            <InfoField label="Đơn vị" value={onboarding.company_unit === 'HOMIE' ? 'Homie' : onboarding.company_unit === 'AMCARE' ? 'Amcare' : safeDisplay(onboarding.company_unit)} />
+            <InfoField label="Phòng ban" value={safeDisplay((employeeProfile as any)?.department?.name || onboarding.department?.name)} />
+            <InfoField label="Vị trí" value={safeDisplay((employeeProfile as any)?.position?.title || onboarding.position?.title)} />
+            <InfoField label="Cấp bậc" value={safeDisplay(employeeProfile?.rank || onboarding.rank)} />
+            <InfoField label="Bộ phận" value={safeDisplay(employeeProfile?.section || onboarding.section)} />
+            <InfoField label="Quản lý" value={safeDisplay(onboarding.direct_manager?.full_name)} />
+            <InfoField label="Team BS" value={safeDisplay(employeeProfile?.doctor_team || onboarding.doctor_team)} />
+            <InfoField label="Ngày BĐ" value={employeeProfile?.start_date ? formatDate(employeeProfile.start_date) : formatDate(onboarding.start_date)} />
+            <InfoField label="Hình thức" value={(employeeProfile?.work_form || onboarding.work_form) ? (WORK_FORM_LABELS[employeeProfile?.work_form || onboarding.work_form!] || employeeProfile?.work_form || onboarding.work_form) : null} />
+            <InfoField label="Vùng/Miền" value={safeDisplay(employeeProfile?.region || onboarding.region)} />
+            <InfoField label="Khối" value={safeDisplay(employeeProfile?.block || onboarding.block)} />
+            <InfoField label="Trạng thái" value={
+              employeeProfile?.employment_status === 'ACTIVE' ? 'Đang làm việc' :
+              employeeProfile?.employment_status === 'PAUSED' ? 'Tạm dừng' :
+              employeeProfile?.employment_status === 'INACTIVE' ? 'Đã nghỉ' :
+              safeDisplay(employeeProfile?.employment_status)
+            } />
+            <InfoField label="Ghi chú công việc" value={safeDisplay((employeeProfile as any)?.employment_status_notes || onboarding.employment_status_notes)} full />
           </div>
         </div>
 
@@ -960,164 +878,66 @@ const OnboardingDetail: React.FC = () => {
         {userRole === 'ADMIN' && onboarding.employee_info_completed && (
           <>
             {/* ── Giấy tờ tùy thân & địa chỉ ── */}
-            <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
-                <span className="flex items-center">
-                  <span className="mr-2">🪪</span>
-                  Giấy tờ tùy thân & địa chỉ
-                </span>
-                <button
-                  onClick={() => openEdit('personal', {
-                    citizen_id: employeeProfile?.cccd_number ?? onboarding.citizen_id ?? '',
-                    date_of_birth: employeeProfile?.date_of_birth ?? onboarding.date_of_birth ?? '',
-                    gender: employeeProfile?.gender ?? onboarding.gender ?? '',
-                    permanent_address: employeeProfile?.permanent_residence ?? onboarding.permanent_address ?? '',
-                    current_address: employeeProfile?.current_address ?? onboarding.current_address ?? '',
-                    cccd_number: employeeProfile?.cccd_number ?? '',
-                    cccd_issue_date: employeeProfile?.cccd_issue_date ?? '',
-                    cccd_issue_place: employeeProfile?.cccd_issue_place ?? '',
-                    birth_place: employeeProfile?.birth_place ?? onboarding.birth_place ?? '',
-                    permanent_residence: employeeProfile?.permanent_residence ?? onboarding.permanent_address ?? '',
-                    social_insurance_number: employeeProfile?.social_insurance_number ?? onboarding.social_insurance_number ?? '',
-                    tax_code: employeeProfile?.tax_code ?? onboarding.tax_code ?? '',
-                  })}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                  title="Sửa giấy tờ tùy thân & địa chỉ"
-                >
-                  <PencilIcon className="w-4 h-4" />
-                </button>
-              </h3>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                <div>
-                  <label className="text-sm text-gray-600">Số CCCD</label>
-                  <p className="font-medium ">
-                    {safeDisplay(employeeProfile?.cccd_number)}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Ngày cấp CCCD</label>
-                  <p className="font-medium">
-                    {employeeProfile?.cccd_issue_date
-                      ? formatDate(employeeProfile.cccd_issue_date)
-                      : 'Chưa có dữ liệu'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Nơi cấp CCCD</label>
-                  <p className="font-medium">
-                    {employeeProfile?.cccd_issue_place === 'POLICE_ADMIN'
-                      ? 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội'
-                      : employeeProfile?.cccd_issue_place === 'MINISTRY_PUBLIC_SECURITY'
-                      ? 'Bộ Công An'
-                      : employeeProfile?.cccd_issue_place || 'Chưa có dữ liệu'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Nơi đăng ký khai sinh</label>
-                  <p className="font-medium">
-                    {safeDisplay(employeeProfile?.birth_place || onboarding.birth_place)}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Mã số BHXH</label>
-                  <p className="font-medium">
-                    {safeDisplay(employeeProfile?.social_insurance_number || onboarding.social_insurance_number)}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Mã số thuế</label>
-                  <p className="font-medium">{safeDisplay(onboarding.tax_code)}</p>
-                </div>
-              </div>
-              <div className="mt-4 space-y-3">
-                <div>
-                  <label className="text-sm text-gray-600">Địa chỉ thường trú</label>
-                  <p className="font-medium">{safeDisplay(employeeProfile?.permanent_residence || onboarding.permanent_address)}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Địa chỉ hiện tại</label>
-                  <p className="font-medium">{safeDisplay(employeeProfile?.current_address || onboarding.current_address)}</p>
-                </div>
+            <div className="bg-white rounded-xl border p-5">
+              <SectionHeader title="Giấy tờ tùy thân & địa chỉ" color="amber" onEdit={() => openEdit('personal', {
+                citizen_id: employeeProfile?.cccd_number ?? onboarding.citizen_id ?? '',
+                date_of_birth: employeeProfile?.date_of_birth ?? onboarding.date_of_birth ?? '',
+                gender: employeeProfile?.gender ?? onboarding.gender ?? '',
+                permanent_address: employeeProfile?.permanent_residence ?? onboarding.permanent_address ?? '',
+                current_address: employeeProfile?.current_address ?? onboarding.current_address ?? '',
+                cccd_number: employeeProfile?.cccd_number ?? '',
+                cccd_issue_date: employeeProfile?.cccd_issue_date ?? '',
+                cccd_issue_place: employeeProfile?.cccd_issue_place ?? '',
+                birth_place: employeeProfile?.birth_place ?? onboarding.birth_place ?? '',
+                permanent_residence: employeeProfile?.permanent_residence ?? onboarding.permanent_address ?? '',
+                social_insurance_number: employeeProfile?.social_insurance_number ?? onboarding.social_insurance_number ?? '',
+                tax_code: employeeProfile?.tax_code ?? onboarding.tax_code ?? '',
+              })} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
+                <InfoField label="Số CCCD" value={safeDisplay(employeeProfile?.cccd_number)} />
+                <InfoField label="Ngày cấp" value={employeeProfile?.cccd_issue_date ? formatDate(employeeProfile.cccd_issue_date) : null} />
+                <InfoField label="Nơi cấp" value={
+                  employeeProfile?.cccd_issue_place === 'POLICE_ADMIN' ? 'Cục CS QLHC về TTXH' :
+                  employeeProfile?.cccd_issue_place === 'MINISTRY_PUBLIC_SECURITY' ? 'Bộ Công An' :
+                  employeeProfile?.cccd_issue_place || null
+                } />
+                <InfoField label="Nơi khai sinh" value={safeDisplay(employeeProfile?.birth_place || onboarding.birth_place)} />
+                <InfoField label="Mã BHXH" value={safeDisplay(employeeProfile?.social_insurance_number || onboarding.social_insurance_number)} />
+                <InfoField label="Mã thuế" value={safeDisplay(onboarding.tax_code)} />
+                <InfoField label="Địa chỉ thường trú" value={safeDisplay(employeeProfile?.permanent_residence || onboarding.permanent_address)} full />
+                <InfoField label="Địa chỉ hiện tại" value={safeDisplay(employeeProfile?.current_address || onboarding.current_address)} full />
               </div>
             </div>
 
             {/* ── Trình độ học vấn ── */}
-            <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
-                <span className="flex items-center">
-                  <span className="mr-2">🎓</span>
-                  Trình độ học vấn
-                </span>
-                <button
-                  onClick={() => openEdit('education', {
-                    education_level: employeeProfile?.education_level ?? onboarding.education_level ?? '',
-                    university: (extraInfo.university || onboarding.university) ?? '',
-                    major: (extraInfo.major || onboarding.major) ?? '',
-                    graduation_year: (extraInfo.graduation_year || onboarding.graduation_year) ?? '',
-                  })}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                  title="Sửa trình độ học vấn"
-                >
-                  <PencilIcon className="w-4 h-4" />
-                </button>
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-gray-600">Trình độ</label>
-                  <p className="font-medium">{safeDisplay(employeeProfile?.education_level || onboarding.education_level)}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Trường đại học / cao đẳng</label>
-                  <p className="font-medium">{safeDisplay(extraInfo.university || onboarding.university)}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Chuyên ngành</label>
-                  <p className="font-medium">{safeDisplay(extraInfo.major || onboarding.major)}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Năm tốt nghiệp</label>
-                  <p className="font-medium">{(extraInfo.graduation_year || onboarding.graduation_year) ?? 'Chưa có dữ liệu'}</p>
-                </div>
+            <div className="bg-white rounded-xl border p-5">
+              <SectionHeader title="Trình độ học vấn" color="emerald" onEdit={() => openEdit('education', {
+                education_level: employeeProfile?.education_level ?? onboarding.education_level ?? '',
+                university: (extraInfo.university || onboarding.university) ?? '',
+                major: (extraInfo.major || onboarding.major) ?? '',
+                graduation_year: (extraInfo.graduation_year || onboarding.graduation_year) ?? '',
+              })} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
+                <InfoField label="Trình độ" value={safeDisplay(employeeProfile?.education_level || onboarding.education_level)} />
+                <InfoField label="Trường" value={safeDisplay(extraInfo.university || onboarding.university)} />
+                <InfoField label="Chuyên ngành" value={safeDisplay(extraInfo.major || onboarding.major)} />
+                <InfoField label="Năm TN" value={String(extraInfo.graduation_year || onboarding.graduation_year || '') || null} />
               </div>
             </div>
 
             {/* ── Thông tin tài chính & ngân hàng ── */}
-            <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
-                <span className="flex items-center">
-                  <span className="mr-2">💳</span>
-                  Thông tin tài chính & ngân hàng
-                </span>
-                <button
-                  onClick={() => openEdit('financial', {
-                    bank_name: employeeProfile?.bank_name ?? onboarding.bank_name ?? '',
-                    bank_account: employeeProfile?.bank_account ?? onboarding.bank_account ?? '',
-                    bank_account_holder: (extraInfo.bank_account_holder || onboarding.bank_account_holder) ?? '',
-                    bank_branch: employeeProfile?.bank_branch ?? onboarding.bank_branch ?? '',
-                  })}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                  title="Sửa thông tin tài chính"
-                >
-                  <PencilIcon className="w-4 h-4" />
-                </button>
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-gray-600">Ngân hàng</label>
-                  <p className="font-medium">{safeDisplay(employeeProfile?.bank_name || onboarding.bank_name)}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Số tài khoản</label>
-                  <p className="font-medium">{safeDisplay(employeeProfile?.bank_account || onboarding.bank_account)}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Chủ tài khoản</label>
-                  <p className="font-medium">{safeDisplay(extraInfo.bank_account_holder || onboarding.bank_account_holder)}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-600">Chi nhánh</label>
-                  <p className="font-medium">{safeDisplay(employeeProfile?.bank_branch || onboarding.bank_branch)}</p>
-                </div>
+            <div className="bg-white rounded-xl border p-5">
+              <SectionHeader title="Tài chính & ngân hàng" color="purple" onEdit={() => openEdit('financial', {
+                bank_name: employeeProfile?.bank_name ?? onboarding.bank_name ?? '',
+                bank_account: employeeProfile?.bank_account ?? onboarding.bank_account ?? '',
+                bank_account_holder: (extraInfo.bank_account_holder || onboarding.bank_account_holder) ?? '',
+                bank_branch: employeeProfile?.bank_branch ?? onboarding.bank_branch ?? '',
+              })} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
+                <InfoField label="Ngân hàng" value={safeDisplay(employeeProfile?.bank_name || onboarding.bank_name)} />
+                <InfoField label="Số tài khoản" value={safeDisplay(employeeProfile?.bank_account || onboarding.bank_account)} />
+                <InfoField label="Chủ TK" value={safeDisplay(extraInfo.bank_account_holder || onboarding.bank_account_holder)} />
+                <InfoField label="Chi nhánh" value={safeDisplay(employeeProfile?.bank_branch || onboarding.bank_branch)} />
               </div>
             </div>
 
@@ -1125,7 +945,7 @@ const OnboardingDetail: React.FC = () => {
             {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file || onboarding.citizen_id_file || onboarding.citizen_id_file_url || vneidScreenshotUrl || extraInfo.facebook_link) && (
               <div className="bg-white rounded-lg border p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <span className="mr-2">📎</span>
+                  
                   Hồ sơ đính kèm
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -1242,191 +1062,78 @@ const OnboardingDetail: React.FC = () => {
           <>
             {/* Salary & Contract */}
             {(employeeProfile.basic_salary != null || employeeProfile.contract_type) && (
-              <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center justify-between">
-                  <span className="flex items-center">
-                    <span className="mr-2">💰</span>
-                    Lương & Hợp đồng
-                  </span>
-                  <button
-                    onClick={() => openEdit('emp_salary', {
-                      basic_salary: employeeProfile.basic_salary ?? '',
-                      allowance: employeeProfile.allowance ?? '',
-                      contract_type: employeeProfile.contract_type ?? '',
-                      probation_months: employeeProfile.probation_months ?? '',
-                      probation_end_date: employeeProfile.probation_end_date ?? '',
-                      probation_rate: (employeeProfile as any).probation_rate ?? '',
-                    })}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                    title="Sửa lương & hợp đồng"
-                  >
-                    <PencilIcon className="w-4 h-4" />
-                  </button>
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  {employeeProfile.basic_salary != null && (
-                    <div>
-                      <label className="text-sm text-gray-600">Lương cơ bản</label>
-                      <p className="font-medium text-green-700 text-lg">
-                        {Number(employeeProfile.basic_salary).toLocaleString('vi-VN')} đ
-                      </p>
-                    </div>
-                  )}
-                  {employeeProfile.allowance != null && (
-                    <div>
-                      <label className="text-sm text-gray-600">Phụ cấp</label>
-                      <p className="font-medium text-green-700">
-                        {Number(employeeProfile.allowance).toLocaleString('vi-VN')} đ
-                      </p>
-                    </div>
-                  )}
-                  {employeeProfile.contract_type && (
-                    <div>
-                      <label className="text-sm text-gray-600">Loại hợp đồng</label>
-                      <p className="font-medium">{employeeProfile.contract_type_display || CONTRACT_TYPE_LABELS[employeeProfile.contract_type] || employeeProfile.contract_type}</p>
-                    </div>
-                  )}
-                  {employeeProfile.probation_months != null && (
-                    <div>
-                      <label className="text-sm text-gray-600">Thời gian thử việc</label>
-                      <p className="font-medium">{employeeProfile.probation_months} tháng</p>
-                    </div>
-                  )}
-                  {employeeProfile.probation_end_date && (
-                    <div>
-                      <label className="text-sm text-gray-600">Ngày kết thúc thử việc</label>
-                      <p className="font-medium">{formatDate(employeeProfile.probation_end_date)}</p>
-                    </div>
-                  )}
-                  {(employeeProfile as any).probation_rate && (
-                    <div>
-                      <label className="text-sm text-gray-600">Tỉ lệ thử việc</label>
-                      <p className="font-medium">
-                        {PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate}
-                      </p>
-                    </div>
-                  )}
+              <div className="bg-white rounded-xl border p-5">
+                <SectionHeader title="Lương & Hợp đồng" color="rose" onEdit={() => openEdit('emp_salary', {
+                  basic_salary: employeeProfile.basic_salary ?? '',
+                  allowance: employeeProfile.allowance ?? '',
+                  contract_type: employeeProfile.contract_type ?? '',
+                  probation_months: employeeProfile.probation_months ?? '',
+                  probation_end_date: employeeProfile.probation_end_date ?? '',
+                  probation_rate: (employeeProfile as any).probation_rate ?? '',
+                })} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
+                  <InfoField label="Lương cơ bản" value={employeeProfile.basic_salary != null ? `${Number(employeeProfile.basic_salary).toLocaleString('vi-VN')} đ` : null} highlight />
+                  <InfoField label="Phụ cấp" value={employeeProfile.allowance != null ? `${Number(employeeProfile.allowance).toLocaleString('vi-VN')} đ` : null} />
+                  <InfoField label="Loại HĐ" value={employeeProfile.contract_type ? (employeeProfile.contract_type_display || CONTRACT_TYPE_LABELS[employeeProfile.contract_type] || employeeProfile.contract_type) : null} />
+                  <InfoField label="Thử việc" value={employeeProfile.probation_months != null ? `${employeeProfile.probation_months} tháng` : null} />
+                  <InfoField label="KT thử việc" value={employeeProfile.probation_end_date ? formatDate(employeeProfile.probation_end_date) : null} />
+                  <InfoField label="Tỉ lệ TV" value={(employeeProfile as any).probation_rate ? (PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate) : null} />
                 </div>
               </div>
             )}
 
             {/* File Status */}
             {employeeProfile.file_status && (
-              <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <span className="mr-2">📋</span>
-                  Trạng thái hồ sơ
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-gray-600">Trạng thái hồ sơ</label>
-                    <p className="font-medium">{employeeProfile.file_status_display || employeeProfile.file_status}</p>
-                  </div>
-                  {employeeProfile.file_submission_deadline && (
-                    <div>
-                      <label className="text-sm text-gray-600">Hạn nộp hồ sơ</label>
-                      <p className="font-medium">{formatDate(employeeProfile.file_submission_deadline)}</p>
-                    </div>
-                  )}
-                  {employeeProfile.file_submission_date && (
-                    <div>
-                      <label className="text-sm text-gray-600">Ngày nộp hồ sơ</label>
-                      <p className="font-medium">{formatDate(employeeProfile.file_submission_date)}</p>
-                    </div>
-                  )}
-                  {employeeProfile.file_review_notes && (
-                    <div className="col-span-2">
-                      <label className="text-sm text-gray-600">Ghi chú hồ sơ</label>
-                      <p className="font-medium">{employeeProfile.file_review_notes}</p>
-                    </div>
-                  )}
-                  {employeeProfile.training_presentation_viewed != null && (
-                    <div>
-                      <label className="text-sm text-gray-600">Đã xem bài thuyết trình đào tạo</label>
-                      <p className="font-medium">
-                        {employeeProfile.training_presentation_viewed ? (
-                          <span className="text-green-600">✓ Đã xem</span>
-                        ) : (
-                          <span className="text-gray-500">Chưa xem</span>
-                        )}
-                      </p>
-                    </div>
-                  )}
+              <div className="bg-white rounded-xl border p-5">
+                <SectionHeader title="Trạng thái hồ sơ" color="gray" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 mb-4">
+                  <InfoField label="Trạng thái" value={employeeProfile.file_status_display || employeeProfile.file_status} />
+                  <InfoField label="Hạn nộp" value={employeeProfile.file_submission_deadline ? formatDate(employeeProfile.file_submission_deadline) : null} />
+                  <InfoField label="Ngày nộp" value={employeeProfile.file_submission_date ? formatDate(employeeProfile.file_submission_date) : null} />
+                  <InfoField label="Đào tạo" value={employeeProfile.training_presentation_viewed ? '✓ Đã xem' : 'Chưa xem'} />
+                  <InfoField label="Ghi chú" value={employeeProfile.file_review_notes || null} full />
                 </div>
               </div>
             )}
-            {/* Thông tin người liên hệ khẩn cấp */}
+
+            {/* Liên hệ khẩn cấp */}
             {(employeeProfile as any).emergency_contact_name && (
-              <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  <span className="mr-2">🆘</span>
-                  Thông tin người liên hệ khẩn cấp
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-gray-600">Họ và tên</label>
-                    <p className="font-medium">{safeDisplay((employeeProfile as any).emergency_contact_name)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">Mối quan hệ</label>
-                    <p className="font-medium">{safeDisplay((employeeProfile as any).emergency_contact_relationship)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">Số điện thoại</label>
-                    <p className="font-medium">{safeDisplay((employeeProfile as any).emergency_contact_phone)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">Ngày sinh</label>
-                    <p className="font-medium">
-                      {(employeeProfile as any).emergency_contact_dob
-                        ? formatDate((employeeProfile as any).emergency_contact_dob)
-                        : 'Chưa có dữ liệu'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">Nghề nghiệp</label>
-                    <p className="font-medium">{safeDisplay((employeeProfile as any).emergency_contact_occupation)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-600">Địa chỉ</label>
-                    <p className="font-medium">{safeDisplay((employeeProfile as any).emergency_contact_address)}</p>
-                  </div>
+              <div className="bg-white rounded-xl border p-5">
+                <SectionHeader title="Liên hệ khẩn cấp" color="rose" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
+                  <InfoField label="Họ tên" value={safeDisplay((employeeProfile as any).emergency_contact_name)} />
+                  <InfoField label="Quan hệ" value={safeDisplay((employeeProfile as any).emergency_contact_relationship)} />
+                  <InfoField label="SĐT" value={safeDisplay((employeeProfile as any).emergency_contact_phone)} />
+                  <InfoField label="Ngày sinh" value={(employeeProfile as any).emergency_contact_dob ? formatDate((employeeProfile as any).emergency_contact_dob) : null} />
+                  <InfoField label="Nghề nghiệp" value={safeDisplay((employeeProfile as any).emergency_contact_occupation)} />
+                  <InfoField label="Địa chỉ" value={safeDisplay((employeeProfile as any).emergency_contact_address)} full />
                 </div>
               </div>
             )}
           </>
         )}
 
+        {/* Chờ duyệt */}
         {(() => {
           const task4 = onboarding.tasks?.find(t => t.order === 4);
           if (!task4 || task4.status !== 'IN_PROGRESS') return null;
           return (
-            <div className="bg-amber-50 rounded-lg border border-amber-200 p-6">
-              <h3 className="text-lg font-semibold mb-2 text-amber-900 flex items-center">
-                <span className="mr-2">⏳</span>
-                Chờ duyệt thông tin nhân viên
-              </h3>
-              <p className="text-amber-700 mb-4">
-                Nhân viên đã điền xong thông tin onboarding. Vui lòng kiểm tra và xác nhận.
-              </p>
-              <button
-                onClick={handleApproveEmployeeInfo}
-                className="flex items-center px-6 py-3 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
-              >
-                <CheckCircleIcon className="w-5 h-5 mr-2" />
-                Duyệt thông tin nhân viên
+            <div className="bg-amber-50 rounded-xl border border-amber-200 p-5">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-amber-700 mb-2">Chờ duyệt thông tin nhân viên</h3>
+              <p className="text-amber-700 text-sm mb-4">Nhân viên đã điền xong thông tin. Vui lòng kiểm tra và xác nhận.</p>
+              <button onClick={handleApproveEmployeeInfo} className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors">
+                <CheckCircleIcon className="w-4 h-4" />
+                Duyệt thông tin
               </button>
             </div>
           );
         })()}
 
+        {/* Ghi chú */}
         {onboarding.notes && (
-          <div className="bg-white rounded-lg border p-6">
-            <h3 className="text-lg font-semibold mb-2 flex items-center">
-              <span className="mr-2">📝</span>
-              Ghi chú
-            </h3>
-            <p className="text-gray-700 whitespace-pre-wrap">{onboarding.notes}</p>
+          <div className="bg-white rounded-xl border p-5">
+            <SectionHeader title="Ghi chú" color="gray" />
+            <p className="text-gray-700 text-sm whitespace-pre-wrap">{onboarding.notes}</p>
           </div>
         )}
       </div>
@@ -1693,7 +1400,7 @@ const OnboardingDetail: React.FC = () => {
               Hủy
             </button>
             <button
-              onClick={handleSaveEdit}
+              onClick={() => setConfirmDialog({ text: 'Bạn có chắc muốn lưu thay đổi?', onConfirm: () => { setConfirmDialog(null); handleSaveEdit(); } })}
               disabled={editLoading}
               className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-200 transition-colors"
             >
@@ -1773,135 +1480,229 @@ const OnboardingDetail: React.FC = () => {
     );
   }
 
+  const progressPct = (() => {
+    const p = onboarding.progress_percentage;
+    if (p == null || typeof p !== 'number' || isNaN(p)) return 0;
+    return Math.max(0, Math.min(100, Math.round(p)));
+  })();
+  const completedTasks = onboarding.tasks?.filter(t => t.status === 'COMPLETED').length || 0;
+  const totalTasks = onboarding.tasks?.length || 0;
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="mb-6">
-        <button
-          onClick={() => navigate('/dashboard/onboarding')}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-        >
-          <ArrowLeftIcon className="w-5 h-5 mr-2" />
-          Quay lại danh sách
-        </button>
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{onboarding.candidate_name}</h1>
-            <p className="text-gray-600 mt-1 text-lg">
-              {onboarding.position?.title || 'Chưa có dữ liệu'} - {onboarding.department?.name || 'Chưa có dữ liệu'}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {getStatusBadge(onboarding.status)}
+    <div className="bg-slate-50 min-h-screen">
+      {/* Header — compact, full width */}
+      <div className="bg-white border-b">
+        <div className="px-6 py-4">
+          <button
+            onClick={() => navigate('/dashboard/onboarding')}
+            className="flex items-center text-sm text-gray-500 hover:text-gray-900 mb-3 transition-colors"
+          >
+            <ArrowLeftIcon className="w-4 h-4 mr-1.5" />
+            Quay lại danh sách
+          </button>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              {/* Avatar placeholder */}
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
+                {onboarding.candidate_name?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold text-gray-900">{onboarding.candidate_name}</h1>
+                  {getStatusBadge(onboarding.status)}
+                </div>
+                <p className="text-gray-500 mt-0.5">
+                  {onboarding.position?.title || '—'} — {onboarding.department?.name || '—'}
+                  {employeeProfile?.employee_id && <span className="ml-2 text-blue-600 font-mono text-sm">{employeeProfile.employee_id}</span>}
+                </p>
+              </div>
+            </div>
+            {/* Progress ring */}
+            <div className="hidden sm:flex items-center gap-4">
+              <div className="relative w-16 h-16">
+                <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+                  <circle cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" strokeWidth="5" />
+                  <circle cx="32" cy="32" r="28" fill="none" stroke={progressPct >= 100 ? '#22c55e' : '#3b82f6'} strokeWidth="5" strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 28}`} strokeDashoffset={`${2 * Math.PI * 28 * (1 - progressPct / 100)}`}
+                    className="transition-all duration-500" />
+                </svg>
+                <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${progressPct >= 100 ? 'text-green-600' : 'text-blue-600'}`}>
+                  {progressPct}%
+                </span>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-500">Tiến độ</p>
+                <p className="text-sm font-semibold text-gray-700">{completedTasks}/{totalTasks} tasks</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="bg-white rounded-lg border shadow-sm p-6 mb-6">
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-medium text-gray-700">Tiến độ hoàn thành</span>
-          <span className="text-lg font-bold text-gray-900">
-            {(() => {
-              const progress = onboarding.progress_percentage;
-              if (progress == null || typeof progress !== 'number' || isNaN(progress)) return '0%';
-              return `${Math.round(progress)}%`;
-            })()}
-          </span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-          <div
-            className="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500 ease-out"
-            style={{
-              width: `${(() => {
-                const progress = onboarding.progress_percentage;
-                if (progress == null || typeof progress !== 'number' || isNaN(progress)) return 0;
-                return Math.max(0, Math.min(100, progress));
-              })()}%`
-            }}
-          />
-        </div>
-        <p className="text-xs text-gray-500 mt-2">
-          {onboarding.tasks?.filter(t => t.status === 'COMPLETED').length || 0} / {onboarding.tasks?.length || 0} tasks hoàn thành
-        </p>
-      </div>
+      {/* Body: Sidebar + Content */}
+      <div className="flex flex-col lg:flex-row">
+        {/* Sidebar */}
+        <div className="lg:w-72 shrink-0 border-r border-gray-200 bg-white">
+          <div className="p-5 space-y-5 lg:sticky lg:top-0">
+            {/* Mobile progress */}
+            <div className="sm:hidden">
+              <div className="flex items-center justify-between text-sm mb-1.5">
+                <span className="text-gray-500">Tiến độ</span>
+                <span className="font-bold text-blue-600">{progressPct}%</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div className={`h-2 rounded-full transition-all duration-500 ${progressPct >= 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${progressPct}%` }} />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">{completedTasks}/{totalTasks} tasks</p>
+            </div>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-lg border shadow-sm">
-        <div className="border-b">
-          <nav className="flex space-x-8 px-6">
-            {!isEmployee && (
-              <button
-                onClick={() => setActiveTab('info')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'info'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Thông tin chung
-              </button>
+            {/* Quick info */}
+            <div className="space-y-2.5">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Thông tin nhanh</p>
+              {([
+                ['SĐT', employeeProfile?.phone_number || onboarding.candidate_phone],
+                ['Email', employeeProfile?.personal_email || onboarding.candidate_email],
+                ['Ngày BĐ', onboarding.start_date ? new Date(onboarding.start_date).toLocaleDateString('vi-VN') : null],
+              ] as [string, string | null | undefined][]).map(([label, val]) => (
+                <div key={label} className="flex items-baseline justify-between text-sm">
+                  <span className="text-gray-500">{label}</span>
+                  <span className="text-gray-900 font-medium truncate max-w-[55%] text-right">{val || '—'}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Checklist hồ sơ */}
+            {employeeProfile?.file_status && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Hồ sơ</p>
+                {([
+                  ['doc_resume', 'Sơ yếu lý lịch'],
+                  ['doc_cccd', 'Căn cước công dân'],
+                  ['doc_degree', 'Bằng cấp'],
+                  ['doc_health', 'Giấy khám sức khỏe'],
+                ] as [string, string][]).map(([field, label]) => (
+                  <label key={field} className="flex items-center gap-2 text-sm cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={(employeeProfile as any)[field] || false}
+                      onChange={async (e) => {
+                        const empId = employeeProfile?.employee_id;
+                        if (!empId) return;
+                        try {
+                          await employeesAPI.partialUpdateByEmployeeId(empId, { [field]: e.target.checked });
+                          const updated = await employeesAPI.getByEmployeeId(empId);
+                          setEmployeeProfile(updated);
+                        } catch { /* ignore */ }
+                      }}
+                      className="w-4 h-4 rounded text-green-600 border-gray-300 focus:ring-green-500"
+                    />
+                    <span className={`${(employeeProfile as any)[field] ? 'text-green-700' : 'text-gray-600 group-hover:text-gray-900'}`}>{label}</span>
+                  </label>
+                ))}
+              </div>
             )}
-            {!isEmployee && (
-              <button
-                onClick={() => setActiveTab('tasks')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'tasks'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Tasks ({onboarding.tasks?.length || 0})
-              </button>
+
+            {/* Tasks mini */}
+            {totalTasks > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tasks</p>
+                {onboarding.tasks?.map((t, i) => (
+                  <div key={t.id} className="flex items-center gap-2 text-sm">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                      t.status === 'COMPLETED' ? 'bg-green-500 text-white' :
+                      t.status === 'IN_PROGRESS' ? 'bg-blue-500 text-white' :
+                      'bg-gray-200 text-gray-500'
+                    }`}>
+                      {t.status === 'COMPLETED' ? '✓' : i + 1}
+                    </div>
+                    <span className={`truncate ${t.status === 'COMPLETED' ? 'text-green-700 line-through' : t.status === 'IN_PROGRESS' ? 'text-blue-700 font-medium' : 'text-gray-500'}`}>
+                      {t.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
-            <button
-              onClick={() => setActiveTab('documents')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'documents'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Tài liệu ({onboarding.documents?.length || 0})
-            </button>
-            {userRole === 'ADMIN' && (
-              <button
-                onClick={() => setActiveTab('contracts')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'contracts'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Hợp đồng ({onboarding.contracts?.length || 0})
-              </button>
-            )}
-          </nav>
+          </div>
         </div>
 
-        <div className="p-6">
-          {activeTab === 'info' && renderInfoTab()}
-          {activeTab === 'tasks' && (
-            <TasksSection
-              tasks={onboarding.tasks || []}
-              onboardingId={onboarding.id}
-              onUpdate={fetchOnboardingDetail}
-            />
-          )}
-          {activeTab === 'documents' && (
-            <DocumentsSection
-              documents={onboarding.documents || []}
-              onboardingId={onboarding.id}
-              onUpdate={fetchOnboardingDetail}
-              isReadOnly={isEmployee}
-            />
-          )}
-          {activeTab === 'contracts' && (
-            <ContractSection
-              onboardingId={onboarding.id}
-              employeeId={onboarding.employee?.id || null}
-            />
-          )}
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {/* Tabs */}
+          <div className="bg-white border-b sticky top-0 z-10">
+            <nav className="flex space-x-1 px-4">
+              {!isEmployee && (
+                <button
+                  onClick={() => setActiveTab('info')}
+                  className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
+                    activeTab === 'info'
+                      ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Thông tin chung
+                </button>
+              )}
+              {!isEmployee && (
+                <button
+                  onClick={() => setActiveTab('tasks')}
+                  className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
+                    activeTab === 'tasks'
+                      ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Tasks ({totalTasks})
+                </button>
+              )}
+              <button
+                onClick={() => setActiveTab('documents')}
+                className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
+                  activeTab === 'documents'
+                    ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Tài liệu ({onboarding.documents?.length || 0})
+              </button>
+              {userRole === 'ADMIN' && (
+                <button
+                  onClick={() => setActiveTab('contracts')}
+                  className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
+                    activeTab === 'contracts'
+                      ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Hợp đồng ({onboarding.contracts?.length || 0})
+                </button>
+              )}
+            </nav>
+          </div>
+
+          <div className="p-6">
+            {activeTab === 'info' && renderInfoTab()}
+            {activeTab === 'tasks' && (
+              <TasksSection
+                tasks={onboarding.tasks || []}
+                onboardingId={onboarding.id}
+                onUpdate={fetchOnboardingDetail}
+              />
+            )}
+            {activeTab === 'documents' && (
+              <DocumentsSection
+                documents={onboarding.documents || []}
+                onboardingId={onboarding.id}
+                onUpdate={fetchOnboardingDetail}
+                isReadOnly={isEmployee}
+              />
+            )}
+            {activeTab === 'contracts' && (
+              <ContractSection
+                onboardingId={onboarding.id}
+                employeeId={onboarding.employee?.id || null}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -1959,6 +1760,66 @@ const OnboardingDetail: React.FC = () => {
 
       {/* Edit Modal */}
       {renderEditModal()}
+
+      {/* Success/Error Dialog */}
+      {dialogMsg && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[200]">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
+            <div className="p-6 text-center">
+              {dialogMsg.type === 'success' ? (
+                <div className="mx-auto w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                  <CheckCircleIcon className="w-8 h-8 text-green-600" />
+                </div>
+              ) : (
+                <div className="mx-auto w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                  <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
+                </div>
+              )}
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                {dialogMsg.type === 'success' ? 'Thành công' : 'Có lỗi xảy ra'}
+              </h3>
+              <p className="text-sm text-gray-600">{dialogMsg.text}</p>
+            </div>
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => setDialogMsg(null)}
+                className={`w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-colors ${dialogMsg.type === 'success' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[200]">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+                <ExclamationTriangleIcon className="w-8 h-8 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Xác nhận</h3>
+              <p className="text-sm text-gray-600">{confirmDialog.text}</p>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDialog.onConfirm}
+                className="flex-1 py-2.5 bg-blue-600 rounded-xl text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
