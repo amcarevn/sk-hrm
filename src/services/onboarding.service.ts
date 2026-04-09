@@ -42,7 +42,7 @@ export interface OnboardingProcess {
   doctor_team?: string;
 
   // Contract
-  contract_type: 'PROBATION' | 'DEFINITE' | 'INDEFINITE' | 'SEASONAL' | 'PART_TIME';
+  contract_type: 'PROBATION' | 'INTERN' | 'COLLABORATOR' | 'ONE_YEAR' | 'TWO_YEAR' | 'INDEFINITE' | 'SERVICE' | 'CONFIDENTIALITY' | 'COMPANY_RULES' | 'NURSING_COMMITMENT';
   probation_period_months: number;
   salary?: string;
   salary_note?: string;

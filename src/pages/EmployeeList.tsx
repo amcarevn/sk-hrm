@@ -248,6 +248,12 @@ const EmployeeList: React.FC = () => {
         { header: 'Chức vụ', key: 'position', width: 20 },
         { header: 'Trạng thái', key: 'employment_status', width: 16 },
         { header: 'Ngày vào làm', key: 'start_date', width: 14 },
+        { header: 'Ngày nghỉ việc', key: 'end_date', width: 14 },
+        { header: 'Sơ yếu lý lịch', key: 'doc_resume', width: 16 },
+        { header: 'Căn cước công dân', key: 'doc_cccd', width: 18 },
+        { header: 'Bằng cấp', key: 'doc_degree', width: 12 },
+        { header: 'Giấy khám sức khỏe', key: 'doc_health', width: 20 },
+
       ];
       sheet.columns = columns;
 
@@ -271,6 +277,11 @@ const EmployeeList: React.FC = () => {
           position: emp.position?.title || '',
           employment_status: getStatusLabel(emp.employment_status),
           start_date: emp.start_date || '',
+          end_date: emp.end_date || '',
+          doc_resume: emp.doc_resume ? 'x' : '',
+          doc_cccd: emp.doc_cccd ? 'x' : '',
+          doc_degree: emp.doc_degree ? 'x' : '',
+          doc_health: emp.doc_health ? 'x' : '',
         });
       });
 
@@ -374,6 +385,10 @@ const EmployeeList: React.FC = () => {
         { header: 'Trạng thái hồ sơ', key: 'file_status', width: 18 },
         { header: 'Hạn nộp hồ sơ', key: 'file_submission_deadline', width: 16 },
         { header: 'Ngày nộp hồ sơ', key: 'file_submission_date', width: 16 },
+        { header: 'Sơ yếu lý lịch', key: 'doc_resume', width: 16 },
+        { header: 'Căn cước công dân', key: 'doc_cccd', width: 18 },
+        { header: 'Bằng cấp', key: 'doc_degree', width: 12 },
+        { header: 'Giấy khám sức khỏe', key: 'doc_health', width: 20 },
         // Lương & ngân hàng
         { header: 'Lương cơ bản', key: 'basic_salary', width: 16 },
         { header: 'Phụ cấp', key: 'allowance', width: 14 },
@@ -457,6 +472,10 @@ const EmployeeList: React.FC = () => {
           file_status: emp.file_status_display || emp.file_status || '',
           file_submission_deadline: emp.file_submission_deadline || '',
           file_submission_date: emp.file_submission_date || '',
+          doc_resume: emp.doc_resume ? 'x' : '',
+          doc_cccd: emp.doc_cccd ? 'x' : '',
+          doc_degree: emp.doc_degree ? 'x' : '',
+          doc_health: emp.doc_health ? 'x' : '',
           basic_salary: emp.basic_salary ?? '',
           allowance: emp.allowance ?? '',
           salary_notes: emp.salary_notes || '',
