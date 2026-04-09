@@ -202,14 +202,20 @@ type EditSection =
   | 'education'
   | 'financial'
   | 'emp_cccd'
-  | 'emp_salary';
+  | 'emp_salary'
+  | 'emp_file_status';
 
 const CONTRACT_OPTIONS = [
-  { value: 'PROBATION', label: 'Thử việc' },
-  { value: 'DEFINITE', label: 'Có thời hạn' },
-  { value: 'INDEFINITE', label: 'Vô thời hạn' },
-  { value: 'SEASONAL', label: 'Theo mùa vụ' },
-  { value: 'PART_TIME', label: 'Bán thời gian' },
+  { value: 'PROBATION', label: 'Hợp đồng thử việc' },
+  { value: 'INTERN', label: 'Hợp đồng thực tập sinh' },
+  { value: 'COLLABORATOR', label: 'Hợp đồng cộng tác viên' },
+  { value: 'ONE_YEAR', label: 'Hợp đồng lao động 12 tháng' },
+  { value: 'TWO_YEAR', label: 'Hợp đồng lao động 24 tháng' },
+  { value: 'INDEFINITE', label: 'Hợp đồng vô thời hạn' },
+  { value: 'SERVICE', label: 'Hợp đồng dịch vụ' },
+  { value: 'CONFIDENTIALITY', label: 'Thoả thuận bảo mật' },
+  { value: 'COMPANY_RULES', label: 'Cam kết đọc hiểu nội quy công ty' },
+  { value: 'NURSING_COMMITMENT', label: 'Cam kết của CBNV Điều dưỡng' },
 ];
 
 const SECTION_OPTIONS = SECTION_OPTIONS_RAW;
@@ -502,6 +508,8 @@ const OnboardingDetail: React.FC = () => {
             ethnicity: editData.ethnicity,
             nationality: editData.nationality,
             marital_status: editData.marital_status || null,
+            start_date: editData.start_date || null,
+            end_date: editData.end_date || null,
           });
           const updated = await employeesAPI.getByEmployeeId(empId);
           setEmployeeProfile(updated);
@@ -713,6 +721,19 @@ const OnboardingDetail: React.FC = () => {
           setEmployeeProfile(updated);
         }
       }
+      // ── Trạng thái hồ sơ (emp_file_status) ──
+      else if (editSection === 'emp_file_status') {
+        const employeeData: Record<string, any> = {};
+
+        if ('file_status' in editData) employeeData.file_status = editData.file_status;
+        if ('file_review_notes' in editData) employeeData.file_review_notes = editData.file_review_notes;
+
+        if (empId && Object.keys(employeeData).length > 0) {
+          await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
+          const updated = await employeesAPI.getByEmployeeId(empId);
+          setEmployeeProfile(updated);
+        }
+      }
 
       setEditSection(null);
       showSuccess('Đã cập nhật thành công');
@@ -788,9 +809,9 @@ const OnboardingDetail: React.FC = () => {
 
     // Helper: Field display — inline label: value
     const InfoField: React.FC<{ label: string; value?: string | null; highlight?: boolean; full?: boolean }> = ({ label, value, highlight, full }) => (
-      <div className={`flex items-baseline justify-between py-2 border-b border-gray-100 ${full ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
-        <span className="text-sm text-gray-500 shrink-0 mr-3">{label}</span>
-        <span className={`text-sm text-right truncate max-w-[60%] ${value && value !== 'Chưa có dữ liệu' ? (highlight ? 'font-semibold text-indigo-700' : 'font-medium text-gray-900') : 'text-gray-300 italic'}`}>
+      <div className={`flex items-baseline justify-between py-2.5 border-b border-gray-100 ${full ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
+        <span className="text-sm text-gray-500 shrink-0 mr-3">{label}:</span>
+        <span className={`text-sm text-right truncate max-w-[60%] ${value && value !== 'Chưa có dữ liệu' ? (highlight ? 'font-semibold text-indigo-600' : 'font-semibold text-gray-800') : 'text-gray-300 italic'}`}>
           {value || '—'}
         </span>
       </div>
@@ -811,6 +832,8 @@ const OnboardingDetail: React.FC = () => {
             ethnicity: employeeProfile?.ethnicity || onboarding.ethnicity || 'Chưa có dữ liệu',
             nationality: employeeProfile?.nationality || onboarding.nationality || 'Chưa có dữ liệu',
             marital_status: (employeeProfile as any)?.marital_status ?? (onboarding as any)?.marital_status ?? '',
+            start_date: employeeProfile?.start_date ?? onboarding.start_date ?? '',
+            end_date: (employeeProfile as any)?.end_date ?? '',
           })} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
             <InfoField label="Mã nhân viên" value={employeeProfile?.employee_id ?? onboarding.employee?.employee_id ?? 'Chưa có'} highlight />
@@ -831,6 +854,8 @@ const OnboardingDetail: React.FC = () => {
               const ms = employeeProfile?.marital_status || (onboarding as any)?.marital_status;
               return ms ? (MARITAL_STATUS_LABELS[ms] || ms) : null;
             })()} />
+            <InfoField label="Ngày bắt đầu làm việc" value={formatDate(employeeProfile?.start_date ?? onboarding.start_date)} />
+            <InfoField label="Ngày nghỉ việc" value={(employeeProfile as any)?.end_date ? formatDate((employeeProfile as any).end_date) : null} />
           </div>
         </div>
 
@@ -840,7 +865,7 @@ const OnboardingDetail: React.FC = () => {
             company_unit: onboarding.company_unit ?? '',
             department_id: onboarding.department?.id ? String(onboarding.department.id) : '',
             department_name: (employeeProfile as any)?.department?.name ?? onboarding.department?.name ?? '',
-            position_id: onboarding.position?.id ? String(onboarding.position.id) : '',
+            position_id: (employeeProfile as any)?.position?.id ? String((employeeProfile as any).position.id) : (onboarding.position?.id ? String(onboarding.position.id) : ''),
             position_title: (employeeProfile as any)?.position?.title ?? onboarding.position?.title ?? '',
             rank: employeeProfile?.rank ?? onboarding.rank ?? '',
             section: employeeProfile?.section ?? onboarding.section ?? '',
@@ -1077,24 +1102,22 @@ const OnboardingDetail: React.FC = () => {
                   <InfoField label="Loại HĐ" value={employeeProfile.contract_type ? (employeeProfile.contract_type_display || CONTRACT_TYPE_LABELS[employeeProfile.contract_type] || employeeProfile.contract_type) : null} />
                   <InfoField label="Thử việc" value={employeeProfile.probation_months != null ? `${employeeProfile.probation_months} tháng` : null} />
                   <InfoField label="KT thử việc" value={employeeProfile.probation_end_date ? formatDate(employeeProfile.probation_end_date) : null} />
-                  <InfoField label="Tỉ lệ TV" value={(employeeProfile as any).probation_rate ? (PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate) : null} />
+                  <InfoField label="Tỉ lệ thử việc" value={(employeeProfile as any).probation_rate ? (PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate) : null} />
                 </div>
               </div>
             )}
 
             {/* File Status */}
-            {employeeProfile.file_status && (
-              <div className="bg-white rounded-xl border p-5">
-                <SectionHeader title="Trạng thái hồ sơ" color="gray" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 mb-4">
-                  <InfoField label="Trạng thái" value={employeeProfile.file_status_display || employeeProfile.file_status} />
-                  <InfoField label="Hạn nộp" value={employeeProfile.file_submission_deadline ? formatDate(employeeProfile.file_submission_deadline) : null} />
-                  <InfoField label="Ngày nộp" value={employeeProfile.file_submission_date ? formatDate(employeeProfile.file_submission_date) : null} />
-                  <InfoField label="Đào tạo" value={employeeProfile.training_presentation_viewed ? '✓ Đã xem' : 'Chưa xem'} />
-                  <InfoField label="Ghi chú" value={employeeProfile.file_review_notes || null} full />
-                </div>
+            <div className="bg-white rounded-xl border p-5">
+              <SectionHeader title="Trạng thái hồ sơ" color="gray" onEdit={() => openEdit('emp_file_status', {
+                file_status: employeeProfile?.file_status ?? 'NOT_SUBMITTED',
+                file_review_notes: (employeeProfile as any)?.file_review_notes ?? '',
+              })} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 mb-4">
+                <InfoField label="Trạng thái" value={employeeProfile?.file_status_display || employeeProfile?.file_status || 'Chưa nộp'} />
+                <InfoField label="Ghi chú" value={(employeeProfile as any)?.file_review_notes || null} full />
               </div>
-            )}
+            </div>
 
             {/* Liên hệ khẩn cấp */}
             {(employeeProfile as any).emergency_contact_name && (
@@ -1155,6 +1178,7 @@ const OnboardingDetail: React.FC = () => {
       financial: 'Sửa thông tin tài chính & ngân hàng',
       emp_cccd: 'Sửa thông tin CCCD / Giấy tờ tùy thân',
       emp_salary: 'Sửa lương & hợp đồng',
+      emp_file_status: 'Sửa trạng thái hồ sơ',
     };
 
     // Helper để render EditField ngắn gọn hơn
@@ -1212,6 +1236,8 @@ const OnboardingDetail: React.FC = () => {
                 {ef('Quốc tịch', 'nationality', undefined, NATIONALITY_OPTIONS.map(n => ({ value: n, label: n })))}
               </div>
               {ef('Tình trạng hôn nhân', 'marital_status', undefined, MARITAL_STATUS_OPTIONS)}
+              {ef('Ngày bắt đầu làm việc', 'start_date', 'date')}
+              {ef('Ngày nghỉ việc', 'end_date', 'date')}
             </div>
           );
 
@@ -1348,6 +1374,20 @@ const OnboardingDetail: React.FC = () => {
                 {ef('Ngày kết thúc thử việc', 'probation_end_date', 'date')}
               </div>
               {ef('Tỉ lệ thử việc', 'probation_rate', undefined, PROBATION_RATE_OPTIONS)}
+            </div>
+          );
+
+        // ── Trạng thái hồ sơ ──
+        case 'emp_file_status':
+          return (
+            <div className="space-y-4">
+              {ef('Trạng thái hồ sơ', 'file_status', undefined, [
+                { value: 'NOT_SUBMITTED', label: 'Chưa nộp' },
+                { value: 'NEED_SUPPLEMENT', label: 'Cần bổ sung hồ sơ' },
+                { value: 'PENDING_REVIEW', label: 'Chờ rà soát' },
+                { value: 'COMPLETE', label: 'Nộp đủ' },
+              ])}
+              {ef('Ghi chú', 'file_review_notes', 'textarea')}
             </div>
           );
 
@@ -1575,11 +1615,11 @@ const OnboardingDetail: React.FC = () => {
               <div className="space-y-2">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Hồ sơ</p>
                 {([
-                  ['doc_resume', 'Sơ yếu lý lịch'],
-                  ['doc_cccd', 'Căn cước công dân'],
-                  ['doc_degree', 'Bằng cấp'],
-                  ['doc_health', 'Giấy khám sức khỏe'],
-                ] as [string, string][]).map(([field, label]) => (
+                  ['doc_resume', 'Sơ yếu lý lịch', true],
+                  ['doc_cccd', 'Căn cước công dân', true],
+                  ['doc_degree', 'Bằng cấp', false],
+                  ['doc_health', 'Giấy khám sức khỏe', true],
+                ] as [string, string, boolean][]).map(([field, label, required]) => (
                   <label key={field} className="flex items-center gap-2 text-sm cursor-pointer group">
                     <input
                       type="checkbox"
@@ -1588,14 +1628,32 @@ const OnboardingDetail: React.FC = () => {
                         const empId = employeeProfile?.employee_id;
                         if (!empId) return;
                         try {
-                          await employeesAPI.partialUpdateByEmployeeId(empId, { [field]: e.target.checked });
+                          // Tính trạng thái mới sau khi toggle
+                          const newDocs = {
+                            doc_resume: (employeeProfile as any).doc_resume || false,
+                            doc_cccd: (employeeProfile as any).doc_cccd || false,
+                            doc_health: (employeeProfile as any).doc_health || false,
+                            [field]: e.target.checked,
+                          };
+                          // 3 trường bắt buộc: doc_resume, doc_cccd, doc_health
+                          const hasAny = newDocs.doc_resume || newDocs.doc_cccd || newDocs.doc_health;
+                          const hasAll = newDocs.doc_resume && newDocs.doc_cccd && newDocs.doc_health;
+                          const fileStatus = hasAll ? 'COMPLETE' : hasAny ? 'NEED_SUPPLEMENT' : 'NOT_SUBMITTED';
+
+                          await employeesAPI.partialUpdateByEmployeeId(empId, {
+                            [field]: e.target.checked,
+                            file_status: fileStatus,
+                          } as any);
                           const updated = await employeesAPI.getByEmployeeId(empId);
                           setEmployeeProfile(updated);
                         } catch { /* ignore */ }
                       }}
                       className="w-4 h-4 rounded text-green-600 border-gray-300 focus:ring-green-500"
                     />
-                    <span className={`${(employeeProfile as any)[field] ? 'text-green-700' : 'text-gray-600 group-hover:text-gray-900'}`}>{label}</span>
+                    <span className={`${(employeeProfile as any)[field] ? 'text-green-700 font-medium' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                      {label}
+                    </span>
+                    {!required && <span className="text-xs text-gray-400">(không bắt buộc)</span>}
                   </label>
                 ))}
               </div>
@@ -1614,7 +1672,7 @@ const OnboardingDetail: React.FC = () => {
                     }`}>
                       {t.status === 'COMPLETED' ? '✓' : i + 1}
                     </div>
-                    <span className={`truncate ${t.status === 'COMPLETED' ? 'text-green-700 line-through' : t.status === 'IN_PROGRESS' ? 'text-blue-700 font-medium' : 'text-gray-500'}`}>
+                    <span className={`truncate ${t.status === 'COMPLETED' ? 'text-green-700 font-medium' : t.status === 'IN_PROGRESS' ? 'text-blue-700 font-medium' : 'text-gray-500'}`}>
                       {t.name}
                     </span>
                   </div>

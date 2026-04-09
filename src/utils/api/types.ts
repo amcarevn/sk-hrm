@@ -453,6 +453,12 @@ export interface Employee {
   manager_name: string;
   created_at: string;
   updated_at: string;
+
+  // Hồ sơ giấy tờ
+  doc_resume?: boolean;
+  doc_cccd?: boolean;
+  doc_degree?: boolean;
+  doc_health?: boolean;
 }
 
 export interface EmployeePermissions {
@@ -567,6 +573,12 @@ export interface EmployeeUpdateData {
   manager_id?: number;
   is_hr?: boolean;
   marital_status?: string | null;
+  file_status?: string;
+  file_review_notes?: string;
+  doc_resume?: boolean;
+  doc_cccd?: boolean;
+  doc_degree?: boolean;
+  doc_health?: boolean;
 }
 
 // Asset API Types
