@@ -607,6 +607,8 @@ export interface Asset {
     power_supply?: string;
     phone_number?: string;
     network_provider?: string;
+    quantity?: number;
+    type_name?: string;
     details?: string;
   };
   other_details?: string;

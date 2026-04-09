@@ -63,7 +63,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     status: 'NEW',
     condition: 'EXCELLENT',
     purchase_date: '',
-    warranty_period: '12',
     supplier: '',
     department: '',
     managed_by: '',
@@ -75,6 +74,8 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     storage: '',
     vga: '',
     power_supply: '',
+    // MONITOR specific fields
+    monitor_quantity: '',
     // SIM specific fields
     phone_number: '',
     network_provider: '',
@@ -98,7 +99,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             status: fullAsset.status || 'NEW',
             condition: fullAsset.condition || 'EXCELLENT',
             purchase_date: fullAsset.purchase_date || '',
-            warranty_period: String(fullAsset.warranty_period || '12'),
             supplier: fullAsset.supplier || '',
             department: fullAsset.department ? String(fullAsset.department) : '',
             managed_by: fullAsset.managed_by ? String(fullAsset.managed_by) : '',
@@ -110,6 +110,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             storage: specs.storage || '',
             vga: specs.vga || '',
             power_supply: specs.power_supply || '',
+            monitor_quantity: String((specs as any).quantity || ''),
             phone_number: (specs as any).phone_number || '',
             network_provider: (specs as any).network_provider || '',
             other_type_name: (specs as any).type_name || '',
@@ -125,7 +126,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             status: asset.status || 'NEW',
             condition: asset.condition || 'EXCELLENT',
             purchase_date: asset.purchase_date || '',
-            warranty_period: String(asset.warranty_period || '12'),
             supplier: asset.supplier || '',
             department: '',
             managed_by: '',
@@ -136,6 +136,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             storage: specs.storage || '',
             vga: specs.vga || '',
             power_supply: specs.power_supply || '',
+            monitor_quantity: String((specs as any).quantity || ''),
             phone_number: (specs as any).phone_number || '',
             network_provider: (specs as any).network_provider || '',
             other_type_name: (specs as any).type_name || '',
@@ -219,11 +220,13 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     
     setLoading(true);
     try {
-      const { cpu, mainboard, ram, storage, vga, power_supply, phone_number, network_provider, other_type_name, ...baseData } = formData;
-      
+      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, other_type_name, ...baseData } = formData;
+
       let specifications = {};
       if (formData.asset_type === 'DESKTOP') {
         specifications = { cpu, mainboard, ram, storage, vga, power_supply };
+      } else if (formData.asset_type === 'MONITOR') {
+        specifications = { quantity: parseInt(monitor_quantity) || 0 };
       } else if (formData.asset_type === 'SIM') {
         specifications = { phone_number, network_provider };
       } else if (formData.asset_type === 'OTHER') {
@@ -233,7 +236,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       const payload = {
         ...baseData,
         purchase_date: formData.purchase_date || null,
-        warranty_period: parseInt(formData.warranty_period) || 0,
         department_id: formData.department ? parseInt(formData.department) : null,
         managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
         specifications
@@ -385,6 +387,25 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           </div>
                         )}
 
+                        {/* MONITOR Specific Fields (Số lượng) */}
+                        {formData.asset_type === 'MONITOR' && (
+                          <div className="sm:col-span-2 bg-purple-50/60 p-4 rounded-xl border border-purple-100 mb-4">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-purple-500 mb-3 flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+                              Thông tin Màn hình
+                            </h4>
+                            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+                              <div>
+                                <label htmlFor="monitor_quantity" className="block text-sm font-medium text-gray-700">Số lượng</label>
+                                <input type="number" name="monitor_quantity" id="monitor_quantity" min="1" step="1"
+                                  value={formData.monitor_quantity} onChange={handleChange}
+                                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                  placeholder="VD: 1, 2, 3..." />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* SIM Specific Fields (Số điện thoại, Nhà mạng) */}
                         {formData.asset_type === 'SIM' && (
                           <div className="sm:col-span-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 bg-green-50/50 p-4 rounded-xl border border-green-100 mb-4">
@@ -452,10 +473,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                         </div>
 
                         {/* Thời hạn bảo hành */}
-                        <div>
-                          <label htmlFor="warranty_period" className="block text-sm font-medium text-gray-700">Bảo hành (tháng)</label>
-                          <input type="number" name="warranty_period" id="warranty_period" value={formData.warranty_period} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
-                        </div>
 
                         {/* Phòng ban quản lý */}
                         <SelectBox label="Phòng ban quản lý" value={formData.department} options={departments} onChange={(val) => handleSelectChange('department', val)} placeholder="-- Chọn phòng ban --" />

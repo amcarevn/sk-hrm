@@ -49,7 +49,7 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
   useEffect(() => {
     if (isOpen) {
       setFormData({
-        employee_id: asset.assigned_to ? String(asset.assigned_to) : '',
+        employee_id: '',
         assigned_date: new Date().toISOString().split('T')[0],
         notes: '',
       });

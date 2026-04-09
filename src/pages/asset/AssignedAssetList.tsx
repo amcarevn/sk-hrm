@@ -195,10 +195,8 @@ export default function AssignedAssetList() {
                 </tr>
               ) : (
                 filteredAssets.map((asset) => {
-                  const isReturned = !asset.assigned_to;
+                  const isReturned = asset.status === 'IDLE' || asset.status === 'RETIRED';
                   const isUnderMaintenance = asset.status === 'UNDER_MAINTENANCE';
-                  const warrantyExpiring = isWarrantyExpiringSoon(asset.warranty_expiry);
-                  const warrantyExpired = isWarrantyExpired(asset.warranty_expiry);
                   
                   return (
                     <tr key={asset.id} className={`hover:bg-gray-50 transition-colors ${(isReturned || isUnderMaintenance) ? 'bg-gray-50/50 opacity-50 grayscale-[0.5]' : ''}`}>
