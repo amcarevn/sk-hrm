@@ -75,6 +75,8 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     storage: '',
     vga: '',
     power_supply: '',
+    // MONITOR specific fields
+    monitor_quantity: '',
     // SIM specific fields
     phone_number: '',
     network_provider: '',
@@ -110,6 +112,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             storage: specs.storage || '',
             vga: specs.vga || '',
             power_supply: specs.power_supply || '',
+            monitor_quantity: String((specs as any).quantity || ''),
             phone_number: (specs as any).phone_number || '',
             network_provider: (specs as any).network_provider || '',
             other_type_name: (specs as any).type_name || '',
@@ -136,6 +139,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             storage: specs.storage || '',
             vga: specs.vga || '',
             power_supply: specs.power_supply || '',
+            monitor_quantity: String((specs as any).quantity || ''),
             phone_number: (specs as any).phone_number || '',
             network_provider: (specs as any).network_provider || '',
             other_type_name: (specs as any).type_name || '',
@@ -219,11 +223,13 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     
     setLoading(true);
     try {
-      const { cpu, mainboard, ram, storage, vga, power_supply, phone_number, network_provider, other_type_name, ...baseData } = formData;
-      
+      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, other_type_name, ...baseData } = formData;
+
       let specifications = {};
       if (formData.asset_type === 'DESKTOP') {
         specifications = { cpu, mainboard, ram, storage, vga, power_supply };
+      } else if (formData.asset_type === 'MONITOR') {
+        specifications = { quantity: parseInt(monitor_quantity) || 0 };
       } else if (formData.asset_type === 'SIM') {
         specifications = { phone_number, network_provider };
       } else if (formData.asset_type === 'OTHER') {
@@ -381,6 +387,25 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                             <div>
                               <label htmlFor="power_supply" className="block text-sm font-medium text-gray-700">Nguồn</label>
                               <input type="text" name="power_supply" id="power_supply" value={formData.power_supply} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="VD: Corsair RM850e 850W" />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* MONITOR Specific Fields (Số lượng) */}
+                        {formData.asset_type === 'MONITOR' && (
+                          <div className="sm:col-span-2 bg-purple-50/60 p-4 rounded-xl border border-purple-100 mb-4">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-purple-500 mb-3 flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+                              Thông tin Màn hình
+                            </h4>
+                            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+                              <div>
+                                <label htmlFor="monitor_quantity" className="block text-sm font-medium text-gray-700">Số lượng</label>
+                                <input type="number" name="monitor_quantity" id="monitor_quantity" min="1" step="1"
+                                  value={formData.monitor_quantity} onChange={handleChange}
+                                  className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                  placeholder="VD: 1, 2, 3..." />
+                              </div>
                             </div>
                           </div>
                         )}

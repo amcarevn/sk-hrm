@@ -314,6 +314,24 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                       </div>
                     )}
                     
+                    {/* MONITOR Information */}
+                    {asset.asset_type === 'MONITOR' && asset.specifications && (
+                      <div className="md:col-span-2 space-y-4">
+                        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Thông tin Màn hình</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="flex items-center space-x-3 bg-purple-50 p-3 rounded-xl border border-purple-100">
+                            <div className="bg-purple-100 p-2 rounded-lg">
+                              <Square3Stack3DIcon className="h-5 w-5 text-purple-600" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Số lượng</p>
+                              <p className="text-sm font-bold text-gray-900">{asset.specifications.quantity || '-'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* SIM Information */}
                     {asset.asset_type === 'SIM' && asset.specifications && (
                       <div className="md:col-span-2 space-y-4">

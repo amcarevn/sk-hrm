@@ -133,16 +133,19 @@ export default function AssetList() {
 
 
   const filteredAssets = assets.filter(asset => {
-    const matchesSearch = 
-      asset.asset_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.model.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = !term ||
+      asset.asset_code.toLowerCase().includes(term) ||
+      asset.name.toLowerCase().includes(term) ||
+      asset.brand.toLowerCase().includes(term) ||
+      asset.model.toLowerCase().includes(term) ||
+      (asset.managed_by_name || '').toLowerCase().includes(term) ||
+      (asset.assigned_to_name || '').toLowerCase().includes(term);
+
     const matchesStatus = statusFilter === 'all' || asset.status === statusFilter;
     const matchesType = typeFilter === 'all' || asset.asset_type === typeFilter;
     const matchesCondition = conditionFilter === 'all' || asset.condition === conditionFilter;
-    
+
     return matchesSearch && matchesStatus && matchesType && matchesCondition;
   });
 
@@ -321,19 +324,22 @@ export default function AssetList() {
               type="text"
               id="search"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              placeholder="Tìm theo mã, tên, thương hiệu..."
+              placeholder="Nhập từ khóa tìm kiếm..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            <p className="mt-1 text-xs text-gray-400">
+              Tìm theo: mã tài sản, tên, thương hiệu, model, người quản lý kho, người sử dụng
+            </p>
           </div>
-          
+
           <SelectBox
             label="Trạng thái vận hành"
             value={statusFilter}
             options={ASSET_STATUS_OPTIONS}
             onChange={(val) => setStatusFilter(val)}
           />
-          
+
           <SelectBox
             label="Tình trạng vật lý"
             value={conditionFilter}
@@ -382,6 +388,9 @@ export default function AssetList() {
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Loại tài sản
+                </th>
+                <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  SL
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Trạng thái vận hành
@@ -444,6 +453,11 @@ export default function AssetList() {
                           : asset.asset_type_display}
                       </span>
                     </td>
+                    <td className="px-4 py-4 text-center whitespace-nowrap">
+                      <span className="text-sm font-medium text-gray-900">
+                        {asset.specifications?.quantity || '-'}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(asset.status)} uppercase tracking-tight`}>
                         {asset.status_display}
@@ -497,56 +511,51 @@ export default function AssetList() {
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={asset.supplier || ''}>
                       {asset.supplier || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        {/* Chi tiết */}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => handleDetailClick(asset)}
-                          className="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-primary-600 bg-primary-50 hover:bg-primary-100 transition-all font-bold text-[10px] uppercase tracking-tight"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 transition-all font-semibold text-xs"
                           title="Xem chi tiết"
                         >
-                          <EyeIcon className="h-3.5 w-3.5" />
-                          <span>Chi tiết</span>
+                          <EyeIcon className="h-4 w-4" />
+                          Chi tiết
                         </button>
-                        
-                        {/* Sửa */}
+
                         <button
                           onClick={() => handleEditClick(asset)}
-                          className="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all font-bold text-[10px] uppercase tracking-tight"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all font-semibold text-xs"
                           title="Chỉnh sửa thông tin"
                         >
-                          <PencilIcon className="h-3.5 w-3.5" />
-                          <span>Sửa</span>
+                          <PencilIcon className="h-4 w-4" />
+                          Sửa
                         </button>
 
-                        {/* Bàn giao */}
                         <button
                           onClick={() => handleAssignClick(asset)}
-                          className="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all font-bold text-[10px] uppercase tracking-tight"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all font-semibold text-xs"
                           title="Bàn giao người dùng"
                         >
-                          <UserPlusIcon className="h-3.5 w-3.5" />
-                          <span>Bàn giao</span>
+                          <UserPlusIcon className="h-4 w-4" />
+                          Bàn giao
                         </button>
 
-                        {/* Thu hồi */}
                         <button
                           onClick={() => handleReturnClick(asset)}
-                          className="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-amber-600 bg-amber-50 hover:bg-amber-100 transition-all font-bold text-[10px] uppercase tracking-tight"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all font-semibold text-xs"
                           title="Thu hồi về kho"
                         >
-                          <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5" />
-                          <span>Thu hồi</span>
+                          <ArrowPathRoundedSquareIcon className="h-4 w-4" />
+                          Thu hồi
                         </button>
 
-                        {/* Xóa */}
                         <button
                           onClick={() => confirmDelete(asset.id)}
-                          className="inline-flex items-center space-x-1 px-2 py-1 rounded-md text-red-600 bg-red-50 hover:bg-red-100 transition-all font-bold text-[10px] uppercase tracking-tight"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all font-semibold text-xs"
                           title="Xóa tài sản"
                         >
-                          <TrashIcon className="h-3.5 w-3.5" />
-                          <span>Xóa</span>
+                          <TrashIcon className="h-4 w-4" />
+                          Xóa
                         </button>
                       </div>
                     </td>
@@ -591,7 +600,10 @@ export default function AssetList() {
       {selectedAsset && (
         <AssetAssignModal
           isOpen={isAssignModalOpen}
-          onClose={() => setIsAssignModalOpen(false)}
+          onClose={() => {
+            setIsAssignModalOpen(false);
+            setSelectedAsset(null);
+          }}
           onSuccess={() => {
             fetchAssets();
             fetchStats();
@@ -603,7 +615,10 @@ export default function AssetList() {
       {selectedAsset && (
         <AssetReturnModal
           isOpen={isReturnModalOpen}
-          onClose={() => setIsReturnModalOpen(false)}
+          onClose={() => {
+            setIsReturnModalOpen(false);
+            setSelectedAsset(null);
+          }}
           onSuccess={() => {
             fetchAssets();
             fetchStats();
