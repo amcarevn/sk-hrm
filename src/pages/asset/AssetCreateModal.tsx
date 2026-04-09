@@ -191,7 +191,6 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       const payload = {
         ...baseData,
         purchase_date: formData.purchase_date || null,
-        warranty_period: parseInt(formData.warranty_period) || 0,
         department_id: formData.department ? parseInt(formData.department) : null,
         managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
         specifications
@@ -214,7 +213,6 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         model: '',
         condition: 'EXCELLENT',
         purchase_date: '',
-        warranty_period: '0',
         supplier: '',
         department: '',
         managed_by: '',

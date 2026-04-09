@@ -63,7 +63,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     status: 'NEW',
     condition: 'EXCELLENT',
     purchase_date: '',
-    warranty_period: '12',
     supplier: '',
     department: '',
     managed_by: '',
@@ -100,7 +99,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             status: fullAsset.status || 'NEW',
             condition: fullAsset.condition || 'EXCELLENT',
             purchase_date: fullAsset.purchase_date || '',
-            warranty_period: String(fullAsset.warranty_period || '12'),
             supplier: fullAsset.supplier || '',
             department: fullAsset.department ? String(fullAsset.department) : '',
             managed_by: fullAsset.managed_by ? String(fullAsset.managed_by) : '',
@@ -128,7 +126,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             status: asset.status || 'NEW',
             condition: asset.condition || 'EXCELLENT',
             purchase_date: asset.purchase_date || '',
-            warranty_period: String(asset.warranty_period || '12'),
             supplier: asset.supplier || '',
             department: '',
             managed_by: '',
@@ -239,7 +236,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       const payload = {
         ...baseData,
         purchase_date: formData.purchase_date || null,
-        warranty_period: parseInt(formData.warranty_period) || 0,
         department_id: formData.department ? parseInt(formData.department) : null,
         managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
         specifications
@@ -477,10 +473,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                         </div>
 
                         {/* Thời hạn bảo hành */}
-                        <div>
-                          <label htmlFor="warranty_period" className="block text-sm font-medium text-gray-700">Bảo hành (tháng)</label>
-                          <input type="number" name="warranty_period" id="warranty_period" value={formData.warranty_period} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
-                        </div>
 
                         {/* Phòng ban quản lý */}
                         <SelectBox label="Phòng ban quản lý" value={formData.department} options={departments} onChange={(val) => handleSelectChange('department', val)} placeholder="-- Chọn phòng ban --" />
