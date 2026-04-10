@@ -263,6 +263,48 @@ export const departmentsAPI = {
   },
 };
 
+// Sections API (Bộ phận - dùng chung model Department, BE auto set is_section=true)
+export const sectionsAPI = {
+  list: async (params?: {
+    page?: number;
+    page_size?: number;
+    search?: string;
+    parent_department?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: Department[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: Department[];
+    }> = await managementApi.get('/api-hrm/sections/', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<Department> => {
+    const response: AxiosResponse<Department> = await managementApi.get(`/api-hrm/sections/${id}/`);
+    return response.data;
+  },
+
+  create: async (data: Partial<Department>): Promise<Department> => {
+    const response: AxiosResponse<Department> = await managementApi.post('/api-hrm/sections/', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: Partial<Department>): Promise<Department> => {
+    const response: AxiosResponse<Department> = await managementApi.put(`/api-hrm/sections/${id}/`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/sections/${id}/`);
+  },
+};
+
 // Positions API
 export const positionsAPI = {
   list: async (params?: {

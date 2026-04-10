@@ -506,8 +506,11 @@ export interface Department {
   name: string;
   code: string;
   description?: string;
-  parent_department?: number;
-  manager?: number;
+  parent_department?: number | null;
+  manager?: number | null;
+  manager_id?: number | null;
+  manager_name?: string | null;
+  is_section?: boolean;
   created_at: string;
   updated_at: string;
 }

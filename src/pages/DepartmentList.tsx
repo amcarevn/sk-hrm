@@ -15,7 +15,7 @@ const DepartmentList: React.FC = () => {
       setLoading(true);
       const params: any = {};
       if (search) params.search = search;
-      
+
       const response = await departmentsAPI.list(params);
       setDepartments(response.results || []);
       setError(null);
@@ -71,7 +71,7 @@ const DepartmentList: React.FC = () => {
     }
   };
 
-  const getParentDepartmentName = (parentId?: number) => {
+  const getParentDepartmentName = (parentId?: number | null) => {
     if (!parentId) return 'Không có';
     const parent = departments.find(dept => dept.id === parentId);
     return parent ? parent.name : `ID: ${parentId}`;
