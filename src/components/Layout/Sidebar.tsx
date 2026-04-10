@@ -82,6 +82,13 @@ const navigationItems: NavigationItem[] = [
     employeePermission: 'can_manage_departments',
   },
   {
+    name: 'Quản lý bộ phận',
+    href: '/dashboard/sections',
+    icon: BuildingOfficeIcon,
+    roles: ['ADMIN'],
+    employeePermission: 'can_manage_departments',
+  },
+  {
     name: 'Quản lý vị trí',
     href: '/dashboard/positions',
     icon: BriefcaseIcon,
