@@ -46,12 +46,13 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
       const isManager = user?.is_manager || false
       const employeePermission = user?.employee_permission;
 
-      const isAllowedForStaff = 
+      const isAllowedForStaff =
         currentPath === '/home' ||
         currentPath === '/dashboard/me' ||
         (currentPath === '/dashboard/attendance' || currentPath === '/dashboard/attendance/view') ||
         currentPath === '/dashboard/organization-chart' ||
         currentPath === '/dashboard/approvals' ||
+        currentPath === '/dashboard/my-requests' ||
         (currentPath === '/dashboard/attendance/upload' && userDepartmentCode === 'HCNS') ||
         currentPath === '/dashboard/onboarding' ||
         currentPath.startsWith('/dashboard/onboarding/') ||
