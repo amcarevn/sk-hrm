@@ -17,10 +17,10 @@ import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
 import DocumentsSection from './DocumentsSection';
 import { useAuth } from '../contexts/AuthContext';
-import { employeesAPI, SuperAdminEmployee, departmentsAPI, positionsAPI, companyUnitsAPI, Department, Position, CompanyUnit } from '../utils/api';
+import { employeesAPI, SuperAdminEmployee, departmentsAPI, sectionsAPI, positionsAPI, companyUnitsAPI, Department, Position, CompanyUnit } from '../utils/api';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
-  SECTION_OPTIONS as SECTION_OPTIONS_RAW, CITIZEN_ID_ISSUE_PLACE_OPTIONS as CCCD_ISSUE_PLACE_OPTIONS,
+  CITIZEN_ID_ISSUE_PLACE_OPTIONS as CCCD_ISSUE_PLACE_OPTIONS,
   PROBATION_RATE_OPTIONS, ETHNICITY_OPTIONS, NATIONALITY_OPTIONS, GENDER_OPTIONS, MARITAL_STATUS_OPTIONS,
 } from '../constants/onboarding';
 
@@ -218,11 +218,6 @@ const CONTRACT_OPTIONS = [
   { value: 'NURSING_COMMITMENT', label: 'Cam kết của CBNV Điều dưỡng' },
 ];
 
-const SECTION_OPTIONS = SECTION_OPTIONS_RAW;
-
-const toSelectOptions = (values: ({ value: string; label: string } | string)[]) =>
-  values.map(opt => typeof opt === 'string' ? { value: opt, label: opt } : opt);
-
 const withCurrentOption = (
   options: { value: string; label: string }[],
   currentValue: string | undefined
@@ -377,6 +372,7 @@ const OnboardingDetail: React.FC = () => {
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [allPositions, setAllPositions] = useState<Position[]>([]);
   const [allCompanyUnits, setAllCompanyUnits] = useState<CompanyUnit[]>([]);
+  const [allSections, setAllSections] = useState<Department[]>([]);
 
   // Stable handler — prevents EditField re-mount on every keystroke
   const handleEditFieldChange = React.useCallback((name: string, value: any) => {
@@ -751,18 +747,20 @@ const OnboardingDetail: React.FC = () => {
   useEffect(() => {
     const loadMasterData = async () => {
       try {
-        const [deptRes, posRes, cuRes] = await Promise.all([
+        const [deptRes, posRes, cuRes, secRes] = await Promise.all([
           departmentsAPI.list({ page_size: 1000 }),
           positionsAPI.list({ page_size: 1000 }),
           companyUnitsAPI.list({ active_only: true, page_size: 100 }),
+          sectionsAPI.list({ page_size: 1000 }),
         ]);
         setAllDepartments(deptRes.results || []);
         setAllPositions(posRes.results || []);
         setAllCompanyUnits(Array.isArray(cuRes) ? cuRes : (cuRes.results || []));
+        setAllSections(secRes.results || []);
         console.log('[MasterData] CompanyUnits:', Array.isArray(cuRes) ? cuRes.length : cuRes.results?.length);
-        console.log('[MasterData] Departments:', deptRes.results?.length, 'Positions:', posRes.results?.length);
+        console.log('[MasterData] Departments:', deptRes.results?.length, 'Positions:', posRes.results?.length, 'Sections:', secRes.results?.length);
       } catch (e) {
-        console.warn('Could not load departments/positions:', e);
+        console.warn('Could not load master data:', e);
       }
     };
     loadMasterData();
@@ -882,7 +880,7 @@ const OnboardingDetail: React.FC = () => {
             <InfoField label="Phòng ban" value={safeDisplay((employeeProfile as any)?.department?.name || onboarding.department?.name)} />
             <InfoField label="Vị trí" value={safeDisplay((employeeProfile as any)?.position?.title || onboarding.position?.title)} />
             <InfoField label="Cấp bậc" value={safeDisplay(employeeProfile?.rank || onboarding.rank)} />
-            <InfoField label="Bộ phận" value={SECTION_OPTIONS.find(o => o.value === (employeeProfile?.section || onboarding.section))?.label || safeDisplay(employeeProfile?.section || onboarding.section)} />
+            <InfoField label="Bộ phận" value={safeDisplay(employeeProfile?.section || onboarding.section)} />
             <InfoField label="Quản lý" value={safeDisplay(onboarding.direct_manager?.full_name)} />
             <InfoField label="Team BS" value={safeDisplay(employeeProfile?.doctor_team || onboarding.doctor_team)} />
             <InfoField label="Ngày BĐ" value={employeeProfile?.start_date ? formatDate(employeeProfile.start_date) : formatDate(onboarding.start_date)} />
@@ -1264,7 +1262,7 @@ const OnboardingDetail: React.FC = () => {
                 {ef('Cấp bậc', 'rank')}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {ef('Bộ phận', 'section', undefined, withCurrentOption(toSelectOptions(SECTION_OPTIONS), editData.section))}
+                {ef('Bộ phận', 'section', undefined, withCurrentOption(allSections.map(s => ({ value: s.name, label: s.name })), editData.section))}
                 {ef('Team Bác sĩ', 'doctor_team')}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

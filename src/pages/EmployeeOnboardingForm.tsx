@@ -225,6 +225,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const [companyUnits, setCompanyUnits] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
 
   const [values, setValues] = useState<FormValues>({
     candidate_name: '', candidate_email: '', candidate_phone: '',
@@ -268,14 +269,17 @@ export const EmployeeOnboardingForm: React.FC = () => {
       fetchPublic('/api-hrm/company-units/?active_only=true'),
       fetchPublic('/api-hrm/departments/?page_size=1000'),
       fetchPublic('/api-hrm/positions/?page_size=1000'),
-    ]).then(([cuList, deptList, posList]) => {
+      fetchPublic('/api-hrm/sections/?page_size=1000'),
+    ]).then(([cuList, deptList, posList, secList]) => {
       setCompanyUnits(cuList);
       setDepartments(deptList);
       setPositions(posList);
+      setSections(secList);
     }).catch(() => {
       setCompanyUnits([]);
       setDepartments([]);
       setPositions([]);
+      setSections([]);
     });
   }, []);
 
@@ -670,7 +674,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SF label="Phòng/Ban" value={values.sub_department} onChange={handleSelect('sub_department')} options={departments.length > 0 ? departments.map(d => ({ value: d.name, label: d.name })) : SUB_DEPARTMENT_OPTIONS} searchable />
-            <SF label="Bộ phận" value={values.section} onChange={handleSelect('section')} options={SECTION_OPTIONS} />
+            <SF label="Bộ phận" value={values.section} onChange={handleSelect('section')} options={sections.length > 0 ? sections.map(s => ({ value: s.name, label: s.name })) : SECTION_OPTIONS} searchable />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SF label="Vị trí" value={values.position} onChange={handleSelect('position')} options={positions.length > 0 ? positions.map(p => ({ value: p.title, label: p.title })) : POSITION_OPTIONS} searchable />
@@ -862,7 +866,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
             ['Vùng/Miền', values.region],
             ['Khối', values.block],
             ['Phòng/Ban', values.sub_department],
-            ['Bộ phận', SECTION_OPTIONS.find(o => o.value === values.section)?.label || values.section || null],
+            ['Bộ phận', values.section || null],
             ['Vị trí', values.position],
             ['Cấp bậc', values.job_rank],
             ['Team Bác sĩ', values.doctor_team],
