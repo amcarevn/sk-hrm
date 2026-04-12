@@ -1,7 +1,7 @@
-import React, { Fragment } from 'react';
+import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon, ComputerDesktopIcon, CalendarIcon, UserIcon, BuildingOfficeIcon, ShieldCheckIcon, ShoppingBagIcon, CpuChipIcon, ServerStackIcon, Square3Stack3DIcon, CircleStackIcon, DeviceTabletIcon, BoltIcon, ArrowUturnLeftIcon, IdentificationIcon, TagIcon, BuildingStorefrontIcon, SparklesIcon } from '@heroicons/react/24/outline';
-import { Asset } from '../../utils/api';
+import { Asset, positionsAPI } from '../../utils/api';
 
 interface AssetDetailModalProps {
   isOpen: boolean;
@@ -11,6 +11,22 @@ interface AssetDetailModalProps {
 
 export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetailModalProps) {
   if (!asset) return null;
+
+  const [positionName, setPositionName] = useState<string>('');
+
+  useEffect(() => {
+    const posId = (asset?.specifications as any)?.position_id;
+    if (isOpen && asset?.asset_type === 'SIM' && posId) {
+      positionsAPI.list({ page_size: 200 })
+        .then(data => {
+          const found = (data.results || []).find((p: any) => String(p.id) === String(posId));
+          setPositionName(found?.title || String(posId));
+        })
+        .catch(() => setPositionName(String(posId)));
+    } else {
+      setPositionName('');
+    }
+  }, [isOpen, asset]);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
@@ -134,7 +150,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                           <BuildingStorefrontIcon className="h-4 w-4 text-blue-500" />
                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Thương hiệu</span>
                         </div>
-                        <p className="text-sm font-bold text-gray-900">{asset.brand || '-'}</p>
+                        <p className="text-sm font-bold text-gray-900">{asset.brand || ''}</p>
                       </div>
 
                       {/* Model */}
@@ -143,7 +159,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                           <ComputerDesktopIcon className="h-4 w-4 text-indigo-500" />
                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Model thiết bị</span>
                         </div>
-                        <p className="text-sm font-bold text-gray-900">{asset.model || '-'}</p>
+                        <p className="text-sm font-bold text-gray-900">{asset.model || ''}</p>
                       </div>
 
                       {/* Tình trạng vật lý */}
@@ -336,7 +352,8 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                     {asset.asset_type === 'SIM' && asset.specifications && (
                       <div className="md:col-span-2 space-y-4">
                         <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Thông tin SIM</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {/* Số điện thoại */}
                           <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
                             <div className="bg-green-100 p-2 rounded-lg">
                               <BoltIcon className="h-5 w-5 text-green-600" />
@@ -346,6 +363,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                               <p className="text-sm font-bold text-gray-900">{(asset.specifications as any).phone_number || '-'}</p>
                             </div>
                           </div>
+                          {/* Nhà mạng */}
                           <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
                             <div className="bg-green-100 p-2 rounded-lg">
                               <BuildingOfficeIcon className="h-5 w-5 text-green-600" />
@@ -355,6 +373,59 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                               <p className="text-sm font-bold text-gray-900">{(asset.specifications as any).network_provider || '-'}</p>
                             </div>
                           </div>
+                          {/* Phân loại Sim */}
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <TagIcon className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Phân loại Sim</p>
+                              <p className="text-sm font-bold text-gray-900">
+                                {(asset.specifications as any).sim_type === 'PREPAID' ? 'Trả trước'
+                                  : (asset.specifications as any).sim_type === 'POSTPAID' ? 'Trả sau'
+                                  : '-'}
+                              </p>
+                            </div>
+                          </div>
+                          {/* Bác sĩ */}
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <UserIcon className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Bác sĩ</p>
+                              <p className="text-sm font-bold text-gray-900">{(asset.specifications as any).doctor || '-'}</p>
+                            </div>
+                          </div>
+                          {/* Vùng miền */}
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <BuildingOfficeIcon className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Vùng miền</p>
+                              <p className="text-sm font-bold text-gray-900">
+                                {(asset.specifications as any).region === 'MIEN_BAC' ? 'Miền Bắc'
+                                  : (asset.specifications as any).region === 'MIEN_TRUNG' ? 'Miền Trung'
+                                  : (asset.specifications as any).region === 'MIEN_NAM' ? 'Miền Nam'
+                                  : (asset.specifications as any).region || '-'}
+                              </p>
+                            </div>
+                          </div>
+                          {/* Vị trí (Chức vụ) */}
+                          {(asset.specifications as any).position_id && (
+                            <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                              <div className="bg-green-100 p-2 rounded-lg">
+                                <IdentificationIcon className="h-5 w-5 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Vị trí (Chức vụ)</p>
+                                <p className="text-sm font-bold text-gray-900">
+                                  {positionName || (asset.specifications as any).position_id}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -377,6 +448,16 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                             <p className="text-sm font-bold text-gray-900">{formatDate(asset.purchase_date)}</p>
                           </div>
                         </div>
+
+                        {(asset as any).warranty_period && (
+                          <div className="flex items-start space-x-3">
+                            <ShieldCheckIcon className="h-5 w-5 text-green-500 mt-0.5" />
+                            <div>
+                              <p className="text-xs text-gray-500">Thời hạn bảo hành</p>
+                              <p className="text-sm font-bold text-gray-900">{(asset as any).warranty_period} tháng</p>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="flex items-start space-x-3">
                           <ShieldCheckIcon className="h-5 w-5 text-red-500 mt-0.5" />

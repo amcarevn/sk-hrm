@@ -1,7 +1,7 @@
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { assetsAPI, departmentsAPI, employeesAPI } from '../../utils/api';
+import { assetsAPI, departmentsAPI, employeesAPI, positionsAPI } from '../../utils/api';
 import { SelectBox, SelectOption } from '../../components/LandingLayout/SelectBox';
 
 interface AssetCreateModalProps {
@@ -41,16 +41,29 @@ const NETWORK_PROVIDERS: SelectOption<string>[] = [
   { value: 'Vietnamobile', label: 'Vietnamobile' },
 ];
 
+const SIM_TYPES: SelectOption<string>[] = [
+  { value: 'PREPAID', label: 'Trả trước' },
+  { value: 'POSTPAID', label: 'Trả sau' },
+];
+
+const REGIONS: SelectOption<string>[] = [
+  { value: 'MIEN_BAC', label: 'Miền Bắc' },
+  { value: 'MIEN_TRUNG', label: 'Miền Trung' },
+  { value: 'MIEN_NAM', label: 'Miền Nam' },
+];
+
 export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCreateModalProps) {
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<SelectOption<string>[]>([]);
   const [employees, setEmployees] = useState<SelectOption<string>[]>([]);
+  const [positions, setPositions] = useState<SelectOption<string>[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     asset_type: 'LAPTOP',
     model: '',
     condition: 'EXCELLENT',
     purchase_date: '',
+    warranty_period: '12',
     supplier: '',
     department: '',
     managed_by: '',
@@ -65,6 +78,10 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     // SIM specific fields
     phone_number: '',
     network_provider: '',
+    doctor: '',
+    region: '',
+    position_id: '',
+    sim_type: 'PREPAID',
     // MONITOR specific fields
     monitor_quantity: '',
     // OTHER specific fields
@@ -72,11 +89,12 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
   });
 
   /**
-   * Khởi chạy khi Modal được mở, thực hiện lấy danh sách Phòng ban
+   * Khởi chạy khi Modal được mở, thực hiện lấy danh sách Phòng ban và Vị trí (Chức vụ)
    */
   useEffect(() => {
     if (isOpen) {
       fetchDepartments();
+      fetchPositions();
     }
   }, [isOpen]);
 
@@ -113,6 +131,19 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       }
     } catch (error) {
       console.error('Error fetching departments:', error);
+    }
+  };
+
+  const fetchPositions = async () => {
+    try {
+      const data = await positionsAPI.list({ page_size: 100 });
+      const options = (data.results || []).map(pos => ({
+        value: String(pos.id),
+        label: pos.title
+      }));
+      setPositions(options);
+    } catch (error) {
+      console.error('Error fetching positions:', error);
     }
   };
 
@@ -157,7 +188,14 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
    * Hiện tại chỉ yêu cầu Mã tài sản (asset_code)
    */
   const isFormValid = () => {
-    return formData.name.trim() !== '';
+    let isValid = formData.name.trim() !== '';
+    
+    if (formData.asset_type === 'SIM') {
+      const phone = formData.phone_number || '';
+      isValid = isValid && /^\d{10}$/.test(phone.trim());
+    }
+    
+    return isValid;
   };
 
   /**
@@ -175,7 +213,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     setLoading(true);
     try {
       // Split technical specs into a separate object if it's a Desktop
-      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, other_type_name, ...baseData } = formData;
+      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, other_type_name, warranty_period, ...baseData } = formData;
 
       let specifications = {};
       if (formData.asset_type === 'DESKTOP') {
@@ -183,7 +221,8 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       } else if (formData.asset_type === 'MONITOR') {
         specifications = { quantity: parseInt(monitor_quantity) || 0 };
       } else if (formData.asset_type === 'SIM') {
-        specifications = { phone_number, network_provider };
+        const positionTitle = positions.find(p => p.value === formData.position_id)?.label || '';
+        specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type };
       } else if (formData.asset_type === 'OTHER') {
         specifications = { type_name: other_type_name };
       }
@@ -191,6 +230,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       const payload = {
         ...baseData,
         purchase_date: formData.purchase_date || null,
+        warranty_period: warranty_period ? parseInt(warranty_period) : null,
         department_id: formData.department ? parseInt(formData.department) : null,
         managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
         specifications
@@ -213,6 +253,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         model: '',
         condition: 'EXCELLENT',
         purchase_date: '',
+        warranty_period: '12',
         supplier: '',
         department: '',
         managed_by: '',
@@ -226,6 +267,10 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         monitor_quantity: '',
         phone_number: '',
         network_provider: '',
+        doctor: '',
+        region: '',
+        position_id: '',
+        sim_type: 'PREPAID',
         other_type_name: '',
       });
     } catch (error) {
@@ -345,12 +390,42 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                                   <input type="text" name="phone_number" id="phone_number" value={formData.phone_number} onChange={handleChange}
                                     className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                                     placeholder="VD: 0912345678" />
+                                  {formData.phone_number && !/^\d{10}$/.test(formData.phone_number.trim()) && (
+                                    <p className="mt-1 text-xs text-red-500">Số điện thoại phải gồm đúng 10 chữ số.</p>
+                                  )}
                                 </div>
                                 <SelectBox
                                   label="Nhà mạng"
                                   value={formData.network_provider}
                                   options={NETWORK_PROVIDERS}
                                   onChange={(val) => handleSelectChange('network_provider', val)}
+                                />
+                                <SelectBox
+                                  label="Phân loại Sim"
+                                  value={formData.sim_type}
+                                  options={SIM_TYPES}
+                                  onChange={(val) => handleSelectChange('sim_type', val)}
+                                />
+                                <div>
+                                  <label htmlFor="doctor" className="block text-sm font-medium text-gray-700">Bác sĩ</label>
+                                  <input type="text" name="doctor" id="doctor" value={formData.doctor} onChange={handleChange}
+                                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                    placeholder="VD: Nguyễn Văn A..." />
+                                </div>
+                                <SelectBox
+                                  label="Vùng miền"
+                                  value={formData.region}
+                                  options={REGIONS}
+                                  onChange={(val) => handleSelectChange('region', val)}
+                                  placeholder="-- Chọn vùng miền --"
+                                />
+                                <SelectBox
+                                  label="Vị trí"
+                                  value={formData.position_id}
+                                  options={positions}
+                                  onChange={(val) => handleSelectChange('position_id', val)}
+                                  placeholder="-- Chọn vị trí --"
+                                  searchable
                                 />
                               </div>
                             </div>
@@ -422,20 +497,22 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                             </div>
                           )}
 
-                          <div>
-                            <label htmlFor="model" className="block text-sm font-medium text-gray-700">
-                              Model
-                            </label>
-                            <input
-                              type="text"
-                              name="model"
-                              id="model"
-                              value={formData.model}
-                              onChange={handleChange}
-                              className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                              placeholder="VD: M2 Pro, XPS 15..."
-                            />
-                          </div>
+                          {!['SIM', 'FURNITURE'].includes(formData.asset_type) && (
+                            <div>
+                              <label htmlFor="model" className="block text-sm font-medium text-gray-700">
+                                Model
+                              </label>
+                              <input
+                                type="text"
+                                name="model"
+                                id="model"
+                                value={formData.model}
+                                onChange={handleChange}
+                                className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                placeholder="VD: M2 Pro, XPS 15..."
+                              />
+                            </div>
+                          )}
                         </div>
                       </section>
 
@@ -456,6 +533,21 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                             <label htmlFor="purchase_date" className="block text-sm font-medium text-gray-700">Ngày mua</label>
                             <input type="date" name="purchase_date" id="purchase_date" value={formData.purchase_date} onChange={handleChange}
                               className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                          </div>
+
+                          <div>
+                            <label htmlFor="warranty_period" className="block text-sm font-medium text-gray-700">Bảo hành (tháng)</label>
+                            <input
+                              type="number"
+                              name="warranty_period"
+                              id="warranty_period"
+                              min="0"
+                              step="1"
+                              value={formData.warranty_period}
+                              onChange={handleChange}
+                              className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                              placeholder="VD: 12"
+                            />
                           </div>
 
                           <SelectBox

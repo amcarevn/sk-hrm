@@ -147,7 +147,7 @@ export default function AssetList() {
     const matchesCondition = conditionFilter === 'all' || asset.condition === conditionFilter;
 
     return matchesSearch && matchesStatus && matchesType && matchesCondition;
-  });
+  }).sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -512,50 +512,53 @@ export default function AssetList() {
                       {asset.supplier || '-'}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={() => handleDetailClick(asset)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 transition-all font-semibold text-xs"
-                          title="Xem chi tiết"
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                          Chi tiết
-                        </button>
-
-                        <button
-                          onClick={() => handleEditClick(asset)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all font-semibold text-xs"
-                          title="Chỉnh sửa thông tin"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                          Sửa
-                        </button>
-
-                        <button
-                          onClick={() => handleAssignClick(asset)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all font-semibold text-xs"
-                          title="Bàn giao người dùng"
-                        >
-                          <UserPlusIcon className="h-4 w-4" />
-                          Bàn giao
-                        </button>
-
-                        <button
-                          onClick={() => handleReturnClick(asset)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all font-semibold text-xs"
-                          title="Thu hồi về kho"
-                        >
-                          <ArrowPathRoundedSquareIcon className="h-4 w-4" />
-                          Thu hồi
-                        </button>
-
+                      <div className="flex flex-col gap-1.5 min-w-[80px]">
+                        {/* Row 1: Chi tiết + Sửa */}
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => handleDetailClick(asset)}
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 transition-all font-semibold text-xs whitespace-nowrap"
+                            title="Xem chi tiết"
+                          >
+                            <EyeIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span className="hidden xl:inline">Chi tiết</span>
+                          </button>
+                          <button
+                            onClick={() => handleEditClick(asset)}
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all font-semibold text-xs whitespace-nowrap"
+                            title="Chỉnh sửa thông tin"
+                          >
+                            <PencilIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span className="hidden xl:inline">Sửa</span>
+                          </button>
+                        </div>
+                        {/* Row 2: Bàn giao + Thu hồi */}
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => handleAssignClick(asset)}
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all font-semibold text-xs whitespace-nowrap"
+                            title="Bàn giao người dùng"
+                          >
+                            <UserPlusIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span className="hidden xl:inline">Bàn giao</span>
+                          </button>
+                          <button
+                            onClick={() => handleReturnClick(asset)}
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all font-semibold text-xs whitespace-nowrap"
+                            title="Thu hồi về kho"
+                          >
+                            <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span className="hidden xl:inline">Thu hồi</span>
+                          </button>
+                        </div>
+                        {/* Row 3: Xóa full width */}
                         <button
                           onClick={() => confirmDelete(asset.id)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all font-semibold text-xs"
+                          className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all font-semibold text-xs whitespace-nowrap"
                           title="Xóa tài sản"
                         >
-                          <TrashIcon className="h-4 w-4" />
-                          Xóa
+                          <TrashIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span className="hidden xl:inline">Xóa</span>
                         </button>
                       </div>
                     </td>
