@@ -1,8 +1,9 @@
 import React, { useState, useEffect, Fragment, useCallback, useMemo } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { XMarkIcon, UserIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UserIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { Asset, assetsAPI, employeesAPI } from '../../utils/api';
 import { SelectBox, SelectOption } from '../../components/LandingLayout/SelectBox';
+import FeedbackDialog, { FeedbackVariant } from '../../components/FeedbackDialog';
 interface AssetAssignModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -25,6 +26,14 @@ const QUICK_STATUS_TAGS = [
 export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: AssetAssignModalProps) {
   const [loading, setLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showManagerConfirm, setShowManagerConfirm] = useState(false);
+  const [feedback, setFeedback] = useState<{ variant: FeedbackVariant; title: string; message?: string; closeOnDismiss?: boolean } | null>(null);
+  const [pendingConflict, setPendingConflict] = useState<{
+    assigned_to_name?: string;
+    assigned_date?: string;
+    assigned_by_name?: string;
+    assignment_notes?: string;
+  } | null>(null);
   const [employees, setEmployees] = useState<SelectOption<string>[]>([]);
   const [formData, setFormData] = useState({
     employee_id: '',
@@ -75,21 +84,38 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
     });
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent, isForced = false) => {
+  const selectedEmployeeLabel = useMemo(() => {
+    const match = employees.find((e) => e.value === formData.employee_id);
+    return match?.label || '';
+  }, [employees, formData.employee_id]);
+
+  const handleSubmit = async (
+    e: React.FormEvent | null,
+    opts: { isForced?: boolean; skipDialog?: boolean; overridePending?: boolean } = {},
+  ) => {
     if (e) e.preventDefault();
+    const { isForced = false, skipDialog = false, overridePending = false } = opts;
     const selectedId = parseInt(formData.employee_id);
     const currentId = asset.assigned_to;
+    // Một số response (list endpoint) chỉ trả assigned_to_name, không có ID.
+    // Dùng tên làm fallback để detect "đang có người giữ".
+    const hasCurrentHolder = !!asset.assigned_to_name || !!currentId;
 
-    // Senior UX: If selecting the SAME person, just close the modal
-    if (selectedId === currentId) {
+    // Nếu chọn đúng người đang giữ → không làm gì, đóng modal
+    if (currentId && selectedId === currentId) {
       onClose();
       return;
     }
 
-    // Senior UX: Check if asset is already assigned to someone else
-    // and if we haven't shown the confirmation yet
-    if (currentId && !isForced) {
+    // Nếu asset đang thuộc người khác và chưa xác nhận forced → hiện dialog cảnh báo
+    if (hasCurrentHolder && !isForced) {
       setShowConfirmDialog(true);
+      return;
+    }
+
+    // Nếu chưa qua bước manager confirm dialog (và không phải từ force/override flow) → hiện dialog
+    if (!skipDialog && !isForced && !overridePending) {
+      setShowManagerConfirm(true);
       return;
     }
 
@@ -99,17 +125,49 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
         employee_id: parseInt(formData.employee_id),
         assigned_date: formData.assigned_date,
         notes: formData.notes,
-        force: isForced, // Tell backend to auto-return the previous assignment
+        force: isForced,
+        override_pending: overridePending,
       });
-      onSuccess();
-      onClose();
       setShowConfirmDialog(false);
+      setShowManagerConfirm(false);
+      setPendingConflict(null);
+      setFeedback({
+        variant: 'success',
+        title: 'Đã gửi yêu cầu bàn giao',
+        message: `Đang chờ ${selectedEmployeeLabel || 'nhân viên'} xác nhận trong ứng dụng. Tài sản chỉ chuyển sang "Đang sử dụng" sau khi nhân viên xác nhận.`,
+        closeOnDismiss: true,
+      });
     } catch (error: any) {
       console.error('Error assigning asset:', error);
-      const serverError = error.response?.data?.error || 'Có lỗi xảy ra khi bàn giao tài sản.';
-      alert(serverError);
+      const existingPending = error.response?.data?.existing_pending;
+      if (existingPending) {
+        setShowConfirmDialog(false);
+        setShowManagerConfirm(false);
+        setPendingConflict({
+          assigned_to_name: existingPending.assigned_to_name,
+          assigned_date: existingPending.assigned_date,
+          assigned_by_name: existingPending.assigned_by_name,
+          assignment_notes: existingPending.assignment_notes,
+        });
+      } else {
+        const serverError = error.response?.data?.error || 'Có lỗi xảy ra khi bàn giao tài sản.';
+        setFeedback({
+          variant: 'error',
+          title: 'Không thể bàn giao',
+          message: serverError,
+        });
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFeedbackClose = () => {
+    const shouldCloseModal = feedback?.closeOnDismiss;
+    setFeedback(null);
+    if (shouldCloseModal) {
+      onSuccess();
+      onClose();
     }
   };
 
@@ -315,7 +373,7 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
                         </p>
                       </div>
                       <p className="text-sm text-gray-500 mt-3 leading-relaxed">
-                        Việc tiếp tục bàn giao sẽ tự động thực hiện quy trình **Thu hồi** từ người cũ và **Cấp phát** cho người mới ngay lập tức. Bạn có chắc chắn muốn thực hiện?
+                        Hệ thống sẽ tạo yêu cầu bàn giao ở trạng thái <strong>chờ xác nhận</strong>. Khi nhân viên mới xác nhận nhận máy, hệ thống sẽ tự động thu hồi máy từ người đang giữ.
                       </p>
                     </div>
                   </div>
@@ -324,7 +382,7 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
                       type="button"
                       disabled={loading}
                       className="inline-flex w-full justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-amber-700 transition-all active:scale-95 disabled:bg-amber-300"
-                      onClick={() => handleSubmit(null as any, true)}
+                      onClick={() => handleSubmit(null, { isForced: true })}
                     >
                       {loading ? 'Đang xử lý...' : 'Xác nhận Điều chuyển'}
                     </button>
@@ -334,6 +392,178 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
                       onClick={() => setShowConfirmDialog(false)}
                     >
                       Hủy thao tác
+                    </button>
+                  </div>
+                </DialogPanel>
+              </TransitionChild>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* Pending conflict dialog — asset đã có PENDING cho người khác */}
+      <Transition show={!!pendingConflict} as={Fragment}>
+        <Dialog as="div" className="relative z-[65]" onClose={() => setPendingConflict(null)}>
+          <TransitionChild
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" />
+          </TransitionChild>
+
+          <div className="fixed inset-0 z-10 overflow-y-auto">
+            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+              <TransitionChild
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              >
+                <DialogPanel className="relative transform overflow-hidden rounded-2xl bg-white p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                    </div>
+                    <div className="mt-3 flex-1 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                      <DialogTitle as="h3" className="text-base font-bold leading-6 text-gray-900">
+                        Đã có yêu cầu bàn giao chờ xác nhận
+                      </DialogTitle>
+                      <div className="mt-3 space-y-2 text-sm text-gray-600">
+                        <p>
+                          Tài sản <span className="font-semibold text-gray-900">[{asset.asset_code}] {asset.name}</span> đang có một yêu cầu bàn giao:
+                        </p>
+                        <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 space-y-1">
+                          <p className="text-sm font-semibold text-amber-900">
+                            Nhận máy: {pendingConflict?.assigned_to_name || '—'}
+                          </p>
+                          {pendingConflict?.assigned_date && (
+                            <p className="text-xs text-amber-800">
+                              Ngày bàn giao: {new Date(pendingConflict.assigned_date).toLocaleDateString('vi-VN')}
+                            </p>
+                          )}
+                          {pendingConflict?.assigned_by_name && (
+                            <p className="text-xs text-amber-800">
+                              Người gửi: {pendingConflict.assigned_by_name}
+                            </p>
+                          )}
+                          {pendingConflict?.assignment_notes && (
+                            <p className="text-xs italic text-amber-800">
+                              Ghi chú: {pendingConflict.assignment_notes}
+                            </p>
+                          )}
+                        </div>
+                        <p className="text-xs italic text-gray-500">
+                          Bạn có muốn <strong>hủy yêu cầu trên</strong> và tạo yêu cầu bàn giao mới cho <span className="font-semibold text-gray-900">{selectedEmployeeLabel || 'nhân viên đã chọn'}</span>?
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex flex-col sm:flex-row-reverse gap-3">
+                    <button
+                      type="button"
+                      disabled={loading}
+                      className="inline-flex w-full justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-amber-700 transition-all active:scale-95 disabled:bg-amber-300"
+                      onClick={() => handleSubmit(null, { overridePending: true })}
+                    >
+                      {loading ? 'Đang xử lý...' : 'Hủy yêu cầu cũ & tạo mới'}
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-all active:scale-95"
+                      onClick={() => setPendingConflict(null)}
+                    >
+                      Hủy thao tác
+                    </button>
+                  </div>
+                </DialogPanel>
+              </TransitionChild>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* Feedback dialog (success / error) */}
+      <FeedbackDialog
+        open={!!feedback}
+        variant={feedback?.variant}
+        title={feedback?.title || ''}
+        message={feedback?.message}
+        onClose={handleFeedbackClose}
+      />
+
+      {/* Manager confirm dialog — normal path (no existing assignee) */}
+      <Transition show={showManagerConfirm} as={Fragment}>
+        <Dialog as="div" className="relative z-[60]" onClose={() => setShowManagerConfirm(false)}>
+          <TransitionChild
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" />
+          </TransitionChild>
+
+          <div className="fixed inset-0 z-10 overflow-y-auto">
+            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+              <TransitionChild
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              >
+                <DialogPanel className="relative transform overflow-hidden rounded-2xl bg-white p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <InformationCircleIcon className="h-6 w-6 text-primary-600" />
+                    </div>
+                    <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                      <DialogTitle as="h3" className="text-base font-bold leading-6 text-gray-900">
+                        Xác nhận gửi yêu cầu bàn giao
+                      </DialogTitle>
+                      <div className="mt-3 space-y-2 text-sm text-gray-600">
+                        <p>
+                          Tài sản <span className="font-semibold text-gray-900">[{asset.asset_code}] {asset.name}</span> sẽ được gửi yêu cầu bàn giao đến:
+                        </p>
+                        <p className="rounded-lg bg-primary-50 border border-primary-100 px-3 py-2 font-semibold text-primary-800">
+                          {selectedEmployeeLabel || 'Nhân viên đã chọn'}
+                        </p>
+                        <p className="text-xs italic text-gray-500">
+                          Nhân viên sẽ cần vào ứng dụng để <strong>xác nhận</strong> hoặc <strong>từ chối</strong>. Asset chỉ thực sự chuyển sang "Đang sử dụng" sau khi nhân viên xác nhận.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex flex-col sm:flex-row-reverse gap-3">
+                    <button
+                      type="button"
+                      disabled={loading}
+                      className="inline-flex w-full justify-center rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary-700 transition-all active:scale-95 disabled:bg-primary-300"
+                      onClick={() => handleSubmit(null, { skipDialog: true })}
+                    >
+                      {loading ? 'Đang xử lý...' : 'Xác nhận gửi'}
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-all active:scale-95"
+                      onClick={() => setShowManagerConfirm(false)}
+                    >
+                      Hủy
                     </button>
                   </div>
                 </DialogPanel>

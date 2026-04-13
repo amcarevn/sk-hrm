@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { assetsAPI } from '../../utils/api';
@@ -9,12 +9,11 @@ import {
   EyeIcon,
   ComputerDesktopIcon,
   UserIcon,
-  BuildingOfficeIcon,
-  CalendarIcon,
-  CurrencyDollarIcon,
   ShieldCheckIcon,
   UserPlusIcon,
   ArrowPathRoundedSquareIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
 import AssetCreateModal from './AssetCreateModal';
 import AssetEditModal from './AssetEditModal';
@@ -23,6 +22,7 @@ import AssetAssignModal from './AssetAssignModal';
 import AssetReturnModal from './AssetReturnModal';
 import { Asset, AssetStats } from '../../utils/api';
 import { SelectBox, SelectOption } from '../../components/LandingLayout/SelectBox';
+import FeedbackDialog, { FeedbackVariant } from '../../components/FeedbackDialog';
 
 const ASSET_TYPE_OPTIONS: SelectOption<string>[] = [
   { value: 'all', label: 'Tất cả loại' },
@@ -43,12 +43,13 @@ const ASSET_TYPE_OPTIONS: SelectOption<string>[] = [
 
 const ASSET_STATUS_OPTIONS: SelectOption<string>[] = [
   { value: 'all', label: 'Tất cả trạng thái' },
-  { value: 'NEW', label: 'Sẵn dùng (Mới 100%)' },
+  { value: 'NEW', label: 'Sẵn dùng (Mới 100%) / SIM chưa kích hoạt' },
   { value: 'IN_USE', label: 'Đang sử dụng' },
   { value: 'IDLE', label: 'Sẵn dùng (Trong kho)' },
-  { value: 'UNDER_MAINTENANCE', label: 'Đang sửa chữa / Bảo hành' },
+  { value: 'UNDER_MAINTENANCE', label: 'Đang sửa chữa / SIM tạm khóa' },
   { value: 'DAMAGED', label: 'Lỗi / Chờ thanh lý' },
   { value: 'RETIRED', label: 'Đã thanh lý' },
+  { value: 'TERMINATED', label: 'Đã cắt (SIM)' },
   { value: 'LOST', label: 'Bị mất' },
 ];
 
@@ -80,6 +81,10 @@ export default function AssetList() {
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [feedback, setFeedback] = useState<{ variant: FeedbackVariant; title: string; message?: string } | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
 
   useEffect(() => {
@@ -126,7 +131,7 @@ export default function AssetList() {
       setAssetToDelete(null);
     } catch (err: any) {
       console.error('Error deleting asset:', err);
-      alert('Không thể xóa tài sản. Vui lòng thử lại sau.');
+      setFeedback({ variant: 'error', title: 'Không thể xóa tài sản', message: 'Đã có lỗi xảy ra. Vui lòng thử lại sau.' });
     }
   };
 
@@ -182,6 +187,96 @@ export default function AssetList() {
     setIsReturnModalOpen(true);
   };
 
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      // Gọi BE export — schema khớp với hrm.asset_export.build_workbook
+      // (cùng schema với template import → round-trip OK).
+      // Gửi filter hiện tại để file export khớp với bảng đang hiển thị.
+      const blob = await assetsAPI.exportExcel({
+        search: searchTerm || undefined,
+        asset_type: typeFilter !== 'all' ? typeFilter : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        condition: conditionFilter !== 'all' ? conditionFilter : undefined,
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `tai-san-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Export error:', err);
+      const msg = err.response?.data?.error || err.message || 'Đã có lỗi xảy ra khi tạo file Excel.';
+      setFeedback({ variant: 'error', title: 'Không thể xuất Excel', message: msg });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      // Upload file lên BE — toàn bộ parse + upsert + handover do BE xử lý
+      // qua hrm.asset_import.import_workbook. Xem AssetViewSet.bulk_import_excel.
+      const result = await assetsAPI.bulkImportExcel(file);
+
+      // Refresh danh sách asset + stats sau khi import
+      await Promise.all([fetchAssets(), fetchStats()]);
+
+      const { created, updated, failed_count, failed } = result;
+      const total = created + updated;
+      const failedDetail = failed
+        .slice(0, 10)
+        .map((f) => `• Dòng ${f.row}: ${f.messages.join('; ')}`)
+        .join('\n');
+      const moreLine = failed.length > 10 ? `\n…và ${failed.length - 10} lỗi khác` : '';
+
+      if (failed_count === 0) {
+        setFeedback({
+          variant: 'success',
+          title: `Import thành công ${total} tài sản`,
+          message: `Tạo mới: ${created}\nCập nhật: ${updated}`,
+        });
+      } else if (total > 0) {
+        setFeedback({
+          variant: 'warning',
+          title: `Import ${total}/${total + failed_count} dòng`,
+          message: `Tạo mới: ${created}\nCập nhật: ${updated}\nLỗi: ${failed_count}\n\n${failedDetail}${moreLine}`,
+        });
+      } else {
+        setFeedback({
+          variant: 'error',
+          title: 'Không import được dòng nào',
+          message: failedDetail
+            ? `${failed_count} dòng lỗi:\n\n${failedDetail}${moreLine}`
+            : 'File không có dòng dữ liệu hợp lệ.',
+        });
+      }
+    } catch (err: any) {
+      console.error('Import error:', err);
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.detail ||
+        err.message ||
+        'Không thể upload file Excel.';
+      setFeedback({ variant: 'error', title: 'Không thể import', message: msg });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'IN_USE':
@@ -189,11 +284,17 @@ export default function AssetList() {
       case 'IDLE':
         return 'bg-amber-100 text-amber-800 border border-amber-200';
       case 'UNDER_MAINTENANCE':
+        // Cũng dùng cho SIM "Tạm khóa"
         return 'bg-blue-100 text-blue-800 border border-blue-200';
       case 'DAMAGED':
         return 'bg-red-100 text-red-800 border border-red-200';
       case 'RETIRED':
         return 'bg-gray-100 text-gray-800 border border-gray-200';
+      case 'TERMINATED':
+        // SIM "Đã cắt" — màu rose để phân biệt với RETIRED
+        return 'bg-rose-100 text-rose-800 border border-rose-200';
+      case 'LOST':
+        return 'bg-slate-200 text-slate-800 border border-slate-300';
       case 'NEW':
         return 'bg-purple-100 text-purple-800 border border-purple-200';
       default:
@@ -261,7 +362,54 @@ export default function AssetList() {
             Quản lý tất cả tài sản công ty, theo dõi trạng thái và người sử dụng
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 flex flex-wrap gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <button
+            onClick={handleImportClick}
+            disabled={isImporting}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isImporting ? (
+              <>
+                <svg className="animate-spin h-5 w-5 mr-2 text-primary-600" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
+                  <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                </svg>
+                Đang import...
+              </>
+            ) : (
+              <>
+                <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
+                Nhập Excel
+              </>
+            )}
+          </button>
+          <button
+            onClick={handleExportExcel}
+            disabled={isExporting}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isExporting ? (
+              <>
+                <svg className="animate-spin h-5 w-5 mr-2 text-primary-600" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
+                  <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                </svg>
+                Đang xuất...
+              </>
+            ) : (
+              <>
+                <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                Xuất Excel
+              </>
+            )}
+          </button>
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
@@ -272,6 +420,8 @@ export default function AssetList() {
         </div>
       </div>
 
+      {/* Sticky wrapper: Stats + Filters */}
+      <div className="sticky top-16 z-20 -mx-6 px-6 py-4 bg-gray-50/95 backdrop-blur space-y-4">
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -355,6 +505,7 @@ export default function AssetList() {
           />
         </div>
       </div>
+      </div>
 
       {/* Error Message */}
       {error && (
@@ -381,7 +532,7 @@ export default function AssetList() {
             <thead className="bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tên tài sản
+                  Mã thiết bị
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Model
@@ -534,22 +685,25 @@ export default function AssetList() {
                         </div>
                         {/* Row 2: Bàn giao + Thu hồi */}
                         <div className="flex gap-1.5">
-                          <button
-                            onClick={() => handleAssignClick(asset)}
-                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all font-semibold text-xs whitespace-nowrap"
-                            title="Bàn giao người dùng"
-                          >
-                            <UserPlusIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                            <span className="hidden xl:inline">Bàn giao</span>
-                          </button>
-                          <button
-                            onClick={() => handleReturnClick(asset)}
-                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all font-semibold text-xs whitespace-nowrap"
-                            title="Thu hồi về kho"
-                          >
-                            <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                            <span className="hidden xl:inline">Thu hồi</span>
-                          </button>
+                          {!asset.assigned_to_name ? (
+                            <button
+                              onClick={() => handleAssignClick(asset)}
+                              className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all font-semibold text-xs whitespace-nowrap"
+                              title="Bàn giao người dùng"
+                            >
+                              <UserPlusIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="hidden xl:inline">Bàn giao</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleReturnClick(asset)}
+                              className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all font-semibold text-xs whitespace-nowrap"
+                              title="Thu hồi về kho"
+                            >
+                              <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="hidden xl:inline">Thu hồi</span>
+                            </button>
+                          )}
                         </div>
                         {/* Row 3: Xóa full width */}
                         <button
@@ -679,6 +833,15 @@ export default function AssetList() {
           </div>
         </div>
       )}
+
+      {/* Feedback Dialog */}
+      <FeedbackDialog
+        open={!!feedback}
+        variant={feedback?.variant}
+        title={feedback?.title || ''}
+        message={feedback?.message}
+        onClose={() => setFeedback(null)}
+      />
     </div>
   );
 }

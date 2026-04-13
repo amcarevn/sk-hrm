@@ -1,8 +1,9 @@
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { assetsAPI, departmentsAPI, employeesAPI, Asset, positionsAPI } from '../../utils/api';
+import { assetsAPI, departmentsAPI, employeesAPI, Asset, positionsAPI, companyUnitsAPI } from '../../utils/api';
 import { SelectBox, SelectOption } from '../../components/LandingLayout/SelectBox';
+import FeedbackDialog from '../../components/FeedbackDialog';
 
 interface AssetEditModalProps {
   isOpen: boolean;
@@ -42,14 +43,24 @@ const ASSET_STATUSES: SelectOption<string>[] = [
   { value: 'UNDER_MAINTENANCE', label: 'Đang sửa chữa / Bảo hành' },
   { value: 'DAMAGED', label: 'Lỗi / Chờ thanh lý' },
   { value: 'RETIRED', label: 'Đã thanh lý' },
+  { value: 'TERMINATED', label: 'Đã cắt' },
   { value: 'LOST', label: 'Bị mất' },
 ];
 
+// Nhãn riêng cho SIM (cùng enum ASSET_STATUS nhưng ngữ cảnh khác)
+const SIM_STATUSES: SelectOption<string>[] = [
+  { value: 'NEW', label: 'Mới (Chưa kích hoạt)' },
+  { value: 'IN_USE', label: 'Đang sử dụng' },
+  { value: 'UNDER_MAINTENANCE', label: 'Tạm khóa' },
+  { value: 'TERMINATED', label: 'Đã cắt' },
+  { value: 'LOST', label: 'Mất / Hỏng' },
+];
+
 const NETWORK_PROVIDERS: SelectOption<string>[] = [
-  { value: 'Viettel', label: 'Viettel' },
-  { value: 'Vinaphone', label: 'Vinaphone' },
-  { value: 'Mobifone', label: 'Mobifone' },
-  { value: 'Vietnamobile', label: 'Vietnamobile' },
+  { value: 'VIETTEL', label: 'Viettel' },
+  { value: 'VINAPHONE', label: 'Vinaphone' },
+  { value: 'MOBIFONE', label: 'Mobifone' },
+  { value: 'VIETNAMOBILE', label: 'Vietnamobile' },
 ];
 
 const SIM_TYPES: SelectOption<string>[] = [
@@ -68,6 +79,8 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
   const [departments, setDepartments] = useState<SelectOption<string>[]>([]);
   const [employees, setEmployees] = useState<SelectOption<string>[]>([]);
   const [positions, setPositions] = useState<SelectOption<string>[]>([]);
+  const [companyUnits, setCompanyUnits] = useState<SelectOption<string>[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     asset_type: 'LAPTOP',
@@ -96,6 +109,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     region: '',
     position_id: '',
     sim_type: 'PREPAID',
+    sim_company: '',
     // OTHER specific fields
     other_type_name: '',
   });
@@ -135,6 +149,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             region: (specs as any).region || '',
             position_id: (specs as any).position_id ? String((specs as any).position_id) : '',
             sim_type: (specs as any).sim_type || 'PREPAID',
+            sim_company: (specs as any).sim_company ? String((specs as any).sim_company) : '',
             other_type_name: (specs as any).type_name || '',
           });
         })
@@ -166,6 +181,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             region: (specs as any).region || '',
             position_id: (specs as any).position_id ? String((specs as any).position_id) : '',
             sim_type: (specs as any).sim_type || 'PREPAID',
+            sim_company: (specs as any).sim_company ? String((specs as any).sim_company) : '',
             other_type_name: (specs as any).type_name || '',
           });
         })
@@ -175,8 +191,23 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       
       fetchDepartments();
       fetchPositions();
+      fetchCompanyUnits();
     }
   }, [isOpen, asset]);
+
+  const fetchCompanyUnits = async () => {
+    try {
+      const data: any = await companyUnitsAPI.list({ page_size: 200, active_only: true });
+      const list = Array.isArray(data) ? data : (data?.results || []);
+      const options = list.map((unit: any) => ({
+        value: String(unit.id),
+        label: unit.name,
+      }));
+      setCompanyUnits(options);
+    } catch (error) {
+      console.error('Error fetching company units:', error);
+    }
+  };
 
   /**
    * Tự động lọc danh sách Nhân viên mỗi khi Phòng ban quản lý thay đổi
@@ -268,7 +299,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     
     setLoading(true);
     try {
-      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, other_type_name, warranty_period, ...baseData } = formData;
+      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, ...baseData } = formData;
 
       let specifications = {};
       if (formData.asset_type === 'DESKTOP') {
@@ -277,7 +308,8 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
         specifications = { quantity: parseInt(monitor_quantity) || 0 };
       } else if (formData.asset_type === 'SIM') {
         const positionTitle = positions.find(p => p.value === formData.position_id)?.label || '';
-        specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type };
+        const simCompanyName = companyUnits.find(c => c.value === sim_company)?.label || '';
+        specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type, sim_company, sim_company_name: simCompanyName };
       } else if (formData.asset_type === 'OTHER') {
         specifications = { type_name: other_type_name };
       }
@@ -301,9 +333,9 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating asset:', error);
-      alert('Có lỗi xảy ra khi cập nhật tài sản. Vui lòng kiểm tra lại.');
+      setErrorMessage(error.response?.data?.error || error.message || 'Có lỗi xảy ra khi cập nhật tài sản. Vui lòng kiểm tra lại.');
     } finally {
       setLoading(false);
     }
@@ -365,15 +397,15 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="Nhập mã thiết bị (VD: TA0123...)" />
                         </div>
 
-                        {/* Thay đổi Loại tài sản thành Tên tài sản */}
+                        {/* Phân loại asset */}
                         <SelectBox
-                          label="Tên tài sản (Phân loại)"
+                          label="Phân loại"
                           value={formData.asset_type}
                           options={ASSET_TYPES}
                           onChange={(val) => handleSelectChange('asset_type', val)}
                         />
 
-                        {/* Tình trạng */}
+                        {/* Tình trạng (Vật lý) — SIM dùng chung choices với asset khác */}
                         <SelectBox
                           label="Tình trạng (Vật lý)"
                           value={formData.condition}
@@ -381,11 +413,11 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           onChange={(val) => handleSelectChange('condition', val)}
                         />
 
-                        {/* Trạng thái */}
+                        {/* Trạng thái (Vận hành) — SIM dùng nhãn riêng (Mới chưa kích hoạt/Đang sử dụng/Tạm khóa/Đã cắt/Mất) */}
                         <SelectBox
-                          label="Trạng thái (Vận hành)"
+                          label={formData.asset_type === 'SIM' ? 'Trạng thái Sim' : 'Trạng thái (Vận hành)'}
                           value={formData.status}
-                          options={ASSET_STATUSES}
+                          options={formData.asset_type === 'SIM' ? SIM_STATUSES : ASSET_STATUSES}
                           onChange={(val) => handleSelectChange('status', val)}
                         />
 
@@ -509,6 +541,15 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                               placeholder="-- Chọn vị trí --"
                               searchable
                             />
+
+                            <SelectBox
+                              label="Công ty"
+                              value={(formData as any).sim_company}
+                              options={companyUnits}
+                              onChange={(val) => handleSelectChange('sim_company', val)}
+                              placeholder="-- Chọn công ty --"
+                              searchable
+                            />
                           </div>
                         )}
 
@@ -605,6 +646,14 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
           </div>
         </div>
       </Dialog>
+
+      <FeedbackDialog
+        open={!!errorMessage}
+        variant="error"
+        title="Không thể cập nhật tài sản"
+        message={errorMessage || ''}
+        onClose={() => setErrorMessage(null)}
+      />
     </Transition>
   );
 }

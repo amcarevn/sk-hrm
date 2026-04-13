@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react';
-import { assetsAPI, Asset } from '../../utils/api';
-import { ComputerDesktopIcon, EyeIcon, ShieldCheckIcon, ArrowPathRoundedSquareIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { assetsAPI, Asset, AssetAssignmentHistory } from '../../utils/api';
+import {
+  ComputerDesktopIcon,
+  EyeIcon,
+  ShieldCheckIcon,
+  ArrowPathRoundedSquareIcon,
+  SparklesIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  UserIcon,
+  CalendarIcon,
+} from '@heroicons/react/24/outline';
 import AssetDetailModal from './AssetDetailModal';
+import FeedbackDialog, { FeedbackVariant } from '../../components/FeedbackDialog';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -77,9 +89,58 @@ export default function AssignedAssetList() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
 
+  const [pendingHandovers, setPendingHandovers] = useState<AssetAssignmentHistory[]>([]);
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [rejectingHistory, setRejectingHistory] = useState<AssetAssignmentHistory | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [feedback, setFeedback] = useState<{ variant: FeedbackVariant; title: string; message?: string } | null>(null);
+  const [returnNotice, setReturnNotice] = useState<AssetAssignmentHistory | null>(null);
+
   useEffect(() => {
     fetchAssignedAssets();
+    fetchPendingHandovers();
+    checkRecentReturns();
   }, []);
+
+  const RETURN_ACK_STORAGE_KEY = 'asset_return_acknowledged_ids';
+
+  const getAcknowledgedIds = (): number[] => {
+    try {
+      const raw = localStorage.getItem(RETURN_ACK_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const acknowledgeReturnId = (id: number) => {
+    try {
+      const existing = new Set(getAcknowledgedIds());
+      existing.add(id);
+      localStorage.setItem(RETURN_ACK_STORAGE_KEY, JSON.stringify([...existing].slice(-200)));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const checkRecentReturns = async () => {
+    try {
+      const data = await assetsAPI.recentReturns(7);
+      const list = Array.isArray(data) ? data : [];
+      const acked = new Set(getAcknowledgedIds());
+      const firstUnseen = list.find((h) => !acked.has(h.id));
+      if (firstUnseen) setReturnNotice(firstUnseen);
+    } catch (err) {
+      console.error('Error fetching recent returns:', err);
+    }
+  };
+
+  const handleAcknowledgeReturn = () => {
+    if (returnNotice) acknowledgeReturnId(returnNotice.id);
+    setReturnNotice(null);
+    // Check for the next unseen return (if manager returned multiple assets)
+    setTimeout(checkRecentReturns, 100);
+  };
 
   const fetchAssignedAssets = async () => {
     try {
@@ -92,6 +153,73 @@ export default function AssignedAssetList() {
       setError('Không thể tải danh sách tài sản. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPendingHandovers = async () => {
+    try {
+      const data = await assetsAPI.pendingHandovers();
+      setPendingHandovers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error fetching pending handovers:', err);
+      setPendingHandovers([]);
+    }
+  };
+
+  const handleConfirmHandover = async (history: AssetAssignmentHistory) => {
+    setActionLoadingId(history.id);
+    try {
+      await assetsAPI.confirmHandover(history.asset);
+      await Promise.all([fetchAssignedAssets(), fetchPendingHandovers()]);
+      setFeedback({
+        variant: 'success',
+        title: 'Đã xác nhận nhận máy',
+        message: `Tài sản [${history.asset_code}] ${history.asset_name} đã được ghi nhận vào danh sách thiết bị bạn đang sử dụng.`,
+      });
+    } catch (err: any) {
+      console.error(err);
+      setFeedback({
+        variant: 'error',
+        title: 'Không thể xác nhận',
+        message: err.response?.data?.error || 'Đã có lỗi xảy ra. Vui lòng thử lại.',
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const openRejectDialog = (history: AssetAssignmentHistory) => {
+    setRejectingHistory(history);
+    setRejectionReason('');
+  };
+
+  const closeRejectDialog = () => {
+    setRejectingHistory(null);
+    setRejectionReason('');
+  };
+
+  const handleRejectHandover = async () => {
+    if (!rejectingHistory) return;
+    const rejected = rejectingHistory;
+    setActionLoadingId(rejected.id);
+    try {
+      await assetsAPI.rejectHandover(rejected.asset, rejectionReason.trim());
+      await Promise.all([fetchAssignedAssets(), fetchPendingHandovers()]);
+      closeRejectDialog();
+      setFeedback({
+        variant: 'success',
+        title: 'Đã từ chối nhận máy',
+        message: `Yêu cầu bàn giao tài sản [${rejected.asset_code}] ${rejected.asset_name} đã được ghi nhận là từ chối.`,
+      });
+    } catch (err: any) {
+      console.error(err);
+      setFeedback({
+        variant: 'error',
+        title: 'Không thể gửi từ chối',
+        message: err.response?.data?.error || 'Đã có lỗi xảy ra. Vui lòng thử lại.',
+      });
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -140,6 +268,84 @@ export default function AssignedAssetList() {
         </div>
       </div>
 
+      {/* Pending handovers section */}
+      {pendingHandovers.length > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-2">
+            <ClockIcon className="h-5 w-5 text-amber-600" />
+            <h2 className="text-base font-bold text-amber-900">
+              Bàn giao chờ xác nhận
+              <span className="ml-2 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900">
+                {pendingHandovers.length}
+              </span>
+            </h2>
+          </div>
+          <p className="mb-3 text-xs italic text-amber-700">
+            Bạn có {pendingHandovers.length} yêu cầu bàn giao tài sản đang chờ phản hồi. Hãy xác nhận khi bạn đã nhận máy vật lý, hoặc từ chối nếu có vấn đề.
+          </p>
+          <div className="space-y-3">
+            {pendingHandovers.map((h) => {
+              const isBusy = actionLoadingId === h.id;
+              return (
+                <div key={h.id} className="rounded-lg border border-amber-200 bg-white p-4 shadow-sm">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-bold text-gray-900">
+                          [{h.asset_code}] {h.asset_name}
+                        </span>
+                        <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200 uppercase tracking-tight">
+                          Chờ xác nhận
+                        </span>
+                      </div>
+                      <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
+                        <div className="flex items-center gap-1.5">
+                          <UserIcon className="h-3.5 w-3.5 text-gray-400" />
+                          <span className="text-gray-500">Người bàn giao:</span>
+                          <span className="font-semibold text-gray-800">
+                            {h.assigned_by_name || '—'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <CalendarIcon className="h-3.5 w-3.5 text-gray-400" />
+                          <span className="text-gray-500">Ngày bàn giao:</span>
+                          <span className="font-semibold text-gray-800">
+                            {formatDate(h.assigned_date)}
+                          </span>
+                        </div>
+                      </div>
+                      {h.assignment_notes && (
+                        <p className="mt-2 rounded border border-amber-100 bg-amber-50/50 px-2 py-1 text-xs italic text-amber-800">
+                          📝 {h.assignment_notes}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-row gap-2 sm:flex-col">
+                      <button
+                        onClick={() => handleConfirmHandover(h)}
+                        disabled={isBusy}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:bg-emerald-300 transition-all active:scale-95"
+                      >
+                        <CheckCircleIcon className="h-4 w-4" />
+                        {isBusy ? 'Đang xử lý...' : 'Xác nhận nhận máy'}
+                      </button>
+                      <button
+                        onClick={() => openRejectDialog(h)}
+                        disabled={isBusy}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 shadow-sm hover:bg-red-100 disabled:opacity-50 transition-all active:scale-95"
+                      >
+                        <XCircleIcon className="h-4 w-4" />
+                        Từ chối
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Search */}
       <div className="mb-4">
         <input
@@ -162,7 +368,7 @@ export default function AssignedAssetList() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Tên tài sản</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Mã thiết bị</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Model</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Loại tài sản</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Trạng thái vận hành</th>
@@ -326,6 +532,98 @@ export default function AssignedAssetList() {
         onClose={() => { setIsDetailModalOpen(false); setSelectedAsset(null); }}
         asset={selectedAsset}
       />
+
+      {/* Feedback Dialog */}
+      <FeedbackDialog
+        open={!!feedback}
+        variant={feedback?.variant}
+        title={feedback?.title || ''}
+        message={feedback?.message}
+        onClose={() => setFeedback(null)}
+      />
+
+      {/* Return-notice dialog — hiện khi manager đã thu hồi tài sản của current user */}
+      <FeedbackDialog
+        open={!!returnNotice}
+        variant="info"
+        title="Thiết bị đã được thu hồi"
+        message={
+          returnNotice
+            ? `Tài sản [${returnNotice.asset_code}] ${returnNotice.asset_name} đã được thu hồi${
+                returnNotice.returned_date
+                  ? ` ngày ${new Date(returnNotice.returned_date).toLocaleDateString('vi-VN')}`
+                  : ''
+              }${
+                returnNotice.return_notes ? `\n\nGhi chú thu hồi: ${returnNotice.return_notes}` : ''
+              }${
+                returnNotice.return_condition_display
+                  ? `\nTình trạng khi trả: ${returnNotice.return_condition_display}`
+                  : ''
+              }`
+            : ''
+        }
+        okLabel="Đã xem"
+        onClose={handleAcknowledgeReturn}
+      />
+
+      {/* Reject reason dialog */}
+      {rejectingHistory && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm"
+              onClick={closeRejectDialog}
+            />
+            <div className="relative w-full max-w-md transform rounded-2xl bg-white p-6 text-left shadow-2xl">
+              <div className="sm:flex sm:items-start">
+                <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <XCircleIcon className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="mt-3 flex-1 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                  <h3 className="text-base font-bold leading-6 text-gray-900">
+                    Từ chối nhận máy
+                  </h3>
+                  <div className="mt-2 space-y-2 text-sm text-gray-600">
+                    <p>
+                      Bạn đang từ chối bàn giao tài sản{' '}
+                      <span className="font-semibold text-gray-900">
+                        [{rejectingHistory.asset_code}] {rejectingHistory.asset_name}
+                      </span>.
+                    </p>
+                    <p className="text-xs italic text-gray-500">
+                      Vui lòng cho biết lý do (không bắt buộc) để quản lý kho nắm thông tin.
+                    </p>
+                  </div>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    rows={3}
+                    placeholder="VD: Máy bị trầy xước nặng, thiếu phụ kiện..."
+                    className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  />
+                </div>
+              </div>
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row-reverse">
+                <button
+                  type="button"
+                  disabled={actionLoadingId === rejectingHistory.id}
+                  onClick={handleRejectHandover}
+                  className="inline-flex w-full justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 disabled:bg-red-300 transition-all active:scale-95 sm:w-auto"
+                >
+                  {actionLoadingId === rejectingHistory.id ? 'Đang gửi...' : 'Xác nhận từ chối'}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeRejectDialog}
+                  className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto"
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

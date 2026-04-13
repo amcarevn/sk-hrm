@@ -1,8 +1,9 @@
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { assetsAPI, departmentsAPI, employeesAPI, positionsAPI } from '../../utils/api';
+import { assetsAPI, departmentsAPI, employeesAPI, positionsAPI, companyUnitsAPI } from '../../utils/api';
 import { SelectBox, SelectOption } from '../../components/LandingLayout/SelectBox';
+import FeedbackDialog from '../../components/FeedbackDialog';
 
 interface AssetCreateModalProps {
   isOpen: boolean;
@@ -35,10 +36,10 @@ const ASSET_CONDITIONS: SelectOption<string>[] = [
 ];
 
 const NETWORK_PROVIDERS: SelectOption<string>[] = [
-  { value: 'Viettel', label: 'Viettel' },
-  { value: 'Vinaphone', label: 'Vinaphone' },
-  { value: 'Mobifone', label: 'Mobifone' },
-  { value: 'Vietnamobile', label: 'Vietnamobile' },
+  { value: 'VIETTEL', label: 'Viettel' },
+  { value: 'VINAPHONE', label: 'Vinaphone' },
+  { value: 'MOBIFONE', label: 'Mobifone' },
+  { value: 'VIETNAMOBILE', label: 'Vietnamobile' },
 ];
 
 const SIM_TYPES: SelectOption<string>[] = [
@@ -57,6 +58,8 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
   const [departments, setDepartments] = useState<SelectOption<string>[]>([]);
   const [employees, setEmployees] = useState<SelectOption<string>[]>([]);
   const [positions, setPositions] = useState<SelectOption<string>[]>([]);
+  const [companyUnits, setCompanyUnits] = useState<SelectOption<string>[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     asset_type: 'LAPTOP',
@@ -82,6 +85,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     region: '',
     position_id: '',
     sim_type: 'PREPAID',
+    sim_company: '',
     // MONITOR specific fields
     monitor_quantity: '',
     // OTHER specific fields
@@ -95,6 +99,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     if (isOpen) {
       fetchDepartments();
       fetchPositions();
+      fetchCompanyUnits();
     }
   }, [isOpen]);
 
@@ -131,6 +136,20 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       }
     } catch (error) {
       console.error('Error fetching departments:', error);
+    }
+  };
+
+  const fetchCompanyUnits = async () => {
+    try {
+      const data: any = await companyUnitsAPI.list({ page_size: 200, active_only: true });
+      const list = Array.isArray(data) ? data : (data?.results || []);
+      const options = list.map((unit: any) => ({
+        value: String(unit.id),
+        label: unit.name,
+      }));
+      setCompanyUnits(options);
+    } catch (error) {
+      console.error('Error fetching company units:', error);
     }
   };
 
@@ -213,7 +232,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     setLoading(true);
     try {
       // Split technical specs into a separate object if it's a Desktop
-      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, other_type_name, warranty_period, ...baseData } = formData;
+      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, ...baseData } = formData;
 
       let specifications = {};
       if (formData.asset_type === 'DESKTOP') {
@@ -222,7 +241,8 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         specifications = { quantity: parseInt(monitor_quantity) || 0 };
       } else if (formData.asset_type === 'SIM') {
         const positionTitle = positions.find(p => p.value === formData.position_id)?.label || '';
-        specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type };
+        const simCompanyName = companyUnits.find(c => c.value === sim_company)?.label || '';
+        specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type, sim_company, sim_company_name: simCompanyName };
       } else if (formData.asset_type === 'OTHER') {
         specifications = { type_name: other_type_name };
       }
@@ -271,11 +291,12 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         region: '',
         position_id: '',
         sim_type: 'PREPAID',
+        sim_company: '',
         other_type_name: '',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating asset:', error);
-      alert('Có lỗi xảy ra khi thêm tài sản. Vui lòng kiểm tra lại.');
+      setErrorMessage(error.response?.data?.error || error.message || 'Có lỗi xảy ra khi thêm tài sản. Vui lòng kiểm tra lại.');
     } finally {
       setLoading(false);
     }
@@ -425,6 +446,14 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                                   options={positions}
                                   onChange={(val) => handleSelectChange('position_id', val)}
                                   placeholder="-- Chọn vị trí --"
+                                  searchable
+                                />
+                                <SelectBox
+                                  label="Công ty"
+                                  value={formData.sim_company}
+                                  options={companyUnits}
+                                  onChange={(val) => handleSelectChange('sim_company', val)}
+                                  placeholder="-- Chọn công ty --"
                                   searchable
                                 />
                               </div>
@@ -623,6 +652,14 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
           </div>
         </div>
       </Dialog>
+
+      <FeedbackDialog
+        open={!!errorMessage}
+        variant="error"
+        title="Không thể thêm tài sản"
+        message={errorMessage || ''}
+        onClose={() => setErrorMessage(null)}
+      />
     </Transition>
   );
 }

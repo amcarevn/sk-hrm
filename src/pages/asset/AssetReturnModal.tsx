@@ -1,8 +1,9 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Asset, assetsAPI } from '../../utils/api';
 import { SelectBox } from '../../components/LandingLayout/SelectBox';
+import FeedbackDialog from '../../components/FeedbackDialog';
 
 interface AssetReturnModalProps {
   isOpen: boolean;
@@ -21,6 +22,9 @@ const ASSET_CONDITIONS = [
 
 export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: AssetReturnModalProps) {
   const [loading, setLoading] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [returnedFromName, setReturnedFromName] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     return_date: new Date().toISOString().split('T')[0],
     condition: 'GOOD',
@@ -56,18 +60,25 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
         condition: formData.condition,
         notes: formData.notes,
       });
-      onSuccess();
-      onClose();
-    } catch (error) {
+      setReturnedFromName(asset.assigned_to_name || '');
+      setShowSuccessDialog(true);
+    } catch (error: any) {
       console.error('Error returning asset:', error);
-      alert('Có lỗi xảy ra khi thu hồi tài sản. Vui lòng kiểm tra lại.');
+      setErrorMessage(error.response?.data?.error || 'Có lỗi xảy ra khi thu hồi tài sản. Vui lòng kiểm tra lại.');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCloseSuccess = () => {
+    setShowSuccessDialog(false);
+    onSuccess();
+    onClose();
+  };
+
   return (
-    <Transition show={isOpen} as={Fragment}>
+    <>
+    <Transition show={isOpen && !showSuccessDialog} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
         <TransitionChild
           as={Fragment}
@@ -172,5 +183,81 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
         </div>
       </Dialog>
     </Transition>
+
+    {/* Error feedback dialog */}
+    <FeedbackDialog
+      open={!!errorMessage}
+      variant="error"
+      title="Không thể thu hồi tài sản"
+      message={errorMessage || ''}
+      onClose={() => setErrorMessage(null)}
+    />
+
+    {/* Success dialog sau khi thu hồi thành công */}
+    <Transition show={showSuccessDialog} as={Fragment}>
+        <Dialog as="div" className="relative z-[60]" onClose={handleCloseSuccess}>
+          <TransitionChild
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" />
+          </TransitionChild>
+
+          <div className="fixed inset-0 z-10 overflow-y-auto">
+            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+              <TransitionChild
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              >
+                <DialogPanel className="relative transform overflow-hidden rounded-2xl bg-white p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <CheckCircleIcon className="h-6 w-6 text-emerald-600" />
+                    </div>
+                    <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                      <DialogTitle as="h3" className="text-base font-bold leading-6 text-gray-900">
+                        Tài sản đã được thu hồi
+                      </DialogTitle>
+                      <div className="mt-3 space-y-2 text-sm text-gray-600">
+                        <p>
+                          Tài sản <span className="font-semibold text-gray-900">[{asset.asset_code}] {asset.name}</span>
+                          {returnedFromName ? (
+                            <> đã được thu hồi từ <span className="font-semibold text-gray-900">{returnedFromName}</span> về kho.</>
+                          ) : (
+                            <> đã được thu hồi về kho.</>
+                          )}
+                        </p>
+                        <p className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-xs text-emerald-800">
+                          Trạng thái hiện tại: <strong>Sẵn dùng (Trong kho)</strong>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-6 sm:flex sm:flex-row-reverse">
+                    <button
+                      type="button"
+                      className="inline-flex w-full justify-center rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition-all active:scale-95 sm:w-auto"
+                      onClick={handleCloseSuccess}
+                    >
+                      OK
+                    </button>
+                  </div>
+                </DialogPanel>
+              </TransitionChild>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+    </>
   );
 }
