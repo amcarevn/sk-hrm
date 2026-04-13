@@ -634,6 +634,8 @@ export interface Asset {
   deleted_at?: string;
 }
 
+export type AssetAssignmentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED' | 'RETURNED';
+
 export interface AssetAssignmentHistory {
   id: number;
   asset: number;
@@ -642,15 +644,20 @@ export interface AssetAssignmentHistory {
   assigned_to: number;
   assigned_to_name: string;
   assigned_date: string;
-  assigned_condition: string;
-  assigned_condition_display: string;
-  assigned_notes?: string;
-  returned_date?: string;
-  returned_condition?: string;
-  returned_condition_display?: string;
-  returned_notes?: string;
+  returned_date?: string | null;
+  status: AssetAssignmentStatus;
+  status_display: string;
+  confirmed_at?: string | null;
+  rejected_at?: string | null;
+  rejection_reason?: string | null;
+  return_condition?: string | null;
+  return_condition_display?: string | null;
+  return_notes?: string | null;
+  assignment_notes?: string | null;
+  assigned_by?: number | null;
+  assigned_by_name?: string | null;
   created_at: string;
-  updated_at: string;
+  duration_days?: number | null;
 }
 
 export interface AssetMaintenance {

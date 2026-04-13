@@ -74,8 +74,74 @@ export const assetsAPI = {
     assigned_date?: string;
     notes?: string;
     force?: boolean;
-  }): Promise<Asset> => {
-    const response: AxiosResponse<Asset> = await managementApi.post(`/api-hrm/assets/${id}/assign/`, data);
+    override_pending?: boolean;
+  }): Promise<AssetAssignmentHistory> => {
+    const response: AxiosResponse<AssetAssignmentHistory> = await managementApi.post(`/api-hrm/assets/${id}/assign/`, data);
+    return response.data;
+  },
+
+  confirmHandover: async (id: number): Promise<AssetAssignmentHistory> => {
+    const response: AxiosResponse<AssetAssignmentHistory> = await managementApi.post(`/api-hrm/assets/${id}/confirm_handover/`);
+    return response.data;
+  },
+
+  rejectHandover: async (id: number, rejection_reason?: string): Promise<AssetAssignmentHistory> => {
+    const response: AxiosResponse<AssetAssignmentHistory> = await managementApi.post(
+      `/api-hrm/assets/${id}/reject_handover/`,
+      { rejection_reason: rejection_reason || '' },
+    );
+    return response.data;
+  },
+
+  pendingHandovers: async (): Promise<AssetAssignmentHistory[]> => {
+    const response: AxiosResponse<AssetAssignmentHistory[]> = await managementApi.get('/api-hrm/assets/pending_handovers/');
+    return response.data;
+  },
+
+  recentReturns: async (days = 7): Promise<AssetAssignmentHistory[]> => {
+    const response: AxiosResponse<AssetAssignmentHistory[]> = await managementApi.get(
+      `/api-hrm/assets/recent_returns/?days=${days}`,
+    );
+    return response.data;
+  },
+
+  exportExcel: async (params?: {
+    search?: string;
+    asset_type?: string;
+    status?: string;
+    condition?: string;
+  }): Promise<Blob> => {
+    const response = await managementApi.get('/api-hrm/assets/export_excel/', {
+      params,
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  bulkImportExcel: async (file: File): Promise<{
+    sheet: string;
+    data_rows: number;
+    created: number;
+    updated: number;
+    failed_count: number;
+    failed: Array<{ row: number; messages: string[] }>;
+    details: Array<{
+      row: number;
+      action: 'created' | 'updated';
+      asset_code: string;
+      name: string;
+      asset_type: string;
+      handover_to: string | null;
+      warnings: string[];
+    }>;
+  }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await managementApi.post(
+      '/api-hrm/assets/bulk_import_excel/',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
     return response.data;
   },
 

@@ -1,7 +1,7 @@
-import React, { Fragment } from 'react';
+import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { XMarkIcon, ComputerDesktopIcon, CalendarIcon, UserIcon, BuildingOfficeIcon, ShieldCheckIcon, ShoppingBagIcon, CpuChipIcon, ServerStackIcon, Square3Stack3DIcon, CircleStackIcon, DeviceTabletIcon, BoltIcon, ArrowUturnLeftIcon, IdentificationIcon, TagIcon, BuildingStorefrontIcon, SparklesIcon } from '@heroicons/react/24/outline';
-import { Asset } from '../../utils/api';
+import { XMarkIcon, ComputerDesktopIcon, CalendarIcon, UserIcon, BuildingOfficeIcon, ShieldCheckIcon, ShoppingBagIcon, CpuChipIcon, ServerStackIcon, Square3Stack3DIcon, CircleStackIcon, DeviceTabletIcon, BoltIcon, ArrowUturnLeftIcon, IdentificationIcon, TagIcon, BuildingStorefrontIcon, SparklesIcon, ClockIcon, UserPlusIcon, XCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { Asset, AssetAssignmentHistory, positionsAPI, assetsAPI } from '../../utils/api';
 
 interface AssetDetailModalProps {
   isOpen: boolean;
@@ -12,10 +12,54 @@ interface AssetDetailModalProps {
 export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetailModalProps) {
   if (!asset) return null;
 
-  const formatDate = (dateString?: string) => {
+  const [positionName, setPositionName] = useState<string>('');
+  const [history, setHistory] = useState<AssetAssignmentHistory[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    const posId = (asset?.specifications as any)?.position_id;
+    if (isOpen && asset?.asset_type === 'SIM' && posId) {
+      positionsAPI.list({ page_size: 200 })
+        .then(data => {
+          const found = (data.results || []).find((p: any) => String(p.id) === String(posId));
+          setPositionName(found?.title || String(posId));
+        })
+        .catch(() => setPositionName(String(posId)));
+    } else {
+      setPositionName('');
+    }
+  }, [isOpen, asset]);
+
+  useEffect(() => {
+    if (isOpen && asset?.id) {
+      setHistoryLoading(true);
+      assetsAPI.assignmentHistory(asset.id, { page_size: 50 })
+        .then((data: any) => {
+          const list = Array.isArray(data) ? data : (data?.results || []);
+          const sorted = [...list].sort((a, b) => {
+            const da = new Date(a.assigned_date || a.created_at || 0).getTime();
+            const db = new Date(b.assigned_date || b.created_at || 0).getTime();
+            return db - da;
+          });
+          setHistory(sorted);
+        })
+        .catch((err) => {
+          console.error('Error fetching assignment history:', err);
+          setHistory([]);
+        })
+        .finally(() => setHistoryLoading(false));
+    } else {
+      setHistory([]);
+    }
+  }, [isOpen, asset?.id]);
+
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
+
+  // Label chung cho mọi loại tài sản
+  const receivedDateLabel = (_assetType?: string) => 'Nhận tài sản ngày';
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -134,7 +178,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                           <BuildingStorefrontIcon className="h-4 w-4 text-blue-500" />
                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Thương hiệu</span>
                         </div>
-                        <p className="text-sm font-bold text-gray-900">{asset.brand || '-'}</p>
+                        <p className="text-sm font-bold text-gray-900">{asset.brand || ''}</p>
                       </div>
 
                       {/* Model */}
@@ -143,7 +187,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                           <ComputerDesktopIcon className="h-4 w-4 text-indigo-500" />
                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Model thiết bị</span>
                         </div>
-                        <p className="text-sm font-bold text-gray-900">{asset.model || '-'}</p>
+                        <p className="text-sm font-bold text-gray-900">{asset.model || ''}</p>
                       </div>
 
                       {/* Tình trạng vật lý */}
@@ -170,14 +214,25 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                           </div>
                           <div className="flex-1">
                             <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Người đang sử dụng</p>
-                            {asset.assigned_to ? (
+                            {asset.assigned_to_name ? (
                               <>
                                 <p className="text-base font-bold text-gray-900">{asset.assigned_to_name}</p>
                                 <p className="text-sm text-emerald-700">{asset.assigned_to_department_name || 'Phòng ban: -'}</p>
                                 <div className="mt-2 flex items-center text-xs text-emerald-600 font-medium">
                                   <CalendarIcon className="h-3 w-3 mr-1" />
-                                  Nhận máy ngày: {formatDate(asset.assigned_date)}
+                                  {receivedDateLabel(asset.asset_type)}: {formatDate(asset.assigned_date)}
                                 </div>
+                                {(() => {
+                                  const currentHandover = history.find(
+                                    (h) => h.status === 'CONFIRMED' && h.assigned_to_name === asset.assigned_to_name,
+                                  );
+                                  return currentHandover?.assignment_notes ? (
+                                    <div className="mt-2 rounded-lg bg-white/70 border border-emerald-100 px-2 py-1.5">
+                                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Ghi chú bàn giao</p>
+                                      <p className="text-xs italic text-emerald-900 leading-relaxed">{currentHandover.assignment_notes}</p>
+                                    </div>
+                                  ) : null;
+                                })()}
                               </>
                             ) : (
                               <p className="text-sm font-medium text-gray-500 italic">Chưa bàn giao cho nhân viên</p>
@@ -199,6 +254,17 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                                 {asset.status_display}
                               </span>
                             </div>
+                            {(() => {
+                              const currentHandover = history.find(
+                                (h) => h.status === 'CONFIRMED' && h.assigned_to_name === asset.assigned_to_name,
+                              );
+                              return currentHandover?.assignment_notes ? (
+                                <div className="mt-2 rounded-lg bg-white/80 border border-slate-200 px-2 py-1.5">
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Ghi chú bàn giao</p>
+                                  <p className="text-xs italic text-slate-700 leading-relaxed">{currentHandover.assignment_notes}</p>
+                                </div>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -336,7 +402,8 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                     {asset.asset_type === 'SIM' && asset.specifications && (
                       <div className="md:col-span-2 space-y-4">
                         <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Thông tin SIM</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {/* Số điện thoại */}
                           <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
                             <div className="bg-green-100 p-2 rounded-lg">
                               <BoltIcon className="h-5 w-5 text-green-600" />
@@ -346,6 +413,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                               <p className="text-sm font-bold text-gray-900">{(asset.specifications as any).phone_number || '-'}</p>
                             </div>
                           </div>
+                          {/* Nhà mạng */}
                           <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
                             <div className="bg-green-100 p-2 rounded-lg">
                               <BuildingOfficeIcon className="h-5 w-5 text-green-600" />
@@ -355,6 +423,73 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                               <p className="text-sm font-bold text-gray-900">{(asset.specifications as any).network_provider || '-'}</p>
                             </div>
                           </div>
+                          {/* Phân loại Sim */}
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <TagIcon className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Phân loại Sim</p>
+                              <p className="text-sm font-bold text-gray-900">
+                                {(asset.specifications as any).sim_type === 'PREPAID' ? 'Trả trước'
+                                  : (asset.specifications as any).sim_type === 'POSTPAID' ? 'Trả sau'
+                                  : '-'}
+                              </p>
+                            </div>
+                          </div>
+                          {/* Bác sĩ */}
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <UserIcon className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Bác sĩ</p>
+                              <p className="text-sm font-bold text-gray-900">{(asset.specifications as any).doctor || '-'}</p>
+                            </div>
+                          </div>
+                          {/* Vùng miền */}
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <BuildingOfficeIcon className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Vùng miền</p>
+                              <p className="text-sm font-bold text-gray-900">
+                                {(asset.specifications as any).region === 'MIEN_BAC' ? 'Miền Bắc'
+                                  : (asset.specifications as any).region === 'MIEN_TRUNG' ? 'Miền Trung'
+                                  : (asset.specifications as any).region === 'MIEN_NAM' ? 'Miền Nam'
+                                  : (asset.specifications as any).region || '-'}
+                              </p>
+                            </div>
+                          </div>
+                          {/* Vị trí (Chức vụ) */}
+                          {(asset.specifications as any).position_id && (
+                            <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                              <div className="bg-green-100 p-2 rounded-lg">
+                                <IdentificationIcon className="h-5 w-5 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Vị trí (Chức vụ)</p>
+                                <p className="text-sm font-bold text-gray-900">
+                                  {positionName || (asset.specifications as any).position_id}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          {/* Công ty (Đơn vị làm việc) */}
+                          {((asset.specifications as any).sim_company_name || (asset.specifications as any).sim_company) && (
+                            <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                              <div className="bg-green-100 p-2 rounded-lg">
+                                <BuildingOfficeIcon className="h-5 w-5 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Công ty</p>
+                                <p className="text-sm font-bold text-gray-900">
+                                  {(asset.specifications as any).sim_company_name || (asset.specifications as any).sim_company}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -378,6 +513,16 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                           </div>
                         </div>
 
+                        {(asset as any).warranty_period && (
+                          <div className="flex items-start space-x-3">
+                            <ShieldCheckIcon className="h-5 w-5 text-green-500 mt-0.5" />
+                            <div>
+                              <p className="text-xs text-gray-500">Thời hạn bảo hành</p>
+                              <p className="text-sm font-bold text-gray-900">{(asset as any).warranty_period} tháng</p>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex items-start space-x-3">
                           <ShieldCheckIcon className="h-5 w-5 text-red-500 mt-0.5" />
                           <div>
@@ -387,6 +532,173 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                         </div>
                       </div>
                     </div>
+
+                    {/* Assignment History Section */}
+                    <div className="md:col-span-2 space-y-4 mt-2">
+                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
+                        Lịch sử bàn giao & thu hồi
+                        {!historyLoading && history.length > 0 && (
+                          <span className="ml-auto text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                            {history.length} bản ghi
+                          </span>
+                        )}
+                      </h4>
+
+                      {historyLoading ? (
+                        <div className="text-center py-6 text-sm text-gray-500">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto mb-2"></div>
+                          Đang tải lịch sử...
+                        </div>
+                      ) : history.length === 0 ? (
+                        <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                          <ClockIcon className="h-8 w-8 text-gray-300 mx-auto mb-1" />
+                          <p className="text-sm text-gray-500 italic">Chưa có lịch sử bàn giao</p>
+                        </div>
+                      ) : (
+                        <ol className="relative border-l-2 border-primary-100 ml-3 space-y-5">
+                          {history.map((h) => {
+                            const statusConfig = (() => {
+                              switch (h.status) {
+                                case 'PENDING':
+                                  return {
+                                    label: 'Chờ xác nhận',
+                                    dotBg: 'bg-amber-500',
+                                    panelBg: 'bg-amber-50/50 border-amber-100',
+                                    badge: 'bg-amber-100 text-amber-800',
+                                    iconColor: 'text-amber-600',
+                                    Icon: ClockIcon,
+                                  };
+                                case 'REJECTED':
+                                  return {
+                                    label: 'Từ chối nhận',
+                                    dotBg: 'bg-red-500',
+                                    panelBg: 'bg-red-50/50 border-red-100',
+                                    badge: 'bg-red-100 text-red-800',
+                                    iconColor: 'text-red-600',
+                                    Icon: XCircleIcon,
+                                  };
+                                case 'CANCELLED':
+                                  return {
+                                    label: 'Đã hủy',
+                                    dotBg: 'bg-gray-400',
+                                    panelBg: 'bg-gray-50/70 border-gray-200',
+                                    badge: 'bg-gray-200 text-gray-700',
+                                    iconColor: 'text-gray-500',
+                                    Icon: XCircleIcon,
+                                  };
+                                case 'RETURNED':
+                                  return {
+                                    label: 'Đã thu hồi',
+                                    dotBg: 'bg-amber-500',
+                                    panelBg: 'bg-amber-50/50 border-amber-100',
+                                    badge: 'bg-amber-100 text-amber-700',
+                                    iconColor: 'text-amber-600',
+                                    Icon: ArrowUturnLeftIcon,
+                                  };
+                                case 'CONFIRMED':
+                                default:
+                                  return {
+                                    label: h.status === 'CONFIRMED' ? 'Đã nhận' : (h.status_display || 'Đang giữ'),
+                                    dotBg: 'bg-emerald-500',
+                                    panelBg: 'bg-emerald-50/50 border-emerald-100',
+                                    badge: 'bg-emerald-100 text-emerald-700',
+                                    iconColor: 'text-emerald-600',
+                                    Icon: h.status === 'CONFIRMED' ? CheckCircleIcon : UserPlusIcon,
+                                  };
+                              }
+                            })();
+                            const { Icon, label, dotBg, panelBg, badge, iconColor } = statusConfig;
+                            const formatDateTime = (iso?: string | null) => {
+                              if (!iso) return 'N/A';
+                              return new Date(iso).toLocaleString('vi-VN');
+                            };
+                            return (
+                              <li key={h.id} className="ml-5">
+                                <span className={`absolute -left-[11px] flex items-center justify-center w-5 h-5 rounded-full ring-4 ring-white ${dotBg}`}>
+                                  <Icon className="h-3 w-3 text-white" />
+                                </span>
+                                <div className={`p-3 rounded-xl border ${panelBg}`}>
+                                  <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+                                    <div className="flex items-center gap-2">
+                                      <UserIcon className={`h-4 w-4 ${iconColor}`} />
+                                      <span className="text-sm font-bold text-gray-900">
+                                        {h.assigned_to_name || `NV #${h.assigned_to}`}
+                                      </span>
+                                    </div>
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${badge}`}>
+                                      {label}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 ml-6">
+                                    <div className="flex items-center gap-1.5">
+                                      <CalendarIcon className="h-3 w-3 text-gray-400" />
+                                      <span className="text-gray-500">Bàn giao:</span>
+                                      <span className="font-semibold text-gray-800">{formatDate(h.assigned_date)}</span>
+                                    </div>
+                                    {h.confirmed_at && (
+                                      <div className="flex items-center gap-1.5">
+                                        <CheckCircleIcon className="h-3 w-3 text-gray-400" />
+                                        <span className="text-gray-500">Xác nhận:</span>
+                                        <span className="font-semibold text-gray-800">{formatDateTime(h.confirmed_at)}</span>
+                                      </div>
+                                    )}
+                                    {h.rejected_at && (
+                                      <div className="flex items-center gap-1.5">
+                                        <XCircleIcon className="h-3 w-3 text-gray-400" />
+                                        <span className="text-gray-500">Từ chối:</span>
+                                        <span className="font-semibold text-gray-800">{formatDateTime(h.rejected_at)}</span>
+                                      </div>
+                                    )}
+                                    {h.status === 'RETURNED' && (
+                                      <div className="flex items-center gap-1.5">
+                                        <ArrowUturnLeftIcon className="h-3 w-3 text-gray-400" />
+                                        <span className="text-gray-500">Thu hồi:</span>
+                                        <span className="font-semibold text-gray-800">{formatDate(h.returned_date)}</span>
+                                      </div>
+                                    )}
+                                    {h.assigned_by_name && (
+                                      <div className="flex items-center gap-1.5">
+                                        <ShieldCheckIcon className="h-3 w-3 text-gray-400" />
+                                        <span className="text-gray-500">Người bàn giao:</span>
+                                        <span className="font-semibold text-gray-800">{h.assigned_by_name}</span>
+                                      </div>
+                                    )}
+                                    {h.status === 'RETURNED' && h.return_condition_display && (
+                                      <div className="flex items-center gap-1.5">
+                                        <SparklesIcon className="h-3 w-3 text-gray-400" />
+                                        <span className="text-gray-500">Tình trạng trả:</span>
+                                        <span className="font-semibold text-gray-800">{h.return_condition_display}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {h.assignment_notes && (
+                                    <p className="mt-2 ml-6 text-xs italic text-emerald-800 bg-white/70 px-2 py-1 rounded border border-emerald-100">
+                                      📝 {h.assignment_notes}
+                                    </p>
+                                  )}
+                                  {h.return_notes && (
+                                    <p className="mt-1 ml-6 text-xs italic text-amber-800 bg-white/70 px-2 py-1 rounded border border-amber-100">
+                                      ↩ {h.return_notes}
+                                    </p>
+                                  )}
+                                  {h.status === 'REJECTED' && h.rejection_reason && (
+                                    <p className="mt-2 ml-6 text-xs italic text-red-800 bg-white/70 px-2 py-1 rounded border border-red-100">
+                                      ✖ Lý do từ chối: {h.rejection_reason}
+                                    </p>
+                                  )}
+                                  {h.status === 'CANCELLED' && h.rejection_reason && (
+                                    <p className="mt-2 ml-6 text-xs italic text-gray-700 bg-white/70 px-2 py-1 rounded border border-gray-200">
+                                      ✖ {h.rejection_reason}
+                                    </p>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      )}
+                    </div>
+
                   </div>
                 </div>
 

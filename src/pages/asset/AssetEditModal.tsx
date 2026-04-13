@@ -1,8 +1,9 @@
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { assetsAPI, departmentsAPI, employeesAPI, Asset } from '../../utils/api';
+import { assetsAPI, departmentsAPI, employeesAPI, Asset, positionsAPI, companyUnitsAPI } from '../../utils/api';
 import { SelectBox, SelectOption } from '../../components/LandingLayout/SelectBox';
+import FeedbackDialog from '../../components/FeedbackDialog';
 
 interface AssetEditModalProps {
   isOpen: boolean;
@@ -42,20 +43,44 @@ const ASSET_STATUSES: SelectOption<string>[] = [
   { value: 'UNDER_MAINTENANCE', label: 'Đang sửa chữa / Bảo hành' },
   { value: 'DAMAGED', label: 'Lỗi / Chờ thanh lý' },
   { value: 'RETIRED', label: 'Đã thanh lý' },
+  { value: 'TERMINATED', label: 'Đã cắt' },
   { value: 'LOST', label: 'Bị mất' },
 ];
 
+// Nhãn riêng cho SIM (cùng enum ASSET_STATUS nhưng ngữ cảnh khác)
+const SIM_STATUSES: SelectOption<string>[] = [
+  { value: 'NEW', label: 'Mới (Chưa kích hoạt)' },
+  { value: 'IN_USE', label: 'Đang sử dụng' },
+  { value: 'UNDER_MAINTENANCE', label: 'Tạm khóa' },
+  { value: 'TERMINATED', label: 'Đã cắt' },
+  { value: 'LOST', label: 'Mất / Hỏng' },
+];
+
 const NETWORK_PROVIDERS: SelectOption<string>[] = [
-  { value: 'Viettel', label: 'Viettel' },
-  { value: 'Vinaphone', label: 'Vinaphone' },
-  { value: 'Mobifone', label: 'Mobifone' },
-  { value: 'Vietnamobile', label: 'Vietnamobile' },
+  { value: 'VIETTEL', label: 'Viettel' },
+  { value: 'VINAPHONE', label: 'Vinaphone' },
+  { value: 'MOBIFONE', label: 'Mobifone' },
+  { value: 'VIETNAMOBILE', label: 'Vietnamobile' },
+];
+
+const SIM_TYPES: SelectOption<string>[] = [
+  { value: 'PREPAID', label: 'Trả trước' },
+  { value: 'POSTPAID', label: 'Trả sau' },
+];
+
+const REGIONS: SelectOption<string>[] = [
+  { value: 'MIEN_BAC', label: 'Miền Bắc' },
+  { value: 'MIEN_TRUNG', label: 'Miền Trung' },
+  { value: 'MIEN_NAM', label: 'Miền Nam' },
 ];
 
 export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: AssetEditModalProps) {
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<SelectOption<string>[]>([]);
   const [employees, setEmployees] = useState<SelectOption<string>[]>([]);
+  const [positions, setPositions] = useState<SelectOption<string>[]>([]);
+  const [companyUnits, setCompanyUnits] = useState<SelectOption<string>[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     asset_type: 'LAPTOP',
@@ -63,6 +88,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     status: 'NEW',
     condition: 'EXCELLENT',
     purchase_date: '',
+    warranty_period: '12',
     supplier: '',
     department: '',
     managed_by: '',
@@ -79,6 +105,11 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     // SIM specific fields
     phone_number: '',
     network_provider: '',
+    doctor: '',
+    region: '',
+    position_id: '',
+    sim_type: 'PREPAID',
+    sim_company: '',
     // OTHER specific fields
     other_type_name: '',
   });
@@ -99,6 +130,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             status: fullAsset.status || 'NEW',
             condition: fullAsset.condition || 'EXCELLENT',
             purchase_date: fullAsset.purchase_date || '',
+            warranty_period: fullAsset.warranty_period ? String(fullAsset.warranty_period) : '12',
             supplier: fullAsset.supplier || '',
             department: fullAsset.department ? String(fullAsset.department) : '',
             managed_by: fullAsset.managed_by ? String(fullAsset.managed_by) : '',
@@ -113,6 +145,11 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             monitor_quantity: String((specs as any).quantity || ''),
             phone_number: (specs as any).phone_number || '',
             network_provider: (specs as any).network_provider || '',
+            doctor: (specs as any).doctor || '',
+            region: (specs as any).region || '',
+            position_id: (specs as any).position_id ? String((specs as any).position_id) : '',
+            sim_type: (specs as any).sim_type || 'PREPAID',
+            sim_company: (specs as any).sim_company ? String((specs as any).sim_company) : '',
             other_type_name: (specs as any).type_name || '',
           });
         })
@@ -126,6 +163,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             status: asset.status || 'NEW',
             condition: asset.condition || 'EXCELLENT',
             purchase_date: asset.purchase_date || '',
+            warranty_period: (asset as any).warranty_period ? String((asset as any).warranty_period) : '12',
             supplier: asset.supplier || '',
             department: '',
             managed_by: '',
@@ -139,6 +177,11 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             monitor_quantity: String((specs as any).quantity || ''),
             phone_number: (specs as any).phone_number || '',
             network_provider: (specs as any).network_provider || '',
+            doctor: (specs as any).doctor || '',
+            region: (specs as any).region || '',
+            position_id: (specs as any).position_id ? String((specs as any).position_id) : '',
+            sim_type: (specs as any).sim_type || 'PREPAID',
+            sim_company: (specs as any).sim_company ? String((specs as any).sim_company) : '',
             other_type_name: (specs as any).type_name || '',
           });
         })
@@ -147,8 +190,24 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
         });
       
       fetchDepartments();
+      fetchPositions();
+      fetchCompanyUnits();
     }
   }, [isOpen, asset]);
+
+  const fetchCompanyUnits = async () => {
+    try {
+      const data: any = await companyUnitsAPI.list({ page_size: 200, active_only: true });
+      const list = Array.isArray(data) ? data : (data?.results || []);
+      const options = list.map((unit: any) => ({
+        value: String(unit.id),
+        label: unit.name,
+      }));
+      setCompanyUnits(options);
+    } catch (error) {
+      console.error('Error fetching company units:', error);
+    }
+  };
 
   /**
    * Tự động lọc danh sách Nhân viên mỗi khi Phòng ban quản lý thay đổi
@@ -174,6 +233,19 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       setDepartments(options);
     } catch (error) {
       console.error('Error fetching departments:', error);
+    }
+  };
+
+  const fetchPositions = async () => {
+    try {
+      const data = await positionsAPI.list({ page_size: 100 });
+      const options = (data.results || []).map(pos => ({
+        value: String(pos.id),
+        label: pos.title
+      }));
+      setPositions(options);
+    } catch (error) {
+      console.error('Error fetching positions:', error);
     }
   };
 
@@ -204,7 +276,14 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
   };
 
   const isFormValid = () => {
-    return formData.name && formData.name.trim() !== '';
+    let isValid = formData.name && formData.name.trim() !== '';
+    
+    if (formData.asset_type === 'SIM') {
+      const phone = (formData as any).phone_number || '';
+      isValid = isValid && /^\d{10}$/.test(phone.trim());
+    }
+    
+    return isValid;
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -220,7 +299,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     
     setLoading(true);
     try {
-      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, other_type_name, ...baseData } = formData;
+      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, ...baseData } = formData;
 
       let specifications = {};
       if (formData.asset_type === 'DESKTOP') {
@@ -228,7 +307,9 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       } else if (formData.asset_type === 'MONITOR') {
         specifications = { quantity: parseInt(monitor_quantity) || 0 };
       } else if (formData.asset_type === 'SIM') {
-        specifications = { phone_number, network_provider };
+        const positionTitle = positions.find(p => p.value === formData.position_id)?.label || '';
+        const simCompanyName = companyUnits.find(c => c.value === sim_company)?.label || '';
+        specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type, sim_company, sim_company_name: simCompanyName };
       } else if (formData.asset_type === 'OTHER') {
         specifications = { type_name: other_type_name };
       }
@@ -236,6 +317,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       const payload = {
         ...baseData,
         purchase_date: formData.purchase_date || null,
+        warranty_period: warranty_period ? parseInt(warranty_period) : null,
         department_id: formData.department ? parseInt(formData.department) : null,
         managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
         specifications
@@ -251,9 +333,9 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       
       onSuccess();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating asset:', error);
-      alert('Có lỗi xảy ra khi cập nhật tài sản. Vui lòng kiểm tra lại.');
+      setErrorMessage(error.response?.data?.error || error.message || 'Có lỗi xảy ra khi cập nhật tài sản. Vui lòng kiểm tra lại.');
     } finally {
       setLoading(false);
     }
@@ -315,15 +397,15 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="Nhập mã thiết bị (VD: TA0123...)" />
                         </div>
 
-                        {/* Thay đổi Loại tài sản thành Tên tài sản */}
+                        {/* Phân loại asset */}
                         <SelectBox
-                          label="Tên tài sản (Phân loại)"
+                          label="Phân loại"
                           value={formData.asset_type}
                           options={ASSET_TYPES}
                           onChange={(val) => handleSelectChange('asset_type', val)}
                         />
 
-                        {/* Tình trạng */}
+                        {/* Tình trạng (Vật lý) — SIM dùng chung choices với asset khác */}
                         <SelectBox
                           label="Tình trạng (Vật lý)"
                           value={formData.condition}
@@ -331,11 +413,11 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           onChange={(val) => handleSelectChange('condition', val)}
                         />
 
-                        {/* Trạng thái */}
+                        {/* Trạng thái (Vận hành) — SIM dùng nhãn riêng (Mới chưa kích hoạt/Đang sử dụng/Tạm khóa/Đã cắt/Mất) */}
                         <SelectBox
-                          label="Trạng thái (Vận hành)"
+                          label={formData.asset_type === 'SIM' ? 'Trạng thái Sim' : 'Trạng thái (Vận hành)'}
                           value={formData.status}
-                          options={ASSET_STATUSES}
+                          options={formData.asset_type === 'SIM' ? SIM_STATUSES : ASSET_STATUSES}
                           onChange={(val) => handleSelectChange('status', val)}
                         />
 
@@ -419,6 +501,9 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                             <div>
                               <label htmlFor="phone_number" className="block text-sm font-medium text-gray-700">Số điện thoại</label>
                               <input type="text" name="phone_number" id="phone_number" value={(formData as any).phone_number} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="VD: 0912345678" />
+                              {(formData as any).phone_number && !/^\d{10}$/.test(((formData as any).phone_number || '').trim()) && (
+                                <p className="mt-1 text-xs text-red-500">Số điện thoại phải gồm đúng 10 chữ số.</p>
+                              )}
                             </div>
 
                             <SelectBox
@@ -426,6 +511,44 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                               value={(formData as any).network_provider}
                               options={NETWORK_PROVIDERS}
                               onChange={(val) => handleSelectChange('network_provider', val)}
+                            />
+
+                            <SelectBox
+                              label="Phân loại Sim"
+                              value={(formData as any).sim_type}
+                              options={SIM_TYPES}
+                              onChange={(val) => handleSelectChange('sim_type', val)}
+                            />
+
+                            <div>
+                              <label htmlFor="doctor" className="block text-sm font-medium text-gray-700">Bác sĩ</label>
+                              <input type="text" name="doctor" id="doctor" value={(formData as any).doctor} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" placeholder="VD: Nguyễn Văn A" />
+                            </div>
+
+                            <SelectBox
+                              label="Vùng miền"
+                              value={(formData as any).region}
+                              options={REGIONS}
+                              onChange={(val) => handleSelectChange('region', val)}
+                              placeholder="-- Chọn vùng miền --"
+                            />
+
+                            <SelectBox
+                              label="Vị trí"
+                              value={(formData as any).position_id}
+                              options={positions}
+                              onChange={(val) => handleSelectChange('position_id', val)}
+                              placeholder="-- Chọn vị trí --"
+                              searchable
+                            />
+
+                            <SelectBox
+                              label="Công ty"
+                              value={(formData as any).sim_company}
+                              options={companyUnits}
+                              onChange={(val) => handleSelectChange('sim_company', val)}
+                              placeholder="-- Chọn công ty --"
+                              searchable
                             />
                           </div>
                         )}
@@ -455,10 +578,12 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
 
 
                         {/* Model */}
-                        <div>
-                          <label htmlFor="model" className="block text-sm font-medium text-gray-700">Model</label>
-                          <input type="text" name="model" id="model" value={formData.model} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
-                        </div>
+                        {!['SIM', 'FURNITURE'].includes(formData.asset_type) && (
+                          <div>
+                            <label htmlFor="model" className="block text-sm font-medium text-gray-700">Model</label>
+                            <input type="text" name="model" id="model" value={formData.model} onChange={handleChange} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                          </div>
+                        )}
 
                         {/* Nhà cung cấp */}
                         <div>
@@ -473,6 +598,20 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                         </div>
 
                         {/* Thời hạn bảo hành */}
+                        <div>
+                          <label htmlFor="warranty_period" className="block text-sm font-medium text-gray-700">Bảo hành (tháng)</label>
+                          <input
+                            type="number"
+                            name="warranty_period"
+                            id="warranty_period"
+                            min="0"
+                            step="1"
+                            value={formData.warranty_period}
+                            onChange={handleChange}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            placeholder="VD: 12"
+                          />
+                        </div>
 
                         {/* Phòng ban quản lý */}
                         <SelectBox label="Phòng ban quản lý" value={formData.department} options={departments} onChange={(val) => handleSelectChange('department', val)} placeholder="-- Chọn phòng ban --" />
@@ -507,6 +646,14 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
           </div>
         </div>
       </Dialog>
+
+      <FeedbackDialog
+        open={!!errorMessage}
+        variant="error"
+        title="Không thể cập nhật tài sản"
+        message={errorMessage || ''}
+        onClose={() => setErrorMessage(null)}
+      />
     </Transition>
   );
 }
