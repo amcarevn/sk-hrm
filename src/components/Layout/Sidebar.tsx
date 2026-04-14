@@ -186,7 +186,7 @@ const navigationItems: NavigationItem[] = [
     name: 'Quản lý tính lương',
     href: '/dashboard/salary-management',
     icon: CurrencyDollarIcon,
-    roles: ['ADMIN', 'HR'],
+    roles: ['ADMIN'],
   },
   {
     name: 'AI',
