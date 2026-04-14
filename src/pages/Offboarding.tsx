@@ -15,7 +15,7 @@ import PdfPreviewModal from '../components/Common/PdfPreviewModal';
 const STATUS_LABELS: Record<GenericRequestStatus, string> = {
   DRAFT: 'Nháp',
   PENDING_MANAGER: 'Chờ Quản lý duyệt',
-  PENDING_ADMIN: 'Chờ Admin duyệt',
+  PENDING_ADMIN: 'Chờ HCNS duyệt',
   APPROVED: 'Đã duyệt',
   REJECTED: 'Từ chối',
   CANCELLED: 'Đã huỷ',
@@ -193,7 +193,7 @@ const Offboarding: React.FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
-          <h3 className="font-medium text-orange-900">Chờ Admin duyệt</h3>
+          <h3 className="font-medium text-orange-900">Chờ HCNS duyệt</h3>
           <p className="text-3xl font-bold text-orange-700 mt-2">{stats.pending}</p>
           <p className="text-orange-600 text-sm mt-1">Cần xử lý</p>
         </div>
@@ -237,7 +237,7 @@ const Offboarding: React.FC = () => {
               label="Trạng thái"
               value={filterStatus}
               options={[
-                { value: 'PENDING_ADMIN', label: 'Chờ Admin duyệt' },
+                { value: 'PENDING_ADMIN', label: 'Chờ HCNS duyệt' },
                 { value: '', label: 'Tất cả' },
                 { value: 'APPROVED', label: 'Đã duyệt' },
                 { value: 'REJECTED', label: 'Từ chối' },
@@ -460,7 +460,7 @@ const Offboarding: React.FC = () => {
       {approveTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Duyệt đơn (Admin)</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Duyệt đơn (HCNS)</h3>
             <p className="text-sm text-gray-600 mb-1">
               Bạn sẽ duyệt cuối đơn <span className="font-medium">{approveTarget.title}</span> của{' '}
               <span className="font-medium">{approveTarget.employee_name}</span>.

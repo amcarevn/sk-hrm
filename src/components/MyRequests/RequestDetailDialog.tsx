@@ -20,7 +20,7 @@ interface Props {
 const STATUS_LABELS: Record<GenericRequestStatus, string> = {
   DRAFT: 'Nháp',
   PENDING_MANAGER: 'Chờ Quản lý duyệt',
-  PENDING_ADMIN: 'Chờ Admin duyệt',
+  PENDING_ADMIN: 'Chờ HCNS duyệt',
   APPROVED: 'Đã duyệt',
   REJECTED: 'Từ chối',
   CANCELLED: 'Đã huỷ',
@@ -191,14 +191,14 @@ const ApprovalTimeline: React.FC<{ request: GenericRequest }> = ({ request }) =>
   }
   const step4: TimelineStep = {
     key: 'admin',
-    title: 'Admin phê duyệt cuối',
+    title: 'HCNS phê duyệt cuối',
     description:
       step4State === 'rejected'
-        ? 'Admin đã từ chối đơn'
+        ? 'HCNS đã từ chối đơn'
         : step4State === 'done'
-        ? 'Admin đã duyệt — đơn có hiệu lực'
+        ? 'HCNS đã duyệt — đơn có hiệu lực'
         : step4State === 'current'
-        ? 'Đang chờ Admin xét duyệt cuối'
+        ? 'Đang chờ HCNS xét duyệt cuối'
         : 'Chưa đến bước này',
     by: request.admin_approved_by_name,
     at: request.admin_approved_at || request.approved_at,
