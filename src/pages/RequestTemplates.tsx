@@ -78,9 +78,12 @@ const TemplateFormDialog: React.FC<DialogProps> = ({ open, editing, companyUnits
   const validate = (): string => {
     if (!name.trim()) return 'Vui lòng nhập tên template';
     if (!companyUnitId) return 'Vui lòng chọn đơn vị';
-    if (!editing && !file) return 'Vui lòng chọn file .docx';
-    if (file && !file.name.toLowerCase().endsWith('.docx')) {
-      return 'File phải là định dạng .docx (không hỗ trợ .doc)';
+    if (!editing && !file) return 'Vui lòng chọn file Word (.doc hoặc .docx)';
+    if (file) {
+      const name = file.name.toLowerCase();
+      if (!name.endsWith('.doc') && !name.endsWith('.docx')) {
+        return 'File phải là định dạng Word (.doc hoặc .docx)';
+      }
     }
     return '';
   };
@@ -183,14 +186,17 @@ const TemplateFormDialog: React.FC<DialogProps> = ({ open, editing, companyUnits
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              File template (.docx) {!editing && <span className="text-red-500">*</span>}
+              File template (.doc / .docx) {!editing && <span className="text-red-500">*</span>}
             </label>
             <input
               type="file"
-              accept=".docx"
+              accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
               className="w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:text-sm file:font-medium hover:file:bg-blue-100"
             />
+            <p className="mt-1 text-xs text-gray-500">
+              Hỗ trợ cả file Word cũ (.doc) và mới (.docx). Hệ thống tự động convert .doc sang .docx chuẩn khi upload.
+            </p>
             {editing && !file && (
               <p className="mt-1 text-xs text-gray-500">Giữ file cũ nếu không chọn file mới</p>
             )}
