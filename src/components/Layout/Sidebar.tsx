@@ -25,6 +25,7 @@ import {
   KeyIcon,
   SparklesIcon,
   ClipboardDocumentListIcon,
+  CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -180,6 +181,12 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard/work-finalization/approvals',
     icon: CheckCircleIcon,
     roles: ['ADMIN'],
+  },
+  {
+    name: 'Quản lý tính lương',
+    href: '/dashboard/salary-management',
+    icon: CurrencyDollarIcon,
+    roles: ['ADMIN', 'HR'],
   },
   {
     name: 'AI',

@@ -85,6 +85,7 @@ import ContractTemplates from './pages/ContractTemplates';
 import PasswordReset from './pages/PasswordReset';
 import ShiftConfiguration from './pages/ShiftConfiguration';
 import AIChat from './pages/AIChat';
+import SalaryManagement from './pages/SalaryManagement';
 
 function App() {
   return (
@@ -916,6 +917,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AIChat />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Salary Management Route */}
+          <Route
+            path="/dashboard/salary-management"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SalaryManagement />
                 </Layout>
               </ProtectedRoute>
             }
