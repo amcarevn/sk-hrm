@@ -262,9 +262,10 @@ const SalaryManagement: React.FC = () => {
   const handleSave = async (id: number, data: SalaryFormulaUpdateData) => {
     setSaving(true);
     setSaveError(null);
+    const employeeName = editEmployee?.full_name ?? 'nhân viên';
     try {
       await salaryService.updateSalaryFormula(id, data);
-      setSaveSuccess(`Đã cập nhật lương cho ${editEmployee?.full_name}`);
+      setSaveSuccess(`Đã cập nhật lương cho ${employeeName}`);
       setEditEmployee(null);
       loadEmployees(configPage);
     } catch {
