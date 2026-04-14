@@ -57,6 +57,8 @@ import AttendanceManagement from './pages/AttendanceManagement';
 import AttendanceUpload from './pages/AttendanceUpload';
 import AttendanceView from './pages/AttendanceView';
 import Approvals from './pages/Approvals';
+import MyRequests from './pages/MyRequests';
+import RequestTemplates from './pages/RequestTemplates';
 import Onboarding from './pages/Onboarding';
 import OnboardingDetail from './pages/OnboardingDetail';
 import Offboarding from './pages/Offboarding';
@@ -601,7 +603,27 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+          <Route
+            path="/dashboard/my-requests"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <MyRequests />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/request-templates"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RequestTemplates />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
           {/* ============================================ */}
           {/* ONBOARDING ROUTES - THÊM MỚI */}
           {/* ============================================ */}

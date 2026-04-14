@@ -234,7 +234,7 @@ export default function AssignedAssetList() {
   });
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center space-x-3 mb-1">

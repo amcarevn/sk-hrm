@@ -24,6 +24,7 @@ import {
   DocumentTextIcon,
   KeyIcon,
   SparklesIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -133,16 +134,28 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN', 'HR'],
   },
   {
+    name: 'Yêu cầu & Đơn từ',
+    href: '/dashboard/my-requests',
+    icon: ClipboardDocumentListIcon,
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
+  {
     name: 'Phê duyệt',
     href: '/dashboard/approvals',
     icon: CheckCircleIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
   {
-  name: 'Template hợp đồng',
-  href: '/dashboard/contract-templates',
-  icon: DocumentTextIcon,
-  roles: ['ADMIN', 'HR'],
+    name: 'Template đơn từ',
+    href: '/dashboard/request-templates',
+    icon: DocumentTextIcon,
+    roles: ['ADMIN', 'HR'],
+  },
+  {
+    name: 'Template hợp đồng',
+    href: '/dashboard/contract-templates',
+    icon: DocumentTextIcon,
+    roles: ['ADMIN', 'HR'],
   },
   {
     name: 'Onboard nhân sự',
@@ -185,7 +198,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
   const { user, loading } = useAuth();
-  
+
   // If still loading auth data, show minimal sidebar
   if (loading) {
     return (
@@ -209,7 +222,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const userRole = user?.role ? user.role.toUpperCase() : 'USER';
   const isSuperAdmin = user?.is_super_admin || (user as any)?.is_superuser || false;
   const isManager = user?.is_manager || false;
-  
+
   // Get user's department code
   const userDepartmentCode = (
     user?.employee_profile?.department_code ||
@@ -217,34 +230,34 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     (user as any)?.department_code ||
     null
   );
-  
+
   // Get employee_permission from user profile
   const employeePermission = user?.employee_permission;
 
   // Unified filtering logic
-  const navigation = isSuperAdmin 
-    ? navigationItems 
+  const navigation = isSuperAdmin
+    ? navigationItems
     : navigationItems.filter((item) => {
-        // 1. Check if item requires a specific employee permission
-        if (item.employeePermission && employeePermission?.[item.employeePermission as keyof typeof employeePermission]) {
-          return true;
-        }
+      // 1. Check if item requires a specific employee permission
+      if (item.employeePermission && employeePermission?.[item.employeePermission as keyof typeof employeePermission]) {
+        return true;
+      }
 
-        // 2. Check department access
-        if (item.departments && userDepartmentCode) {
-          if (item.departments.includes(userDepartmentCode)) {
-            return item.roles.some(role => role.toUpperCase() === userRole);
-          }
+      // 2. Check department access
+      if (item.departments && userDepartmentCode) {
+        if (item.departments.includes(userDepartmentCode)) {
+          return item.roles.some(role => role.toUpperCase() === userRole);
         }
+      }
 
-        // 3. Special case: Managers can access Onboarding
-        if (isManager && item.name === 'Onboard nhân sự') {
-          return true;
-        }
-        
-        // 4. Check role access
-        return item.roles.some(role => role.toUpperCase() === userRole);
-      });
+      // 3. Special case: Managers can access Onboarding
+      if (isManager && item.name === 'Onboard nhân sự') {
+        return true;
+      }
+
+      // 4. Check role access
+      return item.roles.some(role => role.toUpperCase() === userRole);
+    });
 
   const handleCollapseToggle = () => {
     const newCollapsedState = !isCollapsed;
@@ -287,18 +300,16 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                    isActive
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive
                       ? 'bg-primary-100 text-primary-900'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
+                    }`}
                 >
                   <item.icon
-                    className={`h-6 w-6 flex-shrink-0 ${
-                      isActive
+                    className={`h-6 w-6 flex-shrink-0 ${isActive
                         ? 'text-primary-500'
                         : 'text-gray-400 group-hover:text-gray-500'
-                    } mr-3`}
+                      } mr-3`}
                   />
                   {item.name}
                 </Link>
@@ -322,11 +333,10 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                     </p>
                     <div className="flex items-center space-x-2">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          userRole === 'ADMIN'
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${userRole === 'ADMIN'
                             ? 'bg-red-100 text-red-800'
                             : 'bg-blue-100 text-blue-800'
-                        }`}
+                          }`}
                       >
                         {userRole}
                       </span>
@@ -379,19 +389,17 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-                    isActive
+                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive
                       ? 'bg-primary-100 text-primary-900'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  } ${isCollapsed ? 'justify-center' : ''}`}
+                    } ${isCollapsed ? 'justify-center' : ''}`}
                   title={isCollapsed ? item.name : undefined}
                 >
                   <item.icon
-                    className={`h-6 w-6 flex-shrink-0 ${
-                      isActive
+                    className={`h-6 w-6 flex-shrink-0 ${isActive
                         ? 'text-primary-500'
                         : 'text-gray-400 group-hover:text-gray-500'
-                    } ${isCollapsed ? '' : 'mr-3'}`}
+                      } ${isCollapsed ? '' : 'mr-3'}`}
                   />
                   {!isCollapsed && item.name}
                 </Link>
@@ -428,11 +436,10 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                     <p className="text-xs text-gray-500 truncate">{user.username}</p>
                     <div className="flex items-center space-x-2 mt-0.5">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          userRole === 'ADMIN'
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${userRole === 'ADMIN'
                             ? 'bg-red-100 text-red-800'
                             : 'bg-blue-100 text-blue-800'
-                        }`}
+                          }`}
                       >
                         {userRole}
                       </span>
