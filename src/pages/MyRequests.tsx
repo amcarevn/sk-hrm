@@ -48,7 +48,7 @@ const addSeenApprovedId = (id: number): void => {
 const STATUS_LABELS: Record<GenericRequestStatus, string> = {
   DRAFT: 'Nháp',
   PENDING_MANAGER: 'Chờ Quản lý duyệt',
-  PENDING_ADMIN: 'Chờ Admin duyệt',
+  PENDING_ADMIN: 'Chờ HCNS duyệt',
   APPROVED: 'Đã duyệt',
   REJECTED: 'Từ chối',
   CANCELLED: 'Đã huỷ',
@@ -387,7 +387,7 @@ const MyRequests: React.FC = () => {
                 ? [
                     { value: 'PENDING_MANAGER', label: 'Chờ Quản lý duyệt' },
                     { value: '', label: 'Tất cả' },
-                    { value: 'PENDING_ADMIN', label: 'Đã chuyển Admin' },
+                    { value: 'PENDING_ADMIN', label: 'Đã chuyển HCNS' },
                     { value: 'APPROVED', label: 'Đã duyệt' },
                     { value: 'REJECTED', label: 'Từ chối' },
                   ]
@@ -395,7 +395,7 @@ const MyRequests: React.FC = () => {
                     { value: '', label: 'Tất cả trạng thái' },
                     { value: 'DRAFT', label: 'Nháp' },
                     { value: 'PENDING_MANAGER', label: 'Chờ Quản lý duyệt' },
-                    { value: 'PENDING_ADMIN', label: 'Chờ Admin duyệt' },
+                    { value: 'PENDING_ADMIN', label: 'Chờ HCNS duyệt' },
                     { value: 'APPROVED', label: 'Đã duyệt' },
                     { value: 'REJECTED', label: 'Từ chối' },
                     { value: 'CANCELLED', label: 'Đã huỷ' },
