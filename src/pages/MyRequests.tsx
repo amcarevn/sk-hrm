@@ -14,7 +14,36 @@ import genericRequestService, {
 } from '../services/genericRequest.service';
 import RequestFormDialog from '../components/MyRequests/RequestFormDialog';
 import RequestDetailDialog from '../components/MyRequests/RequestDetailDialog';
+import ApprovedNotificationDialog from '../components/MyRequests/ApprovedNotificationDialog';
 import PdfPreviewModal from '../components/Common/PdfPreviewModal';
+
+// localStorage key lưu danh sách ID đơn APPROVED mà NV đã xem thông báo
+const SEEN_APPROVED_STORAGE_KEY = 'myrequests_seen_approved_ids';
+
+const getSeenApprovedIds = (): number[] => {
+  try {
+    const raw = localStorage.getItem(SEEN_APPROVED_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const addSeenApprovedId = (id: number): void => {
+  try {
+    const seen = getSeenApprovedIds();
+    if (!seen.includes(id)) {
+      seen.push(id);
+      // Giới hạn 500 ID gần nhất để tránh bloat localStorage
+      localStorage.setItem(
+        SEEN_APPROVED_STORAGE_KEY,
+        JSON.stringify(seen.slice(-500))
+      );
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+};
 
 const STATUS_LABELS: Record<GenericRequestStatus, string> = {
   DRAFT: 'Nháp',
@@ -47,10 +76,19 @@ type TabKey = 'mine' | 'to-approve';
 
 const MyRequests: React.FC = () => {
   const { user } = useAuth();
-  const isManager =
-    !!user?.is_manager ||
-    !!(user as any)?.employee_profile?.is_manager ||
-    !!(user as any)?.hrm_user?.is_manager;
+  // Admin quản lý đơn qua trang Offboarding, không dùng tab "Cần tôi duyệt" ở MyRequests
+  const userRole = (user?.role || '').toUpperCase();
+  const isAdmin =
+    userRole === 'ADMIN' ||
+    !!user?.is_super_admin ||
+    !!(user as any)?.is_superuser;
+  // Tab "Cần tôi duyệt" hiển thị khi user là manager thực sự và KHÔNG phải Admin.
+  // HR với is_manager=true vẫn được coi là manager (không bị filter bởi is_hr).
+  const isManagerForTab =
+    (!!user?.is_manager ||
+      !!(user as any)?.employee_profile?.is_manager ||
+      !!(user as any)?.hrm_user?.is_manager) &&
+    !isAdmin;
 
   const [activeTab, setActiveTab] = useState<TabKey>('mine');
   const [requests, setRequests] = useState<GenericRequest[]>([]);
@@ -74,6 +112,12 @@ const MyRequests: React.FC = () => {
   const [editingRequest, setEditingRequest] = useState<GenericRequest | null>(null);
   const [detailRequest, setDetailRequest] = useState<GenericRequest | null>(null);
   const [previewRequest, setPreviewRequest] = useState<GenericRequest | null>(null);
+
+  // Dialog thông báo đơn đã được duyệt (cho người tạo đơn)
+  const [approvedNotifyTarget, setApprovedNotifyTarget] = useState<GenericRequest | null>(null);
+
+  // Số đơn cần manager duyệt (badge tab "Cần tôi duyệt")
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
 
   // Approval modals (Manager workflow)
   const [approveTarget, setApproveTarget] = useState<GenericRequest | null>(null);
@@ -117,6 +161,59 @@ const MyRequests: React.FC = () => {
     fetchRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, currentPage, itemsPerPage, filterType, filterStatus, filterMonth, filterYear, debouncedSearch]);
+
+  // Fetch số đơn cần duyệt (badge tab "Cần tôi duyệt")
+  const fetchPendingApprovalCount = async () => {
+    if (!isManagerForTab) return;
+    try {
+      const data = await genericRequestService.list({
+        owner: 'subordinates',
+        status: 'PENDING_MANAGER',
+        page: 1,
+        page_size: 1,
+      });
+      setPendingApprovalCount(data.count || 0);
+    } catch {
+      /* silent fail - không critical */
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingApprovalCount();
+    // Re-fetch count mỗi khi requests thay đổi (sau khi duyệt xong 1 đơn thì count giảm)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isManagerForTab, requests]);
+
+  // Nếu user không phải manager qualified nhưng đang ở tab 'to-approve' → auto switch về 'mine'
+  useEffect(() => {
+    if (!isManagerForTab && activeTab === 'to-approve') {
+      setActiveTab('mine');
+    }
+  }, [isManagerForTab, activeTab]);
+
+  // Detect đơn APPROVED chưa từng thông báo cho NV → mở dialog.
+  // Chỉ áp dụng ở tab 'mine' (đơn của chính mình) — manager không nhận.
+  useEffect(() => {
+    if (loading) return;
+    if (activeTab !== 'mine') return;
+    if (approvedNotifyTarget) return; // đã có dialog đang mở
+
+    const seenIds = getSeenApprovedIds();
+    const firstUnseen = requests.find(
+      (r) => r.status === 'APPROVED' && !seenIds.includes(r.id)
+    );
+    if (firstUnseen) {
+      setApprovedNotifyTarget(firstUnseen);
+    }
+  }, [requests, loading, activeTab, approvedNotifyTarget]);
+
+  const handleCloseApprovedNotify = () => {
+    if (approvedNotifyTarget) {
+      addSeenApprovedId(approvedNotifyTarget.id);
+    }
+    setApprovedNotifyTarget(null);
+    // useEffect sẽ tự re-run và check đơn APPROVED chưa seen tiếp theo
+  };
 
   // Reset filter + page khi đổi tab
   const handleTabChange = (tab: TabKey) => {
@@ -211,16 +308,19 @@ const MyRequests: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Yêu cầu & Đơn từ</h2>
-          <p className="text-gray-500 text-sm">Tổng: {totalCount} đơn</p>
+          <h1 className="text-2xl font-bold text-gray-900">Yêu cầu & Đơn từ</h1>
+          <p className="text-gray-600 mt-2">
+            Tổng: <span className="font-semibold text-gray-900">{totalCount}</span> đơn
+          </p>
         </div>
         {activeTab === 'mine' && (
           <button
             onClick={openCreate}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-blue-600 border border-blue-600 text-white rounded-xl hover:bg-blue-700 hover:border-blue-700 transition-colors font-medium text-sm shadow-sm"
           >
             <PlusIcon className="w-4 h-4" />
             Tạo đơn mới
@@ -229,11 +329,11 @@ const MyRequests: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-4">
+      <div className="border-b border-gray-200">
         <nav className="flex gap-6">
           <button
             onClick={() => handleTabChange('mine')}
-            className={`py-2.5 px-1 border-b-2 text-sm font-medium transition-colors ${
+            className={`py-3 px-1 border-b-2 text-sm font-semibold transition-colors ${
               activeTab === 'mine'
                 ? 'border-blue-600 text-blue-700'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -241,23 +341,28 @@ const MyRequests: React.FC = () => {
           >
             Đơn của tôi
           </button>
-          {isManager && (
+          {isManagerForTab && (
             <button
               onClick={() => handleTabChange('to-approve')}
-              className={`py-2.5 px-1 border-b-2 text-sm font-medium transition-colors ${
+              className={`py-3 px-1 border-b-2 text-sm font-semibold transition-colors flex items-center gap-2 ${
                 activeTab === 'to-approve'
                   ? 'border-blue-600 text-blue-700'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               Cần tôi duyệt
+              {pendingApprovalCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
+                  {pendingApprovalCount > 99 ? '99+' : pendingApprovalCount}
+                </span>
+              )}
             </button>
           )}
         </nav>
       </div>
 
       {/* Filter bar */}
-      <div className="flex flex-wrap items-end gap-3 mb-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-wrap items-end gap-3">
         <div className="w-52">
           <SelectBox
             label="Loại đơn"
@@ -331,9 +436,9 @@ const MyRequests: React.FC = () => {
               value={filterSearch}
               onChange={(e) => { setFilterSearch(e.target.value); setCurrentPage(1); }}
               placeholder="Tiêu đề, lý do, mã đơn..."
-              className="border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-60"
+              className="border-2 border-gray-100 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-blue-500 w-60 transition-colors"
             />
-            <svg className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
@@ -342,7 +447,7 @@ const MyRequests: React.FC = () => {
         {hasFilter && (
           <button
             onClick={resetFilters}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600"
+            className="px-3 py-2 text-sm border-2 border-gray-100 rounded-xl hover:bg-gray-50 text-gray-600 transition-colors font-medium"
           >
             Xoá bộ lọc
           </button>
@@ -351,7 +456,7 @@ const MyRequests: React.FC = () => {
         <button
           onClick={fetchRequests}
           disabled={loading}
-          className="ml-auto px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600 flex items-center gap-1.5 disabled:opacity-50"
+          className="ml-auto px-3 py-2 text-sm border-2 border-gray-100 rounded-xl hover:bg-gray-50 text-gray-600 flex items-center gap-1.5 disabled:opacity-50 transition-colors font-medium"
         >
           <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Làm mới
@@ -359,7 +464,7 @@ const MyRequests: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg overflow-x-auto w-full">
+      <div className="bg-white border border-gray-100 rounded-2xl overflow-x-auto w-full shadow-sm">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -367,22 +472,22 @@ const MyRequests: React.FC = () => {
                 ? ['Mã đơn', 'Người làm đơn', 'Phòng ban', 'Loại đơn', 'Ngày nghỉ dự kiến', 'Trạng thái', 'Ngày tạo', 'Thao tác']
                 : ['Mã đơn', 'Tiêu đề', 'Loại đơn', 'Ngày nghỉ dự kiến', 'Trạng thái', 'Ngày tạo', 'Thao tác']
               ).map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                <th key={h} className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-100">
             {loading ? (
               <tr>
-                <td colSpan={activeTab === 'to-approve' ? 8 : 7} className="px-4 py-10 text-center text-gray-500">
+                <td colSpan={activeTab === 'to-approve' ? 8 : 7} className="px-6 py-12 text-center text-gray-500">
                   Đang tải...
                 </td>
               </tr>
             ) : requests.length === 0 ? (
               <tr>
-                <td colSpan={activeTab === 'to-approve' ? 8 : 7} className="px-4 py-10 text-center text-gray-500">
+                <td colSpan={activeTab === 'to-approve' ? 8 : 7} className="px-6 py-12 text-center text-gray-500">
                   {activeTab === 'to-approve'
                     ? 'Không có đơn nào cần bạn duyệt.'
                     : `Chưa có đơn nào${hasFilter ? ' khớp với bộ lọc' : ''}.`}
@@ -390,40 +495,40 @@ const MyRequests: React.FC = () => {
               </tr>
             ) : (
               requests.map((req) => (
-                <tr key={req.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm font-mono text-gray-700 whitespace-nowrap">
+                <tr key={req.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 text-sm font-mono text-gray-700 whitespace-nowrap">
                     {req.request_code || '—'}
                   </td>
                   {activeTab === 'to-approve' ? (
                     <>
-                      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                        {req.employee_name}
+                      <td className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap">
+                        <div className="font-medium">{req.employee_name}</div>
                         <div className="text-xs text-gray-500 font-mono">{req.employee_code}</div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                      <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                         {req.employee_department || '—'}
                       </td>
                     </>
                   ) : (
-                    <td className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate" title={req.title}>
+                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title={req.title}>
                       {req.title}
                     </td>
                   )}
-                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                  <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                     {req.request_type_display}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                  <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                     {formatDate(req.expected_date)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${STATUS_COLORS[req.status]}`}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-full ${STATUS_COLORS[req.status]}`}>
                       {STATUS_LABELS[req.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                  <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                     {formatDate(req.created_at)}
                   </td>
-                  <td className="px-4 py-3 text-sm whitespace-nowrap">
+                  <td className="px-6 py-4 text-sm whitespace-nowrap">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {/* Tab "Cần tôi duyệt": Duyệt + Từ chối lên đầu (ưu tiên action quan trọng) */}
                       {activeTab === 'to-approve' && req.status === 'PENDING_MANAGER' && (
@@ -502,7 +607,7 @@ const MyRequests: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      <div className="mt-4 mb-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
         <Pagination
           currentPage={currentPage}
           totalPages={Math.ceil(totalCount / itemsPerPage) || 1}
@@ -533,6 +638,12 @@ const MyRequests: React.FC = () => {
         loader={previewRequest ? () => genericRequestService.previewPdf(previewRequest.id) : null}
         downloadFilename={previewRequest ? `${previewRequest.request_code || 'don'}.pdf` : 'don.pdf'}
         onClose={() => setPreviewRequest(null)}
+      />
+
+      {/* Dialog thông báo đơn đã được duyệt (cho người tạo đơn) */}
+      <ApprovedNotificationDialog
+        request={approvedNotifyTarget}
+        onClose={handleCloseApprovedNotify}
       />
 
       {/* Modal Manager duyệt đơn */}

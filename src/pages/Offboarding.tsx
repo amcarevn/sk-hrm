@@ -437,6 +437,7 @@ const Offboarding: React.FC = () => {
       <RequestFormDialog
         open={showFormDialog}
         editing={editingRequest}
+        editMode="admin"
         onClose={() => setShowFormDialog(false)}
         onSaved={fetchRequests}
       />

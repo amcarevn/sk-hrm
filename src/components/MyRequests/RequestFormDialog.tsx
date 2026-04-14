@@ -12,6 +12,12 @@ import genericRequestService, {
 interface Props {
   open: boolean;
   editing?: GenericRequest | null;
+  /**
+   * 'creator' — NV tạo/sửa đơn của chính mình (mặc định)
+   * 'admin'   — Admin override 3 trường Chức vụ / Phòng ban / Hình thức LV
+   *             ở trạng thái PENDING_ADMIN; các trường khác disabled
+   */
+  editMode?: 'creator' | 'admin';
   onClose: () => void;
   onSaved: () => void;
 }
@@ -32,7 +38,14 @@ const TYPE_DEFAULT_TITLE: Record<GenericRequestType, string> = {
   OTHER: 'Đơn khác',
 };
 
-const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved }) => {
+const RequestFormDialog: React.FC<Props> = ({
+  open,
+  editing,
+  editMode = 'creator',
+  onClose,
+  onSaved,
+}) => {
+  const isAdminMode = editMode === 'admin';
   const [requestType, setRequestType] = useState<GenericRequestType>('RESIGNATION');
   const [title, setTitle] = useState('');
   const [reason, setReason] = useState('');
@@ -40,6 +53,9 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
   const [extraData, setExtraData] = useState<Record<string, any>>({});
   const [companyUnitId, setCompanyUnitId] = useState<number | ''>('');
   const [companyUnits, setCompanyUnits] = useState<CompanyUnit[]>([]);
+  // Admin override fields
+  const [positionOverride, setPositionOverride] = useState('');
+  const [departmentOverride, setDepartmentOverride] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string>('');
 
@@ -65,6 +81,8 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
       setExpectedDate(editing.expected_date || '');
       setExtraData(editing.extra_data || {});
       setCompanyUnitId(editing.extra_data?.company_unit_id || '');
+      setPositionOverride(editing.extra_data?.position_override || '');
+      setDepartmentOverride(editing.extra_data?.department_override || '');
     } else {
       setRequestType('RESIGNATION');
       setTitle(TYPE_DEFAULT_TITLE.RESIGNATION);
@@ -72,6 +90,8 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
       setExpectedDate('');
       setExtraData({});
       setCompanyUnitId('');
+      setPositionOverride('');
+      setDepartmentOverride('');
     }
     setError('');
   }, [open, editing]);
@@ -83,6 +103,14 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
   };
 
   const validate = (): string => {
+    // Admin mode: chỉ validate các trường editable (work_form)
+    if (isAdminMode) {
+      if (requestType === 'RESIGNATION' && !extraData.work_form) {
+        return 'Vui lòng chọn hình thức làm việc';
+      }
+      return '';
+    }
+    // Creator mode: validate toàn bộ
     if (requestType !== 'RESIGNATION' && !title.trim()) return 'Vui lòng nhập tiêu đề';
     if (!reason.trim()) return 'Vui lòng nhập lý do';
     if (requestType === 'RESIGNATION' && !expectedDate) {
@@ -103,21 +131,31 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
     const finalTitle = requestType === 'RESIGNATION'
       ? `Đơn xin nghỉ việc${selectedUnit ? ' - ' + selectedUnit.name : ''}`
       : title.trim();
+
+    const mergedExtraData: Record<string, any> = {
+      ...extraData,
+      ...(companyUnitId
+        ? {
+            company_unit_id: companyUnitId,
+            company_unit_code: selectedUnit?.code,
+            company_unit_name: selectedUnit?.name,
+          }
+        : {}),
+      // Admin override 2 trường Chức vụ / Phòng ban (chỉ khi admin mode)
+      ...(isAdminMode
+        ? {
+            position_override: positionOverride.trim(),
+            department_override: departmentOverride.trim(),
+          }
+        : {}),
+    };
+
     return {
       request_type: requestType,
       title: finalTitle,
       reason: reason.trim(),
       expected_date: expectedDate || null,
-      extra_data: {
-        ...extraData,
-        ...(companyUnitId
-          ? {
-              company_unit_id: companyUnitId,
-              company_unit_code: selectedUnit?.code,
-              company_unit_name: selectedUnit?.name,
-            }
-          : {}),
-      },
+      extra_data: mergedExtraData,
     };
   };
 
@@ -132,7 +170,11 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
     try {
       let saved: GenericRequest;
       if (editing) {
-        saved = await genericRequestService.update(editing.id, buildPayload());
+        // Admin mode: chỉ gửi extra_data (BE cũng whitelist thêm 1 lớp nữa)
+        const payload = isAdminMode
+          ? ({ extra_data: buildPayload().extra_data } as Partial<GenericRequestPayload>)
+          : buildPayload();
+        saved = await genericRequestService.update(editing.id, payload);
       } else {
         saved = await genericRequestService.create(buildPayload());
       }
@@ -159,7 +201,11 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl my-auto flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h3 className="text-lg font-semibold text-gray-900">
-            {editing ? 'Chỉnh sửa đơn' : 'Tạo đơn mới'}
+            {isAdminMode
+              ? 'Admin chỉnh sửa đơn'
+              : editing
+              ? 'Chỉnh sửa đơn'
+              : 'Tạo đơn mới'}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <XMarkIcon className="w-6 h-6" />
@@ -173,19 +219,25 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
             </div>
           )}
 
+          {isAdminMode && (
+            <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded">
+              Chế độ <strong>Admin</strong> — bạn chỉ có thể chỉnh <strong>Chức vụ</strong>,
+              {' '}<strong>Phòng ban/bộ phận</strong> và <strong>Hình thức làm việc</strong>.
+              Các trường khác hiển thị để đối chiếu và không thể thay đổi.
+            </div>
+          )}
+
           <div>
-            {editing ? (
-              <>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Loại đơn <span className="text-red-500">*</span>
-                </label>
-                <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-sm text-gray-700">
-                  {REQUEST_TYPES.find((t) => t.value === requestType)?.label}
-                </div>
-              </>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Loại đơn <span className="text-red-500">*</span>
+            </label>
+            {editing || isAdminMode ? (
+              <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-sm text-gray-700">
+                {REQUEST_TYPES.find((t) => t.value === requestType)?.label}
+              </div>
             ) : (
               <SelectBox<GenericRequestType>
-                label="Loại đơn *"
+                label=""
                 value={requestType}
                 options={REQUEST_TYPES}
                 onChange={(v) => handleTypeChange(v)}
@@ -201,9 +253,10 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
               <input
                 type="text"
                 value={title}
+                disabled={isAdminMode}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="VD: Đơn đề xuất mua thiết bị"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
               />
             </div>
           )}
@@ -216,8 +269,9 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
             <input
               type="date"
               value={expectedDate}
+              disabled={isAdminMode}
               onChange={(e) => setExpectedDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -228,27 +282,41 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
             <textarea
               rows={4}
               value={reason}
+              disabled={isAdminMode}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Mô tả chi tiết lý do làm đơn..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
             />
           </div>
 
           {requestType === 'RESIGNATION' && (
             <div>
-              <SelectBox<number | ''>
-                label="Đơn vị làm việc *"
-                value={companyUnitId}
-                options={[
-                  { value: '' as number | '', label: '-- Chọn đơn vị --' },
-                  ...companyUnits.map((u) => ({ value: u.id as number | '', label: u.name })),
-                ]}
-                onChange={(v) => setCompanyUnitId(v)}
-                searchable
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Hệ thống sẽ tự động lấy mẫu đơn theo đơn vị bạn chọn
-              </p>
+              {isAdminMode ? (
+                <>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Đơn vị làm việc <span className="text-red-500">*</span>
+                  </label>
+                  <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-sm text-gray-700">
+                    {companyUnits.find((u) => u.id === companyUnitId)?.name
+                      || editing?.extra_data?.company_unit_name
+                      || '—'}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <SelectBox<number | ''>
+                    label="Đơn vị làm việc *"
+                    value={companyUnitId}
+                    options={companyUnits.map((u) => ({ value: u.id as number | '', label: u.name }))}
+                    onChange={(v) => setCompanyUnitId(v)}
+                    placeholder="-- Chọn đơn vị --"
+                    searchable
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Hệ thống sẽ tự động lấy mẫu đơn theo đơn vị bạn chọn
+                  </p>
+                </>
+              )}
             </div>
           )}
 
@@ -258,13 +326,55 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
                 label="Hình thức làm việc *"
                 value={extraData.work_form || ''}
                 options={[
-                  { value: '', label: '-- Chọn hình thức --' },
                   { value: 'PROBATION', label: 'Thử việc' },
                   { value: 'OFFICIAL', label: 'Chính thức' },
                 ]}
                 onChange={(v) => setExtraData({ ...extraData, work_form: v })}
+                placeholder="-- Chọn hình thức --"
               />
             </div>
+          )}
+
+          {/* Admin override: Chức vụ + Phòng ban — chỉ hiện ở admin mode */}
+          {isAdminMode && requestType === 'RESIGNATION' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Chức vụ
+                </label>
+                <input
+                  type="text"
+                  value={positionOverride}
+                  onChange={(e) => setPositionOverride(e.target.value)}
+                  placeholder={editing?.employee_position || 'VD: Nhân viên kinh doanh'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Mặc định từ hồ sơ:{' '}
+                  <span className="font-medium text-gray-700">
+                    {editing?.employee_position || '(trống)'}
+                  </span>
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phòng ban/bộ phận
+                </label>
+                <input
+                  type="text"
+                  value={departmentOverride}
+                  onChange={(e) => setDepartmentOverride(e.target.value)}
+                  placeholder={editing?.employee_department || 'VD: Phòng Kinh doanh'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Mặc định từ hồ sơ:{' '}
+                  <span className="font-medium text-gray-700">
+                    {editing?.employee_department || '(trống)'}
+                  </span>
+                </p>
+              </div>
+            </>
           )}
 
           {/* {requestType === 'RESIGNATION' && (
@@ -331,21 +441,34 @@ const RequestFormDialog: React.FC<Props> = ({ open, editing, onClose, onSaved })
               >
                 Huỷ
               </button>
-              <button
-                onClick={() => handleSave(false)}
-                disabled={submitting}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-              >
-                Lưu nháp
-              </button>
-              <button
-                onClick={() => handleSave(true)}
-                disabled={!canSubmit}
-                title={validationError || 'Gửi đơn để duyệt'}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? 'Đang lưu...' : 'Gửi duyệt'}
-              </button>
+              {isAdminMode ? (
+                <button
+                  onClick={() => handleSave(false)}
+                  disabled={!canSubmit}
+                  title={validationError || 'Lưu thay đổi'}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? 'Đang lưu...' : 'Lưu'}
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleSave(false)}
+                    disabled={submitting}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Lưu nháp
+                  </button>
+                  <button
+                    onClick={() => handleSave(true)}
+                    disabled={!canSubmit}
+                    title={validationError || 'Gửi đơn để duyệt'}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? 'Đang lưu...' : 'Gửi duyệt'}
+                  </button>
+                </>
+              )}
             </div>
           );
         })()}
