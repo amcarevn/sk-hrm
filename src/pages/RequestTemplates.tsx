@@ -1,12 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   PlusIcon,
-  PencilSquareIcon,
-  TrashIcon,
   DocumentArrowDownIcon,
   ArrowPathIcon,
   XMarkIcon,
-  EyeIcon,
   DocumentMagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import Pagination from '../components/Pagination';
@@ -17,6 +14,8 @@ import { GenericRequestType } from '../services/genericRequest.service';
 import { companyUnitsAPI } from '../utils/api';
 import { CompanyUnit } from '../utils/api/types';
 import PdfPreviewModal from '../components/Common/PdfPreviewModal';
+import FeedbackDialog, { FeedbackVariant } from '../components/FeedbackDialog';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const REQUEST_TYPE_OPTIONS: { value: GenericRequestType | ''; label: string }[] = [
   { value: '', label: 'Tất cả loại đơn' },
@@ -42,10 +41,11 @@ interface DialogProps {
   editing: RequestTemplate | null;
   companyUnits: CompanyUnit[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (action: 'create' | 'update') => void;
+  onError: (title: string, message: string) => void;
 }
 
-const TemplateFormDialog: React.FC<DialogProps> = ({ open, editing, companyUnits, onClose, onSaved }) => {
+const TemplateFormDialog: React.FC<DialogProps> = ({ open, editing, companyUnits, onClose, onSaved, onError }) => {
   const [name, setName] = useState('');
   const [requestType, setRequestType] = useState<GenericRequestType>('RESIGNATION');
   const [companyUnitId, setCompanyUnitId] = useState<number | ''>('');
@@ -116,16 +116,21 @@ const TemplateFormDialog: React.FC<DialogProps> = ({ open, editing, companyUnits
           file: file!,
         });
       }
-      onSaved();
+      onSaved(editing ? 'update' : 'create');
       onClose();
     } catch (e: any) {
       const data = e?.response?.data;
       const msg = typeof data === 'string' ? data
         : data?.detail
+        || (Array.isArray(data?.non_field_errors) ? data.non_field_errors[0] : null)
         || (typeof data === 'object' ? JSON.stringify(data) : '')
         || e?.message
         || 'Có lỗi xảy ra';
-      setError(msg);
+      // Đóng form và hiển thị error dialog ở parent để user thấy rõ
+      onError(
+        editing ? 'Không thể cập nhật template' : 'Không thể thêm template',
+        msg
+      );
     } finally {
       setSubmitting(false);
     }
@@ -175,11 +180,9 @@ const TemplateFormDialog: React.FC<DialogProps> = ({ open, editing, companyUnits
             <SelectBox<number | ''>
               label="Đơn vị *"
               value={companyUnitId}
-              options={[
-                { value: '' as number | '', label: '-- Chọn đơn vị --' },
-                ...companyUnits.map((u) => ({ value: u.id as number | '', label: u.name })),
-              ]}
+              options={companyUnits.map((u) => ({ value: u.id as number | '', label: u.name }))}
               onChange={(v) => setCompanyUnitId(v)}
+              placeholder="-- Chọn đơn vị --"
               searchable
             />
           </div>
@@ -279,6 +282,26 @@ const RequestTemplates: React.FC = () => {
   // PDF preview
   const [previewTemplate, setPreviewTemplate] = useState<RequestTemplate | null>(null);
 
+  // Feedback dialog (thông báo upload / chỉnh sửa / xoá thành công hoặc lỗi)
+  const [feedback, setFeedback] = useState<{
+    open: boolean;
+    variant: FeedbackVariant;
+    title: string;
+    message?: string;
+  }>({ open: false, variant: 'success', title: '' });
+
+  // Confirm dialog xoá template
+  const [deleteTarget, setDeleteTarget] = useState<RequestTemplate | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const showFeedback = (
+    variant: FeedbackVariant,
+    title: string,
+    message?: string
+  ) => {
+    setFeedback({ open: true, variant, title, message });
+  };
+
   const fetchTemplates = async () => {
     setLoading(true);
     try {
@@ -324,14 +347,44 @@ const RequestTemplates: React.FC = () => {
     setShowDialog(true);
   };
 
-  const handleDelete = async (tpl: RequestTemplate) => {
-    if (!confirm(`Xoá template "${tpl.name}"?`)) return;
+  const handleDelete = (tpl: RequestTemplate) => {
+    setDeleteTarget(tpl);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
-      await requestTemplateService.remove(tpl.id);
+      await requestTemplateService.remove(deleteTarget.id);
+      const name = deleteTarget.name;
+      setDeleteTarget(null);
       await fetchTemplates();
+      showFeedback('success', 'Xoá thành công', `Template "${name}" đã được xoá.`);
     } catch (e: any) {
-      alert('Xoá thất bại: ' + (e?.response?.data?.detail || e?.message || 'Lỗi'));
+      setDeleteTarget(null);
+      showFeedback(
+        'error',
+        'Xoá thất bại',
+        e?.response?.data?.detail || e?.message || 'Có lỗi xảy ra khi xoá template.'
+      );
+    } finally {
+      setDeleteLoading(false);
     }
+  };
+
+  const handleTemplateSaved = (action: 'create' | 'update') => {
+    fetchTemplates();
+    showFeedback(
+      'success',
+      action === 'create' ? 'Thêm template thành công' : 'Cập nhật template thành công',
+      action === 'create'
+        ? 'Template mới đã được tạo và sẵn sàng sử dụng.'
+        : 'Thay đổi template đã được lưu.'
+    );
+  };
+
+  const handleTemplateError = (title: string, message: string) => {
+    showFeedback('error', title, message);
   };
 
   const hasFilter = filterType !== '' || filterUnit !== '' || filterSearch !== '';
@@ -448,34 +501,30 @@ const RequestTemplates: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDate(tpl.updated_at)}</td>
                   <td className="px-4 py-3 text-sm whitespace-nowrap">
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         onClick={() => setDetailTemplate(tpl)}
-                        className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
-                        title="Xem chi tiết"
+                        className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
                       >
-                        <EyeIcon className="w-4 h-4" />
+                        Chi tiết
                       </button>
                       <button
                         onClick={() => setPreviewTemplate(tpl)}
-                        className="p-1.5 text-purple-600 hover:bg-purple-50 rounded"
-                        title="Xem PDF"
+                        className="px-2.5 py-1 text-xs font-medium text-purple-700 bg-white border border-purple-300 rounded hover:bg-purple-50"
                       >
-                        <DocumentMagnifyingGlassIcon className="w-4 h-4" />
+                        Xem PDF
                       </button>
                       <button
                         onClick={() => openEdit(tpl)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                        title="Sửa"
+                        className="px-2.5 py-1 text-xs font-medium text-blue-700 bg-white border border-blue-300 rounded hover:bg-blue-50"
                       >
-                        <PencilSquareIcon className="w-4 h-4" />
+                        Sửa
                       </button>
                       <button
                         onClick={() => handleDelete(tpl)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                        title="Xoá"
+                        className="px-2.5 py-1 text-xs font-medium text-red-700 bg-white border border-red-300 rounded hover:bg-red-50"
                       >
-                        <TrashIcon className="w-4 h-4" />
+                        Xoá
                       </button>
                     </div>
                   </td>
@@ -502,7 +551,32 @@ const RequestTemplates: React.FC = () => {
         editing={editing}
         companyUnits={companyUnits}
         onClose={() => setShowDialog(false)}
-        onSaved={fetchTemplates}
+        onSaved={handleTemplateSaved}
+        onError={handleTemplateError}
+      />
+
+      <FeedbackDialog
+        open={feedback.open}
+        variant={feedback.variant}
+        title={feedback.title}
+        message={feedback.message}
+        onClose={() => setFeedback((f) => ({ ...f, open: false }))}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        variant="danger"
+        title="Xoá template"
+        message={
+          deleteTarget
+            ? `Bạn có chắc muốn xoá template "${deleteTarget.name}"? Hành động này không thể hoàn tác.`
+            : undefined
+        }
+        confirmLabel="Xoá"
+        cancelLabel="Huỷ"
+        loading={deleteLoading}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
       />
 
       {/* Dialog xem chi tiết template */}
