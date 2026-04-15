@@ -23,18 +23,18 @@ interface Props {
 }
 
 const REQUEST_TYPES: { value: GenericRequestType; label: string }[] = [
-  { value: 'RESIGNATION', label: 'Đơn xin nghỉ việc' },
   { value: 'PROPOSAL', label: 'Đơn đề xuất' },
   { value: 'CONFIRMATION', label: 'Đơn xác nhận' },
   { value: 'COMPLAINT', label: 'Đơn khiếu nại / phản ánh' },
+  { value: 'RESIGNATION', label: 'Đơn xin nghỉ việc' },
   { value: 'OTHER', label: 'Đơn khác' },
 ];
 
 const TYPE_DEFAULT_TITLE: Record<GenericRequestType, string> = {
-  RESIGNATION: 'Đơn xin nghỉ việc',
   PROPOSAL: 'Đơn đề xuất',
   CONFIRMATION: 'Đơn xác nhận',
   COMPLAINT: 'Đơn khiếu nại',
+  RESIGNATION: 'Đơn xin nghỉ việc',
   OTHER: 'Đơn khác',
 };
 
@@ -68,7 +68,7 @@ const RequestFormDialog: React.FC<Props> = ({
         const list = Array.isArray(res) ? res : (res?.results || []);
         setCompanyUnits(list);
       })
-      .catch(() => {});
+      .catch(() => { });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -84,8 +84,8 @@ const RequestFormDialog: React.FC<Props> = ({
       setPositionOverride(editing.extra_data?.position_override || '');
       setDepartmentOverride(editing.extra_data?.department_override || '');
     } else {
-      setRequestType('RESIGNATION');
-      setTitle(TYPE_DEFAULT_TITLE.RESIGNATION);
+      setRequestType('PROPOSAL');
+      setTitle(TYPE_DEFAULT_TITLE.PROPOSAL);
       setReason('');
       setExpectedDate('');
       setExtraData({});
@@ -136,17 +136,17 @@ const RequestFormDialog: React.FC<Props> = ({
       ...extraData,
       ...(companyUnitId
         ? {
-            company_unit_id: companyUnitId,
-            company_unit_code: selectedUnit?.code,
-            company_unit_name: selectedUnit?.name,
-          }
+          company_unit_id: companyUnitId,
+          company_unit_code: selectedUnit?.code,
+          company_unit_name: selectedUnit?.name,
+        }
         : {}),
       // Admin override 2 trường Chức vụ / Phòng ban (chỉ khi admin mode)
       ...(isAdminMode
         ? {
-            position_override: positionOverride.trim(),
-            department_override: departmentOverride.trim(),
-          }
+          position_override: positionOverride.trim(),
+          department_override: departmentOverride.trim(),
+        }
         : {}),
     };
 
@@ -204,8 +204,8 @@ const RequestFormDialog: React.FC<Props> = ({
             {isAdminMode
               ? 'Admin chỉnh sửa đơn'
               : editing
-              ? 'Chỉnh sửa đơn'
-              : 'Tạo đơn mới'}
+                ? 'Chỉnh sửa đơn'
+                : 'Tạo đơn mới'}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <XMarkIcon className="w-6 h-6" />
