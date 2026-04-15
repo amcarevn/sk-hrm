@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import Pagination from '../components/Pagination';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import { useDebounce } from '../hooks/useDebounce';
@@ -10,6 +10,8 @@ import genericRequestService, {
 } from '../services/genericRequest.service';
 import RequestFormDialog from '../components/MyRequests/RequestFormDialog';
 import RequestDetailDialog from '../components/MyRequests/RequestDetailDialog';
+import FeedbackDialog, { FeedbackVariant } from '../components/FeedbackDialog';
+import ConfirmDialog from '../components/ConfirmDialog';
 import PdfPreviewModal from '../components/Common/PdfPreviewModal';
 
 const STATUS_LABELS: Record<GenericRequestStatus, string> = {
@@ -60,13 +62,38 @@ const Offboarding: React.FC = () => {
   const [showFormDialog, setShowFormDialog] = useState(false);
   const [detailRequest, setDetailRequest] = useState<GenericRequest | null>(null);
   const [previewRequest, setPreviewRequest] = useState<GenericRequest | null>(null);
+
+  // Confirm dialog xoá đơn
+  const [deleteTarget, setDeleteTarget] = useState<GenericRequest | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Loading state cho nút "Xuất Excel" ở stat card "Đã nghỉ việc"
+  const [exporting, setExporting] = useState(false);
+
+  // Feedback dialog (thành công / lỗi)
+  const [feedback, setFeedback] = useState<{
+    open: boolean;
+    variant: FeedbackVariant;
+    title: string;
+    message?: string;
+  }>({ open: false, variant: 'success', title: '' });
+
+  const showFeedback = (variant: FeedbackVariant, title: string, message?: string) => {
+    setFeedback({ open: true, variant, title, message });
+  };
   const [approveTarget, setApproveTarget] = useState<GenericRequest | null>(null);
   const [rejectTarget, setRejectTarget] = useState<GenericRequest | null>(null);
   const [approvalNote, setApprovalNote] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   // Stats
-  const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0 });
+  const [stats, setStats] = useState({
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    resigned: 0,       // Tổng số người đã nghỉ việc (RESIGNATION approved + expected_date <= hôm nay)
+    upcomingResign: 0, // Sắp nghỉ việc (RESIGNATION approved + expected_date > hôm nay)
+  });
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -94,15 +121,37 @@ const Offboarding: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      const [pending, approved, rejected] = await Promise.all([
+      const [pending, approved, rejected, resignedApproved] = await Promise.all([
         genericRequestService.list({ status: 'PENDING_ADMIN', page_size: 1 }),
         genericRequestService.list({ status: 'APPROVED', page_size: 1 }),
         genericRequestService.list({ status: 'REJECTED', page_size: 1 }),
+        // Lấy toàn bộ đơn nghỉ việc đã duyệt để đếm theo ngày dự kiến
+        genericRequestService.list({
+          status: 'APPROVED',
+          request_type: 'RESIGNATION',
+          page_size: 500,
+        }),
       ]);
+
+      // Tách resigned / upcoming dựa trên expected_date
+      const todayStr = new Date().toISOString().slice(0, 10);
+      let resignedCount = 0;
+      let upcomingCount = 0;
+      (resignedApproved.results || []).forEach((r) => {
+        if (!r.expected_date) return; // bỏ qua đơn thiếu ngày nghỉ dự kiến
+        if (r.expected_date <= todayStr) {
+          resignedCount += 1;
+        } else {
+          upcomingCount += 1;
+        }
+      });
+
       setStats({
         pending: pending.count || 0,
         approved: approved.count || 0,
         rejected: rejected.count || 0,
+        resigned: resignedCount,
+        upcomingResign: upcomingCount,
       });
     } catch (e) {
       // silent fail
@@ -123,14 +172,158 @@ const Offboarding: React.FC = () => {
     setShowFormDialog(true);
   };
 
-  const handleDelete = async (req: GenericRequest) => {
-    if (!confirm(`Xoá đơn "${req.title}"? Hành động này không thể hoàn tác.`)) return;
+  const handleDelete = (req: GenericRequest) => {
+    setDeleteTarget(req);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
-      await genericRequestService.remove(req.id);
+      await genericRequestService.remove(deleteTarget.id);
+      const title = deleteTarget.title;
+      setDeleteTarget(null);
       await fetchRequests();
       await fetchStats();
+      showFeedback('success', 'Xoá đơn thành công', `Đơn "${title}" đã được xoá.`);
     } catch (e: any) {
-      alert('Xoá thất bại: ' + (e?.response?.data?.detail || e?.message || 'Lỗi'));
+      setDeleteTarget(null);
+      showFeedback(
+        'error',
+        'Xoá đơn thất bại',
+        e?.response?.data?.detail || e?.message || 'Có lỗi xảy ra khi xoá đơn.'
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Xuất Excel danh sách "Đã nghỉ việc" — RESIGNATION approved + expected_date <= today
+  const handleExportResigned = async () => {
+    setExporting(true);
+    try {
+      const data = await genericRequestService.list({
+        status: 'APPROVED',
+        request_type: 'RESIGNATION',
+        page_size: 500,
+      });
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const rows = (data.results || []).filter(
+        (r) => r.expected_date && r.expected_date <= todayStr
+      );
+
+      if (rows.length === 0) {
+        showFeedback(
+          'info',
+          'Không có dữ liệu',
+          'Hiện chưa có nhân viên nào đã nghỉ việc để xuất.'
+        );
+        return;
+      }
+
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Đã nghỉ việc', {
+        views: [{ state: 'frozen', ySplit: 1 }],
+      });
+
+      sheet.columns = [
+        { header: 'STT', key: 'stt', width: 6 },
+        { header: 'Mã đơn', key: 'request_code', width: 18 },
+        { header: 'Mã NV', key: 'employee_code', width: 14 },
+        { header: 'Họ và tên', key: 'employee_name', width: 25 },
+        { header: 'Chức vụ', key: 'position', width: 20 },
+        { header: 'Phòng ban', key: 'department', width: 20 },
+        { header: 'Ngày bắt đầu nghỉ', key: 'expected_date', width: 18 },
+        { header: 'Ngày HCNS duyệt', key: 'approved_at', width: 18 },
+        { header: 'Lý do', key: 'reason', width: 40 },
+        { header: 'Người phê duyệt cuối', key: 'admin_approved_by_name', width: 22 },
+      ];
+
+      // Style header row
+      const headerRow = sheet.getRow(1);
+      headerRow.height = 24;
+      headerRow.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4472C4' },
+        };
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.alignment = {
+          horizontal: 'center',
+          vertical: 'middle',
+          wrapText: true,
+        };
+        cell.border = {
+          top: { style: 'thin' },
+          bottom: { style: 'thin' },
+          left: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+      });
+
+      const fmtDate = (iso: string | null) => {
+        if (!iso) return '';
+        const d = iso.slice(0, 10).split('-');
+        return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : iso;
+      };
+
+      rows.forEach((req, idx) => {
+        const row = sheet.addRow({
+          stt: idx + 1,
+          request_code: req.request_code || '',
+          employee_code: req.employee_code || '',
+          employee_name: req.employee_name || '',
+          position: req.extra_data?.position_override || req.employee_position || '',
+          department: req.extra_data?.department_override || req.employee_department || '',
+          expected_date: fmtDate(req.expected_date),
+          approved_at: fmtDate(req.approved_at),
+          reason: req.reason || '',
+          admin_approved_by_name: req.admin_approved_by_name || '',
+        });
+        row.eachCell((cell, colIdx) => {
+          cell.border = {
+            top: { style: 'thin' },
+            bottom: { style: 'thin' },
+            left: { style: 'thin' },
+            right: { style: 'thin' },
+          };
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal: colIdx === 1 ? 'center' : 'left',
+            wrapText: colIdx === 9,
+          };
+        });
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `danh-sach-nghi-viec-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showFeedback(
+        'success',
+        'Xuất Excel thành công',
+        `Đã xuất ${rows.length} nhân viên đã nghỉ việc.`
+      );
+    } catch (e: any) {
+      showFeedback(
+        'error',
+        'Xuất Excel thất bại',
+        e?.message || 'Có lỗi xảy ra khi tạo file Excel.'
+      );
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -182,7 +375,7 @@ const Offboarding: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Offboard nhân sự</h1>
         <p className="text-gray-600 mt-2">
@@ -191,7 +384,7 @@ const Offboarding: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
           <h3 className="font-medium text-orange-900">Chờ HCNS duyệt</h3>
           <p className="text-3xl font-bold text-orange-700 mt-2">{stats.pending}</p>
@@ -206,6 +399,26 @@ const Offboarding: React.FC = () => {
           <h3 className="font-medium text-red-900">Từ chối</h3>
           <p className="text-3xl font-bold text-red-700 mt-2">{stats.rejected}</p>
           <p className="text-red-600 text-sm mt-1">Tổng số từ chối</p>
+        </div>
+        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col">
+          <h3 className="font-medium text-gray-900">Đã nghỉ việc</h3>
+          <p className="text-3xl font-bold text-gray-700 mt-2">{stats.resigned}</p>
+          <p className="text-gray-600 text-sm mt-1">Ngày nghỉ ≤ hôm nay</p>
+          {stats.resigned > 0 && (
+            <button
+              onClick={handleExportResigned}
+              disabled={exporting}
+              className="mt-2 px-3 py-1.5 text-xs font-medium text-white bg-gray-700 rounded hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1.5 self-start"
+            >
+              <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+            </button>
+          )}
+        </div>
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+          <h3 className="font-medium text-blue-900">Sắp nghỉ việc</h3>
+          <p className="text-3xl font-bold text-blue-700 mt-2">{stats.upcomingResign}</p>
+          <p className="text-blue-600 text-sm mt-1">Ngày nghỉ &gt; hôm nay</p>
         </div>
       </div>
 
@@ -388,15 +601,13 @@ const Offboarding: React.FC = () => {
                           </>
                         )}
 
-                        {/* Xoá — Admin có thể xoá ở các status non-active */}
-                        {(req.status === 'PENDING_ADMIN' || req.status === 'REJECTED' || req.status === 'CANCELLED') && (
-                          <button
-                            onClick={() => handleDelete(req)}
-                            className="px-2.5 py-1 text-xs font-medium text-red-700 bg-white border border-red-300 rounded hover:bg-red-50"
-                          >
-                            Xoá
-                          </button>
-                        )}
+                        {/* Xoá — Admin có thể xoá ở MỌI status (soft delete từ BE) */}
+                        <button
+                          onClick={() => handleDelete(req)}
+                          className="px-2.5 py-1 text-xs font-medium text-red-700 bg-white border border-red-300 rounded hover:bg-red-50"
+                        >
+                          Xoá
+                        </button>
 
                         {/* View buttons (Xem PDF + Chi tiết) — đẩy xuống cuối */}
                         {req.request_type === 'RESIGNATION' && (
@@ -454,6 +665,30 @@ const Offboarding: React.FC = () => {
         loader={previewRequest ? () => genericRequestService.previewPdf(previewRequest.id) : null}
         downloadFilename={previewRequest ? `${previewRequest.request_code || 'don'}.pdf` : 'don.pdf'}
         onClose={() => setPreviewRequest(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        variant="danger"
+        title="Xoá đơn"
+        message={
+          deleteTarget
+            ? `Bạn có chắc muốn xoá đơn "${deleteTarget.title}" (mã ${deleteTarget.request_code || 'N/A'})? Đơn sẽ bị đánh dấu xoá và không hiển thị nữa.`
+            : undefined
+        }
+        confirmLabel="Xoá"
+        cancelLabel="Huỷ"
+        loading={deleteLoading}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
+
+      <FeedbackDialog
+        open={feedback.open}
+        variant={feedback.variant}
+        title={feedback.title}
+        message={feedback.message}
+        onClose={() => setFeedback((f) => ({ ...f, open: false }))}
       />
 
       {/* Modal Admin duyệt cuối */}

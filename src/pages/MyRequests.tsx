@@ -573,7 +573,7 @@ const MyRequests: React.FC = () => {
                       )}
 
                       {/* Tab "Đơn của tôi" - PENDING: nút Huỷ */}
-                      {activeTab === 'mine' && (req.status === 'PENDING_MANAGER' || req.status === 'PENDING_ADMIN') && (
+                      {activeTab === 'mine' && req.status === 'PENDING_MANAGER' && (
                         <button
                           onClick={() => handleCancel(req)}
                           className="px-2.5 py-1 text-xs font-medium text-orange-700 bg-white border border-orange-300 rounded hover:bg-orange-50"
