@@ -17,11 +17,12 @@ import {
   LockClosedIcon,
   LockOpenIcon,
   ClockIcon,
+  TableCellsIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
 import { departmentsAPI, employeesAPI, Department, Employee } from '../utils/api';
 import { workFinalizationService, WorkFinalizationRecord } from '../services/workFinalization.service';
-import type { FinalizeAllResponse, FinalizeDepartmentResponse, LockStatusResponse } from '../services/workFinalization.service';
+import type { DailySummaryItem, FinalizeAllResponse, FinalizeDepartmentResponse, LockStatusResponse } from '../services/workFinalization.service';
 import deptAttendanceViolationReportService from '../services/deptAttendanceViolationReport.service';
 import type { DeptAttendanceViolationResponse } from '../services/deptAttendanceViolationReport.service';
 import AttendanceCalendar from '../components/AttendanceCalendar';
@@ -189,6 +190,10 @@ const WorkFinalization: React.FC = () => {
   const [showLockConfirm, setShowLockConfirm] = useState(false);
   const [lockNote, setLockNote] = useState('');
   const [lockStartAt, setLockStartAt] = useState('');
+
+  // Daily detail pivot modal
+  const [showDailyPreviewModal, setShowDailyPreviewModal] = useState(false);
+  const [exportingDaily, setExportingDaily] = useState(false);
 
   const isLocked = lockStatus?.is_locked ?? false;
 
@@ -738,6 +743,125 @@ const WorkFinalization: React.FC = () => {
     }
   };
 
+  // --- Daily detail pivot helpers ---
+  const formatDailyCredit = (item: DailySummaryItem): string => {
+    const c = item.work_credit;
+    if (item.day_type === 'L') return 'L';
+    if (item.day_type === 'P') return c ? `${c}P` : '';
+    if (item.day_type === 'OL') return c ? `${c}OL` : '';
+    if (c > 0) return String(c);
+    return '';
+  };
+
+  const dailyPivotRecords = useMemo(() =>
+    records.filter((r) => r.daily_summary && r.daily_summary.length > 0),
+    [records]
+  );
+
+  const pivotDayHeaders = useMemo(() => {
+    if (dailyPivotRecords.length === 0) return [];
+    const first = dailyPivotRecords[0].daily_summary!;
+    return first.map((d) => ({
+      day: d.day,
+      label: `${String(d.day).padStart(2, '0')}(${d.weekday_label.replace('Thứ ', 'T').replace('Chủ nhật', 'CN')})`,
+    }));
+  }, [dailyPivotRecords]);
+
+  const handleExportDailyPivot = async () => {
+    if (dailyPivotRecords.length === 0) return;
+    setExportingDaily(true);
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      const dept = departments.find((d) => d.id === Number(selectedDepartment));
+      const sheetLabel = dept ? dept.name : 'TatCa';
+      const sheet = workbook.addWorksheet(`ChiTiet_${sheetLabel}_T${selectedMonth}_${selectedYear}`);
+
+      const HEADER_FILL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF4472C4' } };
+      const HEADER_FONT = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+      const BORDER = {
+        top: { style: 'thin' as const }, left: { style: 'thin' as const },
+        bottom: { style: 'thin' as const }, right: { style: 'thin' as const },
+      };
+
+      // Color fills for day_type
+      const FILL_P = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFF3E0' } };
+      const FILL_OL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFE0F7FA' } };
+      const FILL_L = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFE3F2FD' } };
+
+      // Build headers
+      const dayLabels = pivotDayHeaders.map((h) => h.label);
+
+      const FIXED_COLS = 5; // STT, Mã NV, Họ Tên, Phòng Ban, Vị Trí
+      sheet.columns = [
+        { header: 'STT', key: 'stt', width: 6 },
+        { header: 'Mã NV', key: 'ma_nv', width: 10 },
+        { header: 'Họ và Tên', key: 'ho_va_ten', width: 24 },
+        { header: 'Phòng Ban', key: 'phong_ban', width: 18 },
+        { header: 'Vị Trí', key: 'vi_tri', width: 18 },
+        ...dayLabels.map((lbl, i) => ({ header: lbl, key: `d${i + 1}`, width: 8 })),
+        { header: 'Tổng', key: 'tong', width: 8 },
+      ];
+
+      const headerRow = sheet.getRow(1);
+      headerRow.eachCell((cell) => {
+        cell.fill = HEADER_FILL;
+        cell.font = HEADER_FONT;
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = BORDER;
+      });
+      headerRow.height = 32;
+
+      dailyPivotRecords.forEach((rec, idx) => {
+        const rowData: Record<string, any> = {
+          stt: idx + 1,
+          ma_nv: rec.ma_nv,
+          ho_va_ten: rec.ho_va_ten,
+          phong_ban: rec.phong_ban ?? '',
+          vi_tri: rec.vi_tri ?? '',
+          tong: rec.tong_cong,
+        };
+        (rec.daily_summary || []).forEach((d, i) => {
+          rowData[`d${i + 1}`] = formatDailyCredit(d);
+        });
+
+        const row = sheet.addRow(rowData);
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          cell.border = BORDER;
+          cell.alignment = { vertical: 'middle', horizontal: colNumber <= FIXED_COLS ? 'left' : 'center' };
+        });
+
+        // Apply day_type coloring
+        (rec.daily_summary || []).forEach((d, i) => {
+          const cell = row.getCell(FIXED_COLS + 1 + i); // offset by fixed cols
+          if (d.day_type === 'P') cell.fill = FILL_P;
+          else if (d.day_type === 'OL') cell.fill = FILL_OL;
+          else if (d.day_type === 'L') cell.fill = FILL_L;
+        });
+      });
+
+      sheet.views = [{ state: 'frozen', xSplit: FIXED_COLS, ySplit: 1 }];
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `BangCong_ChiTiet_${sheetLabel}_T${selectedMonth}_${selectedYear}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export daily pivot error:', err);
+      setError('Không thể xuất file Excel bảng công chi tiết. Vui lòng thử lại.');
+    } finally {
+      setExportingDaily(false);
+    }
+  };
+
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
@@ -836,6 +960,14 @@ const WorkFinalization: React.FC = () => {
           >
             <EyeIcon className="w-4 h-4 mr-2" />
             Xem trước
+          </button>
+          <button
+            onClick={() => setShowDailyPreviewModal(true)}
+            disabled={dailyPivotRecords.length === 0}
+            className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-md shadow-sm text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <TableCellsIcon className="w-4 h-4 mr-2" />
+            {`Bảng công chi tiết (${dailyPivotRecords.length})`}
           </button>
           <button
             onClick={handleOpenViolationReport}
@@ -1575,6 +1707,142 @@ const WorkFinalization: React.FC = () => {
                     ? 'Xác nhận mở khóa'
                     : 'Xác nhận khóa'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Daily Pivot Preview Modal */}
+      {showDailyPreviewModal && dailyPivotRecords.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[98vw] max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <TableCellsIcon className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">
+                    Bảng công chi tiết
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Tháng {selectedMonth}/{selectedYear} · {dailyPivotRecords.length} nhân viên đã chốt
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDailyPreviewModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Pivot Table */}
+            <div className="flex-1 overflow-auto">
+              <table className="min-w-full text-xs border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr>
+                    <th className="whitespace-nowrap px-2 py-2 text-center font-semibold text-white bg-indigo-700 border border-indigo-800">
+                      STT
+                    </th>
+                    <th className="whitespace-nowrap px-2 py-2 text-center font-semibold text-white bg-indigo-700 border border-indigo-800">
+                      Mã NV
+                    </th>
+                    <th className="whitespace-nowrap px-3 py-2 text-left font-semibold text-white bg-indigo-700 border border-indigo-800">
+                      Họ và Tên
+                    </th>
+                    <th className="whitespace-nowrap px-3 py-2 text-left font-semibold text-white bg-indigo-700 border border-indigo-800">
+                      Phòng Ban
+                    </th>
+                    <th className="whitespace-nowrap px-3 py-2 text-left font-semibold text-white bg-indigo-700 border border-indigo-800">
+                      Vị Trí
+                    </th>
+                    {pivotDayHeaders.map((h) => (
+                      <th
+                        key={h.day}
+                        className="whitespace-nowrap px-1.5 py-2 text-center font-semibold text-white bg-indigo-700 border border-indigo-800 min-w-[52px]"
+                      >
+                        {h.label}
+                      </th>
+                    ))}
+                    <th className="whitespace-nowrap px-2 py-2 text-center font-bold text-white bg-indigo-900 border border-indigo-800">
+                      Tổng
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailyPivotRecords.map((rec, idx) => {
+                    const rowCls = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                    return (
+                      <tr key={rec.ma_nv} className={`${rowCls} hover:bg-indigo-50/40 transition-colors`}>
+                        <td className="px-2 py-1.5 text-center border border-gray-200">
+                          {idx + 1}
+                        </td>
+                        <td className="px-2 py-1.5 font-mono text-center border border-gray-200">
+                          {rec.ma_nv}
+                        </td>
+                        <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200">
+                          {rec.ho_va_ten}
+                        </td>
+                        <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200 text-gray-600">
+                          {rec.phong_ban ?? '—'}
+                        </td>
+                        <td className="px-3 py-1.5 whitespace-nowrap border border-gray-200 text-gray-600">
+                          {rec.vi_tri ?? '—'}
+                        </td>
+                        {(rec.daily_summary || []).map((d) => {
+                          const creditStr = formatDailyCredit(d);
+                          const cellCls =
+                            d.day_type === 'P' ? 'bg-amber-50 text-amber-700 font-medium'
+                            : d.day_type === 'OL' ? 'bg-cyan-50 text-cyan-700 font-medium'
+                            : d.day_type === 'L' ? 'bg-blue-50 text-blue-600 font-medium'
+                            : d.is_weekend && !creditStr ? 'bg-gray-100 text-gray-400'
+                            : d.work_credit >= 1 ? 'text-green-700 font-medium'
+                            : d.work_credit > 0 ? 'text-orange-600 font-medium'
+                            : '';
+                          return (
+                            <td
+                              key={d.date}
+                              className={`px-1.5 py-1.5 text-center border border-gray-200 ${cellCls}`}
+                              title={d.holiday_name || d.weekday_label}
+                            >
+                              {creditStr}
+                            </td>
+                          );
+                        })}
+                        <td className="px-2 py-1.5 text-center font-bold text-indigo-700 border border-gray-200 bg-indigo-50/50">
+                          {rec.tong_cong}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+              <span className="text-xs text-gray-500">
+                {dailyPivotRecords.length} nhân viên · Tháng {selectedMonth}/{selectedYear}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleExportDailyPivot}
+                  disabled={exportingDaily}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ArrowDownTrayIcon className="w-4 h-4 mr-1.5" />
+                  {exportingDaily ? 'Đang xuất...' : 'Xuất Excel'}
+                </button>
+                <button
+                  onClick={() => setShowDailyPreviewModal(false)}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
         </div>

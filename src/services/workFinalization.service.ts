@@ -1,5 +1,15 @@
 import { managementApi } from '../utils/api';
 
+export interface DailySummaryItem {
+  date: string;
+  day: number;
+  weekday_label: string;
+  is_weekend: boolean;
+  work_credit: number;
+  day_type: '' | 'P' | 'OL' | 'L';
+  holiday_name?: string | null;
+}
+
 export interface WorkFinalizationRecord {
   stt: number;
   id: number;
@@ -31,6 +41,7 @@ export interface WorkFinalizationRecord {
   year: number;
   month: number;
   finalized_at: string;
+  daily_summary?: DailySummaryItem[];
 }
 
 export interface WorkFinalizationListResponse {
