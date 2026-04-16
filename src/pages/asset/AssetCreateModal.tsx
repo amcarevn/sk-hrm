@@ -244,7 +244,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         const simCompanyName = companyUnits.find(c => c.value === sim_company)?.label || '';
         specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type, sim_company, sim_company_name: simCompanyName };
       } else if (formData.asset_type === 'OTHER') {
-        specifications = { type_name: other_type_name };
+        specifications = { type_name: other_type_name, quantity: parseInt(monitor_quantity) || 0 };
       }
 
       const payload = {
@@ -380,11 +380,11 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                           />
 
                           {/* Màn hình: Thông tin chi tiết */}
-                          {formData.asset_type === 'MONITOR' && (
+                          {['MONITOR', 'OTHER'].includes(formData.asset_type) && (
                             <div className="sm:col-span-2 bg-purple-50/60 p-4 rounded-xl border border-purple-100">
                               <h4 className="text-xs font-semibold uppercase tracking-wide text-purple-500 mb-3 flex items-center gap-1.5">
                                 <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
-                                Thông tin Màn hình
+                                Số lượng tài sản
                               </h4>
                               <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
                                 <div>

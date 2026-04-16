@@ -88,7 +88,6 @@ export default function AssignedAssetList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-
   const [pendingHandovers, setPendingHandovers] = useState<AssetAssignmentHistory[]>([]);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [rejectingHistory, setRejectingHistory] = useState<AssetAssignmentHistory | null>(null);
@@ -292,18 +291,83 @@ export default function AssignedAssetList() {
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-bold text-gray-900">
-                          [{h.asset_code}] {h.asset_name}
+                          {h.asset_name}
                         </span>
+                        {h.asset_type_display && (
+                          <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-200 uppercase tracking-tight">
+                            {h.asset_type_display}
+                          </span>
+                        )}
                         <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200 uppercase tracking-tight">
                           Chờ xác nhận
                         </span>
                       </div>
+
+                      {/* Asset detail — hiển thị rõ "đang được bàn giao cái gì" */}
+                      <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-gray-600 sm:grid-cols-2">
+                        {h.asset_brand && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-gray-500">Thương hiệu:</span>
+                            <span className="font-semibold text-gray-800">{h.asset_brand}</span>
+                          </div>
+                        )}
+                        {h.asset_model && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-gray-500">Model:</span>
+                            <span className="font-semibold text-gray-800">{h.asset_model}</span>
+                          </div>
+                        )}
+                        {h.asset_serial_number && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-gray-500">Serial:</span>
+                            <span className="font-mono text-[11px] font-semibold text-gray-800">{h.asset_serial_number}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-gray-500">Mã hệ thống:</span>
+                          <span className="font-mono text-[11px] text-gray-700">{h.asset_code}</span>
+                        </div>
+                      </div>
+
+                      {/* Specifications theo loại */}
+                      {h.asset_specifications && Object.keys(h.asset_specifications).length > 0 && (
+                        <div className="mt-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Thông số kỹ thuật</p>
+                          <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 text-xs text-slate-700 sm:grid-cols-2">
+                            {(h.asset_type === 'LAPTOP' || h.asset_type === 'DESKTOP') && (
+                              <>
+                                {h.asset_specifications.cpu && <div><span className="text-slate-500">CPU:</span> <span className="font-semibold">{h.asset_specifications.cpu}</span></div>}
+                                {h.asset_specifications.ram && <div><span className="text-slate-500">RAM:</span> <span className="font-semibold">{h.asset_specifications.ram}</span></div>}
+                                {h.asset_specifications.storage && <div><span className="text-slate-500">Ổ cứng:</span> <span className="font-semibold">{h.asset_specifications.storage}</span></div>}
+                                {h.asset_specifications.vga && <div><span className="text-slate-500">VGA:</span> <span className="font-semibold">{h.asset_specifications.vga}</span></div>}
+                                {h.asset_specifications.mainboard && <div><span className="text-slate-500">Main:</span> <span className="font-semibold">{h.asset_specifications.mainboard}</span></div>}
+                                {h.asset_specifications.power_supply && <div><span className="text-slate-500">Nguồn:</span> <span className="font-semibold">{h.asset_specifications.power_supply}</span></div>}
+                              </>
+                            )}
+                            {['MONITOR', 'OTHER'].includes(h.asset_type || '') && h.assigned_quantity != null && (
+                              <div><span className="text-slate-500">Số lượng bàn giao:</span> <span className="font-semibold">{h.assigned_quantity}</span></div>
+                            )}
+                            {h.asset_type === 'SIM' && (
+                              <>
+                                {h.asset_specifications.phone_number && <div><span className="text-slate-500">SĐT:</span> <span className="font-mono font-semibold">{h.asset_specifications.phone_number}</span></div>}
+                                {h.asset_specifications.network_provider && <div><span className="text-slate-500">Nhà mạng:</span> <span className="font-semibold">{h.asset_specifications.network_provider}</span></div>}
+                                {h.asset_specifications.sim_type && <div><span className="text-slate-500">Loại SIM:</span> <span className="font-semibold">{h.asset_specifications.sim_type === 'PREPAID' ? 'Trả trước' : h.asset_specifications.sim_type === 'POSTPAID' ? 'Trả sau' : h.asset_specifications.sim_type}</span></div>}
+                                {h.asset_specifications.sim_company_name && <div><span className="text-slate-500">Công ty:</span> <span className="font-semibold">{h.asset_specifications.sim_company_name}</span></div>}
+                              </>
+                            )}
+                            {h.asset_type === 'OTHER' && h.asset_specifications.type_name && (
+                              <div><span className="text-slate-500">Loại:</span> <span className="font-semibold">{h.asset_specifications.type_name}</span></div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="mt-2 grid grid-cols-1 gap-1 text-xs text-gray-600 sm:grid-cols-2">
                         <div className="flex items-center gap-1.5">
                           <UserIcon className="h-3.5 w-3.5 text-gray-400" />
                           <span className="text-gray-500">Người bàn giao:</span>
                           <span className="font-semibold text-gray-800">
-                            {h.assigned_by_name || '—'}
+                            {h.assigned_by_name || 'Chưa có thông tin'}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -371,6 +435,7 @@ export default function AssignedAssetList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Mã thiết bị</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Model</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Loại tài sản</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Số lượng bàn giao</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Trạng thái vận hành</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Tình trạng vật lý</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Quản lý kho</th>
@@ -384,7 +449,7 @@ export default function AssignedAssetList() {
               {loading ? (
                 [...Array(4)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(11)].map((__, j) => (
+                    {[...Array(12)].map((__, j) => (
                       <td key={j} className="px-6 py-4">
                         <div className="h-4 bg-gray-200 rounded animate-pulse" />
                       </td>
@@ -393,7 +458,7 @@ export default function AssignedAssetList() {
                 ))
               ) : filteredAssets.length === 0 ? (
                 <tr> 
-                  <td colSpan={11} className="px-6 py-16 text-center">
+                  <td colSpan={12} className="px-6 py-16 text-center">
                     <ComputerDesktopIcon className="mx-auto h-12 w-12 text-gray-300 mb-3" />
                     <p className="text-gray-500 font-medium">Bạn chưa được bàn giao tài sản nào.</p>
                     <p className="text-sm text-gray-400 mt-1">Liên hệ phòng IT để được hỗ trợ.</p>
@@ -421,9 +486,15 @@ export default function AssignedAssetList() {
                       {/* Loại tài sản */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getTypeColor(asset.asset_type)} uppercase tracking-tight`}>
-                          {asset.asset_type === 'OTHER' && (asset as any).other_type_name 
-                            ? `Khác (${(asset as any).other_type_name})` 
+                          {asset.asset_type === 'OTHER' && (asset as any).other_type_name
+                            ? `Khác (${(asset as any).other_type_name})`
                             : asset.asset_type_display}
+                        </span>
+                      </td>
+                      {/* SL bàn giao */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {asset.my_assigned_quantity ?? 1}
                         </span>
                       </td>
                       {/* Trạng thái vận hành */}
@@ -531,6 +602,7 @@ export default function AssignedAssetList() {
         isOpen={isDetailModalOpen}
         onClose={() => { setIsDetailModalOpen(false); setSelectedAsset(null); }}
         asset={selectedAsset}
+        viewMode="employee"
       />
 
       {/* Feedback Dialog */}

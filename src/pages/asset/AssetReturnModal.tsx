@@ -10,6 +10,9 @@ interface AssetReturnModalProps {
   onClose: () => void;
   onSuccess: () => void;
   asset: Asset;
+  historyId?: number;
+  holderName?: string;
+  holderQuantity?: number;
 }
 
 const ASSET_CONDITIONS = [
@@ -20,11 +23,14 @@ const ASSET_CONDITIONS = [
   { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
 ];
 
-export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: AssetReturnModalProps) {
+export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset, historyId, holderName, holderQuantity }: AssetReturnModalProps) {
   const [loading, setLoading] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [returnedFromName, setReturnedFromName] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const showQtyInput = !!(holderQuantity && holderQuantity > 1);
+  const [returnQty, setReturnQty] = useState(holderQuantity ?? 1);
+  const [qtyError, setQtyError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     return_date: new Date().toISOString().split('T')[0],
     condition: 'GOOD',
@@ -38,8 +44,10 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
         condition: asset.condition || 'GOOD',
         notes: '',
       });
+      setReturnQty(holderQuantity ?? 1);
+      setQtyError(null);
     }
-  }, [isOpen, asset]);
+  }, [isOpen, asset, holderQuantity]);
 
   const handleChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -59,8 +67,10 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
         return_date: formData.return_date,
         condition: formData.condition,
         notes: formData.notes,
+        ...(historyId ? { history_id: historyId } : {}),
+        ...(showQtyInput ? { return_quantity: returnQty } : {}),
       });
-      setReturnedFromName(asset.assigned_to_name || '');
+      setReturnedFromName(holderName || asset.assigned_to_name || '');
       setShowSuccessDialog(true);
     } catch (error: any) {
       console.error('Error returning asset:', error);
@@ -117,15 +127,60 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
                     <DialogTitle as="h3" className="text-xl font-semibold leading-6 text-gray-900 border-b pb-3 border-gray-200">
-                      Thu hồi tài sản về kho
+                      {holderName ? `Thu hồi từ ${holderName}` : 'Thu hồi tài sản về kho'}
                     </DialogTitle>
                     <div className="mt-4 mb-4 bg-amber-50 p-3 rounded-md">
                       <p className="text-sm text-amber-800">
                         <strong>Tài sản đang thu hồi:</strong> [{asset.asset_code}] {asset.name}
                       </p>
                     </div>
+                    {holderName && holderQuantity != null && (
+                      <div className="mb-4 bg-blue-50 p-3 rounded-md border border-blue-100">
+                        <p className="text-sm text-blue-800">
+                          <strong>{holderName}</strong> đang giữ <strong>{holderQuantity}</strong>
+                        </p>
+                      </div>
+                    )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                      {showQtyInput && (
+                        <div>
+                          <label htmlFor="return_qty" className="block text-sm font-medium text-gray-700">
+                            Số lượng thu hồi
+                          </label>
+                          <input
+                            type="number"
+                            id="return_qty"
+                            min={1}
+                            max={holderQuantity}
+                            value={returnQty}
+                            onChange={(e) => {
+                              const n = parseInt(e.target.value) || 0;
+                              setReturnQty(n);
+                              if (n > (holderQuantity ?? 1)) {
+                                setQtyError(`Tối đa ${holderQuantity} màn hình`);
+                              } else if (n < 1) {
+                                setQtyError('Số lượng tối thiểu là 1');
+                              } else {
+                                setQtyError(null);
+                              }
+                            }}
+                            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
+                              qtyError
+                                ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500'
+                                : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
+                            }`}
+                            required
+                          />
+                          {qtyError ? (
+                            <p className="mt-1 text-xs text-rose-600">{qtyError}</p>
+                          ) : (
+                            <p className="mt-1 text-xs text-gray-500">
+                              {holderName} đang giữ {holderQuantity} màn hình
+                            </p>
+                          )}
+                        </div>
+                      )}
                       <div>
                         <label htmlFor="return_date" className="block text-sm font-medium text-gray-700">Ngày thu hồi</label>
                         <input
@@ -161,8 +216,8 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
                       <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                         <button
                           type="submit"
-                          disabled={loading}
-                          className="inline-flex w-full justify-center rounded-md bg-amber-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-amber-700 sm:ml-3 sm:w-auto"
+                          disabled={loading || !!qtyError}
+                          className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto ${loading || qtyError ? 'bg-amber-300 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700'}`}
                         >
                           {loading ? 'Đang lưu...' : 'Xác nhận Thu Hồi'}
                         </button>
@@ -232,7 +287,7 @@ export default function AssetReturnModal({ isOpen, onClose, onSuccess, asset }: 
                         <p>
                           Tài sản <span className="font-semibold text-gray-900">[{asset.asset_code}] {asset.name}</span>
                           {returnedFromName ? (
-                            <> đã được thu hồi từ <span className="font-semibold text-gray-900">{returnedFromName}</span> về kho.</>
+                            <> đã được thu hồi từ <span className="font-semibold text-gray-900">{returnedFromName}</span>{holderQuantity != null && <> (<strong>{holderQuantity}</strong>)</>} về kho.</>
                           ) : (
                             <> đã được thu hồi về kho.</>
                           )}
