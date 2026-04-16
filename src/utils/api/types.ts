@@ -632,6 +632,19 @@ export interface Asset {
   updated_at: string;
   is_deleted?: boolean;
   deleted_at?: string;
+  total_quantity?: number;
+  remaining_quantity?: number;
+  assigned_quantity_total?: number;
+  my_assigned_quantity?: number;
+  holders?: Array<{
+    history_id: number;
+    employee_id: number;
+    name: string;
+    department_name?: string;
+    assigned_quantity: number;
+    assigned_date: string;
+    assignment_notes?: string;
+  }>;
 }
 
 export type AssetAssignmentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED' | 'RETURNED';
@@ -641,6 +654,12 @@ export interface AssetAssignmentHistory {
   asset: number;
   asset_code: string;
   asset_name: string;
+  asset_type?: string;
+  asset_type_display?: string;
+  asset_brand?: string;
+  asset_model?: string;
+  asset_serial_number?: string;
+  asset_specifications?: Record<string, any> | null;
   assigned_to: number;
   assigned_to_name: string;
   assigned_date: string;
@@ -658,6 +677,7 @@ export interface AssetAssignmentHistory {
   assigned_by_name?: string | null;
   created_at: string;
   duration_days?: number | null;
+  assigned_quantity?: number;
 }
 
 export interface AssetMaintenance {

@@ -2,19 +2,28 @@ import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon, ComputerDesktopIcon, CalendarIcon, UserIcon, BuildingOfficeIcon, ShieldCheckIcon, ShoppingBagIcon, CpuChipIcon, ServerStackIcon, Square3Stack3DIcon, CircleStackIcon, DeviceTabletIcon, BoltIcon, ArrowUturnLeftIcon, IdentificationIcon, TagIcon, BuildingStorefrontIcon, SparklesIcon, ClockIcon, UserPlusIcon, XCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Asset, AssetAssignmentHistory, positionsAPI, assetsAPI } from '../../utils/api';
+import AssetReturnModal from './AssetReturnModal';
 
 interface AssetDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   asset: Asset | null;
+  onAfterReturn?: () => void;
+  viewMode?: 'manager' | 'employee';
 }
 
-export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetailModalProps) {
+export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn, viewMode = 'manager' }: AssetDetailModalProps) {
   if (!asset) return null;
 
   const [positionName, setPositionName] = useState<string>('');
   const [history, setHistory] = useState<AssetAssignmentHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [returnTarget, setReturnTarget] = useState<{ historyId: number; holderName: string; assignedQuantity: number } | null>(null);
+  const MULTI_HOLDER_TYPES = ['MONITOR', 'OTHER'];
+  const isMultiHolder = MULTI_HOLDER_TYPES.includes(asset.asset_type) && (asset.total_quantity ?? 1) > 1;
+  const holders = asset.holders || [];
+  const isManager = viewMode === 'manager';
+  const isEmployee = viewMode === 'employee';
 
   useEffect(() => {
     const posId = (asset?.specifications as any)?.position_id;
@@ -98,6 +107,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
   };
 
   return (
+    <>
     <Transition show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
         <TransitionChild
@@ -204,70 +214,175 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
 
                     {/* Usage & Management Section */}
                     <div className="space-y-4 md:col-span-2">
-                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Nhân sự phụ trách</h4>
+                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">
+                        {isEmployee ? 'Thông tin tài sản đang giữ' : 'Nhân sự phụ trách'}
+                      </h4>
                       
+                      {/* MONITOR multi-holder: Manager view — full holder list + Thu hồi buttons */}
+                      {isMultiHolder && isManager && (
+                        <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                              Đã bàn giao: {asset.assigned_quantity_total ?? 0}/{asset.total_quantity ?? 1}                            </p>
+                            <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                              Còn {asset.remaining_quantity ?? 0}
+                            </span>
+                          </div>
+                          {holders.length === 0 ? (
+                            <p className="text-sm italic text-gray-500">Chưa bàn giao cho nhân viên nào</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {holders.map((h) => (
+                                <div
+                                  key={h.history_id}
+                                  className="bg-white rounded-lg border border-emerald-200 p-3 flex items-start justify-between gap-3"
+                                >
+                                  <div className="flex items-start gap-3 flex-1">
+                                    <div className="bg-emerald-100 p-2 rounded-lg">
+                                      <UserIcon className="h-5 w-5 text-emerald-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-sm font-bold text-gray-900 truncate">{h.name}</p>
+                                        <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">
+                                          {h.assigned_quantity}                                        </span>
+                                      </div>
+                                      {h.department_name && (
+                                        <p className="text-xs text-emerald-700 truncate">{h.department_name}</p>
+                                      )}
+                                      <div className="mt-1 flex items-center text-[11px] text-emerald-600">
+                                        <CalendarIcon className="h-3 w-3 mr-1" />
+                                        {formatDate(h.assigned_date)}
+                                      </div>
+                                      {h.assignment_notes && (
+                                        <p className="mt-1 text-[11px] italic text-emerald-800 line-clamp-2">
+                                          "{h.assignment_notes}"
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setReturnTarget({ historyId: h.history_id, holderName: h.name, assignedQuantity: h.assigned_quantity })}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-[11px] font-semibold whitespace-nowrap"
+                                  >
+                                    <ArrowUturnLeftIcon className="h-3 w-3" />
+                                    Thu hồi
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Manager multi-holder: quản lý kho full-width ngang hàng với holder section */}
+                      {isMultiHolder && isManager && (
+                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-center space-x-4">
+                          <div className="bg-slate-200 p-2.5 rounded-lg">
+                            <ShieldCheckIcon className="h-6 w-6 text-slate-600" />
+                          </div>
+                          <div className="flex-1 flex items-center justify-between flex-wrap gap-2">
+                            <div>
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Đơn vị quản lý kho</p>
+                              <p className="text-base font-bold text-gray-900">{asset.managed_by_name || 'Hệ thống tự động'}</p>
+                              <p className="text-sm text-slate-600">{asset.department_name || 'Bộ phận: Chưa xác định'}</p>
+                            </div>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(asset.status)} uppercase tracking-tight`}>
+                              {asset.status_display}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Non-multi-holder / Employee: 2-column grid */}
+                      {!(isMultiHolder && isManager) && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Người sử dụng Card */}
+                        {/* Card trái: Người sử dụng / Số lượng đang giữ */}
                         <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100 flex items-start space-x-4">
                           <div className="bg-emerald-100 p-2.5 rounded-lg">
                             <UserIcon className="h-6 w-6 text-emerald-600" />
                           </div>
                           <div className="flex-1">
-                            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Người đang sử dụng</p>
-                            {asset.assigned_to_name ? (
+                            {isMultiHolder && isEmployee ? (
                               <>
-                                <p className="text-base font-bold text-gray-900">{asset.assigned_to_name}</p>
-                                <p className="text-sm text-emerald-700">{asset.assigned_to_department_name || 'Phòng ban: -'}</p>
+                                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Số lượng đang giữ</p>
+                                <p className="text-base font-bold text-gray-900">{(asset as any).my_assigned_quantity ?? 1}</p>
                                 <div className="mt-2 flex items-center text-xs text-emerald-600 font-medium">
                                   <CalendarIcon className="h-3 w-3 mr-1" />
                                   {receivedDateLabel(asset.asset_type)}: {formatDate(asset.assigned_date)}
                                 </div>
-                                {(() => {
-                                  const currentHandover = history.find(
-                                    (h) => h.status === 'CONFIRMED' && h.assigned_to_name === asset.assigned_to_name,
-                                  );
-                                  return currentHandover?.assignment_notes ? (
-                                    <div className="mt-2 rounded-lg bg-white/70 border border-emerald-100 px-2 py-1.5">
-                                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Ghi chú bàn giao</p>
-                                      <p className="text-xs italic text-emerald-900 leading-relaxed">{currentHandover.assignment_notes}</p>
-                                    </div>
-                                  ) : null;
-                                })()}
+                                {(asset as any).assignment_notes && (
+                                  <div className="mt-2 rounded-lg bg-white/70 border border-emerald-100 px-2 py-1.5">
+                                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Ghi chú bàn giao</p>
+                                    <p className="text-xs italic text-emerald-900 leading-relaxed">{(asset as any).assignment_notes}</p>
+                                  </div>
+                                )}
                               </>
                             ) : (
-                              <p className="text-sm font-medium text-gray-500 italic">Chưa bàn giao cho nhân viên</p>
+                              <>
+                                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Người đang sử dụng</p>
+                                {asset.assigned_to_name ? (
+                                  <>
+                                    <p className="text-base font-bold text-gray-900">{asset.assigned_to_name}</p>
+                                    <p className="text-sm text-emerald-700">{asset.assigned_to_department_name || 'Phòng ban: -'}</p>
+                                    <div className="mt-2 flex items-center text-xs text-emerald-600 font-medium">
+                                      <CalendarIcon className="h-3 w-3 mr-1" />
+                                      {receivedDateLabel(asset.asset_type)}: {formatDate(asset.assigned_date)}
+                                    </div>
+                                    {(() => {
+                                      const currentHandover = history.find(
+                                        (h) => h.status === 'CONFIRMED' && h.assigned_to_name === asset.assigned_to_name,
+                                      );
+                                      return currentHandover?.assignment_notes ? (
+                                        <div className="mt-2 rounded-lg bg-white/70 border border-emerald-100 px-2 py-1.5">
+                                          <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-0.5">Ghi chú bàn giao</p>
+                                          <p className="text-xs italic text-emerald-900 leading-relaxed">{currentHandover.assignment_notes}</p>
+                                        </div>
+                                      ) : null;
+                                    })()}
+                                  </>
+                                ) : (
+                                  <p className="text-sm font-medium text-gray-500 italic">Chưa bàn giao cho nhân viên</p>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
 
-                        {/* Người quản lý Card */}
-                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-start space-x-4">
-                          <div className="bg-slate-200 p-2.5 rounded-lg">
-                            <ShieldCheckIcon className="h-6 w-6 text-slate-600" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Đơn vị quản lý kho</p>
-                            <p className="text-base font-bold text-gray-900">{asset.managed_by_name || 'Hệ thống tự động'}</p>
-                            <p className="text-sm text-slate-600">{asset.department_name || 'Bộ phận: Chưa xác định'}</p>
-                            <div className="mt-2 flex items-center">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(asset.status)} uppercase tracking-tight`}>
-                                {asset.status_display}
-                              </span>
+                        {/* Card phải: Đơn vị quản lý kho */}
+                        {isManager ? (
+                          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-start space-x-4">
+                            <div className="bg-slate-200 p-2.5 rounded-lg">
+                              <ShieldCheckIcon className="h-6 w-6 text-slate-600" />
                             </div>
-                            {(() => {
-                              const currentHandover = history.find(
-                                (h) => h.status === 'CONFIRMED' && h.assigned_to_name === asset.assigned_to_name,
-                              );
-                              return currentHandover?.assignment_notes ? (
-                                <div className="mt-2 rounded-lg bg-white/80 border border-slate-200 px-2 py-1.5">
-                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Ghi chú bàn giao</p>
-                                  <p className="text-xs italic text-slate-700 leading-relaxed">{currentHandover.assignment_notes}</p>
-                                </div>
-                              ) : null;
-                            })()}
+                            <div className="flex-1">
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Đơn vị quản lý kho</p>
+                              <p className="text-base font-bold text-gray-900">{asset.managed_by_name || 'Hệ thống tự động'}</p>
+                              <p className="text-sm text-slate-600">{asset.department_name || 'Bộ phận: Chưa xác định'}</p>
+                              <div className="mt-2 flex items-center">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(asset.status)} uppercase tracking-tight`}>
+                                  {asset.status_display}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          (asset.managed_by_name || asset.department_name) && (
+                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 flex items-start space-x-4">
+                              <div className="bg-slate-200 p-2.5 rounded-lg">
+                                <ShieldCheckIcon className="h-6 w-6 text-slate-600" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Đơn vị quản lý kho</p>
+                                <p className="text-base font-bold text-gray-900">{asset.managed_by_name || 'Hệ thống'}</p>
+                                <p className="text-sm text-slate-600">{asset.department_name || 'Bộ phận: Chưa xác định'}</p>
+                              </div>
+                            </div>
+                          )
+                        )}
                       </div>
+                      )}
 
                       {/* Notes Section - Full width within this block */}
                       <div className="flex flex-col gap-4">
@@ -380,18 +495,25 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                       </div>
                     )}
                     
-                    {/* MONITOR Information */}
-                    {asset.asset_type === 'MONITOR' && asset.specifications && (
+                    {/* Multi-holder quantity Information */}
+                    {MULTI_HOLDER_TYPES.includes(asset.asset_type) && asset.specifications && isManager && (
                       <div className="md:col-span-2 space-y-4">
-                        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Thông tin Màn hình</h4>
+                        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Thông tin số lượng</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="flex items-center space-x-3 bg-purple-50 p-3 rounded-xl border border-purple-100">
                             <div className="bg-purple-100 p-2 rounded-lg">
                               <Square3Stack3DIcon className="h-5 w-5 text-purple-600" />
                             </div>
                             <div>
-                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Số lượng</p>
-                              <p className="text-sm font-bold text-gray-900">{asset.specifications.quantity || '-'}</p>
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">
+                                {isEmployee ? 'Số lượng đang giữ' : 'Số lượng'}
+                              </p>
+                              <p className="text-sm font-bold text-gray-900">
+                                {isEmployee
+                                  ? `${(asset as any).my_assigned_quantity ?? 1} / ${asset.total_quantity ?? asset.specifications.quantity ?? '-'}`
+                                  : `${asset.assigned_quantity_total ?? 0}/${asset.total_quantity ?? asset.specifications.quantity ?? '-'}`
+                                }
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -494,7 +616,8 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                       </div>
                     )}
 
-                    {/* Purchase Info Section */}
+                    {/* Purchase Info Section — manager only */}
+                    {isManager && (
                     <div className="md:col-span-2 space-y-4 mt-2">
                       <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Thông tin mua hàng & Bảo hành</h4>
                       <div className="space-y-4 bg-gray-50 rounded-xl p-4 border border-gray-100">
@@ -532,8 +655,10 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                         </div>
                       </div>
                     </div>
+                    )}
 
-                    {/* Assignment History Section */}
+                    {/* Assignment History Section — manager only */}
+                    {isManager && (
                     <div className="md:col-span-2 space-y-4 mt-2">
                       <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
                         Lịch sử bàn giao & thu hồi
@@ -663,6 +788,13 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                                         <span className="font-semibold text-gray-800">{h.assigned_by_name}</span>
                                       </div>
                                     )}
+                                    {MULTI_HOLDER_TYPES.includes(asset.asset_type) && h.assigned_quantity != null && (
+                                      <div className="flex items-center gap-1.5">
+                                        <Square3Stack3DIcon className="h-3 w-3 text-gray-400" />
+                                        <span className="text-gray-500">Số lượng:</span>
+                                        <span className="font-semibold text-gray-800">{h.assigned_quantity}</span>
+                                      </div>
+                                    )}
                                     {h.status === 'RETURNED' && h.return_condition_display && (
                                       <div className="flex items-center gap-1.5">
                                         <SparklesIcon className="h-3 w-3 text-gray-400" />
@@ -698,6 +830,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
                         </ol>
                       )}
                     </div>
+                    )}
 
                   </div>
                 </div>
@@ -717,5 +850,20 @@ export default function AssetDetailModal({ isOpen, onClose, asset }: AssetDetail
         </div>
       </Dialog>
     </Transition>
+    {returnTarget && (
+      <AssetReturnModal
+        isOpen={!!returnTarget}
+        onClose={() => setReturnTarget(null)}
+        onSuccess={() => {
+          setReturnTarget(null);
+          onAfterReturn?.();
+        }}
+        asset={asset}
+        historyId={returnTarget.historyId}
+        holderName={returnTarget.holderName}
+        holderQuantity={returnTarget.assignedQuantity}
+      />
+    )}
+    </>
   );
 }

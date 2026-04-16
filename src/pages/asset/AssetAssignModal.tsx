@@ -35,10 +35,17 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
     assignment_notes?: string;
   } | null>(null);
   const [employees, setEmployees] = useState<SelectOption<string>[]>([]);
+  const [quantityError, setQuantityError] = useState<string | null>(null);
+  const MULTI_HOLDER_TYPES = ['MONITOR', 'OTHER'];
+  const hasQuantity = MULTI_HOLDER_TYPES.includes(asset.asset_type);
+  const isMultiHolder = hasQuantity && (asset.total_quantity ?? 1) > 1;
+  const totalQty = asset.total_quantity ?? 1;
+  const remainingQty = asset.remaining_quantity ?? totalQty;
   const [formData, setFormData] = useState({
     employee_id: '',
     assigned_date: new Date().toISOString().split('T')[0],
     notes: '',
+    quantity: 1,
   });
 
   const fetchEmployees = useCallback(async () => {
@@ -57,11 +64,14 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
 
   useEffect(() => {
     if (isOpen) {
+      const defaultQty = hasQuantity ? Math.max(1, remainingQty) : 1;
       setFormData({
         employee_id: '',
         assigned_date: new Date().toISOString().split('T')[0],
         notes: '',
+        quantity: defaultQty,
       });
+      setQuantityError(null);
       fetchEmployees();
     }
   }, [isOpen, asset, fetchEmployees]);
@@ -102,13 +112,24 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
     const hasCurrentHolder = !!asset.assigned_to_name || !!currentId;
 
     // Nếu chọn đúng người đang giữ → không làm gì, đóng modal
-    if (currentId && selectedId === currentId) {
+    if (currentId && selectedId === currentId && !isMultiHolder) {
       onClose();
       return;
     }
 
-    // Nếu asset đang thuộc người khác và chưa xác nhận forced → hiện dialog cảnh báo
-    if (hasCurrentHolder && !isForced) {
+    // Multi-holder (MONITOR qty>1): bỏ forced transfer dialog, validate quantity inline.
+    if (isMultiHolder) {
+      if (!formData.quantity || formData.quantity < 1) {
+        setQuantityError(`Vui lòng nhập số lượng (còn lại ${remainingQty} màn hình)`);
+        return;
+      }
+      if (formData.quantity > remainingQty) {
+        setQuantityError(`Chỉ còn ${remainingQty} màn hình khả dụng`);
+        return;
+      }
+      setQuantityError(null);
+    } else if (hasCurrentHolder && !isForced) {
+      // Non-multi-holder: giữ forced transfer dialog
       setShowConfirmDialog(true);
       return;
     }
@@ -127,6 +148,7 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
         notes: formData.notes,
         force: isForced,
         override_pending: overridePending,
+        ...(hasQuantity ? { quantity: formData.quantity } : {}),
       });
       setShowConfirmDialog(false);
       setShowManagerConfirm(false);
@@ -150,12 +172,34 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
           assignment_notes: existingPending.assignment_notes,
         });
       } else {
-        const serverError = error.response?.data?.error || 'Có lỗi xảy ra khi bàn giao tài sản.';
-        setFeedback({
-          variant: 'error',
-          title: 'Không thể bàn giao',
-          message: serverError,
-        });
+        const data = error.response?.data || {};
+        const errorCode = data.error_code as string | undefined;
+        const serverError = data.error || 'Có lỗi xảy ra khi bàn giao tài sản.';
+        if (errorCode === 'QUANTITY_OVER_LIMIT') {
+          setShowConfirmDialog(false);
+          setShowManagerConfirm(false);
+          setFeedback({
+            variant: 'warning',
+            title: 'Không đủ số lượng trong kho',
+            message: `Tài sản chỉ còn ${data.remaining_quantity ?? '?'} màn hình khả dụng. Bạn yêu cầu ${data.requested_quantity ?? formData.quantity}. Vui lòng giảm số lượng bàn giao.`,
+          });
+        } else if (errorCode === 'QUANTITY_MISSING') {
+          setShowConfirmDialog(false);
+          setShowManagerConfirm(false);
+          setQuantityError(`Vui lòng nhập số lượng (còn lại ${data.remaining_quantity ?? remainingQty} màn hình)`);
+        } else if (errorCode === 'NOT_MULTI_HOLDER_TYPE') {
+          setFeedback({
+            variant: 'error',
+            title: 'Loại tài sản không hỗ trợ',
+            message: 'Chỉ Màn hình mới có thể bàn giao nhiều đơn vị cùng lúc.',
+          });
+        } else {
+          setFeedback({
+            variant: 'error',
+            title: 'Không thể bàn giao',
+            message: serverError,
+          });
+        }
       }
     } finally {
       setLoading(false);
@@ -172,7 +216,7 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
   };
 
   const isUnusable = asset.condition === 'BROKEN' || asset.condition === 'POOR';
-  const isFormValid = formData.employee_id.trim() !== '' && !isUnusable;
+  const isFormValid = formData.employee_id.trim() !== '' && !isUnusable && !quantityError;
 
   return (
     <Transition show={isOpen} as={Fragment}>
@@ -273,6 +317,46 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
                           required
                         />
                       </div>
+
+                      {hasQuantity && (
+                        <div>
+                          <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                            Số lượng bàn giao
+                          </label>
+                          <input
+                            type="number"
+                            name="quantity"
+                            id="quantity"
+                            min={1}
+                            max={remainingQty}
+                            value={formData.quantity}
+                            onChange={(e) => {
+                              const n = parseInt(e.target.value) || 0;
+                              setFormData((prev) => ({ ...prev, quantity: n }));
+                              if (n > remainingQty) {
+                                setQuantityError(`Chỉ còn ${remainingQty} màn hình khả dụng`);
+                              } else if (n < 1) {
+                                setQuantityError('Số lượng tối thiểu là 1');
+                              } else {
+                                setQuantityError(null);
+                              }
+                            }}
+                            className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
+                              quantityError
+                                ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500'
+                                : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
+                            }`}
+                            required
+                          />
+                          {quantityError ? (
+                            <p className="mt-1 text-xs text-rose-600">{quantityError}</p>
+                          ) : (
+                            <p className="mt-1 text-xs text-gray-500">
+                              Còn lại {remainingQty} màn hình có thể bàn giao
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                       <div>
                         <div className="flex justify-between items-end mb-1">

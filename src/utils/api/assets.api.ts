@@ -75,6 +75,7 @@ export const assetsAPI = {
     notes?: string;
     force?: boolean;
     override_pending?: boolean;
+    quantity?: number;
   }): Promise<AssetAssignmentHistory> => {
     const response: AxiosResponse<AssetAssignmentHistory> = await managementApi.post(`/api-hrm/assets/${id}/assign/`, data);
     return response.data;
@@ -149,6 +150,8 @@ export const assetsAPI = {
     return_date?: string;
     condition?: string;
     notes?: string;
+    history_id?: number;
+    return_quantity?: number;
   }): Promise<Asset> => {
     const response: AxiosResponse<Asset> = await managementApi.post(`/api-hrm/assets/${id}/return_asset/`, data);
     return response.data;

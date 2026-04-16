@@ -21,11 +21,10 @@ import AssetDetailModal from './AssetDetailModal';
 import AssetAssignModal from './AssetAssignModal';
 import AssetReturnModal from './AssetReturnModal';
 import { Asset, AssetStats } from '../../utils/api';
-import { SelectBox, SelectOption } from '../../components/LandingLayout/SelectBox';
+import { SelectBox, SelectOption, MultiSelectBox } from '../../components/LandingLayout/SelectBox';
 import FeedbackDialog, { FeedbackVariant } from '../../components/FeedbackDialog';
 
 const ASSET_TYPE_OPTIONS: SelectOption<string>[] = [
-  { value: 'all', label: 'Tất cả loại' },
   { value: 'LAPTOP', label: 'Laptop' },
   { value: 'DESKTOP', label: 'Máy tính để bàn' },
   { value: 'MONITOR', label: 'Màn hình' },
@@ -70,13 +69,14 @@ export default function AssetList() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [conditionFilter, setConditionFilter] = useState('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [returnHolder, setReturnHolder] = useState<{ historyId?: number; holderName?: string; holderQuantity?: number } | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -148,7 +148,7 @@ export default function AssetList() {
       (asset.assigned_to_name || '').toLowerCase().includes(term);
 
     const matchesStatus = statusFilter === 'all' || asset.status === statusFilter;
-    const matchesType = typeFilter === 'all' || asset.asset_type === typeFilter;
+    const matchesType = typeFilter.length === 0 || typeFilter.includes(asset.asset_type);
     const matchesCondition = conditionFilter === 'all' || asset.condition === conditionFilter;
 
     return matchesSearch && matchesStatus && matchesType && matchesCondition;
@@ -184,6 +184,14 @@ export default function AssetList() {
 
   const handleReturnClick = (asset: Asset) => {
     setSelectedAsset(asset);
+    // MONITOR single-holder: pass holder info cho ReturnModal
+    const holders = asset.holders || [];
+    if (['MONITOR', 'OTHER'].includes(asset.asset_type) && holders.length === 1) {
+      const h = holders[0];
+      setReturnHolder({ historyId: h.history_id, holderName: h.name, holderQuantity: h.assigned_quantity });
+    } else {
+      setReturnHolder(null);
+    }
     setIsReturnModalOpen(true);
   };
 
@@ -195,7 +203,7 @@ export default function AssetList() {
       // Gửi filter hiện tại để file export khớp với bảng đang hiển thị.
       const blob = await assetsAPI.exportExcel({
         search: searchTerm || undefined,
-        asset_type: typeFilter !== 'all' ? typeFilter : undefined,
+        asset_type: typeFilter.length > 0 ? typeFilter.join(',') : undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         condition: conditionFilter !== 'all' ? conditionFilter : undefined,
       });
@@ -497,11 +505,12 @@ export default function AssetList() {
             onChange={(val) => setConditionFilter(val)}
           />
 
-          <SelectBox
+          <MultiSelectBox
             label="Loại tài sản"
             value={typeFilter}
             options={ASSET_TYPE_OPTIONS}
             onChange={(val) => setTypeFilter(val)}
+            allLabel="Tất cả loại"
           />
         </div>
       </div>
@@ -541,7 +550,7 @@ export default function AssetList() {
                   Loại tài sản
                 </th>
                 <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  SL
+                  Số lượng
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Trạng thái vận hành
@@ -576,7 +585,7 @@ export default function AssetList() {
                         Không có tài sản nào
                       </h3>
                       <p className="mt-1 text-sm text-gray-500">
-                        {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
+                        {searchTerm || statusFilter !== 'all' || typeFilter.length > 0
                           ? 'Không tìm thấy tài sản phù hợp với bộ lọc.'
                           : 'Bắt đầu bằng cách thêm tài sản mới.'
                         }
@@ -634,20 +643,67 @@ export default function AssetList() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      {asset.assigned_to_name ? (
-                        <div className="flex flex-col">
-                          <div className="text-sm font-medium text-green-700 bg-green-50 inline-flex rounded-full px-2 py-0.5 w-fit">
-                            {asset.assigned_to_name}
-                          </div>
-                          {asset.assigned_to_department_name && (
-                            <div className="text-sm text-gray-500">
-                              {asset.assigned_to_department_name}
+                      {(() => {
+                        const isMulti = ['MONITOR', 'OTHER'].includes(asset.asset_type) && (asset.total_quantity ?? 1) > 1;
+                        const holders = asset.holders || [];
+                        if (isMulti) {
+                          const total = asset.total_quantity ?? 1;
+                          const assignedTotal = asset.assigned_quantity_total ?? 0;
+                          if (holders.length === 0) {
+                            return (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-sm text-gray-500">Chưa bàn giao</span>
+                                <span className="text-[11px] text-gray-400">0/{total}</span>
+                              </div>
+                            );
+                          }
+                          const mergedHolders = Object.values(
+                            holders.reduce((acc, h) => {
+                              if (acc[h.employee_id]) {
+                                acc[h.employee_id] = { ...acc[h.employee_id], assigned_quantity: acc[h.employee_id].assigned_quantity + h.assigned_quantity };
+                              } else {
+                                acc[h.employee_id] = { ...h };
+                              }
+                              return acc;
+                            }, {} as Record<number, (typeof holders)[0]>)
+                          );
+                          const shown = mergedHolders.slice(0, 2);
+                          const extra = mergedHolders.length - shown.length;
+                          return (
+                            <div className="flex flex-col gap-1">
+                              {shown.map((h) => (
+                                <div
+                                  key={h.employee_id}
+                                  className="text-xs font-medium text-green-700 bg-green-50 inline-flex rounded-full px-2 py-0.5 w-fit"
+                                >
+                                  {h.name} ({h.assigned_quantity})
+                                </div>
+                              ))}
+                              {extra > 0 && (
+                                <div className="text-[11px] text-gray-600 bg-gray-100 inline-flex rounded-full px-2 py-0.5 w-fit">
+                                  +{extra} người
+                                </div>
+                              )}
+                              <span className="text-[11px] text-gray-400">{assignedTotal}/{total}</span>
                             </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-500">Chưa bàn giao</span>
-                      )}
+                          );
+                        }
+                        if (asset.assigned_to_name) {
+                          return (
+                            <div className="flex flex-col">
+                              <div className="text-sm font-medium text-green-700 bg-green-50 inline-flex rounded-full px-2 py-0.5 w-fit">
+                                {asset.assigned_to_name}
+                              </div>
+                              {asset.assigned_to_department_name && (
+                                <div className="text-sm text-gray-500">
+                                  {asset.assigned_to_department_name}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return <span className="text-sm text-gray-500">Chưa bàn giao</span>;
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
@@ -685,25 +741,45 @@ export default function AssetList() {
                         </div>
                         {/* Row 2: Bàn giao + Thu hồi */}
                         <div className="flex gap-1.5">
-                          {!asset.assigned_to_name ? (
-                            <button
-                              onClick={() => handleAssignClick(asset)}
-                              className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all font-semibold text-xs whitespace-nowrap"
-                              title="Bàn giao người dùng"
-                            >
-                              <UserPlusIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                              <span className="hidden xl:inline">Bàn giao</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleReturnClick(asset)}
-                              className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all font-semibold text-xs whitespace-nowrap"
-                              title="Thu hồi về kho"
-                            >
-                              <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                              <span className="hidden xl:inline">Thu hồi</span>
-                            </button>
-                          )}
+                          {(() => {
+                            const isMulti = ['MONITOR', 'OTHER'].includes(asset.asset_type) && (asset.total_quantity ?? 1) > 1;
+                            const canAssignMore = isMulti && (asset.remaining_quantity ?? 0) > 0;
+                            const showAssign = !asset.assigned_to_name || canAssignMore;
+                            const hasHolders = (asset.holders?.length ?? 0) > 0;
+                            const showReturn = !!asset.assigned_to_name || hasHolders;
+                            // Multi-holder có >1 holder → mở DetailModal để user chọn holder cụ thể.
+                            const multiNeedsPicker = isMulti && (asset.holders?.length ?? 0) > 1;
+                            return (
+                              <>
+                                {showAssign && (
+                                  <button
+                                    onClick={() => handleAssignClick(asset)}
+                                    className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all font-semibold text-xs whitespace-nowrap"
+                                    title="Bàn giao người dùng"
+                                  >
+                                    <UserPlusIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span className="hidden xl:inline">Bàn giao</span>
+                                  </button>
+                                )}
+                                {showReturn && (
+                                  <button
+                                    onClick={() => {
+                                      if (multiNeedsPicker) {
+                                        handleDetailClick(asset);
+                                      } else {
+                                        handleReturnClick(asset);
+                                      }
+                                    }}
+                                    className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all font-semibold text-xs whitespace-nowrap"
+                                    title={multiNeedsPicker ? 'Chọn người cần thu hồi trong Chi tiết' : 'Thu hồi về kho'}
+                                  >
+                                    <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span className="hidden xl:inline">Thu hồi</span>
+                                  </button>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                         {/* Row 3: Xóa full width */}
                         <button
@@ -752,6 +828,11 @@ export default function AssetList() {
           setSelectedAsset(null);
         }}
         asset={selectedAsset}
+        viewMode="manager"
+        onAfterReturn={() => {
+          fetchAssets();
+          fetchStats();
+        }}
       />
 
       {selectedAsset && (
@@ -775,12 +856,16 @@ export default function AssetList() {
           onClose={() => {
             setIsReturnModalOpen(false);
             setSelectedAsset(null);
+            setReturnHolder(null);
           }}
           onSuccess={() => {
             fetchAssets();
             fetchStats();
           }}
           asset={selectedAsset}
+          historyId={returnHolder?.historyId}
+          holderName={returnHolder?.holderName}
+          holderQuantity={returnHolder?.holderQuantity}
         />
       )}
 
