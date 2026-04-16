@@ -82,7 +82,7 @@ export default function AssetList() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [feedback, setFeedback] = useState<{ variant: FeedbackVariant; title: string; message?: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ variant: FeedbackVariant; title: React.ReactNode; message?: React.ReactNode } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -219,7 +219,11 @@ export default function AssetList() {
     } catch (err: any) {
       console.error('Export error:', err);
       const msg = err.response?.data?.error || err.message || 'Đã có lỗi xảy ra khi tạo file Excel.';
-      setFeedback({ variant: 'error', title: 'Không thể xuất Excel', message: msg });
+      setFeedback({
+        variant: 'error',
+        title: 'Xuất Excel thất bại',
+        message: `${msg}\n\nVui lòng thử lại hoặc liên hệ quản trị viên.`,
+      });
     } finally {
       setIsExporting(false);
     }
@@ -244,31 +248,67 @@ export default function AssetList() {
 
       const { created, updated, failed_count, failed } = result;
       const total = created + updated;
-      const failedDetail = failed
-        .slice(0, 10)
-        .map((f) => `• Dòng ${f.row}: ${f.messages.join('; ')}`)
+      const failedLines = failed
+        .slice(0, 5)
+        .map((f: any) => `  Dòng ${f.row}: ${f.messages.join('; ')}`)
         .join('\n');
-      const moreLine = failed.length > 10 ? `\n…và ${failed.length - 10} lỗi khác` : '';
+      const moreCount = failed.length > 5 ? failed.length - 5 : 0;
 
-      if (failed_count === 0) {
+      if (failed_count === 0 && total > 0) {
         setFeedback({
           variant: 'success',
-          title: `Import thành công ${total} tài sản`,
-          message: `Tạo mới: ${created}\nCập nhật: ${updated}`,
+          title: 'Import hoàn tất',
+          message: (
+            <div className="space-y-2">
+              <p><span className="font-semibold text-emerald-600">{total} tài sản</span> đã được xử lý thành công.</p>
+              <div className="flex gap-4 text-xs bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
+                <span>Tạo mới: <strong className="text-emerald-700">{created}</strong></span>
+                <span>Cập nhật: <strong className="text-emerald-700">{updated}</strong></span>
+              </div>
+            </div>
+          ),
         });
-      } else if (total > 0) {
+      } else if (total > 0 && failed_count > 0) {
         setFeedback({
           variant: 'warning',
-          title: `Import ${total}/${total + failed_count} dòng`,
-          message: `Tạo mới: ${created}\nCập nhật: ${updated}\nLỗi: ${failed_count}\n\n${failedDetail}${moreLine}`,
+          title: (
+            <>Import <span className="text-emerald-600">{total} thành công</span>, <span className="text-red-600">{failed_count} lỗi</span></>
+          ),
+          message: (
+            <div className="space-y-3">
+              <div className="flex gap-4 text-xs bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
+                <span>Tạo mới: <strong className="text-emerald-700">{created}</strong></span>
+                <span>Cập nhật: <strong className="text-emerald-700">{updated}</strong></span>
+              </div>
+              <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-100">
+                <p className="text-xs font-semibold text-red-700 mb-1">{failed_count} dòng không import được:</p>
+                <div className="text-xs text-red-600 whitespace-pre-line">{failedLines}</div>
+                {moreCount > 0 && <p className="text-xs text-red-400 mt-1 italic">...và {moreCount} lỗi khác</p>}
+              </div>
+              <p className="text-xs text-gray-500 italic">Vui lòng kiểm tra lại các dòng lỗi trong file Excel.</p>
+            </div>
+          ),
+        });
+      } else if (failed_count > 0) {
+        setFeedback({
+          variant: 'error',
+          title: 'Import không thành công',
+          message: (
+            <div className="space-y-3">
+              <p>Không có dòng nào được import. <span className="font-semibold text-red-600">{failed_count} dòng lỗi</span>:</p>
+              <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-100">
+                <div className="text-xs text-red-600 whitespace-pre-line">{failedLines}</div>
+                {moreCount > 0 && <p className="text-xs text-red-400 mt-1 italic">...và {moreCount} lỗi khác</p>}
+              </div>
+              <p className="text-xs text-gray-500 italic">Vui lòng kiểm tra lại file và thử import lại.</p>
+            </div>
+          ),
         });
       } else {
         setFeedback({
-          variant: 'error',
-          title: 'Không import được dòng nào',
-          message: failedDetail
-            ? `${failed_count} dòng lỗi:\n\n${failedDetail}${moreLine}`
-            : 'File không có dòng dữ liệu hợp lệ.',
+          variant: 'info',
+          title: 'Không có dữ liệu',
+          message: 'File Excel không chứa dòng dữ liệu nào để import.',
         });
       }
     } catch (err: any) {
@@ -278,7 +318,11 @@ export default function AssetList() {
         err.response?.data?.detail ||
         err.message ||
         'Không thể upload file Excel.';
-      setFeedback({ variant: 'error', title: 'Không thể import', message: msg });
+      setFeedback({
+        variant: 'error',
+        title: 'Lỗi tải file',
+        message: `${msg}\n\nVui lòng kiểm tra kết nối mạng và đảm bảo file đúng định dạng .xlsx`,
+      });
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

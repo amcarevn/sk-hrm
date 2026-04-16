@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import React, { Fragment } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import {
   CheckCircleIcon,
@@ -12,8 +12,8 @@ export type FeedbackVariant = 'success' | 'error' | 'info' | 'warning';
 interface FeedbackDialogProps {
   open: boolean;
   variant?: FeedbackVariant;
-  title: string;
-  message?: string;
+  title: React.ReactNode;
+  message?: React.ReactNode;
   onClose: () => void;
   okLabel?: string;
 }
@@ -96,7 +96,9 @@ export default function FeedbackDialog({
                       {title}
                     </DialogTitle>
                     {message && (
-                      <p className="mt-2 text-sm text-gray-600 whitespace-pre-line">{message}</p>
+                      typeof message === 'string'
+                        ? <p className="mt-2 text-sm text-gray-600 whitespace-pre-line">{message}</p>
+                        : <div className="mt-2 text-sm text-gray-600">{message}</div>
                     )}
                   </div>
                 </div>
