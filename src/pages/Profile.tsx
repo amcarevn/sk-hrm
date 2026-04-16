@@ -273,6 +273,15 @@ const Profile: React.FC = () => {
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Client-side file size validation (5 MB limit)
+    const MAX_SIZE_MB = 5;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      alert(`Kích thước ảnh không được vượt quá ${MAX_SIZE_MB}MB.`);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+      return;
+    }
+
     setAvatarUploading(true);
     try {
       const result = await employeesAPI.changeAvatar(file);
@@ -281,7 +290,8 @@ const Profile: React.FC = () => {
       if (user?.hrm_user) {
         updateUser({ hrm_user: { ...user.hrm_user, avatar_url: result.avatar_url } });
       }
-    } catch {
+    } catch (err) {
+      console.error('Avatar upload failed:', err);
       alert('Tải ảnh đại diện thất bại. Vui lòng thử lại.');
     } finally {
       setAvatarUploading(false);
