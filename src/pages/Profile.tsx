@@ -43,7 +43,7 @@ interface TeamMember {
 }
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
@@ -59,6 +59,10 @@ const Profile: React.FC = () => {
     bank_name: '',
     bank_account: '',
   });
+
+  // Avatar state
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   // Manager assignment state
   const [showManagerModal, setShowManagerModal] = useState(false);
@@ -266,6 +270,26 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    try {
+      const result = await employeesAPI.changeAvatar(file);
+      setEmployee((prev) => prev ? { ...prev, avatar_url: result.avatar_url } : prev);
+      // Sync avatar URL into auth context so sidebar/header reflect it immediately
+      if (user?.hrm_user) {
+        updateUser({ hrm_user: { ...user.hrm_user, avatar_url: result.avatar_url } });
+      }
+    } catch {
+      alert('Tải ảnh đại diện thất bại. Vui lòng thử lại.');
+    } finally {
+      setAvatarUploading(false);
+      // Reset file input so the same file can be selected again
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('vi-VN');
@@ -362,6 +386,46 @@ const Profile: React.FC = () => {
                 ? 'Đang thử việc'
                 : 'Đã nghỉ việc'}
           </span>
+        </div>
+      </div>
+
+      {/* Avatar Card */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-medium text-gray-900 mb-4">Ảnh đại diện</h2>
+        <div className="flex items-center space-x-6">
+          <div className="relative flex-shrink-0">
+            {employee.avatar_url ? (
+              <img
+                src={employee.avatar_url}
+                alt="Avatar"
+                className="h-20 w-20 rounded-full object-cover border-2 border-gray-200"
+              />
+            ) : (
+              <div className="h-20 w-20 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center border-2 border-gray-200">
+                <span className="text-2xl font-bold text-white">
+                  {employee.full_name?.charAt(0).toUpperCase() || '?'}
+                </span>
+              </div>
+            )}
+          </div>
+          <div>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+              id="avatar-upload"
+            />
+            <label
+              htmlFor="avatar-upload"
+              className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer ${avatarUploading ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              <PhotoIcon className="h-4 w-4 mr-2 text-gray-400" />
+              {avatarUploading ? 'Đang tải...' : 'Thay đổi ảnh'}
+            </label>
+            <p className="mt-1 text-xs text-gray-500">PNG, JPG, GIF tối đa 5MB</p>
+          </div>
         </div>
       </div>
 

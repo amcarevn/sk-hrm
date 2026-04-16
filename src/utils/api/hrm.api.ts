@@ -201,6 +201,16 @@ export const employeesAPI = {
     }> = await managementApi.get('/api-hrm/employees/export-all/');
     return response.data;
   },
+
+  changeAvatar: async (file: File): Promise<{ avatar_url: string | null }> => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const response: AxiosResponse<{ avatar_url: string | null }> =
+      await managementApi.post('/api-hrm/change-avatar/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    return response.data;
+  },
 };
 
 // Departments API

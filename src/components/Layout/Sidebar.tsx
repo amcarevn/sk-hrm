@@ -329,11 +329,19 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
             <div className="border-t border-gray-200 px-2 py-4">
               <Link to="/dashboard/settings" className="block">
                 <div className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors">
-                  <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-medium text-white">
-                      {user.username?.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+                  {user.hrm_user?.avatar_url ? (
+                    <img
+                      src={user.hrm_user.avatar_url}
+                      alt="Avatar"
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                      <span className="text-sm font-medium text-white">
+                        {user.username?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {user.username}
@@ -431,11 +439,19 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
               </a>
               <Link to="/dashboard/settings" className="block">
                 <div className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors">
-                  <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-medium text-white">
-                      {(user.employee_profile?.full_name || user.hrm_user?.full_name || user.firstName || user.username)?.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+                  {user.hrm_user?.avatar_url ? (
+                    <img
+                      src={user.hrm_user.avatar_url}
+                      alt="Avatar"
+                      className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-medium text-white">
+                        {(user.employee_profile?.full_name || user.hrm_user?.full_name || user.firstName || user.username)?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {user.employee_profile?.full_name || user.hrm_user?.full_name || user.firstName || user.username}
