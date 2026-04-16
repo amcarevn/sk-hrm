@@ -747,8 +747,8 @@ const WorkFinalization: React.FC = () => {
   const formatDailyCredit = (item: DailySummaryItem): string => {
     const c = item.work_credit;
     if (item.day_type === 'L') return 'L';
-    if (item.day_type === 'P') return c ? `${c}P` : '';
-    if (item.day_type === 'OL') return c ? `${c}OL` : '';
+    if (item.day_type === 'P') return c ? `${c} P` : '';
+    if (item.day_type === 'OLW') return c ? `${c} OLW` : '';
     if (c > 0) return String(c);
     return '';
   };
@@ -822,7 +822,11 @@ const WorkFinalization: React.FC = () => {
           tong: rec.tong_cong,
         };
         (rec.daily_summary || []).forEach((d, i) => {
-          rowData[`d${i + 1}`] = formatDailyCredit(d);
+          if (d.day_type === 'L') {
+            rowData[`d${i + 1}`] = d.work_credit > 0 ? d.work_credit : 0;
+          } else {
+            rowData[`d${i + 1}`] = d.work_credit > 0 ? d.work_credit : null;
+          }
         });
 
         const row = sheet.addRow(rowData);
@@ -831,12 +835,19 @@ const WorkFinalization: React.FC = () => {
           cell.alignment = { vertical: 'middle', horizontal: colNumber <= FIXED_COLS ? 'left' : 'center' };
         });
 
-        // Apply day_type coloring
+        // Apply day_type coloring + custom number format
         (rec.daily_summary || []).forEach((d, i) => {
-          const cell = row.getCell(FIXED_COLS + 1 + i); // offset by fixed cols
-          if (d.day_type === 'P') cell.fill = FILL_P;
-          else if (d.day_type === 'OL') cell.fill = FILL_OL;
-          else if (d.day_type === 'L') cell.fill = FILL_L;
+          const cell = row.getCell(FIXED_COLS + 1 + i);
+          if (d.day_type === 'P') {
+            cell.fill = FILL_P;
+            cell.numFmt = '0.## "P"';
+          } else if (d.day_type === 'OLW') {
+            cell.fill = FILL_OL;
+            cell.numFmt = '0.## "OLW"';
+          } else if (d.day_type === 'L') {
+            cell.fill = FILL_L;
+            cell.numFmt = '"L"';
+          }
         });
       });
 
@@ -1796,7 +1807,7 @@ const WorkFinalization: React.FC = () => {
                           const creditStr = formatDailyCredit(d);
                           const cellCls =
                             d.day_type === 'P' ? 'bg-amber-50 text-amber-700 font-medium'
-                            : d.day_type === 'OL' ? 'bg-cyan-50 text-cyan-700 font-medium'
+                            : d.day_type === 'OLW' ? 'bg-cyan-50 text-cyan-700 font-medium'
                             : d.day_type === 'L' ? 'bg-blue-50 text-blue-600 font-medium'
                             : d.is_weekend && !creditStr ? 'bg-gray-100 text-gray-400'
                             : d.work_credit >= 1 ? 'text-green-700 font-medium'

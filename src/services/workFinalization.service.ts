@@ -6,7 +6,7 @@ export interface DailySummaryItem {
   weekday_label: string;
   is_weekend: boolean;
   work_credit: number;
-  day_type: '' | 'P' | 'OL' | 'L';
+  day_type: '' | 'P' | 'OLW' | 'L';
   holiday_name?: string | null;
 }
 
