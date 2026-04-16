@@ -36,6 +36,7 @@ export interface User {
     full_name?: string;
     department?: string;
     department_code?: string;
+    avatar_url?: string | null;
     [key: string]: any;
   };
   employee_permission?: EmployeePermissions;
@@ -453,6 +454,9 @@ export interface Employee {
   manager_name: string;
   created_at: string;
   updated_at: string;
+
+  // Avatar
+  avatar_url?: string | null;
 
   // Hồ sơ giấy tờ
   doc_resume?: boolean;

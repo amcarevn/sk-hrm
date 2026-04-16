@@ -80,10 +80,18 @@ export default function Header() {
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
               >
                 <span className="sr-only">Mở menu người dùng</span>
-                <UserCircleIcon
-                  className="h-8 w-8 text-gray-400"
-                  aria-hidden="true"
-                />
+                {user?.hrm_user?.avatar_url ? (
+                  <img
+                    src={user.hrm_user.avatar_url}
+                    alt="Avatar"
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <UserCircleIcon
+                    className="h-8 w-8 text-gray-400"
+                    aria-hidden="true"
+                  />
+                )}
               </button>
 
               {userMenuOpen && (
