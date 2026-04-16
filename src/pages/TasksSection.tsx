@@ -173,6 +173,9 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
       return null;
     }
 
+    const guard = canCompleteTask ? canCompleteTask(task) : { allowed: true };
+    const completeDisabled = !guard.allowed;
+
     return (
       <div className="flex gap-2">
         {task.status === 'PENDING' && (

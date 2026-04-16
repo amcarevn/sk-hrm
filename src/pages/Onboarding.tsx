@@ -284,13 +284,10 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
             <SelectBox
               label=""
               value={form.direct_manager_id}
-              options={[
-                { value: '', label: loadingEmployees ? 'Đang tải...' : '-- Không có quản lý --' },
-                ...employees.map((e) => ({ value: String(e.id), label: `${e.full_name} (${e.employee_id})` })),
-              ]}
+              options={employees.map((e) => ({ value: String(e.id), label: `${e.full_name} (${e.employee_id})` }))}
               onChange={(v) => setForm({ ...form, direct_manager_id: v })}
               searchable
-              placeholder="Tìm quản lý..."
+              placeholder={loadingEmployees ? 'Đang tải...' : 'Chọn quản lý trực tiếp'}
             />
           )}
         </div>

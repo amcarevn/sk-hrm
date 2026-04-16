@@ -66,6 +66,21 @@ export const employeesAPI = {
     return response.data;
   },
 
+  uploadFilesByEmployeeId: async (
+    employeeId: string,
+    formData: FormData
+  ): Promise<SuperAdminEmployee> => {
+    const response: AxiosResponse<SuperAdminEmployee> = await managementApi.patch(
+      `/api-hrm/super-admin/employee/`,
+      formData,
+      {
+        params: { employee_id: employeeId },
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+    return response.data;
+  },
+
   me: async (): Promise<Employee> => {
     if (mePromise) return mePromise;
 

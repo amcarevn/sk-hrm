@@ -7,6 +7,8 @@ import {
   EmployeeUpdateData,
 } from '../utils/api';
 import { SelectBox } from '@/components/LandingLayout/SelectBox';
+import { WORK_LOCATION_OPTIONS } from '../constants/onboarding';
+import onboardingService from '../services/onboarding.service';
 
 // ============================================
 // CONSTANTS
@@ -132,6 +134,13 @@ const EmployeeEdit: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [loadingEmployee, setLoadingEmployee] = useState(true);
+  const [originalExtraInfo, setOriginalExtraInfo] = useState<Record<string, any>>({});
+  const [vneidFile, setVneidFile] = useState<File | null>(null);
+  const [vneidCurrentUrl, setVneidCurrentUrl] = useState<string | null>(null);
+  const [diplomaFile, setDiplomaFile] = useState<File | null>(null);
+  const [diplomaCurrentUrl, setDiplomaCurrentUrl] = useState<string | null>(null);
+  const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
+  const [citizenIdCurrentUrl, setCitizenIdCurrentUrl] = useState<string | null>(null);
   const [departments, setDepartments] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -162,6 +171,8 @@ const EmployeeEdit: React.FC = () => {
     section: '',
     doctor_team: '',
     work_form: '',
+    work_type: '',
+    work_location: '',
     region: '',
     block: '',
     is_hr: false,
@@ -220,6 +231,15 @@ const EmployeeEdit: React.FC = () => {
       setLoadingEmployee(true);
       const emp = await employeesAPI.getById(employeeId);
       const e = emp as any;
+      // Parse extra_info 1 lần — fallback cho các field có thể được lưu ở extra_info
+      const ei: Record<string, any> = (() => {
+        try {
+          return typeof e.extra_info === 'string'
+            ? JSON.parse(e.extra_info || '{}')
+            : (e.extra_info || {});
+        } catch { return {}; }
+      })();
+      setOriginalExtraInfo(ei);
       setFormData({
         employee_id: e.employee_id || '',
         full_name: e.full_name || '',
@@ -230,7 +250,7 @@ const EmployeeEdit: React.FC = () => {
         ethnicity: e.ethnicity || '',
         nationality: e.nationality || '',
         marital_status: e.marital_status || '',
-        facebook_link: e.facebook_link || '',
+        facebook_link: e.facebook_link || ei.facebook_link || '',
 
         employment_status: e.employment_status || 'ACTIVE',
         start_date: e.start_date || '',
@@ -242,6 +262,8 @@ const EmployeeEdit: React.FC = () => {
         section: e.section || '',
         doctor_team: e.doctor_team || '',
         work_form: e.work_form || '',
+        work_type: ei.work_type || '',
+        work_location: e.work_location || '',
         region: e.region || '',
         block: e.block || '',
         is_hr: e.is_hr || false,
@@ -250,7 +272,7 @@ const EmployeeEdit: React.FC = () => {
         cccd_number: e.cccd_number || '',
         cccd_issue_date: e.cccd_issue_date || '',
         cccd_issue_place: e.cccd_issue_place || '',
-        old_id_number: e.old_id_number || '',
+        old_id_number: e.old_id_number || ei.old_id_number || '',
         birth_place: e.birth_place || '',
         social_insurance_number: e.social_insurance_number || '',
         tax_code: e.tax_code || '',
@@ -280,6 +302,12 @@ const EmployeeEdit: React.FC = () => {
         emergency_contact_occupation: e.emergency_contact_occupation || '',
         emergency_contact_address: e.emergency_contact_address || '',
       });
+      setVneidCurrentUrl(e.vneid_screenshot_url || (e.vneid_screenshot ? String(e.vneid_screenshot) : null));
+      setVneidFile(null);
+      setDiplomaCurrentUrl(e.diploma_file_url || null);
+      setDiplomaFile(null);
+      setCitizenIdCurrentUrl(e.citizen_id_file_url || null);
+      setCitizenIdFile(null);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Không thể tải thông tin nhân viên');
@@ -358,8 +386,20 @@ const EmployeeEdit: React.FC = () => {
       add('section', formData.section?.trim());
       add('doctor_team', formData.doctor_team?.trim());
       add('work_form', formData.work_form);
+      add('work_location', formData.work_location);
       add('region', formData.region);
       add('block', formData.block);
+
+      // Merge extra_info — lưu work_type, đồng thời xóa facebook_link (đã PATCH trực tiếp)
+      // để tránh lệch giữa direct field và extra_info
+      {
+        const nextExtra = {
+          ...originalExtraInfo,
+          work_type: formData.work_type?.trim() || undefined,
+          facebook_link: undefined,
+        };
+        payload['extra_info'] = JSON.stringify(nextExtra);
+      }
       add('education_level', formData.education_level);
 
       add('cccd_number', formData.cccd_number?.trim());
@@ -396,6 +436,22 @@ const EmployeeEdit: React.FC = () => {
       add('emergency_contact_address', formData.emergency_contact_address?.trim());
 
       await employeesAPI.update(parseInt(id!), payload);
+
+      // Upload VNeID screenshot nếu admin chọn file mới (field thuộc Employee)
+      if (vneidFile && formData.employee_id) {
+        const fd = new FormData();
+        fd.append('vneid_screenshot', vneidFile);
+        await employeesAPI.uploadFilesByEmployeeId(formData.employee_id, fd);
+      }
+
+      // Upload các file thuộc OnboardingProcess qua employee_id
+      const onboardingFd = new FormData();
+      if (diplomaFile) onboardingFd.append('diploma_file', diplomaFile);
+      if (citizenIdFile) onboardingFd.append('citizen_id_file', citizenIdFile);
+      if ([...onboardingFd.keys()].length > 0 && formData.employee_id) {
+        await onboardingService.superAdminUploadFilesByEmployeeId(formData.employee_id, onboardingFd);
+      }
+
       setSuccess('Cập nhật nhân viên thành công!');
       setTimeout(() => navigate(`/dashboard/employees/${id}`), 1500);
     } catch (err: any) {
@@ -449,12 +505,12 @@ const EmployeeEdit: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <Field label="Mã nhân viên" required>
               <input type="text" name="employee_id" value={formData.employee_id}
-                onChange={handleInput} className={inputClass} required />
+                onChange={handleInput} placeholder="NV001" className={inputClass} required />
             </Field>
 
             <Field label="Họ và tên" required>
               <input type="text" name="full_name" value={formData.full_name}
-                onChange={handleInput} className={inputClass} required />
+                onChange={handleInput} placeholder="Nguyễn Văn A" className={inputClass} required />
             </Field>
 
             <SelectBox
@@ -472,12 +528,12 @@ const EmployeeEdit: React.FC = () => {
 
             <Field label="Số điện thoại">
               <input type="tel" name="phone_number" value={formData.phone_number}
-                onChange={handleInput} className={inputClass} />
+                onChange={handleInput} placeholder="0987654321" className={inputClass} />
             </Field>
 
             <Field label="Email cá nhân">
               <input type="email" name="personal_email" value={formData.personal_email}
-                onChange={handleInput} className={inputClass} />
+                onChange={handleInput} placeholder="example@gmail.com" className={inputClass} />
             </Field>
 
             <Field label="Dân tộc">
@@ -530,7 +586,7 @@ const EmployeeEdit: React.FC = () => {
                 onChange={handleInput} className={inputClass} />
             </Field>
 
-            <Field label="Ngày kết thúc">
+            <Field label="Ngày nghỉ việc">
               <input type="date" name="end_date" value={formData.end_date}
                 onChange={handleInput} className={inputClass} />
             </Field>
@@ -588,6 +644,19 @@ const EmployeeEdit: React.FC = () => {
               placeholder="Chọn hình thức"
               options={WORK_FORM_OPTIONS}
               onChange={(v) => handleSelect('work_form', v)}
+            />
+
+            <Field label="Loại hình làm việc">
+              <input type="text" name="work_type" value={formData.work_type}
+                onChange={handleInput} placeholder="Full-time, Part-time, ..." className={inputClass} />
+            </Field>
+
+            <SelectBox
+              label="Địa điểm làm việc"
+              value={formData.work_location}
+              placeholder="Chọn địa điểm"
+              options={WORK_LOCATION_OPTIONS}
+              onChange={(v) => handleSelect('work_location', v)}
             />
 
             <SelectBox
@@ -822,6 +891,74 @@ const EmployeeEdit: React.FC = () => {
                   className={textareaClass} />
               </Field>
             </div>
+          </div>
+        </div>
+
+        {/* ── Hồ sơ đính kèm ── */}
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="📎" title="Hồ sơ đính kèm" />
+          <p className="text-xs text-gray-500 mb-3">
+            Chọn file mới để thay thế. Bỏ trống ô nào thì giữ nguyên.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {(() => {
+              const isPdf = (url: string) => /\.pdf(\?|$)/i.test(url);
+              const rows: {
+                label: string;
+                file: File | null;
+                setFile: (f: File | null) => void;
+                currentUrl: string | null;
+                accept: string;
+              }[] = [
+                { label: 'Bằng cấp', file: diplomaFile, setFile: setDiplomaFile, currentUrl: diplomaCurrentUrl, accept: 'image/*,application/pdf' },
+                { label: 'File CMND/CCCD', file: citizenIdFile, setFile: setCitizenIdFile, currentUrl: citizenIdCurrentUrl, accept: 'image/*,application/pdf' },
+                { label: 'Ảnh chụp VNeID', file: vneidFile, setFile: setVneidFile, currentUrl: vneidCurrentUrl, accept: 'image/*' },
+              ];
+              return rows.map(r => (
+                <div key={r.label} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700">{r.label}</label>
+                    {r.currentUrl && !r.file && (
+                      <a
+                        href={r.currentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Xem file hiện tại
+                      </a>
+                    )}
+                  </div>
+                  {r.currentUrl && !r.file && !isPdf(r.currentUrl) && (
+                    <img src={r.currentUrl} alt={r.label} className="max-h-32 object-contain border rounded" />
+                  )}
+                  {r.currentUrl && !r.file && isPdf(r.currentUrl) && (
+                    <div className="h-20 bg-red-50 border border-red-200 rounded flex items-center justify-center gap-2">
+                      <span className="text-2xl">📄</span>
+                      <span className="text-xs text-red-600 font-medium">PDF hiện tại</span>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept={r.accept}
+                    onChange={(e) => r.setFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {r.file && (
+                    <div className="flex items-center justify-between text-xs text-gray-600">
+                      <span className="truncate">📎 {r.file.name} ({(r.file.size / 1024).toFixed(1)} KB)</span>
+                      <button
+                        type="button"
+                        onClick={() => r.setFile(null)}
+                        className="text-red-600 hover:underline ml-2"
+                      >
+                        Bỏ chọn
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ));
+            })()}
           </div>
         </div>
 
