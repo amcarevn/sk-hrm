@@ -539,9 +539,11 @@ export const onboardingService = {
    * Lấy danh sách templates
    */
   getTemplates: async (params?: {
+    page?: number;
+    page_size?: number;
     search?: string;
     document_type?: string;
-  }): Promise<any[]> => {
+  }): Promise<any> => {
     const response: AxiosResponse<any> = await managementApi.get(
       '/api-hrm/onboarding-document-templates/',
       { params }
@@ -580,6 +582,33 @@ export const onboardingService = {
       {
         headers: { 'Content-Type': 'multipart/form-data' },
       }
+    );
+    return response.data;
+  },
+
+  updateTemplate: async (id: number, formData: FormData): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.patch(
+      `/api-hrm/onboarding-document-templates/${id}/`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  },
+
+  deleteTemplate: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/onboarding-document-templates/${id}/`);
+  },
+
+  toggleTemplateActive: async (id: number): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.post(
+      `/api-hrm/onboarding-document-templates/${id}/toggle_active/`
+    );
+    return response.data;
+  },
+
+  syncTemplateToActive: async (id: number): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.post(
+      `/api-hrm/onboarding-document-templates/${id}/sync_to_active/`
     );
     return response.data;
   },

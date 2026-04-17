@@ -157,7 +157,7 @@ export default function ContractTemplates() {
   ];
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>

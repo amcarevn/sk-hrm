@@ -422,23 +422,6 @@ const OnboardingDetail: React.FC = () => {
     }
   };
 
-  const handleStartProcess = () => {
-    if (!id || !onboarding) return;
-    setConfirmDialog({
-      text: 'Bạn có chắc muốn bắt đầu quy trình onboarding này?',
-      onConfirm: async () => {
-        setConfirmDialog(null);
-        try {
-          await onboardingService.start(parseInt(id));
-          showSuccess('Đã bắt đầu quy trình onboarding');
-          await fetchOnboardingDetail();
-        } catch (error: any) {
-          showError(error.response?.data?.message || 'Không thể bắt đầu quy trình onboarding');
-        }
-      },
-    });
-  };
-
   const handleApproveEmployeeInfo = () => {
     if (!id || !onboarding) return;
     setConfirmDialog({
@@ -1556,6 +1539,7 @@ const OnboardingDetail: React.FC = () => {
             </div>
             {/* Progress ring */}
             <div className="hidden sm:flex items-center gap-4">
+              {/* Progress ring */}
               <div className="relative w-16 h-16">
                 <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
                   <circle cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" strokeWidth="5" />
@@ -1573,6 +1557,7 @@ const OnboardingDetail: React.FC = () => {
               </div>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -1741,6 +1726,25 @@ const OnboardingDetail: React.FC = () => {
                 tasks={onboarding.tasks || []}
                 onboardingId={onboarding.id}
                 onUpdate={fetchOnboardingDetail}
+                canCompleteTask={(task) => {
+                  const docs = onboarding.documents || [];
+                  const taskName = (task.name || '').toLowerCase();
+
+                  // Task "Đọc nội quy" → check documents REGULATION required đã đọc
+                  if (taskName.includes('nội quy')) {
+                    const unread = docs.filter(
+                      (d) => d.document_type === 'REGULATION' && d.is_required && !d.is_read
+                    );
+                    if (unread.length > 0) {
+                      return {
+                        allowed: false,
+                        reason: `Nhân viên chưa đọc ${unread.length} tài liệu nội quy bắt buộc`,
+                      };
+                    }
+                  }
+
+                  return { allowed: true };
+                }}
               />
             )}
             {activeTab === 'documents' && (
