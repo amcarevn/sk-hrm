@@ -317,6 +317,7 @@ const DocumentTemplates: React.FC = () => {
 
   const [deleteTarget, setDeleteTarget] = useState<DocumentTemplate | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [detailTemplate, setDetailTemplate] = useState<DocumentTemplate | null>(null);
 
   const showFeedback = (variant: FeedbackVariant, title: string, message?: string) => {
     setFeedback({ open: true, variant, title, message });
@@ -468,8 +469,8 @@ const DocumentTemplates: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              {['Tên template', 'Loại', 'Bắt buộc', 'Yêu cầu ký', 'Auto-apply', 'Số lần dùng', 'Trạng thái', 'Người tạo', 'Thao tác'].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+              {['Tên template', 'Loại', 'Bắt buộc', 'Yêu cầu ký', 'Auto-apply', 'Số lần dùng', 'Trạng thái', 'Người tạo', 'Ngày tạo', 'Thao tác'].map(h => (
+                <th key={h} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   {h}
                 </th>
               ))}
@@ -477,38 +478,51 @@ const DocumentTemplates: React.FC = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {loading ? (
-              <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-500">Đang tải...</td></tr>
+              <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-500">Đang tải...</td></tr>
             ) : templates.length === 0 ? (
-              <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-500">Chưa có template nào.</td></tr>
+              <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-500">Chưa có template nào.</td></tr>
             ) : (
               templates.map(tpl => (
                 <tr key={tpl.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-900 font-medium max-w-[250px] truncate" title={tpl.template_name}>
+                  <td className="px-4 py-3 text-sm text-gray-900 font-medium max-w-[250px] truncate text-center" title={tpl.template_name}>
                     {tpl.template_name}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
                     <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getDocumentTypeColor(tpl.document_type)}`}>
                       {tpl.document_type_display || tpl.document_type}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {tpl.is_required ? <span className="text-red-600 font-bold text-xs">Bắt buộc</span> : <span className="text-gray-400 text-xs">—</span>}
+                    {tpl.is_required
+                      ? <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-700 border border-red-200">Bắt buộc</span>
+                      : <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-50 text-gray-400 border border-gray-200">Không</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {tpl.requires_signature ? <span className="text-purple-600 font-bold text-xs">Có</span> : <span className="text-gray-400 text-xs">—</span>}
+                    {tpl.requires_signature
+                      ? <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-purple-50 text-purple-700 border border-purple-200">Yêu cầu ký</span>
+                      : <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-50 text-gray-400 border border-gray-200">Không</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {tpl.apply_to_all_new_onboarding ? <span className="text-blue-600 font-bold text-xs">Auto</span> : <span className="text-gray-400 text-xs">—</span>}
+                    {tpl.apply_to_all_new_onboarding
+                      ? <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200">Tự động</span>
+                      : <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-50 text-gray-400 border border-gray-200">Thủ công</span>}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 text-center">{tpl.usage_count}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-4 py-3 text-center">
+                    <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">{tpl.usage_count} lần</span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
                     <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${tpl.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'}`}>
                       {tpl.is_active ? 'Đang dùng' : 'Không dùng'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{tpl.created_by_name || '—'}</td>
-                  <td className="px-4 py-3 text-sm whitespace-nowrap">
-                    <div className="flex flex-wrap items-center gap-1.5">
+                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap text-center">{tpl.created_by_name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap text-center">{formatDate(tpl.created_at)}</td>
+                  <td className="px-4 py-3 text-sm whitespace-nowrap text-center">
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      <button onClick={() => setDetailTemplate(tpl)}
+                        className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
+                        Chi tiết
+                      </button>
                       {tpl.file_url && (
                         <a href={tpl.file_url} target="_blank" rel="noreferrer"
                           className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 inline-flex items-center gap-1">
@@ -563,6 +577,95 @@ const DocumentTemplates: React.FC = () => {
         onSaved={handleTemplateSaved}
         onError={(title, msg) => showFeedback('error', title, msg)}
       />
+
+      {/* Detail Dialog */}
+      {detailTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Chi tiết template</h3>
+              <button onClick={() => setDetailTemplate(null)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
+                <div className="sm:col-span-3">
+                  <dt className="text-gray-500 font-medium">Tên template</dt>
+                  <dd className="text-gray-900 mt-1 font-semibold">{detailTemplate.template_name}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Loại tài liệu</dt>
+                  <dd className="mt-1">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getDocumentTypeColor(detailTemplate.document_type)}`}>
+                      {detailTemplate.document_type_display || detailTemplate.document_type}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Người tạo</dt>
+                  <dd className="text-gray-900 mt-1">{detailTemplate.created_by_name || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Ngày tạo</dt>
+                  <dd className="text-gray-900 mt-1">{formatDate(detailTemplate.created_at)}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Trạng thái</dt>
+                  <dd className="mt-1">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${detailTemplate.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'}`}>
+                      {detailTemplate.is_active ? 'Đang dùng' : 'Không dùng'}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Bắt buộc</dt>
+                  <dd className="text-gray-900 mt-1">{detailTemplate.is_required ? 'Có' : 'Không'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Yêu cầu ký</dt>
+                  <dd className="text-gray-900 mt-1">{detailTemplate.requires_signature ? 'Có' : 'Không'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Auto-apply</dt>
+                  <dd className="text-gray-900 mt-1">{detailTemplate.apply_to_all_new_onboarding ? 'Tự động' : 'Thủ công'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Số lần dùng</dt>
+                  <dd className="text-gray-900 mt-1">{detailTemplate.usage_count}</dd>
+                </div>
+                <div className="sm:col-span-3">
+                  <dt className="text-gray-500 font-medium">Mô tả</dt>
+                  <dd className="text-gray-900 mt-1 whitespace-pre-wrap">
+                    {detailTemplate.description || <span className="text-gray-400 italic">Không có mô tả</span>}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end gap-2 bg-gray-50">
+              {detailTemplate.file_url && (
+                <a
+                  href={detailTemplate.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 inline-flex items-center gap-1.5"
+                >
+                  <DocumentArrowDownIcon className="w-4 h-4" />
+                  Tải file
+                </a>
+              )}
+              <button onClick={() => { const tpl = detailTemplate; setDetailTemplate(null); openEdit(tpl); }}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 inline-flex items-center gap-1.5">
+                Sửa
+              </button>
+              <button onClick={() => setDetailTemplate(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Feedback Dialog */}
       <FeedbackDialog

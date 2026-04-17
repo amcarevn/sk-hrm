@@ -16,6 +16,7 @@ import onboardingService from '../services/onboarding.service';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
+import { useDebounce } from '../hooks/useDebounce';
 
 // ============================================
 // TYPES
@@ -346,6 +347,7 @@ const Onboarding: React.FC = () => {
   const [filterMonth, setFilterMonth] = useState<number>(0);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [filterSearch, setFilterSearch] = useState<string>('');
+  const debouncedSearch = useDebounce(filterSearch, 400);
 
   // ✅ Pagination — dùng cùng pattern với EmployeeList
   const [currentPage, setCurrentPage] = useState(1);
@@ -363,7 +365,7 @@ const Onboarding: React.FC = () => {
         params.month = filterMonth;
         params.year = filterYear;
       }
-      if (filterSearch.trim()) params.search = filterSearch.trim();
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
       const data = await onboardingService.list(params);
       const items = Array.isArray(data) ? data : data.results ?? [];
       setTotalCount(Array.isArray(data) ? items.length : (data.count ?? items.length));
@@ -386,7 +388,7 @@ const Onboarding: React.FC = () => {
 
   useEffect(() => {
     fetchOnboardings();
-  }, [filterStatus, filterMonth, filterYear, filterSearch, currentPage, itemsPerPage]);
+  }, [filterStatus, filterMonth, filterYear, debouncedSearch, currentPage, itemsPerPage]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Bạn chắc chắn muốn xoá quy trình này?')) return;
@@ -647,7 +649,7 @@ const Onboarding: React.FC = () => {
               <input
                 type="text"
                 value={filterSearch}
-                onChange={(e) => { setFilterSearch(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => { setFilterSearch(e.target.value); }}
                 placeholder="Tìm tên hoặc mã NV..."
                 className="border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
               />

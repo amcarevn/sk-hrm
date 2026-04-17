@@ -48,7 +48,7 @@ const showError = (msg: string) => window.alert(msg);
 const getDocumentTypeLabel = (type: string) => {
   const types: Record<string, string> = {
     CONTRACT: 'Hợp đồng',
-    REGULATION: 'Nội quy',
+    REGULATION: 'Nội quy công ty',
     HANDBOOK: 'Sổ tay nhân viên',
     FORM: 'Mẫu biểu',
     TRAINING: 'Tài liệu đào tạo',

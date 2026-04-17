@@ -263,7 +263,7 @@ export const onboardingService = {
   },
 
   /**
-   * Lấy onboarding của user đang login.
+   * Lấy onboarding mới nhất của user hiện tại (dùng cho Home).
    * BE `get_queryset()` đã filter: nhân viên thường chỉ thấy onboarding của chính mình.
    */
   myOnboarding: async (): Promise<OnboardingProcess | null> => {

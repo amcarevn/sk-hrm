@@ -495,8 +495,6 @@ const OnboardingDetail: React.FC = () => {
             start_date: editData.start_date || null,
             end_date: editData.end_date || null,
           });
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
         await fetchOnboardingDetail();
       }
@@ -554,8 +552,6 @@ const OnboardingDetail: React.FC = () => {
         // Update employee profile
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -594,8 +590,6 @@ const OnboardingDetail: React.FC = () => {
         // Update employee profile
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -639,8 +633,6 @@ const OnboardingDetail: React.FC = () => {
             });
           }
           await employeesAPI.partialUpdateByEmployeeId(empId, updateData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -684,8 +676,6 @@ const OnboardingDetail: React.FC = () => {
             });
           }
           await employeesAPI.partialUpdateByEmployeeId(empId, updateData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -702,8 +692,6 @@ const OnboardingDetail: React.FC = () => {
 
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -721,8 +709,6 @@ const OnboardingDetail: React.FC = () => {
 
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
       }
       // ── Hồ sơ đính kèm (attached_files) ──
@@ -761,8 +747,6 @@ const OnboardingDetail: React.FC = () => {
         }
 
         if (empId) {
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -776,8 +760,6 @@ const OnboardingDetail: React.FC = () => {
 
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
       }
 
@@ -1788,8 +1770,6 @@ const OnboardingDetail: React.FC = () => {
                             [field]: e.target.checked,
                             file_status: fileStatus,
                           } as any);
-                          const updated = await employeesAPI.getByEmployeeId(empId);
-                          setEmployeeProfile(updated);
                         } catch { /* ignore */ }
                       }}
                       className="w-4 h-4 rounded text-green-600 border-gray-300 focus:ring-green-500"
@@ -1892,7 +1872,7 @@ const OnboardingDetail: React.FC = () => {
                   const taskName = (task.name || '').toLowerCase();
 
                   // Task "Đọc nội quy" → check documents REGULATION required đã đọc
-                  if (taskName.includes('nội quy')) {
+                  if (taskName.includes('nội quy công ty')) {
                     const unread = docs.filter(
                       (d) => d.document_type === 'REGULATION' && d.is_required && !d.is_read
                     );
