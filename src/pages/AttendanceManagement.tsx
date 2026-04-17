@@ -38,13 +38,6 @@ import { Employee, employeesAPI } from '@/utils/api';
 
 const AttendanceManagement: React.FC = () => {
   const { user } = useAuth();
-
-  const TELESALE_POSITION_CODES = ['NV_TELESALE', 'TP_TELESALE'];
-  const userPositionCode =
-    (user?.employee_profile?.position_code as string | undefined) ||
-    (user?.hrm_user?.position_code as string | undefined) ||
-    '';
-  const isTelesale = TELESALE_POSITION_CODES.includes(userPositionCode);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadMessage, setUploadMessage] = useState<{
@@ -1335,7 +1328,7 @@ const AttendanceManagement: React.FC = () => {
           (selectedContext === 'online_work'
             ? 'Gửi đơn làm việc online thất bại. Vui lòng thử lại.'
             : 'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.');
-        showNotify('error', 'Lỗi hệ thống', errorMessage);
+        showNotify('error', 'Lỗi', errorMessage);
       }
     } finally {
       setIsSubmitting(false);
@@ -3833,9 +3826,6 @@ const AttendanceManagement: React.FC = () => {
                                   color: 'indigo',
                                   icon: '🏢',
                                 },
-                                // Ca gãy: chỉ telesale (NV_TELESALE, TP_TELESALE) mới chọn được.
-                                // Vẫn hiển thị cho vị trí khác nhưng disable + icon khoá để NV biết option này tồn tại.
-                                // BE check trùng logic này ở main_api.py để phòng bypass.
                                 {
                                   label: 'Ca gãy',
                                   time: '8h30→12h + 17h30→23h',
@@ -3843,7 +3833,6 @@ const AttendanceManagement: React.FC = () => {
                                   end: '23:00',
                                   color: 'purple',
                                   icon: '🔀',
-                                  locked: !isTelesale,
                                 },
                                 {
                                   label: 'Ca CheckPage',
@@ -3881,51 +3870,29 @@ const AttendanceManagement: React.FC = () => {
                                   },
                                 };
                                 const c = colorMap[preset.color];
-                                const isLocked = (preset as { locked?: boolean }).locked === true;
                                 return (
                                   <button
                                     key={preset.label}
                                     type="button"
-                                    disabled={isLocked}
-                                    title={isLocked ? 'Chỉ vị trí Telesale mới được đăng ký Ca gãy' : undefined}
                                     onClick={() => {
-                                      if (isLocked) return;
                                       setNightShiftStartTime(preset.start);
                                       setNightShiftEndTime(preset.end);
                                       if (!formNote) {
                                         setFormNote(preset.label);
                                       }
                                     }}
-                                    className={`flex items-center justify-between w-full px-4 py-3 rounded-xl border-2 transition-all font-medium ${
-                                      isLocked
-                                        ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-70'
-                                        : `${c.card} ${isSelected ? 'scale-[1.01]' : ''}`
-                                    }`}
+                                    className={`flex items-center justify-between w-full px-4 py-3 rounded-xl border-2 transition-all font-medium ${c.card} ${isSelected ? 'scale-[1.01]' : ''}`}
                                   >
                                     <div className="flex items-center gap-2.5">
-                                      <span className={`text-lg ${isLocked ? 'grayscale' : ''}`}>{preset.icon}</span>
+                                      <span className="text-lg">{preset.icon}</span>
                                       <div className="text-left">
-                                        <div className={`text-sm font-semibold flex items-center gap-1.5 ${
-                                          isLocked ? 'text-gray-500' : (isSelected ? 'text-white' : 'text-gray-800')
-                                        }`}>
+                                        <div className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-gray-800'}`}>
                                           {preset.label}
-                                          {isLocked && (
-                                            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                            </svg>
-                                          )}
                                         </div>
-                                        {isLocked && (
-                                          <div className="text-[10px] text-gray-400 mt-0.5">
-                                            Chỉ dành cho Telesale
-                                          </div>
-                                        )}
                                       </div>
                                     </div>
                                     {preset.time && (
-                                      <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${
-                                        isLocked ? 'bg-gray-100 text-gray-400' : c.badge
-                                      }`}>
+                                      <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${c.badge}`}>
                                         {preset.time}
                                       </span>
                                     )}
