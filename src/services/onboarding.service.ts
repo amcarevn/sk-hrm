@@ -91,6 +91,10 @@ export interface OnboardingProcess {
   updated_at: string;
   completed_at?: string;
   created_by?: number;
+
+  // Embedded relations (BE returns nested trong detail serializer)
+  tasks?: OnboardingTask[];
+  documents?: OnboardingDocument[];
 }
 
 export interface OnboardingTask {
@@ -259,6 +263,18 @@ export const onboardingService = {
   },
 
   /**
+   * Lấy onboarding mới nhất của user hiện tại (dùng cho Home).
+   * BE `get_queryset()` đã filter: nhân viên thường chỉ thấy onboarding của chính mình.
+   */
+  myOnboarding: async (): Promise<OnboardingProcess | null> => {
+    const response: AxiosResponse<PaginatedResponse<OnboardingProcess>> =
+      await managementApi.get('/api-hrm/onboardings/', {
+        params: { page_size: 1, ordering: '-created_at' },
+      });
+    return response.data.results?.[0] || null;
+  },
+
+  /**
    * Tạo onboarding mới
    */
   create: async (data: CreateOnboardingRequest): Promise<OnboardingProcess> => {
@@ -308,6 +324,43 @@ export const onboardingService = {
       `/api-hrm/super-admin/onboarding/`,
       data,
       { params: { id: onboardingId } }
+    );
+    return response.data;
+  },
+
+  /**
+   * Upload/replace files (multipart) qua super-admin onboarding API
+   */
+  superAdminUploadFiles: async (
+    onboardingId: number,
+    formData: FormData
+  ): Promise<OnboardingProcess> => {
+    const response: AxiosResponse<OnboardingProcess> = await managementApi.patch(
+      `/api-hrm/super-admin/onboarding/`,
+      formData,
+      {
+        params: { id: onboardingId },
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Upload/replace files bằng employee_id (string code).
+   * BE tự tìm OnboardingProcess qua reverse OneToOne.
+   */
+  superAdminUploadFilesByEmployeeId: async (
+    employeeId: string,
+    formData: FormData
+  ): Promise<OnboardingProcess> => {
+    const response: AxiosResponse<OnboardingProcess> = await managementApi.patch(
+      `/api-hrm/super-admin/onboarding/`,
+      formData,
+      {
+        params: { employee_id: employeeId },
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
     );
     return response.data;
   },
@@ -539,9 +592,11 @@ export const onboardingService = {
    * Lấy danh sách templates
    */
   getTemplates: async (params?: {
+    page?: number;
+    page_size?: number;
     search?: string;
     document_type?: string;
-  }): Promise<any[]> => {
+  }): Promise<any> => {
     const response: AxiosResponse<any> = await managementApi.get(
       '/api-hrm/onboarding-document-templates/',
       { params }
@@ -580,6 +635,33 @@ export const onboardingService = {
       {
         headers: { 'Content-Type': 'multipart/form-data' },
       }
+    );
+    return response.data;
+  },
+
+  updateTemplate: async (id: number, formData: FormData): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.patch(
+      `/api-hrm/onboarding-document-templates/${id}/`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return response.data;
+  },
+
+  deleteTemplate: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/onboarding-document-templates/${id}/`);
+  },
+
+  toggleTemplateActive: async (id: number): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.post(
+      `/api-hrm/onboarding-document-templates/${id}/toggle_active/`
+    );
+    return response.data;
+  },
+
+  syncTemplateToActive: async (id: number): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.post(
+      `/api-hrm/onboarding-document-templates/${id}/sync_to_active/`
     );
     return response.data;
   },

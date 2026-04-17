@@ -364,6 +364,7 @@ const EmployeeList: React.FC = () => {
         { header: 'Địa điểm làm việc', key: 'work_location', width: 20 },
         { header: 'Team Bác sĩ', key: 'doctor_team', width: 16 },
         { header: 'Hình thức làm việc', key: 'work_form', width: 20 },
+        { header: 'Loại hình làm việc', key: 'work_type', width: 18 },
         { header: 'Trình độ học vấn', key: 'education_level', width: 18 },
         // Quản lý
         { header: 'Quản lý trực tiếp', key: 'manager', width: 22 },
@@ -376,7 +377,7 @@ const EmployeeList: React.FC = () => {
         { header: 'Tỉ lệ thử việc', key: 'probation_rate', width: 16 },
         { header: 'Số tháng thử việc', key: 'probation_months', width: 18 },
         { header: 'Ngày vào làm', key: 'start_date', width: 14 },
-        { header: 'Ngày kết thúc', key: 'end_date', width: 14 },
+        { header: 'Ngày nghỉ việc', key: 'end_date', width: 14 },
         { header: 'Ngày kết thúc thử việc', key: 'probation_end_date', width: 22 },
         { header: 'Ngày lên chính thức', key: 'official_start_date', width: 20 },
         { header: 'Lý do nghỉ việc', key: 'termination_reason', width: 24 },
@@ -454,6 +455,14 @@ const EmployeeList: React.FC = () => {
           work_location: emp.work_location || '',
           doctor_team: emp.doctor_team || '',
           work_form: emp.work_form || '',
+          work_type: (() => {
+            try {
+              const ei = typeof (emp as any).extra_info === 'string'
+                ? JSON.parse((emp as any).extra_info || '{}')
+                : ((emp as any).extra_info || {});
+              return ei?.work_type || '';
+            } catch { return ''; }
+          })(),
           education_level: emp.education_level || '',
           manager: emp.manager?.full_name || emp.manager_name || '',
           manager_level_2: emp.manager_level_2?.full_name || '',

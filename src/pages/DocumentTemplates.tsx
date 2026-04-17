@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL }from '../utils/api';
+import React, { useEffect, useState } from 'react';
 import {
-  DocumentTextIcon,
   PlusIcon,
+  DocumentArrowDownIcon,
   ArrowPathIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ArrowUpTrayIcon,
-  EyeIcon,
-  PencilIcon,
-  TrashIcon,
+  XMarkIcon,
+  DocumentTextIcon,
   CloudArrowUpIcon,
 } from '@heroicons/react/24/outline';
+import Pagination from '../components/Pagination';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
+import { useDebounce } from '../hooks/useDebounce';
+import onboardingService from '../services/onboarding.service';
+import FeedbackDialog, { FeedbackVariant } from '../components/FeedbackDialog';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 // ============================================
-// TYPE DEFINITIONS
+// TYPES & CONSTANTS
 // ============================================
 
 type DocumentTemplate = {
@@ -30,48 +30,24 @@ type DocumentTemplate = {
   requires_signature: boolean;
   is_active: boolean;
   apply_to_all_new_onboarding: boolean;
-  position_count: number;
-  department_count: number;
   usage_count: number;
-  created_by_name: string;
+  created_by_name: string | null;
   created_at: string;
 };
 
-type Position = {
-  id: number;
-  title: string;
-  code: string;
-};
+const DOCUMENT_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: '', label: 'Tất cả loại' },
+  { value: 'CONTRACT', label: 'Hợp đồng' },
+  { value: 'REGULATION', label: 'Nội quy công ty' },
+  { value: 'HANDBOOK', label: 'Sổ tay nhân viên' },
+  { value: 'FORM', label: 'Mẫu biểu' },
+  { value: 'TRAINING', label: 'Tài liệu đào tạo' },
+  { value: 'SAFETY', label: 'An toàn lao động' },
+  { value: 'POLICY', label: 'Chính sách công ty' },
+  { value: 'OTHER', label: 'Khác' },
+];
 
-type Department = {
-  id: number;
-  name: string;
-  code: string;
-};
-
-type TemplateForm = {
-  template_name: string;
-  document_type: string;
-  description: string;
-  file: File | null;
-  is_required: boolean;
-  requires_signature: boolean;
-  is_active: boolean;
-  apply_to_all_new_onboarding: boolean;
-  position_ids: number[];
-  department_ids: number[];
-};
-
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
-
-const getAuthHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-});
-
-const showError = (msg: string) => window.alert(msg);
-const showSuccess = (msg: string) => window.alert(msg);
+const DOCUMENT_TYPE_OPTIONS_NO_ALL = DOCUMENT_TYPE_OPTIONS.filter(o => o.value !== '');
 
 const getDocumentTypeColor = (type: string) => {
   const colors: Record<string, string> = {
@@ -87,635 +63,631 @@ const getDocumentTypeColor = (type: string) => {
   return colors[type] || colors.OTHER;
 };
 
+const formatDate = (s: string) => {
+  try { return new Date(s).toLocaleDateString('vi-VN'); }
+  catch { return s; }
+};
+
 // ============================================
-// MAIN COMPONENT
+// FORM DIALOG
 // ============================================
 
-const DocumentTemplates: React.FC = () => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<DocumentTemplate | null>(null);
+interface FormDialogProps {
+  open: boolean;
+  editing: DocumentTemplate | null;
+  onClose: () => void;
+  onSaved: (action: 'create' | 'update') => void;
+  onError: (title: string, message: string) => void;
+}
+
+const DocumentTemplateFormDialog: React.FC<FormDialogProps> = ({ open, editing, onClose, onSaved, onError }) => {
+  const [templateName, setTemplateName] = useState('');
+  const [documentType, setDocumentType] = useState('REGULATION');
+  const [description, setDescription] = useState('');
+  const [isRequired, setIsRequired] = useState(true);
+  const [requiresSignature, setRequiresSignature] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+  const [applyToAll, setApplyToAll] = useState(true);
+  const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const [formData, setFormData] = useState<TemplateForm>({
-    template_name: '',
-    document_type: 'OTHER',
-    description: '',
-    file: null,
-    is_required: false,
-    requires_signature: false,
-    is_active: true,
-    apply_to_all_new_onboarding: true,
-    position_ids: [],
-    department_ids: [],
-  });
-
-  // ============================================
-  // API CALLS
-  // ============================================
-
-  const fetchTemplates = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/onboarding-document-templates/`, {
-        headers: getAuthHeaders(),
-      });
-
-      if (!res.ok) throw new Error('Failed to fetch templates');
-
-      const data = await res.json();
-      setTemplates(Array.isArray(data) ? data : data.results || []);
-    } catch (error) {
-      console.error('FETCH TEMPLATES ERROR:', error);
-      showError('Không thể tải danh sách templates');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPositions = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/positions/`, {
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-      setPositions(Array.isArray(data) ? data : data.results || []);
-    } catch (error) {
-      console.error('FETCH POSITIONS ERROR:', error);
-    }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/departments/`, {
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-      setDepartments(Array.isArray(data) ? data : data.results || []);
-    } catch (error) {
-      console.error('FETCH DEPARTMENTS ERROR:', error);
-    }
-  };
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchTemplates();
-    fetchPositions();
-    fetchDepartments();
-  }, []);
-
-  const handleSubmit = async () => {
-    if (!formData.template_name.trim()) {
-      showError('Vui lòng nhập tên template');
-      return;
+    if (!open) return;
+    if (editing) {
+      setTemplateName(editing.template_name);
+      setDocumentType(editing.document_type);
+      setDescription(editing.description || '');
+      setIsRequired(editing.is_required);
+      setRequiresSignature(editing.requires_signature);
+      setIsActive(editing.is_active);
+      setApplyToAll(editing.apply_to_all_new_onboarding);
+      setFile(null);
+    } else {
+      setTemplateName('');
+      setDocumentType('REGULATION');
+      setDescription('');
+      setIsRequired(true);
+      setRequiresSignature(false);
+      setIsActive(true);
+      setApplyToAll(true);
+      setFile(null);
     }
+    setError('');
+  }, [open, editing]);
 
-    if (!formData.file && !editingTemplate) {
-      showError('Vui lòng chọn file tài liệu');
-      return;
-    }
+  const validate = (): string => {
+    if (!templateName.trim()) return 'Vui lòng nhập tên tài liệu';
+    if (!editing && !file) return 'Vui lòng chọn file tài liệu';
+    return '';
+  };
 
+  const handleSave = async () => {
+    const errMsg = validate();
+    if (errMsg) { setError(errMsg); return; }
+    setError('');
     setSubmitting(true);
-
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('template_name', formData.template_name);
-      formDataToSend.append('document_type', formData.document_type);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('is_required', String(formData.is_required));
-      formDataToSend.append('requires_signature', String(formData.requires_signature));
-      formDataToSend.append('is_active', String(formData.is_active));
-      formDataToSend.append('apply_to_all_new_onboarding', String(formData.apply_to_all_new_onboarding));
+      const formData = new FormData();
+      formData.append('template_name', templateName.trim());
+      formData.append('document_type', documentType);
+      formData.append('description', description);
+      formData.append('is_required', String(isRequired));
+      formData.append('requires_signature', String(requiresSignature));
+      formData.append('is_active', String(isActive));
+      formData.append('apply_to_all_new_onboarding', String(applyToAll));
+      if (file) formData.append('file', file);
 
-      if (formData.file) {
-        formDataToSend.append('file', formData.file);
+      if (editing) {
+        await onboardingService.updateTemplate(editing.id, formData);
+      } else {
+        await onboardingService.createTemplate(formData);
       }
-
-      // Add position and department IDs
-      formDataToSend.append('position_ids', JSON.stringify(formData.position_ids));
-      formDataToSend.append('department_ids', JSON.stringify(formData.department_ids));
-
-      const url = editingTemplate
-        ? `http://localhost:8000/api-hrm/onboarding-document-templates/${editingTemplate.id}/`
-        : 'http://localhost:8000/api-hrm/onboarding-document-templates/';
-
-      const method = editingTemplate ? 'PATCH' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: getAuthHeaders(),
-        body: formDataToSend,
-      });
-
-      if (!res.ok) throw new Error('Failed to save template');
-
-      showSuccess(editingTemplate ? 'Cập nhật template thành công' : 'Tạo template thành công');
-      handleCloseModal();
-      fetchTemplates();
-    } catch (error) {
-      console.error('SAVE TEMPLATE ERROR:', error);
-      showError('Không thể lưu template');
+      onSaved(editing ? 'update' : 'create');
+      onClose();
+    } catch (e: any) {
+      const data = e?.response?.data;
+      const msg = typeof data === 'string' ? data
+        : data?.detail || data?.error
+        || (typeof data === 'object' ? JSON.stringify(data) : '')
+        || e?.message || 'Có lỗi xảy ra';
+      onError(
+        editing ? 'Không thể cập nhật template' : 'Không thể tạo template',
+        msg
+      );
+      onClose();
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Bạn có chắc muốn xóa template này?')) return;
+  if (!open) return null;
 
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h3 className="text-lg font-semibold text-gray-900">
+            {editing ? 'Chỉnh sửa template tài liệu' : 'Thêm template tài liệu mới'}
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XMarkIcon className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tên tài liệu <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="VD: Cam kết đọc hiểu nội quy công ty"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <SelectBox
+            label="Loại tài liệu *"
+            value={documentType}
+            options={DOCUMENT_TYPE_OPTIONS_NO_ALL}
+            onChange={(v) => setDocumentType(v)}
+            placeholder="Chọn loại tài liệu"
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+            <textarea
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ghi chú về tài liệu..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              File tài liệu {!editing && <span className="text-red-500">*</span>}
+            </label>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:text-sm file:font-medium hover:file:bg-blue-100"
+            />
+            <p className="mt-1 text-xs text-gray-500">Hỗ trợ PDF, DOC, DOCX</p>
+            {editing && !file && (
+              <p className="mt-1 text-xs text-gray-500">Giữ file cũ nếu không chọn file mới</p>
+            )}
+            {editing?.file_url && (
+              <a
+                href={editing.file_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+              >
+                <DocumentArrowDownIcon className="w-3 h-3" />
+                Tải file hiện tại
+              </a>
+            )}
+          </div>
+
+          <div className="space-y-3 bg-gray-50 rounded-lg p-4">
+            <label className="flex items-start gap-3">
+              <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)}
+                className="mt-0.5 w-4 h-4 text-blue-600 rounded" />
+              <div>
+                <span className="text-sm font-medium text-gray-900">Bắt buộc</span>
+                <p className="text-xs text-gray-500">Nhân viên phải đọc tài liệu này</p>
+              </div>
+            </label>
+            <label className="flex items-start gap-3">
+              <input type="checkbox" checked={requiresSignature} onChange={(e) => setRequiresSignature(e.target.checked)}
+                className="mt-0.5 w-4 h-4 text-blue-600 rounded" />
+              <div>
+                <span className="text-sm font-medium text-gray-900">Yêu cầu ký</span>
+                <p className="text-xs text-gray-500">Tài liệu cần được ký xác nhận</p>
+              </div>
+            </label>
+            <label className="flex items-start gap-3">
+              <input type="checkbox" checked={applyToAll} onChange={(e) => setApplyToAll(e.target.checked)}
+                className="mt-0.5 w-4 h-4 text-blue-600 rounded" />
+              <div>
+                <span className="text-sm font-medium text-gray-900">Tự động áp dụng cho onboarding mới</span>
+                <p className="text-xs text-gray-500">Template sẽ được clone vào mọi hồ sơ onboarding mới tạo</p>
+              </div>
+            </label>
+            <label className="flex items-start gap-3">
+              <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)}
+                className="mt-0.5 w-4 h-4 text-blue-600 rounded" />
+              <div>
+                <span className="text-sm font-medium text-gray-900">Đang sử dụng</span>
+                <p className="text-xs text-gray-500">Chỉ template đang sử dụng mới hiện trong thư viện</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t flex justify-end gap-2 bg-gray-50">
+          <button onClick={onClose} disabled={submitting}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+            Huỷ
+          </button>
+          <button onClick={handleSave} disabled={submitting}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            {submitting ? 'Đang lưu...' : editing ? 'Cập nhật' : 'Thêm mới'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
+const DocumentTemplates: React.FC = () => {
+  const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  const [filterType, setFilterType] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
+  const debouncedSearch = useDebounce(filterSearch, 400);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [editing, setEditing] = useState<DocumentTemplate | null>(null);
+
+  const [feedback, setFeedback] = useState<{
+    open: boolean; variant: FeedbackVariant; title: string; message?: string;
+  }>({ open: false, variant: 'success', title: '' });
+
+  const [deleteTarget, setDeleteTarget] = useState<DocumentTemplate | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [detailTemplate, setDetailTemplate] = useState<DocumentTemplate | null>(null);
+
+  const showFeedback = (variant: FeedbackVariant, title: string, message?: string) => {
+    setFeedback({ open: true, variant, title, message });
+  };
+
+  // ============================================
+  // API
+  // ============================================
+
+  const fetchTemplates = async () => {
+    setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api-hrm/onboarding-document-templates/${id}/`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
+      const data = await onboardingService.getTemplates({
+        page: currentPage,
+        page_size: itemsPerPage,
+        document_type: filterType || undefined,
+        search: debouncedSearch.trim() || undefined,
       });
-
-      if (!res.ok) throw new Error('Failed to delete template');
-
-      showSuccess('Xóa template thành công');
-      fetchTemplates();
-    } catch (error) {
-      console.error('DELETE TEMPLATE ERROR:', error);
-      showError('Không thể xóa template');
+      const list = Array.isArray(data) ? data : (data as any).results || [];
+      const count = Array.isArray(data) ? data.length : (data as any).count || list.length;
+      setTemplates(list);
+      setTotalCount(count);
+    } catch (e) {
+      console.error(e);
+      showFeedback('error', 'Lỗi', 'Không thể tải danh sách template.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSyncToActive = async (id: number) => {
-    if (!confirm('Đồng bộ template này tới tất cả quy trình onboarding đang active?')) return;
+  useEffect(() => {
+    fetchTemplates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, itemsPerPage, filterType, debouncedSearch]);
 
+  const openCreate = () => { setEditing(null); setShowDialog(true); };
+  const openEdit = (tpl: DocumentTemplate) => { setEditing(tpl); setShowDialog(true); };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api-hrm/onboarding-document-templates/${id}/sync_to_active/`,
-        {
-          method: 'POST',
-          headers: getAuthHeaders(),
-        }
-      );
-
-      const result = await res.json();
-
-      if (!result.success) {
-        showError(result.message || 'Đồng bộ thất bại');
-        return;
-      }
-
-      showSuccess(result.message);
-      fetchTemplates();
-    } catch (error) {
-      console.error('SYNC ERROR:', error);
-      showError('Không thể đồng bộ template');
+      await onboardingService.deleteTemplate(deleteTarget.id);
+      const name = deleteTarget.template_name;
+      setDeleteTarget(null);
+      await fetchTemplates();
+      showFeedback('success', 'Xoá thành công', `Template "${name}" đã được xoá.`);
+    } catch (e: any) {
+      setDeleteTarget(null);
+      showFeedback('error', 'Xoá thất bại', e?.response?.data?.detail || e?.message || 'Có lỗi xảy ra.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
-  const handleToggleActive = async (id: number) => {
+  const handleToggleActive = async (tpl: DocumentTemplate) => {
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api-hrm/onboarding-document-templates/${id}/toggle_active/`,
-        {
-          method: 'POST',
-          headers: getAuthHeaders(),
-        }
-      );
-
-      const result = await res.json();
-
-      if (!result.success) {
-        showError(result.message || 'Thao tác thất bại');
-        return;
-      }
-
-      showSuccess(result.message);
+      const result = await onboardingService.toggleTemplateActive(tpl.id);
+      if (!result.success) { showFeedback('error', 'Lỗi', result.message); return; }
+      showFeedback('success', 'Thành công', result.message);
       fetchTemplates();
-    } catch (error) {
-      console.error('TOGGLE ERROR:', error);
-      showError('Không thể thay đổi trạng thái');
+    } catch (e: any) {
+      showFeedback('error', 'Lỗi', e?.response?.data?.message || 'Thao tác thất bại');
     }
   };
 
-  const handleEdit = (template: DocumentTemplate) => {
-    setEditingTemplate(template);
-    setFormData({
-      template_name: template.template_name,
-      document_type: template.document_type,
-      description: template.description,
-      file: null,
-      is_required: template.is_required,
-      requires_signature: template.requires_signature,
-      is_active: template.is_active,
-      apply_to_all_new_onboarding: template.apply_to_all_new_onboarding,
-      position_ids: [],
-      department_ids: [],
-    });
-    setShowModal(true);
+  const handleSync = async (tpl: DocumentTemplate) => {
+    try {
+      const result = await onboardingService.syncTemplateToActive(tpl.id);
+      if (!result.success) { showFeedback('error', 'Lỗi', result.message); return; }
+      showFeedback('success', 'Đồng bộ thành công', result.message);
+      fetchTemplates();
+    } catch (e: any) {
+      showFeedback('error', 'Lỗi', e?.response?.data?.message || 'Đồng bộ thất bại');
+    }
   };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setEditingTemplate(null);
-    setFormData({
-      template_name: '',
-      document_type: 'OTHER',
-      description: '',
-      file: null,
-      is_required: false,
-      requires_signature: false,
-      is_active: true,
-      apply_to_all_new_onboarding: true,
-      position_ids: [],
-      department_ids: [],
-    });
+  const handleTemplateSaved = (action: 'create' | 'update') => {
+    fetchTemplates();
+    showFeedback('success',
+      action === 'create' ? 'Thêm thành công' : 'Cập nhật thành công',
+      action === 'create' ? 'Template mới đã được tạo.' : 'Thay đổi đã được lưu.'
+    );
   };
+
+  const hasFilter = filterType !== '' || filterSearch !== '';
 
   // ============================================
   // RENDER
   // ============================================
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Templates Tài liệu Onboarding</h1>
-        <p className="text-gray-600 mt-2">
-          Quản lý tài liệu chung cho tất cả quy trình onboarding. Upload 1 lần, áp dụng cho nhiều nhân viên.
-        </p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Template tài liệu Onboarding
+          </h1>
+          <p className="text-gray-500 text-sm">Tổng: {totalCount} template</p>
+        </div>
+        <button onClick={openCreate}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2">
+          <PlusIcon className="w-4 h-4" />
+          Thêm template
+        </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Danh sách Templates</h2>
-            <p className="text-gray-500 text-sm">
-              Có {templates.length} templates • Tổng {templates.reduce((sum, t) => sum + t.usage_count, 0)} lượt sử dụng
-            </p>
+      {/* Filters */}
+      <div className="flex flex-wrap items-end gap-3 mb-4">
+        <div className="w-52">
+          <SelectBox
+            label="Loại tài liệu"
+            value={filterType}
+            options={DOCUMENT_TYPE_OPTIONS}
+            onChange={(v) => { setFilterType(v); setCurrentPage(1); }}
+          />
+        </div>
+        <div className="relative">
+          <label className="block text-sm font-medium mb-1 text-gray-700">Tìm kiếm</label>
+          <div className="relative">
+            <input type="text" value={filterSearch}
+              onChange={(e) => { setFilterSearch(e.target.value); setCurrentPage(1); }}
+              placeholder="Tên hoặc mô tả..."
+              className="border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
+            />
+            <svg className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            <PlusIcon className="w-5 h-5 mr-2" />
-            Tạo Template Mới
-          </button>
         </div>
 
-        {/* Templates Table */}
-        <div className="border rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Tên Template
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Loại
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Cấu hình
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Áp dụng
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Sử dụng
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Thao tác
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <ArrowPathIcon className="w-6 h-6 text-blue-600 animate-spin mx-auto" />
-                  </td>
-                </tr>
-              ) : templates.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    Chưa có template nào. Tạo template đầu tiên!
-                  </td>
-                </tr>
-              ) : (
-                templates.map((template) => (
-                  <tr key={template.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <DocumentTextIcon className="w-5 h-5 text-gray-400 mr-3" />
-                        <div>
-                          <p className="font-medium text-gray-900">{template.template_name}</p>
-                          {template.description && (
-                            <p className="text-xs text-gray-500 mt-1">{template.description}</p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${getDocumentTypeColor(
-                          template.document_type
-                        )}`}
-                      >
-                        {template.document_type_display}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col gap-1">
-                        {template.is_required && (
-                          <span className="text-xs text-red-600">• Bắt buộc</span>
-                        )}
-                        {template.requires_signature && (
-                          <span className="text-xs text-purple-600">• Yêu cầu ký</span>
-                        )}
-                        {template.is_active ? (
-                          <span className="text-xs text-green-600">• Đang hoạt động</span>
-                        ) : (
-                          <span className="text-xs text-gray-400">• Đã tắt</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm">
-                        {template.apply_to_all_new_onboarding ? (
-                          <span className="text-green-600">✓ Tự động</span>
-                        ) : (
-                          <span className="text-gray-500">Thủ công</span>
-                        )}
-                        {(template.position_count > 0 || template.department_count > 0) && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {template.position_count} vị trí • {template.department_count} phòng ban
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-medium text-gray-900">
-                        {template.usage_count} lần
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => window.open(template.file_url || template.file, '_blank')}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                          title="Xem file"
-                        >
-                          <EyeIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(template)}
-                          className="p-1.5 text-gray-600 hover:bg-gray-50 rounded"
-                          title="Sửa"
-                        >
-                          <PencilIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleSyncToActive(template.id)}
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                          title="Đồng bộ tới onboarding đang active"
-                        >
-                          <CloudArrowUpIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleToggleActive(template.id)}
-                          className="p-1.5 text-orange-600 hover:bg-orange-50 rounded"
-                          title={template.is_active ? 'Tắt' : 'Bật'}
-                        >
-                          {template.is_active ? (
-                            <XCircleIcon className="w-4 h-4" />
-                          ) : (
-                            <CheckCircleIcon className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(template.id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                          title="Xóa"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {hasFilter && (
+          <button onClick={() => { setFilterType(''); setFilterSearch(''); setCurrentPage(1); }}
+            className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600">
+            Xoá bộ lọc
+          </button>
+        )}
+
+        <button onClick={fetchTemplates} disabled={loading}
+          className="ml-auto px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600 flex items-center gap-1.5 disabled:opacity-50">
+          <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Làm mới
+        </button>
       </div>
 
-      {/* Create/Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center overflow-y-auto">
-          <div className="bg-white w-full max-w-2xl rounded-lg shadow p-6 my-8">
-            <h3 className="text-lg font-semibold mb-4">
-              {editingTemplate ? 'Sửa Template' : 'Tạo Template Mới'}
-            </h3>
+      {/* Table */}
+      <div className="border rounded-lg overflow-x-auto w-full">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              {['Tên template', 'Loại', 'Bắt buộc', 'Yêu cầu ký', 'Auto-apply', 'Số lần dùng', 'Trạng thái', 'Người tạo', 'Ngày tạo', 'Thao tác'].map(h => (
+                <th key={h} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {loading ? (
+              <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-500">Đang tải...</td></tr>
+            ) : templates.length === 0 ? (
+              <tr><td colSpan={10} className="px-4 py-10 text-center text-gray-500">Chưa có template nào.</td></tr>
+            ) : (
+              templates.map(tpl => (
+                <tr key={tpl.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm text-gray-900 font-medium max-w-[250px] truncate text-center" title={tpl.template_name}>
+                    {tpl.template_name}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getDocumentTypeColor(tpl.document_type)}`}>
+                      {tpl.document_type_display || tpl.document_type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {tpl.is_required
+                      ? <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-700 border border-red-200">Bắt buộc</span>
+                      : <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-50 text-gray-400 border border-gray-200">Không</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {tpl.requires_signature
+                      ? <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-purple-50 text-purple-700 border border-purple-200">Yêu cầu ký</span>
+                      : <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-50 text-gray-400 border border-gray-200">Không</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    {tpl.apply_to_all_new_onboarding
+                      ? <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200">Tự động</span>
+                      : <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-50 text-gray-400 border border-gray-200">Thủ công</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">{tpl.usage_count} lần</span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${tpl.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'}`}>
+                      {tpl.is_active ? 'Đang dùng' : 'Không dùng'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap text-center">{tpl.created_by_name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap text-center">{formatDate(tpl.created_at)}</td>
+                  <td className="px-4 py-3 text-sm whitespace-nowrap text-center">
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      <button onClick={() => setDetailTemplate(tpl)}
+                        className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
+                        Chi tiết
+                      </button>
+                      {tpl.file_url && (
+                        <a href={tpl.file_url} target="_blank" rel="noreferrer"
+                          className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 inline-flex items-center gap-1">
+                          <DocumentArrowDownIcon className="w-3.5 h-3.5" />
+                          Tải
+                        </a>
+                      )}
+                      <button onClick={() => openEdit(tpl)}
+                        className="px-2.5 py-1 text-xs font-medium text-blue-700 bg-white border border-blue-300 rounded hover:bg-blue-50">
+                        Sửa
+                      </button>
+                      <button onClick={() => handleToggleActive(tpl)}
+                        className={`px-2.5 py-1 text-xs font-medium bg-white border rounded hover:opacity-80 ${tpl.is_active ? 'text-yellow-700 border-yellow-300 hover:bg-yellow-50' : 'text-green-700 border-green-300 hover:bg-green-50'}`}>
+                        {tpl.is_active ? 'Tắt' : 'Bật'}
+                      </button>
+                      <button onClick={() => handleSync(tpl)}
+                        className="px-2.5 py-1 text-xs font-medium text-indigo-700 bg-white border border-indigo-300 rounded hover:bg-indigo-50 inline-flex items-center gap-1"
+                        title="Đồng bộ tới tất cả onboarding đang active">
+                        <CloudArrowUpIcon className="w-3.5 h-3.5" />
+                        Sync
+                      </button>
+                      <button onClick={() => setDeleteTarget(tpl)}
+                        className="px-2.5 py-1 text-xs font-medium text-red-700 bg-white border border-red-300 rounded hover:bg-red-50">
+                        Xoá
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Tên template <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  className="w-full border rounded-md px-3 py-2"
-                  value={formData.template_name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, template_name: e.target.value })
-                  }
-                  placeholder="VD: Nội quy lao động công ty"
-                />
-              </div>
+      {/* Pagination */}
+      <div className="mt-4 mb-6">
+        <Pagination
+          currentPage={currentPage}
+          totalPages={Math.ceil(totalCount / itemsPerPage) || 1}
+          totalItems={totalCount}
+          itemsPerPage={itemsPerPage}
+          onPageChange={(page: number) => setCurrentPage(page)}
+          onItemsPerPageChange={(size: number) => { setItemsPerPage(size); setCurrentPage(1); }}
+        />
+      </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Loại tài liệu <span className="text-red-500">*</span>
-                </label>
-                <select
-                  className="w-full border rounded-md px-3 py-2"
-                  value={formData.document_type}
-                  onChange={(e) =>
-                    setFormData({ ...formData, document_type: e.target.value })
-                  }
-                >
-                  <option value="CONTRACT">Hợp đồng</option>
-                  <option value="REGULATION">Nội quy</option>
-                  <option value="HANDBOOK">Sổ tay nhân viên</option>
-                  <option value="FORM">Mẫu biểu</option>
-                  <option value="TRAINING">Tài liệu đào tạo</option>
-                  <option value="SAFETY">An toàn lao động</option>
-                  <option value="POLICY">Chính sách công ty</option>
-                  <option value="OTHER">Khác</option>
-                </select>
-              </div>
+      {/* Form Dialog */}
+      <DocumentTemplateFormDialog
+        open={showDialog}
+        editing={editing}
+        onClose={() => setShowDialog(false)}
+        onSaved={handleTemplateSaved}
+        onError={(title, msg) => showFeedback('error', title, msg)}
+      />
 
-              <div>
-                <label className="block text-sm font-medium mb-1">Mô tả</label>
-                <textarea
-                  className="w-full border rounded-md px-3 py-2"
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="Mô tả về tài liệu này..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  File tài liệu {!editingTemplate && <span className="text-red-500">*</span>}
-                </label>
-                <input
-                  type="file"
-                  className="w-full border rounded-md px-3 py-2"
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      file: e.target.files?.[0] || null,
-                    })
-                  }
-                  accept=".pdf,.doc,.docx,.xls,.xlsx"
-                />
-                {formData.file && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Đã chọn: {formData.file.name}
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Vị trí áp dụng</label>
-                  <select
-                    multiple
-                    className="w-full border rounded-md px-3 py-2"
-                    value={formData.position_ids.map(String)}
-                    onChange={(e) => {
-                      const selectedIds = Array.from(e.target.selectedOptions).map(
-                        (option) => Number(option.value)
-                      );
-                      setFormData({ ...formData, position_ids: selectedIds });
-                    }}
-                    size={4}
-                  >
-                    {positions.map((pos) => (
-                      <option key={pos.id} value={pos.id}>
-                        {pos.title}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Để trống = áp dụng cho tất cả vị trí
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Phòng ban áp dụng</label>
-                  <select
-                    multiple
-                    className="w-full border rounded-md px-3 py-2"
-                    value={formData.department_ids.map(String)}
-                    onChange={(e) => {
-                      const selectedIds = Array.from(e.target.selectedOptions).map(
-                        (option) => Number(option.value)
-                      );
-                      setFormData({ ...formData, department_ids: selectedIds });
-                    }}
-                    size={4}
-                  >
-                    {departments.map((dept) => (
-                      <option key={dept.id} value={dept.id}>
-                        {dept.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Để trống = áp dụng cho tất cả phòng ban
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2 border-t pt-4">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    className="mr-2"
-                    checked={formData.apply_to_all_new_onboarding}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        apply_to_all_new_onboarding: e.target.checked,
-                      })
-                    }
-                  />
-                  <span className="text-sm">
-                    Tự động áp dụng cho onboarding mới
-                  </span>
-                </label>
-
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    className="mr-2"
-                    checked={formData.is_required}
-                    onChange={(e) =>
-                      setFormData({ ...formData, is_required: e.target.checked })
-                    }
-                  />
-                  <span className="text-sm">Bắt buộc</span>
-                </label>
-
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    className="mr-2"
-                    checked={formData.requires_signature}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        requires_signature: e.target.checked,
-                      })
-                    }
-                  />
-                  <span className="text-sm">Yêu cầu ký</span>
-                </label>
-
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    className="mr-2"
-                    checked={formData.is_active}
-                    onChange={(e) =>
-                      setFormData({ ...formData, is_active: e.target.checked })
-                    }
-                  />
-                  <span className="text-sm">Kích hoạt ngay</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6 border-t pt-4">
-              <button
-                onClick={handleCloseModal}
-                disabled={submitting}
-                className="px-4 py-2 border rounded-md hover:bg-gray-50"
-              >
-                Hủy
+      {/* Detail Dialog */}
+      {detailTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Chi tiết template</h3>
+              <button onClick={() => setDetailTemplate(null)} className="text-gray-400 hover:text-gray-600">
+                <XMarkIcon className="w-6 h-6" />
               </button>
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-              >
-                {submitting && <ArrowPathIcon className="w-5 h-5 animate-spin" />}
-                {submitting ? 'Đang lưu...' : editingTemplate ? 'Cập nhật' : 'Tạo Template'}
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
+                <div className="sm:col-span-3">
+                  <dt className="text-gray-500 font-medium">Tên template</dt>
+                  <dd className="text-gray-900 mt-1 font-semibold">{detailTemplate.template_name}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Loại tài liệu</dt>
+                  <dd className="mt-1">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getDocumentTypeColor(detailTemplate.document_type)}`}>
+                      {detailTemplate.document_type_display || detailTemplate.document_type}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Người tạo</dt>
+                  <dd className="text-gray-900 mt-1">{detailTemplate.created_by_name || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Ngày tạo</dt>
+                  <dd className="text-gray-900 mt-1">{formatDate(detailTemplate.created_at)}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Trạng thái</dt>
+                  <dd className="mt-1">
+                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${detailTemplate.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'}`}>
+                      {detailTemplate.is_active ? 'Đang dùng' : 'Không dùng'}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Bắt buộc</dt>
+                  <dd className="text-gray-900 mt-1">{detailTemplate.is_required ? 'Có' : 'Không'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Yêu cầu ký</dt>
+                  <dd className="text-gray-900 mt-1">{detailTemplate.requires_signature ? 'Có' : 'Không'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Auto-apply</dt>
+                  <dd className="text-gray-900 mt-1">{detailTemplate.apply_to_all_new_onboarding ? 'Tự động' : 'Thủ công'}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 font-medium">Số lần dùng</dt>
+                  <dd className="text-gray-900 mt-1">{detailTemplate.usage_count}</dd>
+                </div>
+                <div className="sm:col-span-3">
+                  <dt className="text-gray-500 font-medium">Mô tả</dt>
+                  <dd className="text-gray-900 mt-1 whitespace-pre-wrap">
+                    {detailTemplate.description || <span className="text-gray-400 italic">Không có mô tả</span>}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end gap-2 bg-gray-50">
+              {detailTemplate.file_url && (
+                <a
+                  href={detailTemplate.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 inline-flex items-center gap-1.5"
+                >
+                  <DocumentArrowDownIcon className="w-4 h-4" />
+                  Tải file
+                </a>
+              )}
+              <button onClick={() => { const tpl = detailTemplate; setDetailTemplate(null); openEdit(tpl); }}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 inline-flex items-center gap-1.5">
+                Sửa
+              </button>
+              <button onClick={() => setDetailTemplate(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                Đóng
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Feedback Dialog */}
+      <FeedbackDialog
+        open={feedback.open}
+        variant={feedback.variant}
+        title={feedback.title}
+        message={feedback.message}
+        onClose={() => setFeedback(f => ({ ...f, open: false }))}
+      />
+
+      {/* Confirm Delete */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        variant="danger"
+        title="Xoá template"
+        message={deleteTarget ? `Bạn có chắc muốn xoá template "${deleteTarget.template_name}"? Hành động này không thể hoàn tác.` : undefined}
+        confirmLabel="Xoá"
+        cancelLabel="Huỷ"
+        loading={deleteLoading}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   );
 };

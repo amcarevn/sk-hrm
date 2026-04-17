@@ -159,6 +159,12 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN', 'HR'],
   },
   {
+    name: 'Template tài liệu',
+    href: '/dashboard/document-templates',
+    icon: DocumentTextIcon,
+    roles: ['ADMIN', 'HR'],
+  },
+  {
     name: 'Onboard nhân sự',
     href: '/dashboard/onboarding',
     icon: UserPlusIcon,

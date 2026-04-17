@@ -16,6 +16,7 @@ import onboardingService from '../services/onboarding.service';
 import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
+import { useDebounce } from '../hooks/useDebounce';
 
 // ============================================
 // TYPES
@@ -84,35 +85,6 @@ const getStatusBadge = (status?: string | null) => {
   );
 };
 
-const TokenBadge: React.FC<{ status?: TokenStatus | null; completed?: boolean }> = ({ status, completed }) => {
-  if (completed || status === 'completed') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-        <CheckCircleIcon className="w-3 h-3" /> Đã điền thông tin
-      </span>
-    );
-  }
-  switch (status) {
-    case 'active':
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-          <ClockIcon className="w-3 h-3" /> Link còn hạn
-        </span>
-      );
-    case 'expired':
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
-          <ExclamationCircleIcon className="w-3 h-3" /> Link hết hạn
-        </span>
-      );
-    default:
-      return (
-        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-          Chưa tạo link
-        </span>
-      );
-  }
-};
 
 // ============================================
 // CREATE ONBOARDING MODAL
@@ -313,13 +285,10 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
             <SelectBox
               label=""
               value={form.direct_manager_id}
-              options={[
-                { value: '', label: loadingEmployees ? 'Đang tải...' : '-- Không có quản lý --' },
-                ...employees.map((e) => ({ value: String(e.id), label: `${e.full_name} (${e.employee_id})` })),
-              ]}
+              options={employees.map((e) => ({ value: String(e.id), label: `${e.full_name} (${e.employee_id})` }))}
               onChange={(v) => setForm({ ...form, direct_manager_id: v })}
               searchable
-              placeholder="Tìm quản lý..."
+              placeholder={loadingEmployees ? 'Đang tải...' : 'Chọn quản lý trực tiếp'}
             />
           )}
         </div>
@@ -378,6 +347,7 @@ const Onboarding: React.FC = () => {
   const [filterMonth, setFilterMonth] = useState<number>(0);
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [filterSearch, setFilterSearch] = useState<string>('');
+  const debouncedSearch = useDebounce(filterSearch, 400);
 
   // ✅ Pagination — dùng cùng pattern với EmployeeList
   const [currentPage, setCurrentPage] = useState(1);
@@ -395,7 +365,7 @@ const Onboarding: React.FC = () => {
         params.month = filterMonth;
         params.year = filterYear;
       }
-      if (filterSearch.trim()) params.search = filterSearch.trim();
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
       const data = await onboardingService.list(params);
       const items = Array.isArray(data) ? data : data.results ?? [];
       setTotalCount(Array.isArray(data) ? items.length : (data.count ?? items.length));
@@ -418,7 +388,7 @@ const Onboarding: React.FC = () => {
 
   useEffect(() => {
     fetchOnboardings();
-  }, [filterStatus, filterMonth, filterYear, filterSearch, currentPage, itemsPerPage]);
+  }, [filterStatus, filterMonth, filterYear, debouncedSearch, currentPage, itemsPerPage]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Bạn chắc chắn muốn xoá quy trình này?')) return;
@@ -510,41 +480,26 @@ const Onboarding: React.FC = () => {
       </button>
     ) : null;
 
+    // 1. Đã điền thông tin
     if (item.task1_status === 'COMPLETED') {
       return (
         <div className="flex flex-col gap-1.5">
-          <TokenBadge status="completed" completed />
-          {resendEmailButton}
-        </div>
-      );
-    }
-
-    if (item.employee_info_completed && item.task1_status === 'IN_PROGRESS') {
-      return (
-        <div className="flex flex-col gap-1.5">
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-            <ClockIcon className="w-3 h-3" /> Chờ duyệt thông tin
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+            <CheckCircleIcon className="w-3 h-3" /> Đã điền thông tin
           </span>
           {resendEmailButton}
         </div>
       );
     }
 
-    return (
-      <div className="flex flex-col gap-1.5">
-        <TokenBadge status={item.token_status} />
-        {resendEmailButton}
-        {(!item.token_status || item.token_status === 'not_generated' || item.token_status === 'expired') && (
-          <button
-            onClick={() => handleGenerateToken(item)}
-            disabled={isLoading}
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
-          >
-            {isLoading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
-            {item.token_status === 'expired' ? 'Tạo lại link' : 'Tạo link'}
-          </button>
-        )}
-        {item.token_status === 'active' && (
+    // 2. Chờ nhân viên điền (link còn hạn)
+    if (item.token_status === 'active') {
+      return (
+        <div className="flex flex-col gap-1.5">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+            <ClockIcon className="w-3 h-3" /> Chờ nhân viên điền
+          </span>
+          {resendEmailButton}
           <button
             onClick={() => handleCopyLink(item)}
             disabled={isLoading}
@@ -552,7 +507,43 @@ const Onboarding: React.FC = () => {
           >
             <ClipboardDocumentIcon className="w-3 h-3" /> Copy link
           </button>
-        )}
+        </div>
+      );
+    }
+
+    // 3. Link hết hạn
+    if (item.token_status === 'expired') {
+      return (
+        <div className="flex flex-col gap-1.5">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+            <ExclamationCircleIcon className="w-3 h-3" /> Link hết hạn
+          </span>
+          <button
+            onClick={() => handleGenerateToken(item)}
+            disabled={isLoading}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
+          >
+            {isLoading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
+            Tạo lại link
+          </button>
+        </div>
+      );
+    }
+
+    // 4. Chưa gửi link
+    return (
+      <div className="flex flex-col gap-1.5">
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+          Chưa gửi link
+        </span>
+        <button
+          onClick={() => handleGenerateToken(item)}
+          disabled={isLoading}
+          className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
+        >
+          {isLoading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
+          Tạo link
+        </button>
       </div>
     );
   };
@@ -658,7 +649,7 @@ const Onboarding: React.FC = () => {
               <input
                 type="text"
                 value={filterSearch}
-                onChange={(e) => { setFilterSearch(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => { setFilterSearch(e.target.value); }}
                 placeholder="Tìm tên hoặc mã NV..."
                 className="border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
               />

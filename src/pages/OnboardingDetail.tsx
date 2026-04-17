@@ -12,9 +12,12 @@ import {
   EyeIcon,
   ArrowTopRightOnSquareIcon,
   PencilIcon,
+  PlayIcon,
 } from '@heroicons/react/24/outline';
 import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
+import ConfirmDialog from '../components/ConfirmDialog';
+import FeedbackDialog from '../components/FeedbackDialog';
 import DocumentsSection from './DocumentsSection';
 import { useAuth } from '../contexts/AuthContext';
 import { employeesAPI, SuperAdminEmployee, departmentsAPI, sectionsAPI, positionsAPI, companyUnitsAPI, Department, Position, CompanyUnit } from '../utils/api';
@@ -22,6 +25,7 @@ import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
   CITIZEN_ID_ISSUE_PLACE_OPTIONS as CCCD_ISSUE_PLACE_OPTIONS,
   PROBATION_RATE_OPTIONS, ETHNICITY_OPTIONS, NATIONALITY_OPTIONS, GENDER_OPTIONS, MARITAL_STATUS_OPTIONS,
+  WORK_LOCATION_OPTIONS,
 } from '../constants/onboarding';
 
 // ============================================
@@ -203,7 +207,8 @@ type EditSection =
   | 'financial'
   | 'emp_cccd'
   | 'emp_salary'
-  | 'emp_file_status';
+  | 'emp_file_status'
+  | 'attached_files';
 
 const CONTRACT_OPTIONS = [
   { value: 'PROBATION', label: 'Hợp đồng thử việc' },
@@ -422,23 +427,6 @@ const OnboardingDetail: React.FC = () => {
     }
   };
 
-  const handleStartProcess = () => {
-    if (!id || !onboarding) return;
-    setConfirmDialog({
-      text: 'Bạn có chắc muốn bắt đầu quy trình onboarding này?',
-      onConfirm: async () => {
-        setConfirmDialog(null);
-        try {
-          await onboardingService.start(parseInt(id));
-          showSuccess('Đã bắt đầu quy trình onboarding');
-          await fetchOnboardingDetail();
-        } catch (error: any) {
-          showError(error.response?.data?.message || 'Không thể bắt đầu quy trình onboarding');
-        }
-      },
-    });
-  };
-
   const handleApproveEmployeeInfo = () => {
     if (!id || !onboarding) return;
     setConfirmDialog({
@@ -507,8 +495,6 @@ const OnboardingDetail: React.FC = () => {
             start_date: editData.start_date || null,
             end_date: editData.end_date || null,
           });
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
         await fetchOnboardingDetail();
       }
@@ -541,6 +527,22 @@ const OnboardingDetail: React.FC = () => {
         if ('employment_status' in editData) employeeData.employment_status = editData.employment_status;
         if ('employment_status_notes' in editData) employeeData.employment_status_notes = editData.employment_status_notes;
         if ('start_date' in editData) employeeData.start_date = editData.start_date;
+        if ('work_location' in editData) employeeData.work_location = editData.work_location || null;
+
+        // work_type lưu vào employee.extra_info (JSON)
+        if ('work_type' in editData) {
+          const prevExtra = (() => {
+            try {
+              return typeof employeeProfile?.extra_info === 'string'
+                ? JSON.parse(employeeProfile.extra_info || '{}')
+                : (employeeProfile?.extra_info || {});
+            } catch { return {}; }
+          })();
+          employeeData.extra_info = JSON.stringify({
+            ...prevExtra,
+            work_type: editData.work_type || undefined,
+          });
+        }
 
         // Update onboarding
         if (Object.keys(onboardingData).length > 0) {
@@ -550,8 +552,6 @@ const OnboardingDetail: React.FC = () => {
         // Update employee profile
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -561,7 +561,10 @@ const OnboardingDetail: React.FC = () => {
         const onboardingData: Record<string, any> = {};
         const employeeData: Record<string, any> = {};
 
-        // Fields to update in onboarding
+        // Fields to update in onboarding — map tên employee → tên onboarding để tránh stale
+        if ('cccd_number' in editData) onboardingData.citizen_id = editData.cccd_number;
+        if ('cccd_issue_date' in editData) onboardingData.citizen_id_issue_date = editData.cccd_issue_date || null;
+        if ('cccd_issue_place' in editData) onboardingData.citizen_id_issue_place = editData.cccd_issue_place;
         if ('birth_place' in editData) onboardingData.birth_place = editData.birth_place;
         if ('permanent_residence' in editData) onboardingData.permanent_address = editData.permanent_residence;
         if ('current_address' in editData) onboardingData.current_address = editData.current_address;
@@ -572,6 +575,7 @@ const OnboardingDetail: React.FC = () => {
         if ('cccd_number' in editData) employeeData.cccd_number = editData.cccd_number;
         if ('cccd_issue_date' in editData) employeeData.cccd_issue_date = editData.cccd_issue_date || null;
         if ('cccd_issue_place' in editData) employeeData.cccd_issue_place = editData.cccd_issue_place;
+        if ('old_id_number' in editData) employeeData.old_id_number = editData.old_id_number || null;
         if ('birth_place' in editData) employeeData.birth_place = editData.birth_place;
         if ('permanent_residence' in editData) employeeData.permanent_residence = editData.permanent_residence;
         if ('current_address' in editData) employeeData.current_address = editData.current_address;
@@ -586,8 +590,6 @@ const OnboardingDetail: React.FC = () => {
         // Update employee profile
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -631,8 +633,6 @@ const OnboardingDetail: React.FC = () => {
             });
           }
           await employeesAPI.partialUpdateByEmployeeId(empId, updateData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -676,8 +676,6 @@ const OnboardingDetail: React.FC = () => {
             });
           }
           await employeesAPI.partialUpdateByEmployeeId(empId, updateData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -694,8 +692,6 @@ const OnboardingDetail: React.FC = () => {
 
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
 
         await fetchOnboardingDetail();
@@ -708,14 +704,52 @@ const OnboardingDetail: React.FC = () => {
         if ('allowance' in editData) employeeData.allowance = editData.allowance || null;
         if ('contract_type' in editData) employeeData.contract_type = editData.contract_type;
         if ('probation_months' in editData) employeeData.probation_months = editData.probation_months || null;
-        if ('probation_end_date' in editData) employeeData.probation_end_date = editData.probation_end_date || null;
+        // probation_end_date do BE tự tính từ start_date + probation_months - 1 ngày, FE không gửi lên
         if ('probation_rate' in editData) employeeData.probation_rate = editData.probation_rate;
 
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
+      }
+      // ── Hồ sơ đính kèm (attached_files) ──
+      else if (editSection === 'attached_files') {
+        // Files thuộc onboarding: diploma_file, citizen_id_file
+        const onboardingFd = new FormData();
+        if (editData.diploma_file instanceof File) onboardingFd.append('diploma_file', editData.diploma_file);
+        if (editData.citizen_id_file instanceof File) onboardingFd.append('citizen_id_file', editData.citizen_id_file);
+
+        if ([...onboardingFd.keys()].length > 0 && id) {
+          await onboardingService.superAdminUploadFiles(parseInt(id), onboardingFd);
+        }
+
+        // File thuộc employee: vneid_screenshot
+        if (editData.vneid_screenshot instanceof File && empId) {
+          const employeeFd = new FormData();
+          employeeFd.append('vneid_screenshot', editData.vneid_screenshot);
+          await employeesAPI.uploadFilesByEmployeeId(empId, employeeFd);
+        }
+
+        // Facebook link lưu trong employee.extra_info (JSON)
+        if ('facebook_link' in editData && empId) {
+          const prevExtra = (() => {
+            try {
+              return typeof employeeProfile?.extra_info === 'string'
+                ? JSON.parse(employeeProfile.extra_info || '{}')
+                : (employeeProfile?.extra_info || {});
+            } catch {
+              return {};
+            }
+          })();
+          const nextExtra = { ...prevExtra, facebook_link: editData.facebook_link || undefined };
+          await employeesAPI.partialUpdateByEmployeeId(empId, {
+            extra_info: JSON.stringify(nextExtra),
+          } as any);
+        }
+
+        if (empId) {
+        }
+
+        await fetchOnboardingDetail();
       }
       // ── Trạng thái hồ sơ (emp_file_status) ──
       else if (editSection === 'emp_file_status') {
@@ -726,8 +760,6 @@ const OnboardingDetail: React.FC = () => {
 
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
-          const updated = await employeesAPI.getByEmployeeId(empId);
-          setEmployeeProfile(updated);
         }
       }
 
@@ -871,9 +903,11 @@ const OnboardingDetail: React.FC = () => {
             work_form: employeeProfile?.work_form ?? onboarding.work_form ?? '',
             region: employeeProfile?.region ?? onboarding.region ?? '',
             block: employeeProfile?.block ?? onboarding.block ?? '',
-            employment_status: employeeProfile?.employment_status ?? '',
+            employment_status: employeeProfile?.employment_status ?? 'ACTIVE',
             employment_status_notes: (employeeProfile as any)?.employment_status_notes ?? onboarding.employment_status_notes ?? '',
             start_date: employeeProfile?.start_date ?? onboarding.start_date ?? '',
+            work_location: (employeeProfile as any)?.work_location ?? '',
+            work_type: extraInfo.work_type ?? '',
           })} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
             <InfoField label="Đơn vị" value={allCompanyUnits.find(cu => cu.code === onboarding.company_unit)?.name || safeDisplay(onboarding.company_unit)} />
@@ -882,16 +916,17 @@ const OnboardingDetail: React.FC = () => {
             <InfoField label="Cấp bậc" value={safeDisplay(employeeProfile?.rank || onboarding.rank)} />
             <InfoField label="Bộ phận" value={safeDisplay(employeeProfile?.section || onboarding.section)} />
             <InfoField label="Quản lý" value={safeDisplay(onboarding.direct_manager?.full_name)} />
-            <InfoField label="Team BS" value={safeDisplay(employeeProfile?.doctor_team || onboarding.doctor_team)} />
-            <InfoField label="Ngày BĐ" value={employeeProfile?.start_date ? formatDate(employeeProfile.start_date) : formatDate(onboarding.start_date)} />
+            <InfoField label="Team bác sĩ" value={safeDisplay(employeeProfile?.doctor_team || onboarding.doctor_team)} />
+            <InfoField label="Ngày bắt đầu" value={employeeProfile?.start_date ? formatDate(employeeProfile.start_date) : formatDate(onboarding.start_date)} />
             <InfoField label="Hình thức" value={(employeeProfile?.work_form || onboarding.work_form) ? (WORK_FORM_LABELS[employeeProfile?.work_form || onboarding.work_form!] || employeeProfile?.work_form || onboarding.work_form) : null} />
+            <InfoField label="Loại hình làm việc" value={safeDisplay(extraInfo.work_type)} />
+            <InfoField label="Địa điểm làm việc" value={safeDisplay((employeeProfile as any)?.work_location_display || (employeeProfile as any)?.work_location)} />
             <InfoField label="Vùng/Miền" value={safeDisplay(employeeProfile?.region || onboarding.region)} />
             <InfoField label="Khối" value={safeDisplay(employeeProfile?.block || onboarding.block)} />
             <InfoField label="Trạng thái" value={
-              employeeProfile?.employment_status === 'ACTIVE' ? 'Đang làm việc' :
               employeeProfile?.employment_status === 'PAUSED' ? 'Tạm dừng' :
               employeeProfile?.employment_status === 'INACTIVE' ? 'Đã nghỉ' :
-              safeDisplay(employeeProfile?.employment_status)
+              'Đang làm việc'
             } />
             <InfoField label="Ghi chú công việc" value={safeDisplay((employeeProfile as any)?.employment_status_notes || onboarding.employment_status_notes)} full />
           </div>
@@ -903,30 +938,32 @@ const OnboardingDetail: React.FC = () => {
             {/* ── Giấy tờ tùy thân & địa chỉ ── */}
             <div className="bg-white rounded-xl border p-5">
               <SectionHeader title="Giấy tờ tùy thân & địa chỉ" color="amber" onEdit={() => openEdit('personal', {
-                citizen_id: employeeProfile?.cccd_number ?? onboarding.citizen_id ?? '',
-                date_of_birth: employeeProfile?.date_of_birth ?? onboarding.date_of_birth ?? '',
-                gender: employeeProfile?.gender ?? onboarding.gender ?? '',
-                permanent_address: employeeProfile?.permanent_residence ?? onboarding.permanent_address ?? '',
-                current_address: employeeProfile?.current_address ?? onboarding.current_address ?? '',
-                cccd_number: employeeProfile?.cccd_number ?? '',
-                cccd_issue_date: employeeProfile?.cccd_issue_date ?? '',
-                cccd_issue_place: employeeProfile?.cccd_issue_place ?? '',
+                cccd_number: employeeProfile?.cccd_number ?? onboarding.citizen_id ?? '',
+                cccd_issue_date: employeeProfile?.cccd_issue_date ?? (onboarding as any).citizen_id_issue_date ?? '',
+                cccd_issue_place: employeeProfile?.cccd_issue_place ?? (onboarding as any).citizen_id_issue_place ?? '',
+                old_id_number: (employeeProfile as any)?.old_id_number ?? extraInfo.old_id_number ?? '',
                 birth_place: employeeProfile?.birth_place ?? onboarding.birth_place ?? '',
                 permanent_residence: employeeProfile?.permanent_residence ?? onboarding.permanent_address ?? '',
+                current_address: employeeProfile?.current_address ?? onboarding.current_address ?? '',
                 social_insurance_number: employeeProfile?.social_insurance_number ?? onboarding.social_insurance_number ?? '',
                 tax_code: employeeProfile?.tax_code ?? onboarding.tax_code ?? '',
               })} />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
-                <InfoField label="Số CCCD" value={safeDisplay(employeeProfile?.cccd_number)} />
-                <InfoField label="Ngày cấp" value={employeeProfile?.cccd_issue_date ? formatDate(employeeProfile.cccd_issue_date) : null} />
-                <InfoField label="Nơi cấp" value={
-                  employeeProfile?.cccd_issue_place === 'POLICE_ADMIN' ? 'Cục CS QLHC về TTXH' :
-                  employeeProfile?.cccd_issue_place === 'MINISTRY_PUBLIC_SECURITY' ? 'Bộ Công An' :
-                  employeeProfile?.cccd_issue_place || null
-                } />
+                <InfoField label="Số CCCD" value={safeDisplay(employeeProfile?.cccd_number || onboarding.citizen_id)} />
+                <InfoField label="Số CMND cũ" value={safeDisplay((employeeProfile as any)?.old_id_number || extraInfo.old_id_number)} />
+                <InfoField label="Ngày cấp" value={(() => {
+                  const d = employeeProfile?.cccd_issue_date || (onboarding as any).citizen_id_issue_date;
+                  return d ? formatDate(d) : null;
+                })()} />
+                <InfoField label="Nơi cấp" value={(() => {
+                  const place = employeeProfile?.cccd_issue_place || (onboarding as any).citizen_id_issue_place;
+                  if (place === 'POLICE_ADMIN') return 'Cục CS QLHC về TTXH';
+                  if (place === 'MINISTRY_PUBLIC_SECURITY') return 'Bộ Công An';
+                  return place || null;
+                })()} />
                 <InfoField label="Nơi khai sinh" value={safeDisplay(employeeProfile?.birth_place || onboarding.birth_place)} />
                 <InfoField label="Mã BHXH" value={safeDisplay(employeeProfile?.social_insurance_number || onboarding.social_insurance_number)} />
-                <InfoField label="Mã thuế" value={safeDisplay(onboarding.tax_code)} />
+                <InfoField label="Mã thuế" value={safeDisplay(employeeProfile?.tax_code || onboarding.tax_code)} />
                 <InfoField label="Địa chỉ thường trú" value={safeDisplay(employeeProfile?.permanent_residence || onboarding.permanent_address)} full />
                 <InfoField label="Địa chỉ hiện tại" value={safeDisplay(employeeProfile?.current_address || onboarding.current_address)} full />
               </div>
@@ -944,7 +981,7 @@ const OnboardingDetail: React.FC = () => {
                 <InfoField label="Trình độ" value={safeDisplay(employeeProfile?.education_level || onboarding.education_level)} />
                 <InfoField label="Trường" value={safeDisplay(extraInfo.university || onboarding.university)} />
                 <InfoField label="Chuyên ngành" value={safeDisplay(extraInfo.major || onboarding.major)} />
-                <InfoField label="Năm TN" value={String(extraInfo.graduation_year || onboarding.graduation_year || '') || null} />
+                <InfoField label="Năm tốt nghiệp" value={String(extraInfo.graduation_year || onboarding.graduation_year || '') || null} />
               </div>
             </div>
 
@@ -959,7 +996,7 @@ const OnboardingDetail: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
                 <InfoField label="Ngân hàng" value={safeDisplay(employeeProfile?.bank_name || onboarding.bank_name)} />
                 <InfoField label="Số tài khoản" value={safeDisplay(employeeProfile?.bank_account || onboarding.bank_account)} />
-                <InfoField label="Chủ TK" value={safeDisplay(extraInfo.bank_account_holder || onboarding.bank_account_holder)} />
+                <InfoField label="Chủ tài khoản" value={safeDisplay(extraInfo.bank_account_holder || onboarding.bank_account_holder)} />
                 <InfoField label="Chi nhánh" value={safeDisplay(employeeProfile?.bank_branch || onboarding.bank_branch)} />
               </div>
             </div>
@@ -967,10 +1004,25 @@ const OnboardingDetail: React.FC = () => {
             {/* ── Hồ sơ đính kèm ── */}
             {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file || onboarding.citizen_id_file || onboarding.citizen_id_file_url || vneidScreenshotUrl || extraInfo.facebook_link) && (
               <div className="bg-white rounded-lg border p-6">
-                <h3 className="text-lg font-semibold mb-4 flex items-center">
-                  
-                  Hồ sơ đính kèm
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    Hồ sơ đính kèm
+                  </h3>
+                  {userRole === 'ADMIN' && (
+                    <button
+                      onClick={() => openEdit('attached_files', {
+                        diploma_file: null,
+                        citizen_id_file: null,
+                        vneid_screenshot: null,
+                        facebook_link: extraInfo.facebook_link ?? '',
+                      })}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+                    >
+                      <PencilIcon className="w-3.5 h-3.5" />
+                      Chỉnh sửa
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   {/* Files */}
                   {([
@@ -1097,9 +1149,9 @@ const OnboardingDetail: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
                   <InfoField label="Lương cơ bản" value={employeeProfile.basic_salary != null ? `${Number(employeeProfile.basic_salary).toLocaleString('vi-VN')} đ` : null} highlight />
                   <InfoField label="Phụ cấp" value={employeeProfile.allowance != null ? `${Number(employeeProfile.allowance).toLocaleString('vi-VN')} đ` : null} />
-                  <InfoField label="Loại HĐ" value={employeeProfile.contract_type ? (employeeProfile.contract_type_display || CONTRACT_TYPE_LABELS[employeeProfile.contract_type] || employeeProfile.contract_type) : null} />
+                  <InfoField label="Loại hợp đồng" value={employeeProfile.contract_type ? (employeeProfile.contract_type_display || CONTRACT_TYPE_LABELS[employeeProfile.contract_type] || employeeProfile.contract_type) : null} />
                   <InfoField label="Thử việc" value={employeeProfile.probation_months != null ? `${employeeProfile.probation_months} tháng` : null} />
-                  <InfoField label="KT thử việc" value={employeeProfile.probation_end_date ? formatDate(employeeProfile.probation_end_date) : null} />
+                  <InfoField label="Kết thúc thử việc" value={employeeProfile.probation_end_date ? formatDate(employeeProfile.probation_end_date) : null} />
                   <InfoField label="Tỉ lệ thử việc" value={(employeeProfile as any).probation_rate ? (PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate) : null} />
                 </div>
               </div>
@@ -1177,6 +1229,7 @@ const OnboardingDetail: React.FC = () => {
       emp_cccd: 'Sửa thông tin CCCD / Giấy tờ tùy thân',
       emp_salary: 'Sửa lương & hợp đồng',
       emp_file_status: 'Sửa trạng thái hồ sơ',
+      attached_files: 'Sửa hồ sơ đính kèm',
     };
 
     // Helper để render EditField ngắn gọn hơn
@@ -1270,6 +1323,10 @@ const OnboardingDetail: React.FC = () => {
                   { value: 'FULL_TIME', label: 'Full-time' },
                   { value: 'PART_TIME', label: 'Part-time' },
                 ])}
+                {ef('Loại hình làm việc', 'work_type', undefined, undefined, undefined, 'Full-time, Part-time, ...')}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Địa điểm làm việc', 'work_location', undefined, WORK_LOCATION_OPTIONS)}
                 {ef('Ngày bắt đầu làm việc', 'start_date', 'date')}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1304,6 +1361,7 @@ const OnboardingDetail: React.FC = () => {
                 {ef('Ngày cấp CCCD', 'cccd_issue_date', 'date')}
               </div>
               {ef('Nơi cấp CCCD', 'cccd_issue_place', undefined, CCCD_ISSUE_PLACE_OPTIONS)}
+              {ef('Số CMND cũ', 'old_id_number', undefined, undefined, undefined, '123456789')}
               {ef('Nơi đăng ký khai sinh', 'birth_place', undefined, undefined, undefined, 'Xã/Phường, Tỉnh/TP')}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {ef('Mã số BHXH', 'social_insurance_number', undefined, undefined, undefined, '1234567890')}
@@ -1369,7 +1427,7 @@ const OnboardingDetail: React.FC = () => {
               {ef('Loại hợp đồng', 'contract_type', undefined, CONTRACT_OPTIONS)}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {ef('Thời gian thử việc (tháng)', 'probation_months', 'number', undefined, undefined, '2')}
-                {ef('Ngày kết thúc thử việc', 'probation_end_date', 'date')}
+                {ef('Ngày kết thúc thử việc (tự tính)', 'probation_end_date', 'date', undefined, true)}
               </div>
               {ef('Tỉ lệ thử việc', 'probation_rate', undefined, PROBATION_RATE_OPTIONS)}
             </div>
@@ -1388,6 +1446,69 @@ const OnboardingDetail: React.FC = () => {
               {ef('Ghi chú', 'file_review_notes', 'textarea')}
             </div>
           );
+
+        // ── Hồ sơ đính kèm (attached_files) ──
+        case 'attached_files': {
+          const fileRow = (
+            label: string,
+            name: 'diploma_file' | 'citizen_id_file' | 'vneid_screenshot',
+            currentUrl?: string | null,
+          ) => {
+            const file = editData[name] as File | null | undefined;
+            return (
+              <div className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-gray-700">{label}</label>
+                  {currentUrl && !file && (
+                    <a
+                      href={currentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Xem file hiện tại
+                    </a>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    handleEditFieldChange(name, f);
+                  }}
+                  className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {file && (
+                  <div className="flex items-center justify-between text-xs text-gray-600">
+                    <span className="truncate">📎 {file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
+                    <button
+                      type="button"
+                      onClick={() => handleEditFieldChange(name, null)}
+                      className="text-red-600 hover:underline ml-2"
+                    >
+                      Bỏ chọn
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          };
+          return (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500">
+                Chọn file mới để thay thế file cũ. Bỏ trống ô nào thì giữ nguyên file cũ.
+              </p>
+              {fileRow('Bằng cấp', 'diploma_file', onboarding?.diploma_file_url || onboarding?.diploma_file)}
+              {fileRow('File CMND/CCCD', 'citizen_id_file', onboarding?.citizen_id_file_url || onboarding?.citizen_id_file)}
+              {fileRow('Ảnh chụp màn hình VNeID', 'vneid_screenshot',
+                onboarding?.vneid_screenshot_url
+                  || (employeeProfile as any)?.vneid_screenshot_url
+                  || (employeeProfile?.vneid_screenshot ? String(employeeProfile.vneid_screenshot) : null))}
+              {ef('Link Facebook', 'facebook_link', 'text', undefined, undefined, 'https://facebook.com/...')}
+            </div>
+          );
+        }
 
         default:
           return null;
@@ -1554,8 +1675,8 @@ const OnboardingDetail: React.FC = () => {
                 </p>
               </div>
             </div>
-            {/* Progress ring */}
             <div className="hidden sm:flex items-center gap-4">
+              {/* Progress ring */}
               <div className="relative w-16 h-16">
                 <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
                   <circle cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" strokeWidth="5" />
@@ -1573,6 +1694,7 @@ const OnboardingDetail: React.FC = () => {
               </div>
             </div>
           </div>
+
         </div>
       </div>
 
@@ -1599,13 +1721,19 @@ const OnboardingDetail: React.FC = () => {
               {([
                 ['SĐT', employeeProfile?.phone_number || onboarding.candidate_phone],
                 ['Email', employeeProfile?.personal_email || onboarding.candidate_email],
-                ['Ngày BĐ', onboarding.start_date ? new Date(onboarding.start_date).toLocaleDateString('vi-VN') : null],
-              ] as [string, string | null | undefined][]).map(([label, val]) => (
-                <div key={label} className="flex items-baseline justify-between text-sm">
-                  <span className="text-gray-500">{label}</span>
-                  <span className="text-gray-900 font-medium truncate max-w-[55%] text-right">{val || '—'}</span>
-                </div>
-              ))}
+                ['Ngày bắt đầu', onboarding.start_date ? new Date(onboarding.start_date).toLocaleDateString('vi-VN') : null],
+              ] as [string, string | null | undefined][]).map(([label, val]) => {
+                const display = safeDisplay(val);
+                const isEmpty = display === 'Chưa có dữ liệu';
+                return (
+                  <div key={label} className="flex items-baseline justify-between text-sm">
+                    <span className="text-gray-500">{label}</span>
+                    <span className={`truncate max-w-[55%] text-right ${isEmpty ? 'text-gray-400 italic font-normal' : 'text-gray-900 font-medium'}`}>
+                      {display}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Checklist hồ sơ */}
@@ -1642,8 +1770,6 @@ const OnboardingDetail: React.FC = () => {
                             [field]: e.target.checked,
                             file_status: fileStatus,
                           } as any);
-                          const updated = await employeesAPI.getByEmployeeId(empId);
-                          setEmployeeProfile(updated);
                         } catch { /* ignore */ }
                       }}
                       className="w-4 h-4 rounded text-green-600 border-gray-300 focus:ring-green-500"
@@ -1741,6 +1867,25 @@ const OnboardingDetail: React.FC = () => {
                 tasks={onboarding.tasks || []}
                 onboardingId={onboarding.id}
                 onUpdate={fetchOnboardingDetail}
+                canCompleteTask={(task) => {
+                  const docs = onboarding.documents || [];
+                  const taskName = (task.name || '').toLowerCase();
+
+                  // Task "Đọc nội quy" → check documents REGULATION required đã đọc
+                  if (taskName.includes('nội quy công ty')) {
+                    const unread = docs.filter(
+                      (d) => d.document_type === 'REGULATION' && d.is_required && !d.is_read
+                    );
+                    if (unread.length > 0) {
+                      return {
+                        allowed: false,
+                        reason: `Nhân viên chưa đọc ${unread.length} tài liệu nội quy bắt buộc`,
+                      };
+                    }
+                  }
+
+                  return { allowed: true };
+                }}
               />
             )}
             {activeTab === 'documents' && (
@@ -1817,64 +1962,25 @@ const OnboardingDetail: React.FC = () => {
       {renderEditModal()}
 
       {/* Success/Error Dialog */}
-      {dialogMsg && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[200]">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
-            <div className="p-6 text-center">
-              {dialogMsg.type === 'success' ? (
-                <div className="mx-auto w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                  <CheckCircleIcon className="w-8 h-8 text-green-600" />
-                </div>
-              ) : (
-                <div className="mx-auto w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-4">
-                  <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
-                </div>
-              )}
-              <h3 className="text-lg font-bold text-gray-900 mb-2">
-                {dialogMsg.type === 'success' ? 'Thành công' : 'Có lỗi xảy ra'}
-              </h3>
-              <p className="text-sm text-gray-600">{dialogMsg.text}</p>
-            </div>
-            <div className="px-6 pb-6">
-              <button
-                onClick={() => setDialogMsg(null)}
-                className={`w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-colors ${dialogMsg.type === 'success' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <FeedbackDialog
+        open={!!dialogMsg}
+        variant={dialogMsg?.type === 'success' ? 'success' : 'error'}
+        title={dialogMsg?.type === 'success' ? 'Thành công' : 'Có lỗi xảy ra'}
+        message={dialogMsg?.text}
+        onClose={() => setDialogMsg(null)}
+      />
 
       {/* Confirm Dialog */}
-      {confirmDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[200]">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
-            <div className="p-6 text-center">
-              <div className="mx-auto w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mb-4">
-                <ExclamationTriangleIcon className="w-8 h-8 text-amber-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Xác nhận</h3>
-              <p className="text-sm text-gray-600">{confirmDialog.text}</p>
-            </div>
-            <div className="px-6 pb-6 flex gap-3">
-              <button
-                onClick={() => setConfirmDialog(null)}
-                className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={confirmDialog.onConfirm}
-                className="flex-1 py-2.5 bg-blue-600 rounded-xl text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-              >
-                Xác nhận
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={!!confirmDialog}
+        variant="info"
+        title="Xác nhận"
+        message={confirmDialog?.text}
+        confirmLabel="Xác nhận"
+        cancelLabel="Huỷ"
+        onConfirm={() => confirmDialog?.onConfirm()}
+        onClose={() => setConfirmDialog(null)}
+      />
     </div>
   );
 };

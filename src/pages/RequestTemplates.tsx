@@ -390,10 +390,10 @@ const RequestTemplates: React.FC = () => {
   const hasFilter = filterType !== '' || filterUnit !== '' || filterSearch !== '';
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Template đơn từ</h2>
+          <h1 className="text-2xl font-bold text-gray-900">Template đơn từ</h1>
           <p className="text-gray-500 text-sm">Tổng: {totalCount} template</p>
         </div>
         <button

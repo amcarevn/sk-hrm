@@ -310,7 +310,6 @@ const RequestFormDialog: React.FC<Props> = ({
                     options={companyUnits.map((u) => ({ value: u.id as number | '', label: u.name }))}
                     onChange={(v) => setCompanyUnitId(v)}
                     placeholder="-- Chọn đơn vị --"
-                    searchable
                   />
                   <p className="mt-1 text-xs text-gray-500">
                     Hệ thống sẽ tự động lấy mẫu đơn theo đơn vị bạn chọn

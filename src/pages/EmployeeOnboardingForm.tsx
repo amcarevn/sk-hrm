@@ -157,16 +157,14 @@ interface SFProps {
 
 const SF: React.FC<SFProps> = ({ label, value, onChange, options, searchable }) => {
   const normalized = options.map((o) => typeof o === 'string' ? { value: o, label: o } : o);
-  const selectOptions = [{ value: '', label: '-- Chọn --' }, ...normalized];
-  const displayLabel = label;
   return (
     <SelectBox
-      label={displayLabel}
+      label={label}
       value={value}
-      options={selectOptions}
+      options={normalized}
       onChange={onChange}
       searchable={searchable || normalized.length > 10}
-      placeholder="Tìm kiếm..."
+      placeholder={`Chọn ${label.toLowerCase()}`}
       size="lg"
     />
   );
@@ -332,6 +330,29 @@ export const EmployeeOnboardingForm: React.FC = () => {
         if (sd < now) return 'Ngày bắt đầu phải từ hôm nay trở đi';
         return '';
       }
+      case 'citizen_id_issue_date': {
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return 'Ngày cấp không hợp lệ';
+        const minDate = new Date('2019-01-01');
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        if (d < minDate) return 'Ngày cấp CCCD gắn chip phải từ 01/01/2019 trở đi';
+        if (d > today) return 'Ngày cấp không được sau hôm nay';
+        return '';
+      }
+      case 'emergency_contact_dob': {
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return 'Ngày sinh không hợp lệ';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (d > today) return 'Ngày sinh không được sau hôm nay';
+        let age = today.getFullYear() - d.getFullYear();
+        const monthDiff = today.getMonth() - d.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d.getDate())) age--;
+        if (age < 18) return `Người liên hệ phải đủ 18 tuổi (hiện ${age} tuổi)`;
+        if (age > 100) return `Tuổi không hợp lệ (${age} tuổi)`;
+        return '';
+      }
       case 'candidate_name':
       case 'emergency_contact_name':
       case 'emergency_contact_relationship':
@@ -404,6 +425,15 @@ export const EmployeeOnboardingForm: React.FC = () => {
       if (!citizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return false; }
       if (!vneidScreenshotFile) { showToast('error', 'Vui lòng upload ảnh chụp màn hình thông tin VNeID'); return false; }
       if (!values.citizen_id_issue_date) { showToast('error', 'Vui lòng chọn ngày cấp CCCD'); return false; }
+      {
+        const issueDate = new Date(values.citizen_id_issue_date);
+        const minDate = new Date('2019-01-01');
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        if (Number.isNaN(issueDate.getTime())) { showToast('error', 'Ngày cấp CCCD không hợp lệ'); return false; }
+        if (issueDate < minDate) { showToast('error', 'Ngày cấp CCCD phải từ 01/01/2019 trở đi'); return false; }
+        if (issueDate > today) { showToast('error', 'Ngày cấp CCCD không được sau ngày hôm nay'); return false; }
+      }
       if (!values.citizen_id_issue_place.trim()) { showToast('error', 'Vui lòng chọn nơi cấp CCCD'); return false; }
       if (values.old_id_number && !/^\d{9}$/.test(values.old_id_number.trim())) { showToast('error', 'Số CMND cũ phải có đúng 9 chữ số'); return false; }
     }
@@ -425,6 +455,10 @@ export const EmployeeOnboardingForm: React.FC = () => {
       if (!values.emergency_contact_phone.trim()) { showToast('error', 'Vui lòng nhập số điện thoại người liên hệ'); return false; }
       if (!/^\d{10}$/.test(values.emergency_contact_phone.trim())) { showToast('error', 'Số điện thoại người liên hệ phải có đúng 10 chữ số'); return false; }
       if (!values.emergency_contact_dob) { showToast('error', 'Vui lòng chọn ngày sinh người liên hệ'); return false; }
+      {
+        const err = getFieldError('emergency_contact_dob', values.emergency_contact_dob);
+        if (err) { showToast('error', err); return false; }
+      }
       if (!values.emergency_contact_occupation.trim()) { showToast('error', 'Vui lòng nhập nghề nghiệp người liên hệ'); return false; }
       if (!values.emergency_contact_address.trim()) { showToast('error', 'Vui lòng nhập địa chỉ người liên hệ'); return false; }
     }
@@ -457,7 +491,8 @@ export const EmployeeOnboardingForm: React.FC = () => {
     if (step === 4) {
       return !!(values.emergency_contact_name.trim() && values.emergency_contact_relationship.trim() &&
         values.emergency_contact_phone.trim() && /^\d{10}$/.test(values.emergency_contact_phone.trim()) &&
-        values.emergency_contact_dob && values.emergency_contact_occupation.trim() &&
+        values.emergency_contact_dob && !getFieldError('emergency_contact_dob', values.emergency_contact_dob) &&
+        values.emergency_contact_occupation.trim() &&
         values.emergency_contact_address.trim());
     }
     return true;
@@ -736,7 +771,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TF label="Ngày cấp" value={values.citizen_id_issue_date} onChange={handleChange('citizen_id_issue_date')} type="date" required />
+            <TF label="Ngày cấp" value={values.citizen_id_issue_date} onChange={handleChange('citizen_id_issue_date')} type="date" required error={getFieldError('citizen_id_issue_date', values.citizen_id_issue_date)} />
             <SF label="Nơi cấp" value={values.citizen_id_issue_place} onChange={handleSelect('citizen_id_issue_place')} options={CITIZEN_ID_ISSUE_PLACE_OPTIONS} required />
           </div>
         </div>
@@ -790,7 +825,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <TF label="Số điện thoại" value={values.emergency_contact_phone} onChange={handleChange('emergency_contact_phone')} required placeholder="0987654321" error={getFieldError('emergency_contact_phone', values.emergency_contact_phone)} maxLength={10} />
-            <TF label="Ngày sinh" value={values.emergency_contact_dob} onChange={handleChange('emergency_contact_dob')} type="date" required />
+            <TF label="Ngày sinh" value={values.emergency_contact_dob} onChange={handleChange('emergency_contact_dob')} type="date" required error={getFieldError('emergency_contact_dob', values.emergency_contact_dob)} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <TF label="Nghề nghiệp" value={values.emergency_contact_occupation} onChange={handleChange('emergency_contact_occupation')} required placeholder="Giáo viên, Bác sĩ..." />

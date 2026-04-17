@@ -50,6 +50,7 @@ type TasksSectionProps = {
   tasks: OnboardingTask[];
   onboardingId: number;
   onUpdate: () => void;
+  canCompleteTask?: (task: OnboardingTask) => { allowed: boolean; reason?: string };
 };
 
 // ============================================
@@ -116,12 +117,10 @@ const getStatusBadge = (status: string, isOverdue: boolean) => {
 // MAIN COMPONENT
 // ============================================
 
-const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpdate }) => {
+const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpdate, canCompleteTask }) => {
   const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null);
   const [completionNote, setCompletionNote] = useState('');
-  const [skipReason, setSkipReason] = useState('');
   const [showCompleteModal, setShowCompleteModal] = useState(false);
-  const [showSkipModal, setShowSkipModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<OnboardingTask | null>(null);
 
   // ============================================
@@ -155,22 +154,6 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
     }
   };
 
-  const handleSkipTask = async () => {
-    if (!selectedTask) return;
-
-    try {
-      await onboardingService.skipTask(selectedTask.id, skipReason);
-      showSuccess('Đã bỏ qua task');
-      setShowSkipModal(false);
-      setSkipReason('');
-      setSelectedTask(null);
-      onUpdate();
-    } catch (error: any) {
-      console.error('SKIP TASK ERROR:', error);
-      showError(error.response?.data?.message || 'Không thể bỏ qua task');
-    }
-  };
-
   const handleToggleChecklist = async (checklistId: number) => {
     try {
       await onboardingService.toggleChecklist(checklistId);
@@ -190,6 +173,9 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
       return null;
     }
 
+    const guard = canCompleteTask ? canCompleteTask(task) : { allowed: true };
+    const completeDisabled = !guard.allowed;
+
     return (
       <div className="flex gap-2">
         {task.status === 'PENDING' && (
@@ -202,30 +188,28 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
           </button>
         )}
 
-        {(task.status === 'IN_PROGRESS' || task.status === 'PENDING') && (
-          <>
+        {(task.status === 'IN_PROGRESS' || task.status === 'PENDING') && (() => {
+          const guard = canCompleteTask ? canCompleteTask(task) : { allowed: true };
+          return (
             <button
               onClick={() => {
+                if (!guard.allowed) return;
                 setSelectedTask(task);
                 setShowCompleteModal(true);
               }}
-              className="flex items-center px-3 py-1.5 bg-green-50 text-green-600 border border-green-200 rounded-md hover:bg-green-100"
+              disabled={!guard.allowed}
+              title={!guard.allowed ? guard.reason : ''}
+              className={`flex items-center px-3 py-1.5 rounded-md border ${
+                !guard.allowed
+                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                  : 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100'
+              }`}
             >
               <CheckCircleIcon className="w-4 h-4 mr-1" />
               Hoàn thành
             </button>
-            <button
-              onClick={() => {
-                setSelectedTask(task);
-                setShowSkipModal(true);
-              }}
-              className="flex items-center px-3 py-1.5 bg-gray-50 text-gray-600 border border-gray-200 rounded-md hover:bg-gray-100"
-            >
-              <XMarkIcon className="w-4 h-4 mr-1" />
-              Bỏ qua
-            </button>
-          </>
-        )}
+          );
+        })()}
       </div>
     );
   };
@@ -405,48 +389,6 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
         </div>
       )}
 
-      {/* Skip Task Modal */}
-      {showSkipModal && selectedTask && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-          <div className="bg-white w-full max-w-md rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4">Bỏ qua task</h3>
-            <p className="text-gray-600 mb-4">
-              Bạn có chắc muốn bỏ qua task <strong>{selectedTask.name}</strong>?
-            </p>
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                Lý do bỏ qua <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-                value={skipReason}
-                onChange={(e) => setSkipReason(e.target.value)}
-                placeholder="Nhập lý do bỏ qua task..."
-              />
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowSkipModal(false);
-                  setSkipReason('');
-                  setSelectedTask(null);
-                }}
-                className="px-4 py-2 border rounded-md hover:bg-gray-50"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleSkipTask}
-                disabled={!skipReason.trim()}
-                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50"
-              >
-                Xác nhận bỏ qua
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

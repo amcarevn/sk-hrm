@@ -12,7 +12,7 @@ interface Props {
 
 const MESSAGE_BY_TYPE: Record<GenericRequestType, string> = {
   RESIGNATION:
-    'Đơn xin nghỉ việc của bạn đã được phê duyệt. Trước ngày kết thúc công việc, bạn vui lòng đến phòng HCNS để hoàn tất thủ tục nghỉ việc.',
+    'Đơn xin nghỉ việc của bạn đã được phê duyệt. Trước ngày kết thúc công việc, Bạn vui lòng đến phòng HCNS để hoàn tất thủ tục nghỉ việc.',
   PROPOSAL:
     'Đơn đề xuất của bạn đã được phê duyệt. Vui lòng đến phòng HCNS để biết thêm chi tiết.',
   CONFIRMATION:

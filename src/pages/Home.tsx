@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { employeesAPI, departmentsAPI, birthdayWishesAPI, BirthdayWish } from '../utils/api';
@@ -16,8 +17,11 @@ import {
   XMarkIcon,
   PaperAirplaneIcon,
   ChatBubbleLeftRightIcon,
+  EyeIcon,
+  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon } from '@heroicons/react/24/solid';
+import onboardingService from '../services/onboarding.service';
 
 const formatBirthDate = (dateOfBirth: string): string => {
   const parts = dateOfBirth.split('-');
@@ -48,6 +52,12 @@ const Home: React.FC = () => {
   }>({ open: false, employee: null });
   const [wishMessage, setWishMessage] = useState('');
   const [wishSent, setWishSent] = useState<Set<number>>(new Set());
+
+  // Onboarding documents state
+  const [onboarding, setOnboarding] = useState<any>(null);
+  const [viewingDoc, setViewingDoc] = useState<any>(null);
+  const [docReadable, setDocReadable] = useState(false);
+  const [markingReadId, setMarkingReadId] = useState<number | null>(null);
   const [wishSending, setWishSending] = useState(false);
   const [wishError, setWishError] = useState<string | null>(null);
   const [wishListModal, setWishListModal] = useState<{
@@ -62,6 +72,16 @@ const Home: React.FC = () => {
     fetchBirthdaysToday();
     fetchBirthdaysTomorrow();
   }, []);
+
+  // Lock body scroll khi modal tài liệu mở
+  useEffect(() => {
+    if (viewingDoc) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [viewingDoc]);
 
   const fetchBirthdaysToday = async () => {
     try {
@@ -167,6 +187,17 @@ const Home: React.FC = () => {
           console.error('Error fetching department:', err);
         }
       }
+
+      // Fetch onboarding documents (detail endpoint để có documents nested)
+      try {
+        const myOb = await onboardingService.myOnboarding();
+        if (myOb?.id) {
+          const fullOb = await onboardingService.get(myOb.id);
+          setOnboarding(fullOb);
+        }
+      } catch (err) {
+        // Không có onboarding — bỏ qua
+      }
     } catch (err) {
       console.error('Error fetching employee data:', err);
     } finally {
@@ -233,6 +264,66 @@ const Home: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Tài liệu onboarding cần đọc */}
+      {(() => {
+        const requiredDocs = (onboarding?.documents || []).filter(
+          (d: any) => d.document_type === 'REGULATION' && d.is_required
+        );
+        if (requiredDocs.length === 0) return null;
+        const unreadCount = requiredDocs.filter((d: any) => !d.is_read).length;
+        if (unreadCount === 0) return null; // Đã đọc hết → ẩn section
+
+        return (
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 p-6 shadow-sm">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-14 h-14 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-600/20">
+                <DocumentTextIcon className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Tài liệu cần đọc</h2>
+                <p className="text-sm text-gray-600">
+                  Bạn có <span className="font-semibold text-blue-700">{unreadCount}</span> tài liệu bắt buộc chưa đọc
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {requiredDocs.map((doc: any) => (
+                <div key={doc.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm">{doc.document_name}</p>
+                      {doc.description && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{doc.description}</p>
+                      )}
+                      {doc.is_read ? (
+                        <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <CheckCircleIcon className="w-3.5 h-3.5" /> Đã đọc
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                          <ClockIcon className="w-3.5 h-3.5" /> Chưa đọc
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setViewingDoc(doc);
+                        setDocReadable(false);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex-shrink-0 inline-flex items-center gap-1.5 shadow-sm"
+                    >
+                      <EyeIcon className="w-4 h-4" />
+                      Xem
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -631,6 +722,75 @@ const Home: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal xem tài liệu onboarding — dùng Portal để thoát Layout stacking context */}
+      {viewingDoc && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50" onClick={() => setViewingDoc(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl" style={{ height: '90vh' }} onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">{viewingDoc.document_name}</h3>
+                {viewingDoc.description && (
+                  <p className="text-xs text-gray-500 mt-0.5">{viewingDoc.description}</p>
+                )}
+              </div>
+              <button onClick={() => setViewingDoc(null)} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* PDF iframe */}
+            <div className="bg-gray-100" style={{ height: 'calc(90vh - 128px)' }}>
+              {viewingDoc.file_url || viewingDoc.file ? (
+                <iframe
+                  src={viewingDoc.file_url || viewingDoc.file}
+                  className="w-full h-full border-0"
+                  title={viewingDoc.document_name}
+                  onLoad={() => { setTimeout(() => setDocReadable(true), 10000); }}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">Không có file đính kèm</div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between gap-3 rounded-b-2xl">
+              <p className="text-xs text-gray-500">
+                {viewingDoc.is_read ? '✓ Bạn đã đọc tài liệu này'
+                  : docReadable ? '✓ Có thể xác nhận đã đọc'
+                  : '⏳ Vui lòng đọc hết tài liệu (tối thiểu 10 giây)...'}
+              </p>
+              {!viewingDoc.is_read && (
+                <button
+                  disabled={!docReadable || markingReadId === viewingDoc.id}
+                  onClick={async () => {
+                    if (!viewingDoc) return;
+                    setMarkingReadId(viewingDoc.id);
+                    try {
+                      await onboardingService.markDocumentAsRead(viewingDoc.id);
+                      if (onboarding?.id) {
+                        const updated = await onboardingService.get(onboarding.id);
+                        setOnboarding(updated);
+                      }
+                      setViewingDoc(null);
+                    } catch (err: any) {
+                      console.error('Failed to mark document as read:', err);
+                    } finally {
+                      setMarkingReadId(null);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+                >
+                  <CheckCircleIcon className="w-4 h-4" />
+                  {markingReadId === viewingDoc.id ? 'Đang lưu...' : 'Đánh dấu đã đọc'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

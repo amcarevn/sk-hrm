@@ -82,6 +82,7 @@ import { EmployeeOnboardingForm } from "./pages/EmployeeOnboardingForm";
 import WorkFinalization from './pages/WorkFinalization';
 import WorkFinalizationApprovals from './pages/WorkFinalizationApprovals';
 import ContractTemplates from './pages/ContractTemplates';
+import DocumentTemplates from './pages/DocumentTemplates';
 import PasswordReset from './pages/PasswordReset';
 import ShiftConfiguration from './pages/ShiftConfiguration';
 import AIChat from './pages/AIChat';
@@ -883,14 +884,24 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route 
-            path="/dashboard/contract-templates" 
+          <Route
+            path="/dashboard/contract-templates"
               element={
                 <ProtectedRoute>
                   <Layout>
                     <ContractTemplates />
                   </Layout>
-                </ProtectedRoute>    
+                </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/document-templates"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <DocumentTemplates />
+                  </Layout>
+                </ProtectedRoute>
             }
           />
           <Route 
