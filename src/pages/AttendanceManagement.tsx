@@ -3818,32 +3818,39 @@ const AttendanceManagement: React.FC = () => {
                               Chọn nhanh ca trực
                             </h4>
                             <div className="grid grid-cols-1 gap-2">
-                              {[
-                                {
-                                  label: 'Ca chiều tối',
-                                  time: '13h → 21h',
-                                  start: '13:00',
-                                  end: '21:00',
-                                  color: 'indigo',
-                                  icon: '🏢',
-                                },
-                                {
-                                  label: 'Ca gãy',
-                                  time: '8h30→12h + 17h30→23h',
-                                  start: '08:30',
-                                  end: '23:00',
-                                  color: 'purple',
-                                  icon: '🔀',
-                                },
-                                {
-                                  label: 'Ca CheckPage',
-                                  time: '',
-                                  start: '',
-                                  end: '',
-                                  color: 'blue',
-                                  icon: '📱',
-                                },
-                              ].map((preset) => {
+                              {(() => {
+                                const _TELESALE_CODES = ['NV_TELESALE', 'TP_TELESALE', 'LEADER_TELESALE'];
+                                const isTelesale = _TELESALE_CODES.includes(currentEmployee?.position?.code ?? '');
+                                return [
+                                  {
+                                    label: 'Ca chiều tối',
+                                    time: '13h → 21h',
+                                    start: '13:00',
+                                    end: '21:00',
+                                    color: 'indigo',
+                                    icon: '🏢',
+                                    telesaleOnly: false,
+                                  },
+                                  {
+                                    label: 'Ca gãy',
+                                    time: '8h30→12h + 17h30→23h',
+                                    start: '08:30',
+                                    end: '23:00',
+                                    color: 'purple',
+                                    icon: '🔀',
+                                    telesaleOnly: true,
+                                  },
+                                  {
+                                    label: 'Ca CheckPage',
+                                    time: '',
+                                    start: '',
+                                    end: '',
+                                    color: 'blue',
+                                    icon: '📱',
+                                    telesaleOnly: false,
+                                  },
+                                ].filter(p => !p.telesaleOnly || isTelesale);
+                              })().map((preset) => {
                                 const isSelected =
                                   nightShiftStartTime === preset.start &&
                                   nightShiftEndTime === preset.end;
