@@ -391,7 +391,7 @@ const AttendanceRanking: React.FC = () => {
                             {entry.total_early_minutes} phút
                           </td>
                           <td className="px-4 py-3 text-right text-sm text-gray-600">
-                            {entry.avg_early_minutes?.toFixed(1)} phút
+                            {entry.avg_early_minutes?.toFixed(1) ?? '—'} phút
                           </td>
                         </>
                       ) : (
