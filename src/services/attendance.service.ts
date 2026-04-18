@@ -994,7 +994,13 @@ class AttendanceService {
   }): Promise<AttendanceRankingEntry[]> {
     try {
       const response = await managementApi.get('/api/v1/hrm/attendance/ranking/', { params });
-      return response.data;
+      // API wraps result: { success, data: { rankings: [...] } }
+      const body = response.data;
+      if (body?.success && Array.isArray(body?.data?.rankings)) {
+        return body.data.rankings;
+      }
+      // Fallback: flat array returned directly
+      return Array.isArray(body) ? body : [];
     } catch (error) {
       console.error('Error fetching attendance ranking:', error);
       throw error;
@@ -1007,18 +1013,20 @@ export default attendanceService;
 
 // AttendanceRankingEntry interface
 export interface AttendanceRankingEntry {
-  id: number;
-  employee: number;
-  employee_name: string;
+  employee_id: number;
   employee_code: string;
-  department_name: string | null;
+  full_name: string;
+  department: string | null;
   year: number;
   month: number;
   early_days: number;
   total_early_minutes: number;
+  avg_early_minutes: number;
   on_time_days: number;
+  total_working_days: number;
   rank_early: number | null;
   rank_on_time: number | null;
+  computed_at: string | null;
 }
 
 // RegistrationRequest interface

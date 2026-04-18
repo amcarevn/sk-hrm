@@ -17,6 +17,8 @@ const MONTH_NAMES = [
   'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12',
 ];
 
+type SortField = 'rank_early' | 'rank_on_time' | 'early_days' | 'total_early_minutes' | 'avg_early_minutes' | 'on_time_days' | 'total_working_days';
+
 const AttendanceRanking: React.FC = () => {
   const { user } = useAuth();
   const now = new Date();
@@ -31,7 +33,7 @@ const AttendanceRanking: React.FC = () => {
   const [computing, setComputing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [computeMessage, setComputeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [sortField, setSortField] = useState<'rank_early' | 'rank_on_time' | 'early_days' | 'total_early_minutes' | 'on_time_days'>('rank_early');
+  const [sortField, setSortField] = useState<SortField>('rank_early');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const userRole = user?.role?.toUpperCase() ?? 'USER';
@@ -50,8 +52,8 @@ const AttendanceRanking: React.FC = () => {
           ? attendanceService.getRanking({ year, month, type: rankType, employee_id: employeeId })
           : Promise.resolve([] as AttendanceRankingEntry[]),
       ]);
-      setRankings(Array.isArray(data) ? data : []);
-      const myEntry = Array.isArray(myData) && myData.length > 0 ? myData[0] : null;
+      setRankings(data);
+      const myEntry = myData.length > 0 ? myData[0] : null;
       setMyRanking(myEntry);
     } catch {
       setError('Không thể tải dữ liệu bảng xếp hạng. Vui lòng thử lại.');
@@ -79,7 +81,7 @@ const AttendanceRanking: React.FC = () => {
     }
   };
 
-  const handleSort = (field: typeof sortField) => {
+  const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -106,7 +108,7 @@ const AttendanceRanking: React.FC = () => {
     return `#${rank}`;
   };
 
-  const SortIcon: React.FC<{ field: typeof sortField }> = ({ field }) => {
+  const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
     if (sortField !== field) return <ChevronUpIcon className="h-3 w-3 text-gray-300 inline ml-1" />;
     return sortDir === 'asc'
       ? <ChevronUpIcon className="h-3 w-3 text-indigo-500 inline ml-1" />
@@ -269,6 +271,10 @@ const AttendanceRanking: React.FC = () => {
               <div className="text-lg font-bold text-gray-800">{myRanking.on_time_days}</div>
               <div className="text-xs text-gray-600 mt-0.5">Ngày đúng giờ</div>
             </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-gray-800">{myRanking.total_working_days}</div>
+              <div className="text-xs text-gray-600 mt-0.5">Tổng ngày làm</div>
+            </div>
           </div>
         </div>
       )}
@@ -330,14 +336,28 @@ const AttendanceRanking: React.FC = () => {
                       >
                         Tổng phút sớm <SortIcon field="total_early_minutes" />
                       </th>
+                      <th
+                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('avg_early_minutes')}
+                      >
+                        TB phút/ngày <SortIcon field="avg_early_minutes" />
+                      </th>
                     </>
                   ) : (
-                    <th
-                      className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      onClick={() => handleSort('on_time_days')}
-                    >
-                      Ngày đúng giờ <SortIcon field="on_time_days" />
-                    </th>
+                    <>
+                      <th
+                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('on_time_days')}
+                      >
+                        Ngày đúng giờ <SortIcon field="on_time_days" />
+                      </th>
+                      <th
+                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        onClick={() => handleSort('total_working_days')}
+                      >
+                        Tổng ngày làm <SortIcon field="total_working_days" />
+                      </th>
+                    </>
                   )}
                 </tr>
               </thead>
@@ -347,7 +367,7 @@ const AttendanceRanking: React.FC = () => {
                   const isTopThree = rank !== null && rank !== undefined && rank <= 3;
                   return (
                     <tr
-                      key={entry.id}
+                      key={`${entry.employee_id}-${entry.year}-${entry.month}`}
                       className={`${isTopThree ? 'bg-yellow-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-indigo-50 transition-colors`}
                     >
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900">
@@ -356,11 +376,11 @@ const AttendanceRanking: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-gray-900">{entry.employee_name}</div>
+                        <div className="text-sm font-medium text-gray-900">{entry.full_name}</div>
                         <div className="text-xs text-gray-500">{entry.employee_code}</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {entry.department_name ?? '—'}
+                        {entry.department ?? '—'}
                       </td>
                       {rankType === 'early' ? (
                         <>
@@ -370,11 +390,19 @@ const AttendanceRanking: React.FC = () => {
                           <td className="px-4 py-3 text-right text-sm font-medium text-purple-700">
                             {entry.total_early_minutes} phút
                           </td>
+                          <td className="px-4 py-3 text-right text-sm text-gray-600">
+                            {entry.avg_early_minutes?.toFixed(1)} phút
+                          </td>
                         </>
                       ) : (
-                        <td className="px-4 py-3 text-right text-sm font-medium text-green-700">
-                          {entry.on_time_days} ngày
-                        </td>
+                        <>
+                          <td className="px-4 py-3 text-right text-sm font-medium text-green-700">
+                            {entry.on_time_days} ngày
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-gray-600">
+                            {entry.total_working_days} ngày
+                          </td>
+                        </>
                       )}
                     </tr>
                   );
@@ -389,3 +417,4 @@ const AttendanceRanking: React.FC = () => {
 };
 
 export default AttendanceRanking;
+
