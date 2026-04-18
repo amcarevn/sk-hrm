@@ -63,7 +63,7 @@ const AttendanceRanking: React.FC = () => {
   useEffect(() => {
     fetchRankings();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month, rankType, top]);
+  }, [year, month, rankType, top, employeeId]);
 
   const handleCompute = async () => {
     setComputing(true);
@@ -89,8 +89,12 @@ const AttendanceRanking: React.FC = () => {
   };
 
   const sortedRankings = [...rankings].sort((a, b) => {
-    const aVal = a[sortField] ?? Infinity;
-    const bVal = b[sortField] ?? Infinity;
+    const aVal = a[sortField];
+    const bVal = b[sortField];
+    // Always place null/undefined values at the end regardless of sort direction
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return 1;
+    if (bVal == null) return -1;
     return sortDir === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
   });
 
