@@ -3458,35 +3458,6 @@ const AttendanceManagement: React.FC = () => {
                             Thời gian tăng ca
                           </h3>
 
-                          {/* Brand Communications reminder */}
-                          <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                            <div className="flex items-start space-x-2">
-                              <svg
-                                className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              </svg>
-                              <div>
-                                <span className="text-sm font-medium text-blue-800">
-                                  Dành cho phòng ban tất cả nhân sự trừ Telesale
-                                  và CSKH
-                                </span>
-                                <p className="text-xs text-blue-700 mt-1">
-                                  Vui lòng nhập chính xác thời gian tăng ca để
-                                  được tính công đầy đủ
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
                           <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                             <div className="grid grid-cols-2 gap-4">
                               {/* Giờ bắt đầu */}
@@ -3576,33 +3547,6 @@ const AttendanceManagement: React.FC = () => {
                                     </div>
                                   )}
 
-                                {/* Night work bonus indicator */}
-                                {overtimeDuration >= 3 && (
-                                  <div className="mt-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-3 border border-indigo-200">
-                                    <div className="flex items-center space-x-2">
-                                      <svg
-                                        className="w-5 h-5 text-indigo-600"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                                        />
-                                      </svg>
-                                      <span className="text-sm font-semibold text-indigo-700">
-                                        Tính 1 suất làm tối
-                                      </span>
-                                    </div>
-                                    <p className="text-xs text-indigo-600 mt-1 ml-7">
-                                      Thời gian tăng ca từ 3 giờ trở lên được tính
-                                      1 suất làm tối
-                                    </p>
-                                  </div>
-                                )}
                               </div>
                             )}
 
