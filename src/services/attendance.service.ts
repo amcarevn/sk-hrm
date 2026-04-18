@@ -968,10 +968,58 @@ class AttendanceService {
       throw error;
     }
   }
+
+  /**
+   * Tính toán & lưu bảng xếp hạng cho một tháng (chỉ HR/superuser)
+   */
+  async computeRanking(year: number, month: number): Promise<any> {
+    try {
+      const response = await managementApi.post('/api/v1/hrm/attendance/ranking/compute/', { year, month });
+      return response.data;
+    } catch (error) {
+      console.error('Error computing ranking:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy bảng xếp hạng chấm công
+   */
+  async getRanking(params?: {
+    year?: number;
+    month?: number;
+    type?: 'early' | 'on_time';
+    top?: number;
+    employee_id?: number;
+  }): Promise<AttendanceRankingEntry[]> {
+    try {
+      const response = await managementApi.get('/api/v1/hrm/attendance/ranking/', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching attendance ranking:', error);
+      throw error;
+    }
+  }
 }
 
 export const attendanceService = new AttendanceService();
 export default attendanceService;
+
+// AttendanceRankingEntry interface
+export interface AttendanceRankingEntry {
+  id: number;
+  employee: number;
+  employee_name: string;
+  employee_code: string;
+  department_name: string | null;
+  year: number;
+  month: number;
+  early_days: number;
+  total_early_minutes: number;
+  on_time_days: number;
+  rank_early: number | null;
+  rank_on_time: number | null;
+}
 
 // RegistrationRequest interface
 export interface RegistrationRequest {

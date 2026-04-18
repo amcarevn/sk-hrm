@@ -26,6 +26,7 @@ import {
   SparklesIcon,
   ClipboardDocumentListIcon,
   CurrencyDollarIcon,
+  TrophyIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -101,6 +102,12 @@ const navigationItems: NavigationItem[] = [
     name: 'Chấm công',
     href: '/dashboard/attendance',
     icon: ClockIcon,
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
+  {
+    name: 'Xếp hạng chấm công',
+    href: '/dashboard/attendance/ranking',
+    icon: TrophyIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
   {

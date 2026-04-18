@@ -87,6 +87,7 @@ import PasswordReset from './pages/PasswordReset';
 import ShiftConfiguration from './pages/ShiftConfiguration';
 import AIChat from './pages/AIChat';
 import SalaryManagement from './pages/SalaryManagement';
+import AttendanceRanking from './pages/AttendanceRanking';
 
 function App() {
   return (
@@ -591,6 +592,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AttendanceView />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/attendance/ranking"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AttendanceRanking />
                 </Layout>
               </ProtectedRoute>
             }
