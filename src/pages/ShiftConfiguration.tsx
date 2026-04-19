@@ -1,937 +1,829 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  PlusIcon,
   ArrowLeftIcon,
   CheckIcon,
   XMarkIcon,
-  PencilIcon,
   TrashIcon,
-  EyeIcon,
   ClockIcon,
   BuildingOfficeIcon,
   BriefcaseIcon,
   UserIcon,
   InformationCircleIcon,
   MagnifyingGlassIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
-import { companyConfigAPI, ShiftConfig, departmentsAPI, positionsAPI } from '../utils/api';
-import { useAuth } from '../contexts/AuthContext';
+import {
+  companyConfigAPI,
+  type ShiftConfig,
+  employeesAPI,
+  departmentsAPI,
+  positionsAPI,
+} from '../utils/api';
 
-interface AssignOptions {
-  shift: ShiftConfig;
-  current_assignments: {
-    employees: any[];
-    positions: any[];
-    departments: any[];
-  };
-  available_options: {
-    employees: any[];
-    positions: any[];
-    departments: any[];
-  };
-}
-
-type AssignmentTab = 'employees' | 'positions' | 'departments';
-
-interface EmployeeShiftInfo {
-  employee_id: number;
-  full_name: string;
-  employee_code: string;
-  current_shifts: ShiftConfig[];
-}
+type ConfigMode = 'landing' | 'individual' | 'position' | 'department';
 
 const ShiftConfiguration: React.FC = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [shifts, setShifts] = useState<ShiftConfig[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedShift, setSelectedShift] = useState<ShiftConfig | null>(null);
-  const [assignOptions, setAssignOptions] = useState<AssignOptions | null>(null);
-  const [loadingAssignOptions, setLoadingAssignOptions] = useState(false);
-  const [assignmentTab, setAssignmentTab] = useState<AssignmentTab>('employees');
-  const [selectedItems, setSelectedItems] = useState<{
-    employees: number[];
-    positions: number[];
-    departments: number[];
-  }>({
-    employees: [],
-    positions: [],
-    departments: [],
-  });
-  const [assigning, setAssigning] = useState(false);
+  const [mode, setMode] = useState<ConfigMode>('landing');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [employeeSearchQuery, setEmployeeSearchQuery] = useState('');
-  const [positionSearchQuery, setPositionSearchQuery] = useState('');
-  const [departmentSearchQuery, setDepartmentSearchQuery] = useState('');
-  // FIX: Modal is now an overlay — state kept separately, not used to swap views
-  const [showEmployeeShiftsModal, setShowEmployeeShiftsModal] = useState(false);
-  const [selectedEmployeeForShifts, setSelectedEmployeeForShifts] = useState<EmployeeShiftInfo | null>(null);
-  const [loadingEmployeeShifts, setLoadingEmployeeShifts] = useState(false);
 
+  const showSuccess = (msg: string) => {
+    setSuccessMessage(msg);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  const goBack = () => {
+    setMode('landing');
+    setError(null);
+    setSuccessMessage(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-6">
+          {mode !== 'landing' && (
+            <button
+              onClick={goBack}
+              className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4 text-sm font-medium"
+            >
+              <ArrowLeftIcon className="h-4 w-4 mr-1" />
+              Quay lại
+            </button>
+          )}
+          <h1 className="text-2xl font-bold text-gray-900">Cấu hình ca làm</h1>
+        </div>
+
+        {/* Priority Rules Banner */}
+        <div className="mb-6 rounded-xl bg-blue-50 border border-blue-200 p-4">
+          <div className="flex items-start gap-3">
+            <InformationCircleIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-blue-800 mb-1">Quy chế ưu tiên ca làm</p>
+              <div className="flex flex-wrap items-center gap-1 text-sm text-blue-700">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs font-medium">
+                  Cá nhân
+                </span>
+                <ChevronRightIcon className="h-3 w-3" />
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-500 text-white text-xs font-medium">
+                  Vị trí
+                </span>
+                <ChevronRightIcon className="h-3 w-3" />
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-400 text-white text-xs font-medium">
+                  Phòng ban
+                </span>
+                <ChevronRightIcon className="h-3 w-3" />
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-300 text-white text-xs font-medium">
+                  Toàn công ty
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-blue-600">
+                Ca làm gán trực tiếp cho cá nhân có độ ưu tiên cao nhất. Nếu không có, hệ thống áp
+                dụng ca của vị trí → phòng ban → toàn công ty.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Alerts */}
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-4 flex items-start">
+            <XMarkIcon className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800">Lỗi</p>
+              <p className="mt-0.5 text-sm text-red-700">{error}</p>
+            </div>
+            <button onClick={() => setError(null)} className="ml-2 text-red-400 hover:text-red-600">
+              <XMarkIcon className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        {successMessage && (
+          <div className="mb-4 rounded-lg bg-green-50 border border-green-200 p-4 flex items-start">
+            <CheckIcon className="h-5 w-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
+            <p className="text-sm font-medium text-green-800">{successMessage}</p>
+          </div>
+        )}
+
+        {/* Views */}
+        {mode === 'landing' && (
+          <LandingView onSelect={setMode} />
+        )}
+        {mode === 'individual' && (
+          <IndividualMode
+            setError={setError}
+            showSuccess={showSuccess}
+          />
+        )}
+        {mode === 'position' && (
+          <EntityMode
+            type="position"
+            setError={setError}
+            showSuccess={showSuccess}
+          />
+        )}
+        {mode === 'department' && (
+          <EntityMode
+            type="department"
+            setError={setError}
+            showSuccess={showSuccess}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Landing View ────────────────────────────────────────────────────────────
+
+const LandingView: React.FC<{ onSelect: (mode: ConfigMode) => void }> = ({ onSelect }) => (
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <button
+      onClick={() => onSelect('individual')}
+      className="group flex flex-col items-center p-8 bg-white rounded-2xl border-2 border-gray-200 hover:border-blue-500 hover:shadow-lg transition-all text-center"
+    >
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 group-hover:bg-blue-600 transition-colors">
+        <UserIcon className="h-7 w-7 text-blue-600 group-hover:text-white transition-colors" />
+      </div>
+      <p className="font-semibold text-gray-900 mb-1">Cá nhân</p>
+      <p className="text-xs text-gray-500">Gán ca làm cho từng nhân viên (ưu tiên cao nhất)</p>
+    </button>
+
+    <button
+      onClick={() => onSelect('position')}
+      className="group flex flex-col items-center p-8 bg-white rounded-2xl border-2 border-gray-200 hover:border-indigo-500 hover:shadow-lg transition-all text-center"
+    >
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100 group-hover:bg-indigo-600 transition-colors">
+        <BriefcaseIcon className="h-7 w-7 text-indigo-600 group-hover:text-white transition-colors" />
+      </div>
+      <p className="font-semibold text-gray-900 mb-1">Vị trí</p>
+      <p className="text-xs text-gray-500">Áp dụng ca cho toàn bộ nhân viên ở một vị trí</p>
+    </button>
+
+    <button
+      onClick={() => onSelect('department')}
+      className="group flex flex-col items-center p-8 bg-white rounded-2xl border-2 border-gray-200 hover:border-purple-500 hover:shadow-lg transition-all text-center"
+    >
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-purple-100 group-hover:bg-purple-600 transition-colors">
+        <BuildingOfficeIcon className="h-7 w-7 text-purple-600 group-hover:text-white transition-colors" />
+      </div>
+      <p className="font-semibold text-gray-900 mb-1">Phòng ban</p>
+      <p className="text-xs text-gray-500">Áp dụng ca cho toàn bộ nhân viên trong phòng ban</p>
+    </button>
+  </div>
+);
+
+// ─── Shift Card ───────────────────────────────────────────────────────────────
+
+const ShiftCard: React.FC<{
+  shift: ShiftConfig;
+  highlight?: boolean;
+  action?: React.ReactNode;
+}> = ({ shift, highlight, action }) => (
+  <div
+    className={`flex items-center justify-between p-4 rounded-lg border ${
+      highlight ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'
+    }`}
+  >
+    <div className="flex items-center gap-3 flex-1 min-w-0">
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100">
+        <ClockIcon className="h-5 w-5 text-gray-600" />
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="font-semibold text-gray-900 text-sm truncate">{shift.name}</p>
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono bg-gray-100 text-gray-600">
+            {shift.code}
+          </span>
+          {highlight && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 font-medium">
+              Phù hợp
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-gray-500 mt-0.5">
+          {shift.start_time} – {shift.end_time} · {shift.total_hours}h
+          {shift.shift_type_display ? ` · ${shift.shift_type_display}` : ''}
+        </p>
+      </div>
+    </div>
+    {action && <div className="ml-3 flex-shrink-0">{action}</div>}
+  </div>
+);
+
+// ─── Individual Mode ──────────────────────────────────────────────────────────
+
+const IndividualMode: React.FC<{
+  setError: (e: string | null) => void;
+  showSuccess: (m: string) => void;
+}> = ({ setError, showSuccess }) => {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
+  const [currentShifts, setCurrentShifts] = useState<ShiftConfig[]>([]);
+  const [loadingShifts, setLoadingShifts] = useState(false);
+  const [allShifts, setAllShifts] = useState<ShiftConfig[]>([]);
+  const [loadingAllShifts, setLoadingAllShifts] = useState(false);
+  const [filterStart, setFilterStart] = useState('');
+  const [filterEnd, setFilterEnd] = useState('');
+  const [assigning, setAssigning] = useState<number | null>(null);
+  const [removing, setRemoving] = useState<number | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
   useEffect(() => {
-    fetchShifts();
-  }, [currentPage]);
-
-  const fetchShifts = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await companyConfigAPI.listShiftConfigs({
-        page: currentPage,
-        page_size: 50,
-        is_current: 'all',
-      });
-      setShifts(response.results);
-      setTotalPages(Math.ceil(response.count / 50));
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Lỗi khi tải danh sách ca làm');
-      console.error('Error fetching shifts:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSelectShift = async (shift: ShiftConfig) => {
-    setSelectedShift(shift);
-    setLoadingAssignOptions(true);
-    setError(null);
-    setSuccessMessage(null);
-
-    try {
-      const response = await companyConfigAPI.getShiftConfigAssignOptions(shift.id);
-      setAssignOptions(response);
-
-      setSelectedItems({
-        employees: response.current_assignments.employees.map((e: any) => e.id),
-        positions: response.current_assignments.positions.map((p: any) => p.id),
-        departments: response.current_assignments.departments.map((d: any) => d.id),
-      });
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Lỗi khi tải thông tin gán ca');
-      console.error('Error fetching assign options:', err);
-    } finally {
-      setLoadingAssignOptions(false);
-    }
-  };
-
-  const handleItemToggle = (type: AssignmentTab, id: number) => {
-    if ((type === 'positions' || type === 'departments') && selectedItems[type].includes(id)) {
-      (async () => {
-        try {
-          let employeesToRemove: number[] = [];
-          if (type === 'positions') {
-            const posEmployees = await positionsAPI.employees(id, { page_size: 1000 });
-            employeesToRemove = posEmployees.results.map((e: any) => e.id);
-          } else if (type === 'departments') {
-            const deptEmployees = await departmentsAPI.employees(id, { page_size: 1000 });
-            employeesToRemove = deptEmployees.results.map((e: any) => e.id);
-          }
-
-          setSelectedItems((prev) => ({
-            ...prev,
-            [type]: prev[type].filter((item) => item !== id),
-            employees: prev.employees.filter((empId) => !employeesToRemove.includes(empId)),
-          }));
-        } catch (err) {
-          console.error(`Error removing employees from ${type}:`, err);
-          setSelectedItems((prev) => ({
-            ...prev,
-            [type]: prev[type].filter((item) => item !== id),
-          }));
-        }
-      })();
-    } else {
-      setSelectedItems((prev) => {
-        const items = prev[type];
-        if (items.includes(id)) {
-          return { ...prev, [type]: items.filter((item) => item !== id) };
-        } else {
-          return { ...prev, [type]: [...items, id] };
-        }
-      });
-    }
-  };
-
-  const handleApplyAssignment = async () => {
-    if (!selectedShift) return;
-
-    setAssigning(true);
-    setError(null);
-
-    try {
-      let allEmployeeIds = [...selectedItems.employees];
-
-      if (selectedItems.departments.length > 0) {
-        for (const deptId of selectedItems.departments) {
-          try {
-            const deptEmployees = await departmentsAPI.employees(deptId, { page_size: 1000 });
-            const deptEmployeeIds = deptEmployees.results.map((emp: any) => emp.id);
-            allEmployeeIds = [...new Set([...allEmployeeIds, ...deptEmployeeIds])];
-          } catch (err) {
-            console.error(`Error fetching employees for department ${deptId}:`, err);
-          }
-        }
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
       }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
-      if (selectedItems.positions.length > 0) {
-        for (const posId of selectedItems.positions) {
-          try {
-            const posEmployees = await positionsAPI.employees(posId, { page_size: 1000 });
-            const posEmployeeIds = posEmployees.results.map((emp: any) => emp.id);
-            allEmployeeIds = [...new Set([...allEmployeeIds, ...posEmployeeIds])];
-          } catch (err) {
-            console.error(`Error fetching employees for position ${posId}:`, err);
-          }
-        }
+  // Debounced employee search
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      setShowDropdown(false);
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await employeesAPI.list({ search: query.trim(), page_size: 10 });
+        setResults(res.results || []);
+        setShowDropdown(true);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
       }
+    }, 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query]);
 
-      const response = await companyConfigAPI.assignShiftConfig(selectedShift.id, {
-        employee_ids: allEmployeeIds,
-        ...(selectedItems.positions.length > 0 && { position_ids: selectedItems.positions }),
-        ...(selectedItems.departments.length > 0 && { department_ids: selectedItems.departments }),
+  // Load all shifts once
+  useEffect(() => {
+    setLoadingAllShifts(true);
+    companyConfigAPI
+      .listShiftConfigs({ page_size: 200, is_current: 'all' })
+      .then((res) => setAllShifts(res.results || []))
+      .catch(() => setAllShifts([]))
+      .finally(() => setLoadingAllShifts(false));
+  }, []);
+
+  const selectEmployee = async (emp: any) => {
+    setSelectedEmployee(emp);
+    setQuery(emp.full_name);
+    setShowDropdown(false);
+    setError(null);
+    setLoadingShifts(true);
+    try {
+      const res: any = await companyConfigAPI.getEmployeeShiftConfigs(emp.id);
+      const shifts: ShiftConfig[] = Array.isArray(res) ? res : res?.results ?? [];
+      setCurrentShifts(shifts);
+    } catch {
+      setCurrentShifts([]);
+    } finally {
+      setLoadingShifts(false);
+    }
+  };
+
+  const assignShift = async (shift: ShiftConfig) => {
+    if (!selectedEmployee) return;
+    setAssigning(shift.id);
+    setError(null);
+    try {
+      await companyConfigAPI.assignShiftConfig(shift.id, {
+        employee_ids: [selectedEmployee.id],
       });
-
-      setSuccessMessage(response.message || 'Cấu hình ca làm thành công!');
-      setSelectedShift(null);
-      setAssignOptions(null);
-      fetchShifts();
-
-      setTimeout(() => setSuccessMessage(null), 3000);
+      showSuccess(`Đã gán ca "${shift.name}" cho ${selectedEmployee.full_name}`);
+      // Refresh current shifts
+      const res: any = await companyConfigAPI.getEmployeeShiftConfigs(selectedEmployee.id);
+      setCurrentShifts(Array.isArray(res) ? res : res?.results ?? []);
     } catch (err: any) {
-      const errorMessage = err.response?.data?.errors
-        ? Object.entries(err.response.data.errors)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(', ')
-        : err.response?.data?.detail || 'Lỗi khi cấu hình ca làm';
-      setError(errorMessage);
-      console.error('Error assigning shift:', err);
+      setError(err.response?.data?.detail || 'Lỗi khi gán ca làm');
     } finally {
-      setAssigning(false);
+      setAssigning(null);
     }
   };
 
-  const handleBackToList = () => {
-    setSelectedShift(null);
-    setAssignOptions(null);
-    setSelectedItems({ employees: [], positions: [], departments: [] });
-    setEmployeeSearchQuery('');
-    setPositionSearchQuery('');
-    setDepartmentSearchQuery('');
+  const removeShift = async (shift: ShiftConfig) => {
+    if (!selectedEmployee) return;
+    setRemoving(shift.id);
     setError(null);
-    setSuccessMessage(null);
-  };
-
-  const handleViewEmployeeShifts = async (employee: any) => {
-    setSelectedEmployeeForShifts({
-      employee_id: employee.id,
-      full_name: employee.full_name,
-      employee_code: employee.employee_id || '',
-      current_shifts: [],
-    });
-    setLoadingEmployeeShifts(true);
-    setShowEmployeeShiftsModal(true);
-    setError(null);
-
     try {
-      // FIX: Fetch ALL shifts of this employee — do NOT filter by selectedShift
-      const response: any = await companyConfigAPI.getEmployeeShiftConfigs(employee.id);
-
-      let employeeShifts: ShiftConfig[] = [];
-      if (Array.isArray(response)) {
-        employeeShifts = response;
-      } else if (response?.results && Array.isArray(response.results)) {
-        employeeShifts = response.results;
-      }
-
-      // No filtering here — show all shifts this employee belongs to
-      console.log(`Employee ${employee.id} (${employee.full_name}) all shifts:`, employeeShifts);
-
-      setSelectedEmployeeForShifts((prev) =>
-        prev ? { ...prev, current_shifts: employeeShifts } : null
-      );
-    } catch (err: any) {
-      console.error('Error fetching employee shifts:', err);
-      setSelectedEmployeeForShifts((prev) =>
-        prev ? { ...prev, current_shifts: [] } : null
-      );
-      setError('Lỗi khi tải ca làm của nhân viên');
-    } finally {
-      setLoadingEmployeeShifts(false);
-    }
-  };
-
-  const handleCloseModal = () => {
-    setShowEmployeeShiftsModal(false);
-    setSelectedEmployeeForShifts(null);
-  };
-
-  const handleRemoveShiftFromEmployee = async (employeeId: number, shiftId: number) => {
-    try {
-      // Gọi endpoint mới — chỉ remove employee khỏi direct assignment
-      // Không đụng đến department/position assignments
-      await companyConfigAPI.removeEmployeeFromShift(shiftId, employeeId);
-
-      setSuccessMessage('Đã xóa ca làm khỏi nhân viên');
-
-      // Refresh modal với shifts mới của employee
-      if (selectedEmployeeForShifts) {
-        const updatedResponse: any = await companyConfigAPI.getEmployeeShiftConfigs(employeeId);
-        let updatedShifts: ShiftConfig[] = [];
-        if (Array.isArray(updatedResponse)) {
-          updatedShifts = updatedResponse;
-        } else if (updatedResponse?.results && Array.isArray(updatedResponse.results)) {
-          updatedShifts = updatedResponse.results;
-        }
-
-        setSelectedEmployeeForShifts((prev) =>
-          prev ? { ...prev, current_shifts: updatedShifts } : null
-        );
-
-        // Nếu employee không còn ca nào → bỏ tick + đóng modal
-        if (updatedShifts.length === 0) {
-          setSelectedItems((prev) => ({
-            ...prev,
-            employees: prev.employees.filter((id) => id !== employeeId),
-          }));
-          setTimeout(handleCloseModal, 500);
-        }
-      }
-
-      // Refresh danh sách shift chính
-      fetchShifts();
-      setTimeout(() => setSuccessMessage(null), 3000);
+      await companyConfigAPI.removeEmployeeFromShift(shift.id, selectedEmployee.id);
+      showSuccess(`Đã xóa ca "${shift.name}" khỏi ${selectedEmployee.full_name}`);
+      setCurrentShifts((prev) => prev.filter((s) => s.id !== shift.id));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Lỗi khi xóa ca làm');
-      console.error('Error removing shift from employee:', err);
+    } finally {
+      setRemoving(null);
     }
   };
 
-const filteredEmployees = assignOptions
-  ? (() => {
-      const query = employeeSearchQuery.trim().toLowerCase();
-      const unique = assignOptions.available_options.employees.filter(
-        (item: any, index: number, self: any[]) =>
-          index === self.findIndex((x: any) => x.id === item.id)
-      );
-      if (!query) return unique;
-      return unique.filter((employee: any) =>
-        (employee.full_name?.toLowerCase() || '').includes(query) ||
-        (employee.employee_id?.toLowerCase() || '').includes(query)
-      );
-    })()
-  : [];
+  const assignedIds = new Set(currentShifts.map((s) => s.id));
 
-const filteredPositions = assignOptions
-  ? (() => {
-      const query = positionSearchQuery.trim().toLowerCase();
-      const unique = assignOptions.available_options.positions.filter(
-        (item: any, index: number, self: any[]) =>
-          index === self.findIndex((x: any) => x.id === item.id)
-      );
-      if (!query) return unique;
-      return unique.filter((position: any) =>
-        (position.title?.toLowerCase() || '').includes(query) ||
-        (position.name?.toLowerCase() || '').includes(query) ||   // fallback nếu API dùng 'name'
-        (position.code?.toLowerCase() || '').includes(query)
-      );
-    })()
-  : [];
+  const filteredShifts = allShifts.filter((s) => {
+    if (assignedIds.has(s.id)) return false;
+    if (filterStart && s.start_time !== filterStart) return false;
+    if (filterEnd && s.end_time !== filterEnd) return false;
+    return true;
+  });
 
-const filteredDepartments = assignOptions
-  ? (() => {
-      const query = departmentSearchQuery.trim().toLowerCase();
-      const unique = assignOptions.available_options.departments.filter(
-        (item: any, index: number, self: any[]) =>
-          index === self.findIndex((x: any) => x.id === item.id)
-      );
-      if (!query) return unique;
-      return unique.filter((department: any) =>
-        (department.name?.toLowerCase() || '').includes(query) ||
-        (department.code?.toLowerCase() || '').includes(query)
-      );
-    })()
-  : [];
+  // Highlight shifts that match both time filters when provided
+  const isMatch = (s: ShiftConfig) =>
+    Boolean(filterStart || filterEnd) &&
+    (!filterStart || s.start_time === filterStart) &&
+    (!filterEnd || s.end_time === filterEnd);
 
-  // ─── VIEW 1: List of Shifts ───────────────────────────────────────────────
-  if (!selectedShift || !assignOptions) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Cấu hình ca làm</h1>
-            <p className="mt-2 text-gray-600">
-              Chọn một ca làm để cấu hình các nhân viên, vị trí hoặc phòng ban áp dụng ca làm này.
-            </p>
-          </div>
+  const sortedShifts = [...filteredShifts].sort((a, b) =>
+    isMatch(b) ? 1 : isMatch(a) ? -1 : 0
+  );
 
-          {error && (
-            <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4 flex items-start">
-              <XMarkIcon className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-medium text-red-800">Lỗi</h3>
-                <p className="mt-1 text-sm text-red-700">{error}</p>
-              </div>
-            </div>
+  return (
+    <div className="space-y-6">
+      {/* Employee Search */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <UserIcon className="h-5 w-5 text-blue-600" />
+          Tìm nhân viên
+        </h2>
+        <div className="relative" ref={dropdownRef}>
+          <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
+          {searching && (
+            <div className="absolute right-3 top-3 h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           )}
-
-          {successMessage && (
-            <div className="mb-6 rounded-lg bg-green-50 border border-green-200 p-4 flex items-start">
-              <CheckIcon className="h-5 w-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-medium text-green-800">Thành công</h3>
-                <p className="mt-1 text-sm text-green-700">{successMessage}</p>
-              </div>
-            </div>
-          )}
-
-          {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-24 bg-gray-200 rounded-lg animate-pulse"></div>
-              ))}
-            </div>
-          ) : shifts.length === 0 ? (
-            <div className="rounded-lg bg-white border border-gray-200 p-12 text-center">
-              <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">Không có ca làm nào</h3>
-              <p className="mt-2 text-gray-600">Vui lòng tạo ca làm trước.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {shifts.map((shift) => (
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (selectedEmployee && e.target.value !== selectedEmployee.full_name) {
+                setSelectedEmployee(null);
+                setCurrentShifts([]);
+              }
+            }}
+            placeholder="Nhập mã hoặc tên nhân viên..."
+            className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+          />
+          {showDropdown && results.length > 0 && (
+            <div className="absolute z-20 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-60 overflow-y-auto">
+              {results.map((emp) => (
                 <button
-                  key={shift.id}
-                  onClick={() => handleSelectShift(shift)}
-                  className="w-full text-left bg-white rounded-lg border border-gray-200 p-6 hover:border-blue-500 hover:shadow-md transition-all"
+                  key={emp.id}
+                  onMouseDown={() => selectEmployee(emp)}
+                  className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100 last:border-0"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center">
-                        <h3 className="text-lg font-semibold text-gray-900">{shift.name}</h3>
-                        <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {shift.code}
-                        </span>
-                        {shift.is_active ? (
-                          <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Hoạt động
-                          </span>
-                        ) : (
-                          <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            Vô hiệu
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-600">Giờ làm</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {shift.start_time} - {shift.end_time}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Tổng giờ</p>
-                          <p className="text-sm font-medium text-gray-900">{shift.total_hours} giờ</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Loại ca</p>
-                          <p className="text-sm font-medium text-gray-900">{shift.shift_type_display}</p>
-                        </div>
-                      </div>
-
-                      {shift.description && (
-                        <p className="mt-3 text-sm text-gray-600">{shift.description}</p>
-                      )}
-                    </div>
-
-                    <div className="ml-4 flex flex-col items-end space-y-2">
-                      <EyeIcon className="h-5 w-5 text-blue-500" />
-                      <span className="text-xs text-gray-600">Cấu hình</span>
-                    </div>
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-semibold text-sm">
+                    {emp.full_name?.charAt(0) || '?'}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{emp.full_name}</p>
+                    <p className="text-xs text-gray-500 font-mono">{emp.employee_id}</p>
                   </div>
                 </button>
               ))}
             </div>
           )}
-
-          {totalPages > 1 && (
-            <div className="mt-8 flex justify-center items-center space-x-2">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-2 rounded border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Trước
-              </button>
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-2 rounded text-sm font-medium ${
-                      currentPage === page
-                        ? 'bg-blue-500 text-white'
-                        : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-2 rounded border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Tiếp
-              </button>
+          {showDropdown && !searching && results.length === 0 && query.trim() && (
+            <div className="absolute z-20 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg p-4 text-center text-sm text-gray-500">
+              Không tìm thấy nhân viên
             </div>
           )}
         </div>
-      </div>
-    );
-  }
 
-  // ─── VIEW 2: Assignment Configuration + Modal overlay ────────────────────
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      {/* FIX: Modal is an overlay on top of View 2, not a separate view */}
-      {showEmployeeShiftsModal && selectedEmployeeForShifts && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="border-b border-gray-200 p-6 flex items-center justify-between flex-shrink-0">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  Ca làm của: {selectedEmployeeForShifts.full_name}
-                </h2>
-                <p className="text-sm text-gray-600 mt-0.5">
-                  Mã nhân viên: {selectedEmployeeForShifts.employee_code}
-                </p>
-              </div>
-              <button onClick={handleCloseModal} className="text-gray-400 hover:text-gray-600 ml-4">
-                <XMarkIcon className="h-6 w-6" />
-              </button>
+        {selectedEmployee && (
+          <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-white font-semibold text-sm">
+              {selectedEmployee.full_name?.charAt(0) || '?'}
             </div>
-
-            {/* Modal Content */}
-            <div className="p-6 overflow-y-auto flex-1">
-              {loadingEmployeeShifts ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 bg-gray-200 rounded animate-pulse"></div>
-                  ))}
-                </div>
-              ) : selectedEmployeeForShifts.current_shifts.length === 0 ? (
-                <div className="text-center py-8">
-                  <InformationCircleIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-gray-600 font-medium">Nhân viên này chưa được gán ca làm nào</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {selectedEmployeeForShifts.current_shifts.map((shift) => (
-                    <div
-                      key={shift.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold text-gray-900">{shift.name}</p>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {shift.code}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {shift.start_time} - {shift.end_time} ({shift.total_hours}h)
-                        </p>
-                      </div>
-                      <button
-                        onClick={() =>
-                          handleRemoveShiftFromEmployee(selectedEmployeeForShifts.employee_id, shift.id)
-                        }
-                        className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Xóa ca làm này khỏi nhân viên"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="border-t border-gray-200 p-4 flex justify-end flex-shrink-0">
-              <button
-                onClick={handleCloseModal}
-                className="px-6 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700"
-              >
-                Đóng
-              </button>
+            <div>
+              <p className="text-sm font-semibold text-blue-900">{selectedEmployee.full_name}</p>
+              <p className="text-xs text-blue-600 font-mono">{selectedEmployee.employee_id}</p>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Current Shifts */}
+      {selectedEmployee && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <ClockIcon className="h-5 w-5 text-gray-600" />
+            Ca làm hiện tại
+          </h2>
+          {loadingShifts ? (
+            <div className="space-y-3">
+              {[1, 2].map((i) => (
+                <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : currentShifts.length === 0 ? (
+            <p className="text-sm text-gray-500 italic">Chưa có ca làm nào được gán trực tiếp.</p>
+          ) : (
+            <div className="space-y-3">
+              {currentShifts.map((shift) => (
+                <ShiftCard
+                  key={shift.id}
+                  shift={shift}
+                  action={
+                    <button
+                      onClick={() => removeShift(shift)}
+                      disabled={removing === shift.id}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Xóa ca làm này khỏi nhân viên"
+                    >
+                      {removing === shift.id ? (
+                        <div className="h-4 w-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <TrashIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                  }
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={handleBackToList}
-            className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4"
-          >
-            <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            Quay lại
-          </button>
-          <h1 className="text-3xl font-bold text-gray-900">Cấu hình ca: {selectedShift.name}</h1>
-          <p className="mt-2 text-gray-600">
-            Chọn nhân viên, vị trí hoặc phòng ban để áp dụng ca làm này
-          </p>
-        </div>
+      {/* Assign New Shift */}
+      {selectedEmployee && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <CheckIcon className="h-5 w-5 text-green-600" />
+            Gán ca làm mới
+          </h2>
 
-        {/* Shift Details Card */}
-        <div className="mb-8 bg-white rounded-lg border border-gray-200 p-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {/* Time filter */}
+          <div className="mb-4 grid grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-600">Mã ca</p>
-              <p className="text-lg font-semibold text-gray-900">{selectedShift.code}</p>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Giờ check-in (tùy chọn)
+              </label>
+              <input
+                type="time"
+                value={filterStart}
+                onChange={(e) => setFilterStart(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Giờ bắt đầu</p>
-              <p className="text-lg font-semibold text-gray-900">{selectedShift.start_time}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Giờ kết thúc</p>
-              <p className="text-lg font-semibold text-gray-900">{selectedShift.end_time}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Tổng giờ</p>
-              <p className="text-lg font-semibold text-gray-900">{selectedShift.total_hours} giờ</p>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Giờ check-out (tùy chọn)
+              </label>
+              <input
+                type="time"
+                value={filterEnd}
+                onChange={(e) => setFilterEnd(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
           </div>
-        </div>
+          {(filterStart || filterEnd) && (
+            <button
+              onClick={() => { setFilterStart(''); setFilterEnd(''); }}
+              className="mb-4 text-xs text-blue-600 hover:underline"
+            >
+              Xóa bộ lọc
+            </button>
+          )}
 
-        {error && (
-          <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4 flex items-start">
-            <XMarkIcon className="h-5 w-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-medium text-red-800">Lỗi</h3>
-              <p className="mt-1 text-sm text-red-700">{error}</p>
+          {loadingAllShifts ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
             </div>
-          </div>
-        )}
-
-        {successMessage && (
-          <div className="mb-6 rounded-lg bg-green-50 border border-green-200 p-4 flex items-start">
-            <CheckIcon className="h-5 w-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-medium text-green-800">Thành công</h3>
-              <p className="mt-1 text-sm text-green-700">{successMessage}</p>
-            </div>
-          </div>
-        )}
-
-        {loadingAssignOptions ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 bg-gray-200 rounded-lg animate-pulse"></div>
-            ))}
-          </div>
-        ) : (
-          <>
-            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <strong>💡 Lưu ý:</strong> Khi bạn chọn một <strong>vị trí</strong> hoặc{' '}
-                <strong>phòng ban</strong>, tất cả nhân viên thuộc vị trí/phòng ban đó sẽ tự động
-                nhận được ca làm này.
+          ) : sortedShifts.length === 0 ? (
+            <div className="text-center py-6">
+              <InformationCircleIcon className="mx-auto h-10 w-10 text-gray-300 mb-2" />
+              <p className="text-sm text-gray-500">
+                {filterStart || filterEnd
+                  ? 'Không có ca phù hợp với giờ đã chọn.'
+                  : 'Tất cả ca làm đã được gán.'}
               </p>
             </div>
-
-            {/* Tab Navigation */}
-            <div className="mb-6 border-b border-gray-200">
-              <nav className="flex space-x-8" aria-label="Tabs">
-                {(['employees', 'positions', 'departments'] as AssignmentTab[]).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => {
-                      setAssignmentTab(tab);
-                      setEmployeeSearchQuery('');
-                      setPositionSearchQuery('');
-                      setDepartmentSearchQuery('');
-                    }}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                      assignmentTab === tab
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      {tab === 'employees' && <UserIcon className="h-5 w-5 mr-2" />}
-                      {tab === 'positions' && <BriefcaseIcon className="h-5 w-5 mr-2" />}
-                      {tab === 'departments' && <BuildingOfficeIcon className="h-5 w-5 mr-2" />}
-                      {tab === 'employees' && 'Nhân viên'}
-                      {tab === 'positions' && 'Vị trí'}
-                      {tab === 'departments' && 'Phòng ban'}
-                    </div>
-                  </button>
-                ))}
-              </nav>
+          ) : (
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+              {sortedShifts.map((shift) => (
+                <ShiftCard
+                  key={shift.id}
+                  shift={shift}
+                  highlight={isMatch(shift)}
+                  action={
+                    <button
+                      onClick={() => assignShift(shift)}
+                      disabled={assigning === shift.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      {assigning === shift.id ? (
+                        <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <CheckIcon className="h-3.5 w-3.5" />
+                      )}
+                      Gán
+                    </button>
+                  }
+                />
+              ))}
             </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
-            {/* Content Area */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Available Items */}
-              <div key={`available-${assignmentTab}`}>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {assignmentTab === 'employees' && 'Danh sách nhân viên'}
-                  {assignmentTab === 'positions' && 'Danh sách vị trí'}
-                  {assignmentTab === 'departments' && 'Danh sách phòng ban'}
-                </h3>
+// ─── Entity Mode (Position / Department) ─────────────────────────────────────
 
-                {assignmentTab === 'employees' && (
-                  <div className="mb-4 relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                    <input
-                      key={`employee-search-${assignmentTab}`}
-                      type="text"
-                      placeholder="Tìm kiếm theo mã nhân viên hoặc tên..."
-                      value={employeeSearchQuery}
-                      onChange={(e) => setEmployeeSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    />
+const EntityMode: React.FC<{
+  type: 'position' | 'department';
+  setError: (e: string | null) => void;
+  showSuccess: (m: string) => void;
+}> = ({ type, setError, showSuccess }) => {
+  const isPosition = type === 'position';
+  const label = isPosition ? 'vị trí' : 'phòng ban';
+
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
+  const [allShifts, setAllShifts] = useState<ShiftConfig[]>([]);
+  const [loadingAllShifts, setLoadingAllShifts] = useState(false);
+  const [filterStart, setFilterStart] = useState('');
+  const [filterEnd, setFilterEnd] = useState('');
+  const [assigning, setAssigning] = useState<number | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      setShowDropdown(false);
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const api = isPosition ? positionsAPI : departmentsAPI;
+        const res = await api.list({ search: query.trim(), page_size: 10 });
+        setResults(res.results || []);
+        setShowDropdown(true);
+      } catch {
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, isPosition]);
+
+  useEffect(() => {
+    setLoadingAllShifts(true);
+    companyConfigAPI
+      .listShiftConfigs({ page_size: 200, is_current: 'all' })
+      .then((res) => setAllShifts(res.results || []))
+      .catch(() => setAllShifts([]))
+      .finally(() => setLoadingAllShifts(false));
+  }, []);
+
+  const selectEntity = (entity: any) => {
+    setSelectedEntity(entity);
+    setQuery(entity.title || entity.name);
+    setShowDropdown(false);
+    setError(null);
+  };
+
+  const assignShift = async (shift: ShiftConfig) => {
+    if (!selectedEntity) return;
+    setAssigning(shift.id);
+    setError(null);
+    try {
+      const payload = isPosition
+        ? { position_ids: [selectedEntity.id] }
+        : { department_ids: [selectedEntity.id] };
+      await companyConfigAPI.assignShiftConfig(shift.id, payload);
+      showSuccess(
+        `Đã gán ca "${shift.name}" cho ${label} "${selectedEntity.title || selectedEntity.name}"`
+      );
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Lỗi khi gán ca làm');
+    } finally {
+      setAssigning(null);
+    }
+  };
+
+  const filteredShifts = allShifts.filter((s) => {
+    if (filterStart && s.start_time !== filterStart) return false;
+    if (filterEnd && s.end_time !== filterEnd) return false;
+    return true;
+  });
+
+  const isMatch = (s: ShiftConfig) =>
+    Boolean(filterStart || filterEnd) &&
+    (!filterStart || s.start_time === filterStart) &&
+    (!filterEnd || s.end_time === filterEnd);
+
+  const sortedShifts = [...filteredShifts].sort((a, b) =>
+    isMatch(b) ? 1 : isMatch(a) ? -1 : 0
+  );
+
+  const IconComp = isPosition ? BriefcaseIcon : BuildingOfficeIcon;
+
+  // Explicit class sets to avoid Tailwind purging dynamic classes
+  const iconClass = isPosition ? 'h-5 w-5 text-indigo-600' : 'h-5 w-5 text-purple-600';
+  const avatarRingClass = isPosition
+    ? 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm'
+    : 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-700 font-semibold text-sm';
+  const selectedBannerClass = isPosition
+    ? 'mt-3 flex items-center gap-3 p-3 rounded-lg bg-indigo-50 border border-indigo-200'
+    : 'mt-3 flex items-center gap-3 p-3 rounded-lg bg-purple-50 border border-purple-200';
+  const selectedAvatarClass = isPosition
+    ? 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold text-sm'
+    : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-purple-600 text-white font-semibold text-sm';
+  const selectedNameClass = isPosition
+    ? 'text-sm font-semibold text-indigo-900'
+    : 'text-sm font-semibold text-purple-900';
+  const selectedCodeClass = isPosition
+    ? 'text-xs text-indigo-600 font-mono'
+    : 'text-xs text-purple-600 font-mono';
+
+  return (
+    <div className="space-y-6">
+      {/* Entity Search */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <IconComp className={iconClass} />
+          Tìm {label}
+        </h2>
+        <div className="relative" ref={dropdownRef}>
+          <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
+          {searching && (
+            <div className="absolute right-3 top-3 h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          )}
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (selectedEntity) setSelectedEntity(null);
+            }}
+            placeholder={`Nhập mã hoặc tên ${label}...`}
+            className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+          />
+          {showDropdown && results.length > 0 && (
+            <div className="absolute z-20 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-60 overflow-y-auto">
+              {results.map((item) => (
+                <button
+                  key={item.id}
+                  onMouseDown={() => selectEntity(item)}
+                  className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100 last:border-0"
+                >
+                  <div className={avatarRingClass}>
+                    {(item.title || item.name)?.charAt(0) || '?'}
                   </div>
-                )}
-
-                {assignmentTab === 'positions' && (
-                  <div className="mb-4 relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                    <input
-                      key={`position-search-${assignmentTab}`}
-                      type="text"
-                      placeholder="Tìm kiếm theo mã vị trí hoặc tên..."
-                      value={positionSearchQuery}
-                      onChange={(e) => setPositionSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{item.title || item.name}</p>
+                    {item.code && (
+                      <p className="text-xs text-gray-500 font-mono">{item.code}</p>
+                    )}
                   </div>
-                )}
-
-                {assignmentTab === 'departments' && (
-                  <div className="mb-4 relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                    <input
-                      key={`department-search-${assignmentTab}`}
-                      type="text"
-                      placeholder="Tìm kiếm theo mã phòng ban hoặc tên..."
-                      value={departmentSearchQuery}
-                      onChange={(e) => setDepartmentSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                )}
-
-                {(assignmentTab === 'positions' || assignmentTab === 'departments') && (
-                  <div className="mb-4 text-sm text-gray-600 italic p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    ✓ Tất cả nhân viên thuộc{' '}
-                    {assignmentTab === 'positions' ? 'vị trí' : 'phòng ban'} này sẽ nhận được ca
-                    làm này
-                  </div>
-                )}
-
-                <div key={`list-${assignmentTab}`} className="bg-white rounded-lg border border-gray-200">
-                  {(assignmentTab === 'employees'
-                    ? filteredEmployees
-                    : assignmentTab === 'positions'
-                    ? filteredPositions
-                    : filteredDepartments
-                  ).length === 0 ? (
-                    <div className="p-8 text-center">
-                      <InformationCircleIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                      <p className="text-gray-600">
-                        Không có{' '}
-                        {assignmentTab === 'employees'
-                          ? 'nhân viên'
-                          : assignmentTab === 'positions'
-                          ? 'vị trí'
-                          : 'phòng ban'}{' '}
-                        nào
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-                      {(assignmentTab === 'employees'
-                        ? filteredEmployees
-                        : assignmentTab === 'positions'
-                        ? filteredPositions
-                        : filteredDepartments
-                      ).map((item: any) => (
-                        <div
-                          key={`${assignmentTab}-${item.id}`}
-                          className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-                        >
-                          <label className="flex items-center flex-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedItems[assignmentTab].includes(item.id)}
-                              onChange={() => handleItemToggle(assignmentTab, item.id)}
-                              className="h-4 w-4 text-blue-600 rounded cursor-pointer"
-                            />
-                            <div className="ml-3 flex-1">
-                              <p className="text-sm font-medium text-gray-900">
-                                {assignmentTab === 'employees' && (item.full_name || 'N/A')}
-                                {assignmentTab === 'positions' && (item.title || item.name || 'N/A')}
-                                {assignmentTab === 'departments' && (item.name || 'N/A')}
-                              </p>
-                              {assignmentTab === 'employees' && item.employee_id && (
-                                <p className="text-xs text-gray-600 font-mono">{item.employee_id}</p>
-                              )}
-                              {assignmentTab === 'positions' && item.code && (
-                                <p className="text-xs text-gray-600">{item.code}</p>
-                              )}
-                              {assignmentTab === 'positions' && item.department && (
-                                <p className="text-xs text-gray-600">
-                                  {Array.isArray(item.department)
-                                    ? item.department.map((d: any) => d.name).join(', ')
-                                    : item.department.name}
-                                </p>
-                              )}
-                              {assignmentTab === 'departments' && item.code && (
-                                <p className="text-xs text-gray-600">{item.code}</p>
-                              )}
-                              {assignmentTab === 'employees' && item.department__name && (
-                                <p className="text-xs text-gray-600">{item.department__name}</p>
-                              )}
-                            </div>
-                          </label>
-
-                          {assignmentTab === 'employees' && (
-                            <button
-                              onClick={() => handleViewEmployeeShifts(item)}
-                              title="Xem tất cả ca làm của nhân viên này"
-                              className="ml-2 p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                            >
-                              <EyeIcon className="h-5 w-5" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Selected Items */}
-              <div key={`selected-${assignmentTab}`}>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {assignmentTab === 'employees' && 'Nhân viên được chọn'}
-                  {assignmentTab === 'positions' && 'Vị trí được chọn'}
-                  {assignmentTab === 'departments' && 'Phòng ban được chọn'}
-                  <span className="ml-2 text-sm font-normal text-gray-600">
-                    ({selectedItems[assignmentTab].length})
-                  </span>
-                </h3>
-
-                <div className="bg-white rounded-lg border border-gray-200">
-                  {selectedItems[assignmentTab].length === 0 ? (
-                    <div className="p-8 text-center">
-                      <InformationCircleIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                      <p className="text-gray-600">Chưa chọn</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-                      {selectedItems[assignmentTab]
-                        .map((itemId) =>
-                          assignOptions.available_options[assignmentTab].find(
-                            (i: any) => i.id === itemId
-                          )
-                        )
-                        .filter(Boolean)
-                        .map((item: any) => (
-                          <div
-                            key={`${assignmentTab}-${item.id}`}
-                            className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-                          >
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {assignmentTab === 'employees' && (item.full_name || 'N/A')}
-                                {assignmentTab === 'positions' && (item.title || item.name || 'N/A')}
-                                {assignmentTab === 'departments' && (item.name || 'N/A')}
-                              </p>
-                              {assignmentTab === 'employees' && item.employee_id && (
-                                <p className="text-xs text-gray-600">{item.employee_id}</p>
-                              )}
-                              {assignmentTab === 'positions' && item.code && (
-                                <p className="text-xs text-gray-600">{item.code}</p>
-                              )}
-                              {assignmentTab === 'positions' && item.department && (
-                                <p className="text-xs text-gray-600">
-                                  {Array.isArray(item.department)
-                                    ? item.department.map((d: any) => d.name).join(', ')
-                                    : item.department.name}
-                                </p>
-                              )}
-                              {assignmentTab === 'departments' && item.code && (
-                                <p className="text-xs text-gray-600">{item.code}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              {assignmentTab === 'employees' && (
-                                <button
-                                  onClick={() => handleViewEmployeeShifts(item)}
-                                  title="Xem tất cả ca làm của nhân viên này"
-                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                >
-                                  <EyeIcon className="h-5 w-5" />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleItemToggle(assignmentTab, item.id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                              >
-                                <XMarkIcon className="h-5 w-5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+                </button>
+              ))}
             </div>
-
-            {/* Action Buttons */}
-            <div className="mt-8 flex justify-end space-x-4">
-              <button
-                onClick={handleBackToList}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleApplyAssignment}
-                disabled={assigning}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-              >
-                {assigning ? (
-                  <>
-                    <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Đang xử lý...
-                  </>
-                ) : (
-                  <>
-                    <CheckIcon className="h-5 w-5 mr-2" />
-                    Áp dụng
-                  </>
-                )}
-              </button>
+          )}
+          {showDropdown && !searching && results.length === 0 && query.trim() && (
+            <div className="absolute z-20 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg p-4 text-center text-sm text-gray-500">
+              Không tìm thấy {label}
             </div>
-          </>
+          )}
+        </div>
+
+        {selectedEntity && (
+          <div className={selectedBannerClass}>
+            <div className={selectedAvatarClass}>
+              {(selectedEntity.title || selectedEntity.name)?.charAt(0) || '?'}
+            </div>
+            <div>
+              <p className={selectedNameClass}>
+                {selectedEntity.title || selectedEntity.name}
+              </p>
+              {selectedEntity.code && (
+                <p className={selectedCodeClass}>{selectedEntity.code}</p>
+              )}
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Assign Shift */}
+      {selectedEntity && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <CheckIcon className="h-5 w-5 text-green-600" />
+            Chọn ca làm để gán
+          </h2>
+          <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
+            Tất cả nhân viên thuộc {label} này sẽ áp dụng ca được chọn (nếu không có ca riêng cá nhân).
+          </div>
+
+          {/* Time filter */}
+          <div className="mb-4 grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Giờ check-in (tùy chọn)
+              </label>
+              <input
+                type="time"
+                value={filterStart}
+                onChange={(e) => setFilterStart(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Giờ check-out (tùy chọn)
+              </label>
+              <input
+                type="time"
+                value={filterEnd}
+                onChange={(e) => setFilterEnd(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+          {(filterStart || filterEnd) && (
+            <button
+              onClick={() => { setFilterStart(''); setFilterEnd(''); }}
+              className="mb-4 text-xs text-blue-600 hover:underline"
+            >
+              Xóa bộ lọc
+            </button>
+          )}
+
+          {loadingAllShifts ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : sortedShifts.length === 0 ? (
+            <div className="text-center py-6">
+              <InformationCircleIcon className="mx-auto h-10 w-10 text-gray-300 mb-2" />
+              <p className="text-sm text-gray-500">Không có ca nào phù hợp với bộ lọc.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+              {sortedShifts.map((shift) => (
+                <ShiftCard
+                  key={shift.id}
+                  shift={shift}
+                  highlight={isMatch(shift)}
+                  action={
+                    <button
+                      onClick={() => assignShift(shift)}
+                      disabled={assigning === shift.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                    >
+                      {assigning === shift.id ? (
+                        <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <CheckIcon className="h-3.5 w-3.5" />
+                      )}
+                      Gán
+                    </button>
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
