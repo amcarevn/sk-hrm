@@ -26,6 +26,8 @@ import {
   SparklesIcon,
   ClipboardDocumentListIcon,
   CurrencyDollarIcon,
+  TrophyIcon,
+  GiftIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -36,6 +38,7 @@ interface NavigationItem {
   roles: string[];
   departments?: string[]; // Optional department codes
   employeePermission?: string; // Optional employee_permission key that grants access
+  children?: NavigationItem[]; // Sub-items for collapsible groups
 }
 
 // Define navigation items with role requirements
@@ -102,6 +105,20 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard/attendance',
     icon: ClockIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
+  {
+    name: 'Khen thưởng & Kỷ luật',
+    href: '/dashboard/rewards',
+    icon: GiftIcon,
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+    children: [
+      {
+        name: 'Xếp hạng chấm công',
+        href: '/dashboard/attendance/ranking',
+        icon: TrophyIcon,
+        roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+      },
+    ],
   },
   {
     name: 'Quản lý chấm công',
@@ -209,6 +226,7 @@ interface SidebarProps {
 export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const location = useLocation();
   const { user, loading } = useAuth();
 
@@ -247,30 +265,45 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   // Get employee_permission from user profile
   const employeePermission = user?.employee_permission;
 
+  const canAccessItem = (item: NavigationItem): boolean => {
+    // 1. Check if item requires a specific employee permission
+    if (item.employeePermission && employeePermission?.[item.employeePermission as keyof typeof employeePermission]) {
+      return true;
+    }
+    // 2. Check department access
+    if (item.departments && userDepartmentCode) {
+      if (item.departments.includes(userDepartmentCode)) {
+        return item.roles.some(role => role.toUpperCase() === userRole);
+      }
+    }
+    // 3. Special case: Managers can access Onboarding
+    if (isManager && item.name === 'Onboard nhân sự') {
+      return true;
+    }
+    // 4. Check role access
+    return item.roles.some(role => role.toUpperCase() === userRole);
+  };
+
   // Unified filtering logic
   const navigation = isSuperAdmin
     ? navigationItems
-    : navigationItems.filter((item) => {
-      // 1. Check if item requires a specific employee permission
-      if (item.employeePermission && employeePermission?.[item.employeePermission as keyof typeof employeePermission]) {
-        return true;
-      }
+    : navigationItems.filter(canAccessItem);
 
-      // 2. Check department access
-      if (item.departments && userDepartmentCode) {
-        if (item.departments.includes(userDepartmentCode)) {
-          return item.roles.some(role => role.toUpperCase() === userRole);
-        }
+  const toggleGroup = (name: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
       }
-
-      // 3. Special case: Managers can access Onboarding
-      if (isManager && item.name === 'Onboard nhân sự') {
-        return true;
-      }
-
-      // 4. Check role access
-      return item.roles.some(role => role.toUpperCase() === userRole);
+      return next;
     });
+  };
+
+  // Check if any child of a group is currently active (auto-expand)
+  const isGroupActive = (item: NavigationItem) =>
+    item.children?.some(child => location.pathname.startsWith(child.href)) ?? false;
 
   const handleCollapseToggle = () => {
     const newCollapsedState = !isCollapsed;
@@ -278,6 +311,77 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     onCollapseChange?.(newCollapsedState);
   };
 
+  const renderNavItem = (item: NavigationItem, collapsed: boolean) => {
+    // Group item with children
+    if (item.children && item.children.length > 0) {
+      const visibleChildren = isSuperAdmin ? item.children : item.children.filter(canAccessItem);
+      if (visibleChildren.length === 0) return null;
+      const active = isGroupActive(item);
+      const expanded = expandedGroups.has(item.name) || active;
+      return (
+        <div key={item.name}>
+          <button
+            onClick={collapsed ? undefined : () => toggleGroup(item.name)}
+            className={`w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
+              active ? 'bg-primary-100 text-primary-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            } ${collapsed ? 'justify-center' : 'justify-between'}`}
+            title={collapsed ? item.name : undefined}
+          >
+            <span className={`flex items-center ${collapsed ? '' : ''}`}>
+              <item.icon
+                className={`h-6 w-6 flex-shrink-0 ${active ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'} ${collapsed ? '' : 'mr-3'}`}
+              />
+              {!collapsed && item.name}
+            </span>
+            {!collapsed && (
+              <ChevronRightIcon
+                className={`h-4 w-4 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
+              />
+            )}
+          </button>
+          {!collapsed && expanded && (
+            <div className="ml-4 mt-0.5 space-y-0.5 border-l border-gray-200 pl-3">
+              {visibleChildren.map(child => {
+                const childActive = location.pathname === child.href;
+                return (
+                  <Link
+                    key={child.name}
+                    to={child.href}
+                    className={`group flex items-center px-2 py-1.5 text-sm font-medium rounded-md ${
+                      childActive ? 'bg-primary-100 text-primary-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <child.icon
+                      className={`h-4 w-4 flex-shrink-0 mr-2 ${childActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'}`}
+                    />
+                    {child.name}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Regular flat item
+    const isActive = location.pathname === item.href;
+    return (
+      <Link
+        key={item.name}
+        to={item.href}
+        className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+          isActive ? 'bg-primary-100 text-primary-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+        } ${collapsed ? 'justify-center' : ''}`}
+        title={collapsed ? item.name : undefined}
+      >
+        <item.icon
+          className={`h-6 w-6 flex-shrink-0 ${isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'} ${collapsed ? '' : 'mr-3'}`}
+        />
+        {!collapsed && item.name}
+      </Link>
+    );
+  };
 
   return (
     <>
@@ -307,27 +411,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
             </button>
           </div>
           <nav className="flex-1 overflow-y-auto space-y-1 px-2 py-4">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive
-                      ? 'bg-primary-100 text-primary-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                >
-                  <item.icon
-                    className={`h-6 w-6 flex-shrink-0 ${isActive
-                        ? 'text-primary-500'
-                        : 'text-gray-400 group-hover:text-gray-500'
-                      } mr-3`}
-                  />
-                  {item.name}
-                </Link>
-              );
-            })}
+            {navigation.map((item) => renderNavItem(item, false))}
           </nav>
 
           {/* User Info Section */}
@@ -404,28 +488,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
             </button>
           </div>
           <nav className="flex-1 overflow-y-auto space-y-1 px-2 py-4">
-            {navigation.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${isActive
-                      ? 'bg-primary-100 text-primary-900'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    } ${isCollapsed ? 'justify-center' : ''}`}
-                  title={isCollapsed ? item.name : undefined}
-                >
-                  <item.icon
-                    className={`h-6 w-6 flex-shrink-0 ${isActive
-                        ? 'text-primary-500'
-                        : 'text-gray-400 group-hover:text-gray-500'
-                      } ${isCollapsed ? '' : 'mr-3'}`}
-                  />
-                  {!isCollapsed && item.name}
-                </Link>
-              );
-            })}
+            {navigation.map((item) => renderNavItem(item, isCollapsed))}
           </nav>
 
           {/* User Info Section */}
