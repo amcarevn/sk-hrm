@@ -78,6 +78,9 @@ const RecruitmentCandidates: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<CandidateFormState>(EMPTY_FORM);
+
+  // Unblacklist confirm
+  const [unblacklistConfirmId, setUnblacklistConfirmId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -206,9 +209,9 @@ const RecruitmentCandidates: React.FC = () => {
   };
 
   const handleUnblacklist = async (id: number) => {
-    if (!confirm('Xóa ứng viên khỏi blacklist?')) return;
     try {
       await recruitmentService.unblacklistCandidate(id);
+      setUnblacklistConfirmId(null);
       await fetchCandidates();
     } catch {
       alert('Thao tác thất bại');
@@ -337,7 +340,7 @@ const RecruitmentCandidates: React.FC = () => {
                       </button>
                       {c.is_blacklisted ? (
                         <button
-                          onClick={() => handleUnblacklist(c.id)}
+                          onClick={() => setUnblacklistConfirmId(c.id)}
                           className="text-gray-400 hover:text-green-600 transition-colors"
                           title="Xóa khỏi blacklist"
                         >
@@ -586,6 +589,32 @@ const RecruitmentCandidates: React.FC = () => {
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
               >
                 Blacklist
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unblacklist Confirm Modal */}
+      {unblacklistConfirmId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-2">Xóa khỏi Blacklist</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Bạn có chắc muốn xóa ứng viên này khỏi blacklist không?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setUnblacklistConfirmId(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleUnblacklist(unblacklistConfirmId)}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+              >
+                Xác nhận
               </button>
             </div>
           </div>

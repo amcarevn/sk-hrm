@@ -64,6 +64,9 @@ const RecruitmentJobs: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Close confirm
+  const [closeConfirmId, setCloseConfirmId] = useState<number | null>(null);
+
   // Job modal
   const [showJobModal, setShowJobModal] = useState(false);
   const [editingJobId, setEditingJobId] = useState<number | null>(null);
@@ -162,9 +165,9 @@ const RecruitmentJobs: React.FC = () => {
   };
 
   const handleClose = async (id: number) => {
-    if (!confirm('Đóng tin tuyển dụng này?')) return;
     try {
       await recruitmentService.closeJob(id);
+      setCloseConfirmId(null);
       await fetchJobs();
     } catch {
       alert('Đóng tin thất bại');
@@ -313,7 +316,7 @@ const RecruitmentJobs: React.FC = () => {
                       )}
                       {job.status !== 'CLOSED' && (
                         <button
-                          onClick={() => handleClose(job.id)}
+                          onClick={() => setCloseConfirmId(job.id)}
                           className="text-gray-400 hover:text-red-600 transition-colors"
                           title="Đóng tin"
                         >
@@ -488,6 +491,32 @@ const RecruitmentJobs: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Close Job Confirm Modal */}
+      {closeConfirmId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-2">Xác nhận đóng tin</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Bạn có chắc muốn đóng tin tuyển dụng này không?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setCloseConfirmId(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleClose(closeConfirmId)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+              >
+                Đóng tin
+              </button>
+            </div>
           </div>
         </div>
       )}

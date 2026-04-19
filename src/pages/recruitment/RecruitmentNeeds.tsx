@@ -85,19 +85,24 @@ const RecruitmentNeeds: React.FC = () => {
     setShowModal(true);
   };
 
-  const openEdit = (need: RecruitmentNeedListItem) => {
-    setEditingId(need.id);
-    setForm({
-      position_name: need.position_name,
-      headcount: String(need.headcount),
-      employment_type: need.employment_type,
-      expected_salary_min: '',
-      expected_salary_max: '',
-      reason: '',
-      target_onboard_date: need.target_onboard_date ?? '',
-    });
-    setFormError(null);
-    setShowModal(true);
+  const openEdit = async (need: RecruitmentNeedListItem) => {
+    try {
+      const full = await recruitmentService.getNeed(need.id);
+      setEditingId(full.id);
+      setForm({
+        position_name: full.position_name,
+        headcount: String(full.headcount),
+        employment_type: full.employment_type,
+        expected_salary_min: full.expected_salary_min ?? '',
+        expected_salary_max: full.expected_salary_max ?? '',
+        reason: full.reason,
+        target_onboard_date: full.target_onboard_date ?? '',
+      });
+      setFormError(null);
+      setShowModal(true);
+    } catch {
+      alert('Không thể tải thông tin nhu cầu tuyển dụng');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
