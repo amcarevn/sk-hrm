@@ -225,7 +225,7 @@ const navigationItems: NavigationItem[] = [
         roles: ['ADMIN', 'HR'],
       },
       {
-        name: 'Tin tuyển dụng / JD',
+        name: 'Quản lý JD',
         href: '/dashboard/recruitment/jobs',
         icon: BriefcaseIcon,
         roles: ['ADMIN', 'HR'],

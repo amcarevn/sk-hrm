@@ -213,7 +213,7 @@ const RecruitmentJobs: React.FC = () => {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tin tuyển dụng / JD</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Quản lý JD</h1>
           <p className="text-sm text-gray-500 mt-1">Quản lý Job Description và kênh đăng tuyển</p>
         </div>
         <button
