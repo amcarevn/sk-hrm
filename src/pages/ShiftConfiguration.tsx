@@ -20,6 +20,9 @@ import {
   positionsAPI,
 } from '../utils/api';
 
+const SEARCH_RESULTS_LIMIT = 10;
+const MAX_SHIFTS_LOAD = 200;
+
 type ConfigMode = 'landing' | 'individual' | 'position' | 'department';
 
 const ShiftConfiguration: React.FC = () => {
@@ -256,7 +259,7 @@ const IndividualMode: React.FC<{
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await employeesAPI.list({ search: query.trim(), page_size: 10 });
+        const res = await employeesAPI.list({ search: query.trim(), page_size: SEARCH_RESULTS_LIMIT });
         setResults(res.results || []);
         setShowDropdown(true);
       } catch {
@@ -274,7 +277,7 @@ const IndividualMode: React.FC<{
   useEffect(() => {
     setLoadingAllShifts(true);
     companyConfigAPI
-      .listShiftConfigs({ page_size: 200, is_current: 'all' })
+      .listShiftConfigs({ page_size: MAX_SHIFTS_LOAD, is_current: 'all' })
       .then((res) => setAllShifts(res.results || []))
       .catch(() => setAllShifts([]))
       .finally(() => setLoadingAllShifts(false));
@@ -589,7 +592,7 @@ const EntityMode: React.FC<{
       setSearching(true);
       try {
         const api = isPosition ? positionsAPI : departmentsAPI;
-        const res = await api.list({ search: query.trim(), page_size: 10 });
+        const res = await api.list({ search: query.trim(), page_size: SEARCH_RESULTS_LIMIT });
         setResults(res.results || []);
         setShowDropdown(true);
       } catch {
@@ -606,7 +609,7 @@ const EntityMode: React.FC<{
   useEffect(() => {
     setLoadingAllShifts(true);
     companyConfigAPI
-      .listShiftConfigs({ page_size: 200, is_current: 'all' })
+      .listShiftConfigs({ page_size: MAX_SHIFTS_LOAD, is_current: 'all' })
       .then((res) => setAllShifts(res.results || []))
       .catch(() => setAllShifts([]))
       .finally(() => setLoadingAllShifts(false));
