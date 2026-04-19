@@ -110,13 +110,13 @@ const navigationItems: NavigationItem[] = [
     name: 'Khen thưởng & Kỷ luật',
     href: '/dashboard/rewards',
     icon: GiftIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+    roles: ['ADMIN'],
     children: [
       {
         name: 'Xếp hạng chấm công',
         href: '/dashboard/attendance/ranking',
         icon: TrophyIcon,
-        roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+        roles: ['ADMIN'],
       },
     ],
   },

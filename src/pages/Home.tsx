@@ -19,14 +19,35 @@ import {
   ChatBubbleLeftRightIcon,
   EyeIcon,
   CheckCircleIcon,
+  TrophyIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import onboardingService from '../services/onboarding.service';
+import { attendanceService, AttendanceRankingEntry } from '../services/attendance.service';
 
 const formatBirthDate = (dateOfBirth: string): string => {
   const parts = dateOfBirth.split('-');
   return parts.length === 3 ? `${parts[2]}/${parts[1]}` : dateOfBirth;
 };
+
+/** Get initials from a full name (max 2 characters) */
+const getInitials = (fullName: string): string => {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
+
+/** Deterministic HSL hue from a string */
+const stringToColor = (str: string): string => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 60%, 55%)`;
+};
+
+const RANK_MEDALS = ['🥇', '🥈', '🥉'];
 
 const Home: React.FC = () => {
   const { user } = useAuth();
@@ -67,10 +88,19 @@ const Home: React.FC = () => {
     loading: boolean;
   }>({ open: false, employee: null, wishes: [], loading: false });
 
+  // Attendance ranking state
+  const [attendanceRankings, setAttendanceRankings] = useState<AttendanceRankingEntry[]>([]);
+  const [rankingLoading, setRankingLoading] = useState(false);
+  const [rankingPeriod] = useState<{ year: number; month: number }>(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
+
   useEffect(() => {
     fetchEmployeeData();
     fetchBirthdaysToday();
     fetchBirthdaysTomorrow();
+    fetchAttendanceRanking();
   }, []);
 
   // Lock body scroll khi modal tài liệu mở
@@ -104,6 +134,23 @@ const Home: React.FC = () => {
       setTomorrowBirthdayEmployees(data);
     } catch (err) {
       console.error('Error fetching tomorrow birthdays:', err);
+    }
+  };
+
+  const fetchAttendanceRanking = async () => {
+    setRankingLoading(true);
+    try {
+      const data = await attendanceService.getRanking({
+        year: rankingPeriod.year,
+        month: rankingPeriod.month,
+        type: 'early',
+        top: 10,
+      });
+      setAttendanceRankings(data);
+    } catch (err) {
+      console.error('Error fetching attendance ranking:', err);
+    } finally {
+      setRankingLoading(false);
     }
   };
 
@@ -429,6 +476,108 @@ const Home: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Attendance Ranking Section */}
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <div className="h-10 w-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <TrophyIcon className="h-6 w-6 text-yellow-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">🏆 Bảng vinh danh đi sớm</h2>
+              <p className="text-sm text-gray-500">
+                Top 10 nhân viên đi sớm nhất tháng {rankingPeriod.month}/{rankingPeriod.year}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/dashboard/attendance/ranking')}
+            className="text-primary-600 hover:text-primary-800 text-sm font-medium flex items-center"
+          >
+            Xem chi tiết <ArrowRightIcon className="h-4 w-4 ml-1" />
+          </button>
+        </div>
+
+        {rankingLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin h-6 w-6 border-2 border-yellow-500 border-t-transparent rounded-full" />
+            <span className="ml-3 text-sm text-gray-500">Đang tải bảng xếp hạng...</span>
+          </div>
+        ) : attendanceRankings.length === 0 ? (
+          <p className="text-sm text-gray-500 text-center py-6">Chưa có dữ liệu xếp hạng cho tháng này.</p>
+        ) : (
+          <div className="space-y-3">
+            {attendanceRankings.map((entry, index) => {
+              const rankNum = entry.rank_early ?? index + 1;
+              const medal = RANK_MEDALS[rankNum - 1] ?? null;
+              const initials = getInitials(entry.full_name);
+              const avatarBg = stringToColor(entry.full_name);
+              return (
+                <div
+                  key={entry.employee_id}
+                  className={`flex items-center gap-4 p-3 rounded-xl border transition-shadow hover:shadow-md ${
+                    rankNum === 1
+                      ? 'bg-yellow-50 border-yellow-200'
+                      : rankNum === 2
+                      ? 'bg-gray-50 border-gray-200'
+                      : rankNum === 3
+                      ? 'bg-orange-50 border-orange-200'
+                      : 'bg-white border-gray-100'
+                  }`}
+                >
+                  {/* Rank badge */}
+                  <div className="w-8 text-center flex-shrink-0">
+                    {medal ? (
+                      <span className="text-xl">{medal}</span>
+                    ) : (
+                      <span className="text-sm font-bold text-gray-500">#{rankNum}</span>
+                    )}
+                  </div>
+
+                  {/* Avatar */}
+                  <div className="h-10 w-10 rounded-full flex-shrink-0 overflow-hidden">
+                    {entry.avatar ? (
+                      <img
+                        src={entry.avatar}
+                        alt={entry.full_name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="h-full w-full flex items-center justify-center text-white text-sm font-bold"
+                        style={{ backgroundColor: avatarBg }}
+                      >
+                        {initials}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Name & department */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{entry.full_name}</p>
+                    {entry.department && (
+                      <p className="text-xs text-gray-500 truncate">{entry.department}</p>
+                    )}
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 flex-shrink-0 text-right">
+                    <div>
+                      <p className="text-xs text-gray-400">Ngày đi sớm</p>
+                      <p className="text-sm font-bold text-yellow-600">{entry.early_days}</p>
+                    </div>
+                    <div className="hidden sm:block">
+                      <p className="text-xs text-gray-400">TB sớm</p>
+                      <p className="text-sm font-bold text-gray-700">{entry.avg_early_minutes} phút</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
