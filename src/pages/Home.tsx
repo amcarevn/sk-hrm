@@ -493,7 +493,7 @@ const Home: React.FC = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate('/dashboard/attendance-ranking')}
+            onClick={() => navigate('/dashboard/attendance/ranking')}
             className="text-primary-600 hover:text-primary-800 text-sm font-medium flex items-center"
           >
             Xem chi tiết <ArrowRightIcon className="h-4 w-4 ml-1" />
