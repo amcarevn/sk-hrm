@@ -236,18 +236,7 @@ const navigationItems: NavigationItem[] = [
         icon: UserIcon,
         roles: ['ADMIN', 'HR'],
       },
-      {
-        name: 'Pipeline ứng tuyển',
-        href: '/dashboard/recruitment/applications',
-        icon: ClipboardDocumentListIcon,
-        roles: ['ADMIN', 'HR'],
-      },
-      {
-        name: 'Phỏng vấn & Offer',
-        href: '/dashboard/recruitment/interviews',
-        icon: CheckCircleIcon,
-        roles: ['ADMIN', 'HR'],
-      },
+
     ],
   },
   {
