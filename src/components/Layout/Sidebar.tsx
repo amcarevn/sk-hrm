@@ -28,6 +28,7 @@ import {
   CurrencyDollarIcon,
   TrophyIcon,
   GiftIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -210,6 +211,44 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard/salary-management',
     icon: CurrencyDollarIcon,
     roles: ['ADMIN'],
+  },
+  {
+    name: 'Tuyển dụng',
+    href: '/dashboard/recruitment',
+    icon: MagnifyingGlassIcon,
+    roles: ['ADMIN', 'HR'],
+    children: [
+      {
+        name: 'Nhu cầu tuyển dụng',
+        href: '/dashboard/recruitment/needs',
+        icon: DocumentTextIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Quản lý JD',
+        href: '/dashboard/recruitment/jobs',
+        icon: BriefcaseIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Ứng viên',
+        href: '/dashboard/recruitment/candidates',
+        icon: UserIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Pipeline ứng tuyển',
+        href: '/dashboard/recruitment/applications',
+        icon: ClipboardDocumentListIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Phỏng vấn & Offer',
+        href: '/dashboard/recruitment/interviews',
+        icon: CheckCircleIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+    ],
   },
   {
     name: 'AI',
