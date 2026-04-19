@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { departmentsAPI, employeesAPI, Employee, Department } from '../utils/api';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const DepartmentEmployees: React.FC = () => {
   const navigate = useNavigate();
@@ -198,19 +199,17 @@ const DepartmentEmployees: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">Tìm kiếm tự động khi bạn gõ</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trạng thái
-                </label>
-                <select
+                <SelectBox<string>
+                  label="Trạng thái"
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="ACTIVE">Đang làm việc</option>
-                  <option value="PROBATION">Thử việc</option>
-                  <option value="INACTIVE">Đã nghỉ</option>
-                </select>
+                  options={[
+                    { value: 'all', label: 'Tất cả trạng thái' },
+                    { value: 'ACTIVE', label: 'Đang làm việc' },
+                    { value: 'PROBATION', label: 'Thử việc' },
+                    { value: 'INACTIVE', label: 'Đã nghỉ' },
+                  ]}
+                  onChange={setStatusFilter}
+                />
               </div>
             </div>
             <div className="flex justify-end">

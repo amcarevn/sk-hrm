@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { departmentsAPI, Department } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const DepartmentCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -74,7 +75,7 @@ const DepartmentCreate: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <div className="mb-6">
         <button
           onClick={() => navigate('/dashboard/departments')}
@@ -147,39 +148,27 @@ const DepartmentCreate: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phòng ban cha
-              </label>
-              <select
-                name="parent_department"
+              <SelectBox<string>
+                label="Phòng ban cha"
                 value={formData.parent_department}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Không có (phòng ban cấp cao nhất)</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.code} - {dept.name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Không có (phòng ban cấp cao nhất)' },
+                  ...departments.map((dept) => ({ value: String(dept.id), label: `${dept.code} - ${dept.name}` })),
+                ]}
+                onChange={(v) => setFormData(prev => ({ ...prev, parent_department: v }))}
+              />
               <p className="text-xs text-gray-500 mt-1">Chọn phòng ban cấp trên nếu có</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Trưởng phòng
-              </label>
-              <select
-                name="manager"
+              <SelectBox<string>
+                label="Trưởng phòng"
                 value={formData.manager}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Chưa chỉ định</option>
-                {/* Note: In a real app, you would fetch employees here */}
-                <option value="" disabled>Chức năng chọn nhân viên sẽ được thêm sau</option>
-              </select>
+                options={[
+                  { value: '', label: 'Chưa chỉ định' },
+                ]}
+                onChange={(v) => setFormData(prev => ({ ...prev, manager: v }))}
+              />
               <p className="text-xs text-gray-500 mt-1">Có thể chỉ định sau khi tạo phòng ban</p>
             </div>
           </div>

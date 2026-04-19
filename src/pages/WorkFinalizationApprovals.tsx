@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -386,51 +387,33 @@ const WorkFinalizationApprovals: React.FC = () => {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Tháng
-            </label>
-            <select
+            <SelectBox<number>
+              label="Tháng"
               value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              {months.map((m) => (
-                <option key={m} value={m}>
-                  Tháng {m}
-                </option>
-              ))}
-            </select>
+              options={months.map((m) => ({ value: m, label: `Tháng ${m}` }))}
+              onChange={setSelectedMonth}
+            />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Năm
-            </label>
-            <select
+            <SelectBox<number>
+              label="Năm"
               value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              {years.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
+              options={years.map((y) => ({ value: y, label: String(y) }))}
+              onChange={setSelectedYear}
+            />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Trạng thái
-            </label>
-            <select
+            <SelectBox<string>
+              label="Trạng thái"
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="block w-full pl-3 pr-8 py-2 text-sm border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            >
-              <option value="">Tất cả</option>
-              <option value="PENDING">Chờ duyệt</option>
-              <option value="APPROVED">Đã duyệt</option>
-              <option value="REJECTED">Từ chối</option>
-            </select>
+              options={[
+                { value: '', label: 'Tất cả' },
+                { value: 'PENDING', label: 'Chờ duyệt' },
+                { value: 'APPROVED', label: 'Đã duyệt' },
+                { value: 'REJECTED', label: 'Từ chối' },
+              ]}
+              onChange={setFilterStatus}
+            />
           </div>
           <div className="flex items-end">
             <button

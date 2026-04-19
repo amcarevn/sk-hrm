@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { attendanceRuleAPI, LeavePolicyConfig } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const LeavePolicyList: React.FC = () => {
   const { user } = useAuth();
@@ -275,59 +276,50 @@ const LeavePolicyList: React.FC = () => {
 
             {/* Leave Type */}
             <div>
-              <label htmlFor="leaveTypeFilter" className="block text-sm font-medium text-gray-700">
-                Loại nghỉ phép
-              </label>
-              <select
-                id="leaveTypeFilter"
+              <SelectBox<string>
+                label="Loại nghỉ phép"
                 value={leaveTypeFilter}
-                onChange={(e) => setLeaveTypeFilter(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              >
-                <option value="all">Tất cả loại</option>
-                <option value="ANNUAL_LEAVE">Nghỉ phép năm</option>
-                <option value="SICK_LEAVE">Nghỉ ốm</option>
-                <option value="MATERNITY_LEAVE">Nghỉ thai sản</option>
-                <option value="PATERNITY_LEAVE">Nghỉ thai sản chồng</option>
-                <option value="UNPAID_LEAVE">Nghỉ không lương</option>
-                <option value="COMPASSIONATE_LEAVE">Nghỉ việc riêng</option>
-                <option value="STUDY_LEAVE">Nghỉ học tập</option>
-                <option value="OTHER">Khác</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Tất cả loại' },
+                  { value: 'ANNUAL_LEAVE', label: 'Nghỉ phép năm' },
+                  { value: 'SICK_LEAVE', label: 'Nghỉ ốm' },
+                  { value: 'MATERNITY_LEAVE', label: 'Nghỉ thai sản' },
+                  { value: 'PATERNITY_LEAVE', label: 'Nghỉ thai sản chồng' },
+                  { value: 'UNPAID_LEAVE', label: 'Nghỉ không lương' },
+                  { value: 'COMPASSIONATE_LEAVE', label: 'Nghỉ việc riêng' },
+                  { value: 'STUDY_LEAVE', label: 'Nghỉ học tập' },
+                  { value: 'OTHER', label: 'Khác' },
+                ]}
+                onChange={setLeaveTypeFilter}
+              />
             </div>
 
             {/* Active Status */}
             <div>
-              <label htmlFor="activeFilter" className="block text-sm font-medium text-gray-700">
-                Trạng thái
-              </label>
-              <select
-                id="activeFilter"
+              <SelectBox<string>
+                label="Trạng thái"
                 value={isActiveFilter}
-                onChange={(e) => setIsActiveFilter(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="active">Đang hoạt động</option>
-                <option value="inactive">Không hoạt động</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Tất cả trạng thái' },
+                  { value: 'active', label: 'Đang hoạt động' },
+                  { value: 'inactive', label: 'Không hoạt động' },
+                ]}
+                onChange={setIsActiveFilter}
+              />
             </div>
 
             {/* Current Status */}
             <div>
-              <label htmlFor="currentFilter" className="block text-sm font-medium text-gray-700">
-                Áp dụng hiện tại
-              </label>
-              <select
-                id="currentFilter"
+              <SelectBox<string>
+                label="Áp dụng hiện tại"
                 value={isCurrentFilter}
-                onChange={(e) => setIsCurrentFilter(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              >
-                <option value="all">Tất cả</option>
-                <option value="true">Đang áp dụng</option>
-                <option value="false">Không áp dụng</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Tất cả' },
+                  { value: 'true', label: 'Đang áp dụng' },
+                  { value: 'false', label: 'Không áp dụng' },
+                ]}
+                onChange={setIsCurrentFilter}
+              />
             </div>
 
             {/* Search Button */}

@@ -44,6 +44,7 @@ interface NavigationItem {
 
 // Define navigation items with role requirements
 const navigationItems: NavigationItem[] = [
+  // --- Tổng quan ---
   {
     name: 'Trang chủ',
     href: '/home',
@@ -62,11 +63,31 @@ const navigationItems: NavigationItem[] = [
     icon: UserCircleIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
+
+  // --- Nhân sự ---
   {
     name: 'Quản lý nhân viên',
     href: '/dashboard/employees',
     icon: UserIcon,
-    roles: ['ADMIN', 'USER',],
+    roles: ['ADMIN', 'USER'],
+  },
+  {
+    name: 'Onboard nhân sự',
+    href: '/dashboard/onboarding',
+    icon: UserPlusIcon,
+    roles: ['ADMIN', 'HR'],
+  },
+  {
+    name: 'Offboard nhân sự',
+    href: '/dashboard/offboarding',
+    icon: UserMinusIcon,
+    roles: ['ADMIN'],
+  },
+  {
+    name: 'Quản lý phân quyền',
+    href: '/dashboard/roles',
+    icon: ShieldCheckIcon,
+    roles: ['ADMIN'],
   },
   {
     name: 'Reset mật khẩu',
@@ -74,12 +95,8 @@ const navigationItems: NavigationItem[] = [
     icon: KeyIcon,
     roles: ['ADMIN', 'HR'],
   },
-  {
-    name: 'Phân quyền',
-    href: '/dashboard/roles',
-    icon: ShieldCheckIcon,
-    roles: ['ADMIN'],
-  },
+
+  // --- Cơ cấu tổ chức ---
   {
     name: 'Quản lý phòng ban',
     href: '/dashboard/departments',
@@ -101,11 +118,38 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN'],
     employeePermission: 'can_manage_positions',
   },
+
+  // --- Chấm công ---
   {
     name: 'Chấm công',
     href: '/dashboard/attendance',
     icon: ClockIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
+  {
+    name: 'Quản lý chấm công',
+    href: '/dashboard/attendance/upload',
+    icon: CloudArrowUpIcon,
+    roles: ['ADMIN', 'HR'],
+    departments: ['HCNS'],
+  },
+  {
+    name: 'Cấu hình ca làm',
+    href: '/dashboard/shift-configuration',
+    icon: ClockIcon,
+    roles: ['ADMIN', 'HR'],
+  },
+  {
+    name: 'Chốt công',
+    href: '/dashboard/work-finalization',
+    icon: TableCellsIcon,
+    roles: ['ADMIN', 'HR'],
+  },
+  {
+    name: 'Phê duyệt chốt công',
+    href: '/dashboard/work-finalization/approvals',
+    icon: CheckCircleIcon,
+    roles: ['ADMIN'],
   },
   {
     name: 'Khen thưởng & Kỷ luật',
@@ -121,19 +165,16 @@ const navigationItems: NavigationItem[] = [
       },
     ],
   },
+
+  // --- Lương ---
   {
-    name: 'Quản lý chấm công',
-    href: '/dashboard/attendance/upload',
-    icon: CloudArrowUpIcon,
-    roles: ['ADMIN', 'HR'],
-    departments: ['HCNS'],
+    name: 'Quản lý tính lương',
+    href: '/dashboard/salary-management',
+    icon: CurrencyDollarIcon,
+    roles: ['ADMIN'],
   },
-  {
-    name: 'Quản lý tài sản',
-    href: '/dashboard/assets',
-    icon: ComputerDesktopIcon,
-    roles: ['ADMIN', 'HR'],
-  },
+
+  // --- Tài sản ---
   {
     name: 'Tài sản được bàn giao',
     href: '/dashboard/assigned-assets',
@@ -141,17 +182,13 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
   {
-    name: 'Cấu hình công ty',
-    href: '/dashboard/company-configs',
-    icon: Cog6ToothIcon,
-    roles: ['ADMIN'],
-  },
-  {
-    name: 'Cấu hình ca làm',
-    href: '/dashboard/shift-configuration',
-    icon: ClockIcon,
+    name: 'Quản lý tài sản',
+    href: '/dashboard/assets',
+    icon: ComputerDesktopIcon,
     roles: ['ADMIN', 'HR'],
   },
+
+  // --- Đơn từ & Phê duyệt ---
   {
     name: 'Yêu cầu & Đơn từ',
     href: '/dashboard/my-requests',
@@ -182,36 +219,8 @@ const navigationItems: NavigationItem[] = [
     icon: DocumentTextIcon,
     roles: ['ADMIN', 'HR'],
   },
-  {
-    name: 'Onboard nhân sự',
-    href: '/dashboard/onboarding',
-    icon: UserPlusIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Offboard nhân sự',
-    href: '/dashboard/offboarding',
-    icon: UserMinusIcon,
-    roles: ['ADMIN'],
-  },
-  {
-    name: 'Chốt công',
-    href: '/dashboard/work-finalization',
-    icon: TableCellsIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Phê duyệt chốt công',
-    href: '/dashboard/work-finalization/approvals',
-    icon: CheckCircleIcon,
-    roles: ['ADMIN'],
-  },
-  {
-    name: 'Quản lý tính lương',
-    href: '/dashboard/salary-management',
-    icon: CurrencyDollarIcon,
-    roles: ['ADMIN'],
-  },
+
+  // --- Tuyển dụng ---
   {
     name: 'Tuyển dụng',
     href: '/dashboard/recruitment',
@@ -236,9 +245,18 @@ const navigationItems: NavigationItem[] = [
         icon: UserIcon,
         roles: ['ADMIN', 'HR'],
       },
-
     ],
   },
+
+  // --- Cấu hình ---
+  {
+    name: 'Cấu hình công ty',
+    href: '/dashboard/company-configs',
+    icon: Cog6ToothIcon,
+    roles: ['ADMIN'],
+  },
+
+  // --- AI ---
   {
     name: 'AI',
     href: '/dashboard/ai',

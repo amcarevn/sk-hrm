@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { departmentsAPI, Department } from '../utils/api';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const DepartmentList: React.FC = () => {
   const navigate = useNavigate();
@@ -9,6 +10,8 @@ const DepartmentList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchDepartments = async (search = '') => {
     try {
@@ -60,14 +63,18 @@ const DepartmentList: React.FC = () => {
     // Don't call fetchDepartments here, the useEffect will handle it
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa phòng ban này?')) {
-      try {
-        await departmentsAPI.delete(id);
-        fetchDepartments(); // Refresh the list
-      } catch (err: any) {
-        alert('Xóa thất bại: ' + (err.message || 'Lỗi không xác định'));
-      }
+  const handleDeleteConfirm = async () => {
+    if (!departmentToDelete) return;
+    try {
+      setDeleting(true);
+      await departmentsAPI.delete(departmentToDelete.id);
+      setDepartmentToDelete(null);
+      fetchDepartments();
+    } catch (err: any) {
+      alert('Xóa thất bại: ' + (err.message || 'Lỗi không xác định'));
+      setDepartmentToDelete(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -266,7 +273,7 @@ const DepartmentList: React.FC = () => {
                             </svg>
                           </button>
                           <button
-                            onClick={() => handleDelete(department.id)}
+                            onClick={() => setDepartmentToDelete(department)}
                             className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
                             title="Xóa"
                           >
@@ -284,6 +291,16 @@ const DepartmentList: React.FC = () => {
           </>
         )}
       </div>
+    <ConfirmDialog
+      open={departmentToDelete !== null}
+      variant="danger"
+      title="Xóa phòng ban"
+      message={departmentToDelete ? `Bạn có chắc chắn muốn xóa phòng ban "${departmentToDelete.name}" (${departmentToDelete.code})?` : ''}
+      confirmLabel="Xóa"
+      loading={deleting}
+      onConfirm={handleDeleteConfirm}
+      onClose={() => setDepartmentToDelete(null)}
+    />
     </div>
   );
 };

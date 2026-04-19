@@ -6,6 +6,7 @@ import {
   XMarkIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline';
+import { SelectBox } from '../../components/LandingLayout/SelectBox';
 import {
   recruitmentService,
   RecruitmentNeedListItem,
@@ -153,15 +154,15 @@ const RecruitmentNeeds: React.FC = () => {
   );
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Nhu cầu tuyển dụng</h1>
-          <p className="text-sm text-gray-500 mt-1">Quản lý yêu cầu tuyển dụng từ phòng ban</p>
+          <p className="text-gray-600 mt-2">Quản lý yêu cầu tuyển dụng từ phòng ban</p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
         >
           <PlusIcon className="h-4 w-4" />
           Thêm nhu cầu
@@ -169,7 +170,8 @@ const RecruitmentNeeds: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="mb-4 flex gap-2 flex-wrap">
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex gap-2 flex-wrap">
         {[
           { value: 'all', label: 'Tất cả' },
           { value: 'OPEN', label: 'Đang mở' },
@@ -180,7 +182,7 @@ const RecruitmentNeeds: React.FC = () => {
           <button
             key={opt.value}
             onClick={() => setStatusFilter(opt.value)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               statusFilter === opt.value
                 ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -189,6 +191,7 @@ const RecruitmentNeeds: React.FC = () => {
             {opt.label}
           </button>
         ))}
+        </div>
       </div>
 
       {error && (
@@ -206,7 +209,8 @@ const RecruitmentNeeds: React.FC = () => {
           <p>Chưa có nhu cầu tuyển dụng nào</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -269,13 +273,14 @@ const RecruitmentNeeds: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">
                 {editingId ? 'Cập nhật nhu cầu' : 'Thêm nhu cầu tuyển dụng'}
@@ -293,7 +298,7 @@ const RecruitmentNeeds: React.FC = () => {
                   type="text"
                   value={form.position_name}
                   onChange={e => setForm(f => ({ ...f, position_name: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="VD: Backend Developer"
                 />
               </div>
@@ -305,24 +310,16 @@ const RecruitmentNeeds: React.FC = () => {
                     min="1"
                     value={form.headcount}
                     onChange={e => setForm(f => ({ ...f, headcount: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hình thức</label>
-                  <select
+                  <SelectBox<EmploymentType>
+                    label="Hình thức"
                     value={form.employment_type}
-                    onChange={e =>
-                      setForm(f => ({ ...f, employment_type: e.target.value as EmploymentType }))
-                    }
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    {EMPLOYMENT_TYPE_OPTIONS.map(o => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                    options={EMPLOYMENT_TYPE_OPTIONS}
+                    onChange={v => setForm(f => ({ ...f, employment_type: v }))}
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -334,7 +331,7 @@ const RecruitmentNeeds: React.FC = () => {
                     type="number"
                     value={form.expected_salary_min}
                     onChange={e => setForm(f => ({ ...f, expected_salary_min: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="VD: 15000000"
                   />
                 </div>
@@ -346,7 +343,7 @@ const RecruitmentNeeds: React.FC = () => {
                     type="number"
                     value={form.expected_salary_max}
                     onChange={e => setForm(f => ({ ...f, expected_salary_max: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="VD: 25000000"
                   />
                 </div>
@@ -359,7 +356,7 @@ const RecruitmentNeeds: React.FC = () => {
                   type="date"
                   value={form.target_onboard_date}
                   onChange={e => setForm(f => ({ ...f, target_onboard_date: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -368,7 +365,7 @@ const RecruitmentNeeds: React.FC = () => {
                   rows={2}
                   value={form.reason}
                   onChange={e => setForm(f => ({ ...f, reason: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Mô tả lý do tuyển dụng..."
                 />
               </div>
@@ -377,14 +374,14 @@ const RecruitmentNeeds: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {saving ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -402,7 +399,7 @@ const RecruitmentNeeds: React.FC = () => {
       {/* Delete confirm */}
       {deleteConfirmId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
             <h3 className="text-base font-semibold text-gray-900 mb-2">Xác nhận xóa</h3>
             <p className="text-sm text-gray-600 mb-4">
               Bạn có chắc muốn xóa nhu cầu tuyển dụng này không?
@@ -410,13 +407,13 @@ const RecruitmentNeeds: React.FC = () => {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteConfirmId(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
                 Hủy
               </button>
               <button
                 onClick={() => handleDelete(deleteConfirmId)}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
               >
                 Xóa
               </button>

@@ -42,14 +42,13 @@ const ShiftConfiguration: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+    <div className="space-y-6">
         {/* Header */}
         <div className="mb-6">
           {mode !== 'landing' && (
             <button
               onClick={goBack}
-              className="inline-flex items-center text-blue-600 hover:text-blue-700 mb-4 text-sm font-medium"
+              className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4 text-sm font-medium"
             >
               <ArrowLeftIcon className="h-4 w-4 mr-1" />
               Quay lại
@@ -59,7 +58,7 @@ const ShiftConfiguration: React.FC = () => {
         </div>
 
         {/* Priority Rules Banner */}
-        <div className="mb-6 rounded-xl bg-blue-50 border border-blue-200 p-4">
+        <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
           <div className="flex items-start gap-3">
             <InformationCircleIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div>
@@ -133,7 +132,6 @@ const ShiftConfiguration: React.FC = () => {
             showSuccess={showSuccess}
           />
         )}
-      </div>
     </div>
   );
 };
@@ -144,7 +142,7 @@ const LandingView: React.FC<{ onSelect: (mode: ConfigMode) => void }> = ({ onSel
   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
     <button
       onClick={() => onSelect('individual')}
-      className="group flex flex-col items-center p-8 bg-white rounded-2xl border-2 border-gray-200 hover:border-blue-500 hover:shadow-lg transition-all text-center"
+      className="group flex flex-col items-center p-6 bg-white rounded-lg border border-gray-200 hover:border-blue-400 hover:shadow transition-all text-center"
     >
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 group-hover:bg-blue-600 transition-colors">
         <UserIcon className="h-7 w-7 text-blue-600 group-hover:text-white transition-colors" />
@@ -155,7 +153,7 @@ const LandingView: React.FC<{ onSelect: (mode: ConfigMode) => void }> = ({ onSel
 
     <button
       onClick={() => onSelect('position')}
-      className="group flex flex-col items-center p-8 bg-white rounded-2xl border-2 border-gray-200 hover:border-indigo-500 hover:shadow-lg transition-all text-center"
+      className="group flex flex-col items-center p-6 bg-white rounded-lg border border-gray-200 hover:border-indigo-400 hover:shadow transition-all text-center"
     >
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-100 group-hover:bg-indigo-600 transition-colors">
         <BriefcaseIcon className="h-7 w-7 text-indigo-600 group-hover:text-white transition-colors" />
@@ -166,7 +164,7 @@ const LandingView: React.FC<{ onSelect: (mode: ConfigMode) => void }> = ({ onSel
 
     <button
       onClick={() => onSelect('department')}
-      className="group flex flex-col items-center p-8 bg-white rounded-2xl border-2 border-gray-200 hover:border-purple-500 hover:shadow-lg transition-all text-center"
+      className="group flex flex-col items-center p-6 bg-white rounded-lg border border-gray-200 hover:border-purple-400 hover:shadow transition-all text-center"
     >
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-purple-100 group-hover:bg-purple-600 transition-colors">
         <BuildingOfficeIcon className="h-7 w-7 text-purple-600 group-hover:text-white transition-colors" />
@@ -356,7 +354,7 @@ const IndividualMode: React.FC<{
   return (
     <div className="space-y-6">
       {/* Employee Search */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <UserIcon className="h-5 w-5 text-blue-600" />
           Tìm nhân viên
@@ -364,7 +362,7 @@ const IndividualMode: React.FC<{
         <div className="relative" ref={dropdownRef}>
           <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
           {searching && (
-            <div className="absolute right-3 top-3 h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="absolute right-3 top-3 h-5 w-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
           )}
           <input
             type="text"
@@ -377,7 +375,7 @@ const IndividualMode: React.FC<{
               }
             }}
             placeholder="Nhập mã hoặc tên nhân viên..."
-            className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
           />
           {showDropdown && results.length > 0 && (
             <div className="absolute z-20 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-60 overflow-y-auto">
@@ -385,7 +383,7 @@ const IndividualMode: React.FC<{
                 <button
                   key={emp.id}
                   onMouseDown={() => selectEmployee(emp)}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100 last:border-0"
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100 last:border-0"
                 >
                   <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-semibold text-sm">
                     {emp.full_name?.charAt(0) || '?'}
@@ -406,13 +404,13 @@ const IndividualMode: React.FC<{
         </div>
 
         {selectedEmployee && (
-          <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-white font-semibold text-sm">
+          <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-700 text-white font-semibold text-sm">
               {selectedEmployee.full_name?.charAt(0) || '?'}
             </div>
             <div>
-              <p className="text-sm font-semibold text-blue-900">{selectedEmployee.full_name}</p>
-              <p className="text-xs text-blue-600 font-mono">{selectedEmployee.employee_id}</p>
+              <p className="text-sm font-semibold text-gray-900">{selectedEmployee.full_name}</p>
+              <p className="text-xs text-gray-600 font-mono">{selectedEmployee.employee_id}</p>
             </div>
           </div>
         )}
@@ -420,7 +418,7 @@ const IndividualMode: React.FC<{
 
       {/* Current Shifts */}
       {selectedEmployee && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <ClockIcon className="h-5 w-5 text-gray-600" />
             Ca làm hiện tại
@@ -443,7 +441,7 @@ const IndividualMode: React.FC<{
                     <button
                       onClick={() => removeShift(shift)}
                       disabled={removing === shift.id}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
                       title="Xóa ca làm này khỏi nhân viên"
                     >
                       {removing === shift.id ? (
@@ -462,7 +460,7 @@ const IndividualMode: React.FC<{
 
       {/* Assign New Shift */}
       {selectedEmployee && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CheckIcon className="h-5 w-5 text-green-600" />
             Gán ca làm mới
@@ -478,7 +476,7 @@ const IndividualMode: React.FC<{
                 type="time"
                 value={filterStart}
                 onChange={(e) => setFilterStart(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
             <div>
@@ -489,14 +487,14 @@ const IndividualMode: React.FC<{
                 type="time"
                 value={filterEnd}
                 onChange={(e) => setFilterEnd(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
           </div>
           {(filterStart || filterEnd) && (
             <button
               onClick={() => { setFilterStart(''); setFilterEnd(''); }}
-              className="mb-4 text-xs text-blue-600 hover:underline"
+              className="mb-4 text-xs text-primary-600 hover:underline"
             >
               Xóa bộ lọc
             </button>
@@ -528,7 +526,7 @@ const IndividualMode: React.FC<{
                     <button
                       onClick={() => assignShift(shift)}
                       disabled={assigning === shift.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-md hover:bg-primary-700 disabled:opacity-50 transition-colors"
                     >
                       {assigning === shift.id ? (
                         <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -663,23 +661,15 @@ const EntityMode: React.FC<{
   const avatarRingClass = isPosition
     ? 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-semibold text-sm'
     : 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-700 font-semibold text-sm';
-  const selectedBannerClass = isPosition
-    ? 'mt-3 flex items-center gap-3 p-3 rounded-lg bg-indigo-50 border border-indigo-200'
-    : 'mt-3 flex items-center gap-3 p-3 rounded-lg bg-purple-50 border border-purple-200';
-  const selectedAvatarClass = isPosition
-    ? 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold text-sm'
-    : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-purple-600 text-white font-semibold text-sm';
-  const selectedNameClass = isPosition
-    ? 'text-sm font-semibold text-indigo-900'
-    : 'text-sm font-semibold text-purple-900';
-  const selectedCodeClass = isPosition
-    ? 'text-xs text-indigo-600 font-mono'
-    : 'text-xs text-purple-600 font-mono';
+  const selectedBannerClass = 'mt-3 flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200';
+  const selectedAvatarClass = 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-700 text-white font-semibold text-sm';
+  const selectedNameClass = 'text-sm font-semibold text-gray-900';
+  const selectedCodeClass = 'text-xs text-gray-500 font-mono';
 
   return (
     <div className="space-y-6">
       {/* Entity Search */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <IconComp className={iconClass} />
           Tìm {label}
@@ -687,7 +677,7 @@ const EntityMode: React.FC<{
         <div className="relative" ref={dropdownRef}>
           <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400 pointer-events-none" />
           {searching && (
-            <div className="absolute right-3 top-3 h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="absolute right-3 top-3 h-5 w-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
           )}
           <input
             type="text"
@@ -697,7 +687,7 @@ const EntityMode: React.FC<{
               if (selectedEntity) setSelectedEntity(null);
             }}
             placeholder={`Nhập mã hoặc tên ${label}...`}
-            className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
           />
           {showDropdown && results.length > 0 && (
             <div className="absolute z-20 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-60 overflow-y-auto">
@@ -705,7 +695,7 @@ const EntityMode: React.FC<{
                 <button
                   key={item.id}
                   onMouseDown={() => selectEntity(item)}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-100 last:border-0"
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 border-b border-gray-100 last:border-0"
                 >
                   <div className={avatarRingClass}>
                     {(item.title || item.name)?.charAt(0) || '?'}
@@ -746,7 +736,7 @@ const EntityMode: React.FC<{
 
       {/* Assign Shift */}
       {selectedEntity && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CheckIcon className="h-5 w-5 text-green-600" />
             Chọn ca làm để gán
@@ -765,7 +755,7 @@ const EntityMode: React.FC<{
                 type="time"
                 value={filterStart}
                 onChange={(e) => setFilterStart(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
             <div>
@@ -776,14 +766,14 @@ const EntityMode: React.FC<{
                 type="time"
                 value={filterEnd}
                 onChange={(e) => setFilterEnd(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
           </div>
           {(filterStart || filterEnd) && (
             <button
               onClick={() => { setFilterStart(''); setFilterEnd(''); }}
-              className="mb-4 text-xs text-blue-600 hover:underline"
+              className="mb-4 text-xs text-primary-600 hover:underline"
             >
               Xóa bộ lọc
             </button>
@@ -811,7 +801,7 @@ const EntityMode: React.FC<{
                     <button
                       onClick={() => assignShift(shift)}
                       disabled={assigning === shift.id}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-md hover:bg-primary-700 disabled:opacity-50 transition-colors"
                     >
                       {assigning === shift.id ? (
                         <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />

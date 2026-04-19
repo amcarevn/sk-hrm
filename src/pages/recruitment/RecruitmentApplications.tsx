@@ -154,11 +154,11 @@ const RecruitmentApplications: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Đơn ứng tuyển / Pipeline</h1>
-          <p className="text-sm text-gray-500 mt-1">Tracking quá trình tuyển dụng theo từng ứng viên</p>
+          <p className="text-gray-600 mt-2">Tracking quá trình tuyển dụng theo từng ứng viên</p>
         </div>
         <button
           onClick={() => {
@@ -166,7 +166,7 @@ const RecruitmentApplications: React.FC = () => {
             setCreateForm({ candidate: '', job: '', notes: '' });
             setFormError(null);
           }}
-          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
         >
           <PlusIcon className="h-4 w-4" />
           Tạo đơn mới
@@ -174,30 +174,32 @@ const RecruitmentApplications: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="mb-4 flex flex-wrap gap-3">
-        <select
-          value={stageFilter}
-          onChange={e => setStageFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          <option value="all">Tất cả giai đoạn</option>
-          {STAGE_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          <option value="all">Tất cả trạng thái</option>
-          <option value="ACTIVE">Đang tiến hành</option>
-          <option value="HIRED">Đã tuyển</option>
-          <option value="REJECTED">Bị từ chối</option>
-          <option value="WITHDRAWN">Ứng viên rút</option>
-        </select>
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex flex-wrap gap-3">
+          <select
+            value={stageFilter}
+            onChange={e => setStageFilter(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">Tất cả giai đoạn</option>
+            {STAGE_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">Tất cả trạng thái</option>
+            <option value="ACTIVE">Đang tiến hành</option>
+            <option value="HIRED">Đã tuyển</option>
+            <option value="REJECTED">Bị từ chối</option>
+            <option value="WITHDRAWN">Ứng viên rút</option>
+          </select>
+        </div>
       </div>
 
       {error && (
@@ -215,7 +217,8 @@ const RecruitmentApplications: React.FC = () => {
           <p>Chưa có đơn ứng tuyển nào</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -280,13 +283,14 @@ const RecruitmentApplications: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* Create Application Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Tạo đơn ứng tuyển</h2>
               <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -302,7 +306,7 @@ const RecruitmentApplications: React.FC = () => {
                   type="number"
                   value={createForm.candidate}
                   onChange={e => setCreateForm(f => ({ ...f, candidate: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="ID ứng viên"
                 />
               </div>
@@ -314,7 +318,7 @@ const RecruitmentApplications: React.FC = () => {
                   type="number"
                   value={createForm.job}
                   onChange={e => setCreateForm(f => ({ ...f, job: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="ID tin tuyển dụng"
                 />
               </div>
@@ -324,7 +328,7 @@ const RecruitmentApplications: React.FC = () => {
                   rows={2}
                   value={createForm.notes}
                   onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               {formError && <p className="text-sm text-red-600">{formError}</p>}
@@ -332,14 +336,14 @@ const RecruitmentApplications: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {saving ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -357,7 +361,7 @@ const RecruitmentApplications: React.FC = () => {
       {/* Move Stage Modal */}
       {moveStageApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Chuyển stage pipeline</h2>
@@ -375,7 +379,7 @@ const RecruitmentApplications: React.FC = () => {
                 <select
                   value={moveStageValue}
                   onChange={e => setMoveStageValue(e.target.value as ApplicationStage)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   {STAGE_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>
@@ -390,21 +394,21 @@ const RecruitmentApplications: React.FC = () => {
                   rows={2}
                   value={moveStageNote}
                   onChange={e => setMoveStageNote(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="VD: Đã xác nhận lịch phỏng vấn..."
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   onClick={() => setMoveStageApp(null)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   onClick={handleMoveStage}
                   disabled={movingStageSaving}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {movingStageSaving ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -423,7 +427,7 @@ const RecruitmentApplications: React.FC = () => {
       {historyApp !== null && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black bg-opacity-40" onClick={() => setHistoryApp(null)} />
-          <div className="w-96 bg-white shadow-2xl flex flex-col">
+          <div className="w-96 bg-white shadow-xl flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Lịch sử stage</h2>
               <button onClick={() => setHistoryApp(null)} className="text-gray-400 hover:text-gray-600">
