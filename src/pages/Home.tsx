@@ -91,6 +91,10 @@ const Home: React.FC = () => {
   // Attendance ranking state
   const [attendanceRankings, setAttendanceRankings] = useState<AttendanceRankingEntry[]>([]);
   const [rankingLoading, setRankingLoading] = useState(false);
+  const [rankingPeriod] = useState<{ year: number; month: number }>(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
 
   useEffect(() => {
     fetchEmployeeData();
@@ -136,10 +140,9 @@ const Home: React.FC = () => {
   const fetchAttendanceRanking = async () => {
     setRankingLoading(true);
     try {
-      const now = new Date();
       const data = await attendanceService.getRanking({
-        year: now.getFullYear(),
-        month: now.getMonth() + 1,
+        year: rankingPeriod.year,
+        month: rankingPeriod.month,
         type: 'early',
         top: 10,
       });
@@ -485,7 +488,7 @@ const Home: React.FC = () => {
             <div>
               <h2 className="text-xl font-bold text-gray-900">🏆 Bảng vinh danh đi sớm</h2>
               <p className="text-sm text-gray-500">
-                Top 10 nhân viên đi sớm nhất tháng {new Date().getMonth() + 1}/{new Date().getFullYear()}
+                Top 10 nhân viên đi sớm nhất tháng {rankingPeriod.month}/{rankingPeriod.year}
               </p>
             </div>
           </div>
