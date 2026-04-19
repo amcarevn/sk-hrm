@@ -1016,6 +1016,7 @@ export interface AttendanceRankingEntry {
   employee_id: number;
   employee_code: string;
   full_name: string;
+  avatar: string | null;
   department: string | null;
   year: number;
   month: number;
