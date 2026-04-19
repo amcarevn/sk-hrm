@@ -88,6 +88,11 @@ import ShiftConfiguration from './pages/ShiftConfiguration';
 import AIChat from './pages/AIChat';
 import SalaryManagement from './pages/SalaryManagement';
 import AttendanceRanking from './pages/AttendanceRanking';
+import RecruitmentNeeds from './pages/recruitment/RecruitmentNeeds';
+import RecruitmentJobs from './pages/recruitment/RecruitmentJobs';
+import RecruitmentCandidates from './pages/recruitment/RecruitmentCandidates';
+import RecruitmentApplications from './pages/recruitment/RecruitmentApplications';
+import RecruitmentInterviews from './pages/recruitment/RecruitmentInterviews';
 
 function App() {
   return (
@@ -950,6 +955,57 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <SalaryManagement />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Recruitment Routes */}
+          <Route
+            path="/dashboard/recruitment/needs"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RecruitmentNeeds />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/recruitment/jobs"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RecruitmentJobs />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/recruitment/candidates"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RecruitmentCandidates />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/recruitment/applications"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RecruitmentApplications />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/recruitment/interviews"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RecruitmentInterviews />
                 </Layout>
               </ProtectedRoute>
             }
