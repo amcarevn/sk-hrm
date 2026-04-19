@@ -91,8 +91,6 @@ import AttendanceRanking from './pages/AttendanceRanking';
 import RecruitmentNeeds from './pages/recruitment/RecruitmentNeeds';
 import RecruitmentJobs from './pages/recruitment/RecruitmentJobs';
 import RecruitmentCandidates from './pages/recruitment/RecruitmentCandidates';
-import RecruitmentApplications from './pages/recruitment/RecruitmentApplications';
-import RecruitmentInterviews from './pages/recruitment/RecruitmentInterviews';
 
 function App() {
   return (
@@ -990,26 +988,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/dashboard/recruitment/applications"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <RecruitmentApplications />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/recruitment/interviews"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <RecruitmentInterviews />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+
         </Routes>
       </AuthProvider>
     </Router>
