@@ -9,6 +9,7 @@ interface AssetAssignModalProps {
   onClose: () => void;
   onSuccess: () => void;
   asset: Asset;
+  onRequestReturn?: () => void;
 }
 
 const QUICK_STATUS_TAGS = [
@@ -23,7 +24,7 @@ const QUICK_STATUS_TAGS = [
   'Đã vệ sinh sạch'
 ];
 
-export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: AssetAssignModalProps) {
+export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset, onRequestReturn }: AssetAssignModalProps) {
   const [loading, setLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showManagerConfirm, setShowManagerConfirm] = useState(false);
@@ -128,9 +129,23 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
         return;
       }
       setQuantityError(null);
-    } else if (hasCurrentHolder && !isForced) {
+    } else if (hasCurrentHolder && !isForced && !overridePending) {
       // Non-multi-holder: giữ forced transfer dialog
       setShowConfirmDialog(true);
+      return;
+    }
+
+    // Proactive pending check: nếu asset đang có pending assignment → hiện conflict dialog ngay,
+    // không cần round-trip API để discover.
+    if (!overridePending && asset.pending_assignment) {
+      setShowConfirmDialog(false);
+      setShowManagerConfirm(false);
+      setPendingConflict({
+        assigned_to_name: asset.pending_assignment.assigned_to_name,
+        assigned_date: asset.pending_assignment.assigned_date,
+        assigned_by_name: asset.pending_assignment.assigned_by_name,
+        assignment_notes: asset.pending_assignment.assignment_notes,
+      });
       return;
     }
 
@@ -442,33 +457,32 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset }: 
               >
                 <DialogPanel className="relative transform overflow-hidden rounded-2xl bg-white p-6 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-md">
                   <div className="sm:flex sm:items-start">
-                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 sm:mx-0 sm:h-10 sm:w-10">
-                      <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-rose-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <svg className="h-6 w-6 text-rose-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                       </svg>
                     </div>
                     <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
                       <DialogTitle as="h3" className="text-base font-bold leading-6 text-gray-900 uppercase">
-                        Xác nhận điều chuyển tài sản
+                        Cần thu hồi trước khi bàn giao
                       </DialogTitle>
-                      <div className="mt-3 bg-amber-50 p-3 rounded-lg border border-amber-100 italic">
+                      <div className="mt-3 bg-rose-50 p-3 rounded-lg border border-rose-100">
                         <p className="text-sm text-gray-600">
-                          Máy này hiện đang thuộc về <span className="text-amber-800 font-bold underline">{asset.assigned_to_name}</span>.
+                          Tài sản này đang được sử dụng bởi <span className="text-rose-800 font-bold underline">{asset.assigned_to_name}</span>.
                         </p>
                       </div>
                       <p className="text-sm text-gray-500 mt-3 leading-relaxed">
-                        Hệ thống sẽ tạo yêu cầu bàn giao ở trạng thái <strong>chờ xác nhận</strong>. Khi nhân viên mới xác nhận nhận máy, hệ thống sẽ tự động thu hồi máy từ người đang giữ.
+                        Bạn cần <strong>thu hồi tài sản</strong> từ người đang giữ trước, sau đó mới có thể bàn giao cho người khác. Thao tác này đảm bảo lịch sử bàn giao được ghi nhận đầy đủ.
                       </p>
                     </div>
                   </div>
                   <div className="mt-6 flex flex-col sm:flex-row-reverse gap-3">
                     <button
                       type="button"
-                      disabled={loading}
-                      className="inline-flex w-full justify-center rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-amber-700 transition-all active:scale-95 disabled:bg-amber-300"
-                      onClick={() => handleSubmit(null, { isForced: true })}
+                      className="inline-flex w-full justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-rose-700 transition-all active:scale-95"
+                      onClick={() => { onRequestReturn?.(); onClose(); }}
                     >
-                      {loading ? 'Đang xử lý...' : 'Xác nhận Điều chuyển'}
+                      Thu hồi ngay
                     </button>
                     <button
                       type="button"

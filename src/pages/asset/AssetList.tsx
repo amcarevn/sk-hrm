@@ -20,6 +20,8 @@ import AssetEditModal from './AssetEditModal';
 import AssetDetailModal from './AssetDetailModal';
 import AssetAssignModal from './AssetAssignModal';
 import AssetReturnModal from './AssetReturnModal';
+import AssetBulkAssignModal from './AssetBulkAssignModal';
+import AssetBulkReturnModal from './AssetBulkReturnModal';
 import { Asset, AssetStats } from '../../utils/api';
 import { SelectBox, SelectOption, MultiSelectBox } from '../../components/LandingLayout/SelectBox';
 import FeedbackDialog, { FeedbackVariant } from '../../components/FeedbackDialog';
@@ -39,6 +41,25 @@ const ASSET_TYPE_OPTIONS: SelectOption<string>[] = [
   { value: 'VEHICLE', label: 'Phương tiện' },
   { value: 'OTHER', label: 'Khác' },
 ];
+
+// Màu badge Fibonacci golden angle — đã loại toàn bộ hue trùng với Status/Condition:
+// Blocked: green(IN_USE/GOOD), amber(IDLE/FAIR), blue(MAINTENANCE), red(DAMAGED/BROKEN),
+//          gray(RETIRED), rose(TERMINATED), slate(LOST), purple(NEW/EXCELLENT), orange(POOR)
+const ASSET_TYPE_COLOR_MAP: Record<string, string> = {
+  LAPTOP:    'bg-cyan-100 text-cyan-800 border-cyan-200',
+  DESKTOP:   'bg-pink-100 text-pink-800 border-pink-200',
+  MONITOR:   'bg-violet-100 text-violet-800 border-violet-200',
+  PHONE:     'bg-sky-100 text-sky-800 border-sky-200',
+  TABLET:    'bg-teal-100 text-teal-800 border-teal-200',
+  PRINTER:   'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200',
+  SCANNER:   'bg-lime-100 text-lime-800 border-lime-200',
+  NETWORK:   'bg-indigo-100 text-indigo-800 border-indigo-200',
+  SERVER:    'bg-yellow-100 text-yellow-800 border-yellow-200',
+  SIM:       'bg-emerald-100 text-emerald-800 border-emerald-200',
+  FURNITURE: 'bg-stone-100 text-stone-700 border-stone-200',
+  VEHICLE:   'bg-zinc-100 text-zinc-700 border-zinc-200',
+  OTHER:     'bg-neutral-100 text-neutral-700 border-neutral-200',
+};
 
 const ASSET_STATUS_OPTIONS: SelectOption<string>[] = [
   { value: 'all', label: 'Tất cả trạng thái' },
@@ -85,6 +106,9 @@ export default function AssetList() {
   const [feedback, setFeedback] = useState<{ variant: FeedbackVariant; title: React.ReactNode; message?: React.ReactNode } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(new Set());
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
+  const [isBulkReturnModalOpen, setIsBulkReturnModalOpen] = useState(false);
 
 
   useEffect(() => {
@@ -371,27 +395,6 @@ export default function AssetList() {
     }
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'LAPTOP':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'DESKTOP':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-      case 'MONITOR':
-        return 'bg-cyan-100 text-cyan-800 border-cyan-200';
-      case 'PHONE':
-        return 'bg-teal-100 text-teal-800 border-teal-200';
-      case 'SIM':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'NETWORK':
-      case 'SERVER':
-        return 'bg-slate-100 text-slate-800 border-slate-200';
-      case 'FURNITURE':
-        return 'bg-stone-100 text-stone-800 border-stone-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
 
   if (loading && assets.length === 0) {
     return (
@@ -578,12 +581,53 @@ export default function AssetList() {
 
 
 
+      {/* Bulk action toolbar */}
+      {selectedAssetIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-lg">
+          <span className="text-sm font-medium text-indigo-800">Đã chọn {selectedAssetIds.size} tài sản</span>
+          <button
+            onClick={() => setIsBulkAssignModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all"
+          >
+            <UserPlusIcon className="h-3.5 w-3.5" />
+            Bàn giao nhiều
+          </button>
+          <button
+            onClick={() => setIsBulkReturnModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-all"
+          >
+            <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5" />
+            Thu hồi nhiều
+          </button>
+          <button
+            onClick={() => setSelectedAssetIds(new Set())}
+            className="text-xs text-indigo-600 hover:text-indigo-800 underline ml-auto"
+          >
+            Bỏ chọn tất cả
+          </button>
+        </div>
+      )}
+
       {/* Assets Table */}
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th scope="col" className="w-10 px-3 py-3 text-center">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    checked={filteredAssets.length > 0 && filteredAssets.every((a) => selectedAssetIds.has(a.id))}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedAssetIds(new Set(filteredAssets.map((a) => a.id)));
+                      } else {
+                        setSelectedAssetIds(new Set());
+                      }
+                    }}
+                  />
+                </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Mã thiết bị
                 </th>
@@ -622,7 +666,7 @@ export default function AssetList() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredAssets.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center">
+                  <td colSpan={12} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center">
                       <ComputerDesktopIcon className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-gray-900">
@@ -639,7 +683,22 @@ export default function AssetList() {
                 </tr>
               ) : (
                 filteredAssets.map((asset) => (
-                  <tr key={asset.id} className="hover:bg-gray-50">
+                  <tr key={asset.id} className={`hover:bg-gray-50 ${selectedAssetIds.has(asset.id) ? 'bg-indigo-50' : ''}`}>
+                    <td className="w-10 px-3 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        checked={selectedAssetIds.has(asset.id)}
+                        onChange={(e) => {
+                          setSelectedAssetIds((prev) => {
+                            const next = new Set(prev);
+                            if (e.target.checked) next.add(asset.id);
+                            else next.delete(asset.id);
+                            return next;
+                          });
+                        }}
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-primary-700 bg-primary-50 px-2 py-1 rounded inline-block">
                         {asset.name}
@@ -651,7 +710,7 @@ export default function AssetList() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getTypeColor(asset.asset_type)} uppercase tracking-tight`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${ASSET_TYPE_COLOR_MAP[asset.asset_type] ?? 'bg-gray-100 text-gray-800 border-gray-200'} uppercase tracking-tight`}>
                         {asset.asset_type === 'OTHER' && (asset.specifications as any)?.type_name 
                           ? `Khác (${(asset.specifications as any).type_name})` 
                           : asset.asset_type_display}
@@ -891,6 +950,10 @@ export default function AssetList() {
             fetchStats();
           }}
           asset={selectedAsset}
+          onRequestReturn={() => {
+            setIsAssignModalOpen(false);
+            handleReturnClick(selectedAsset);
+          }}
         />
       )}
 
@@ -912,6 +975,28 @@ export default function AssetList() {
           holderQuantity={returnHolder?.holderQuantity}
         />
       )}
+
+      <AssetBulkAssignModal
+        isOpen={isBulkAssignModalOpen}
+        onClose={() => setIsBulkAssignModalOpen(false)}
+        onSuccess={() => {
+          fetchAssets();
+          fetchStats();
+          setSelectedAssetIds(new Set());
+        }}
+        assets={filteredAssets.filter((a) => selectedAssetIds.has(a.id))}
+      />
+
+      <AssetBulkReturnModal
+        isOpen={isBulkReturnModalOpen}
+        onClose={() => setIsBulkReturnModalOpen(false)}
+        onSuccess={() => {
+          fetchAssets();
+          fetchStats();
+          setSelectedAssetIds(new Set());
+        }}
+        assets={filteredAssets.filter((a) => selectedAssetIds.has(a.id))}
+      />
 
       {/* Delete Confirmation Dialog */}
       {isDeleteDialogOpen && (
