@@ -207,8 +207,8 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-md rounded-xl shadow-2xl flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2">
@@ -294,7 +294,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center px-6 py-4 border-t bg-gray-50 rounded-b-xl">
+        <div className="flex justify-between items-center px-6 py-4 border-t bg-gray-50 rounded-b-lg">
           <button
             onClick={onClose}
             disabled={submitting}
@@ -549,17 +549,17 @@ const Onboarding: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Onboard nhân sự</h1>
-        <p className="text-gray-600 mt-1">
+        <p className="text-gray-600 mt-2">
           Quản lý quy trình tuyển dụng và onboarding nhân viên mới.
         </p>
       </div>
 
       {/* Legend */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shrink-0">
             <span className="text-white text-sm font-bold">HR</span>
@@ -584,7 +584,7 @@ const Onboarding: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6 overflow-hidden">
+      <div className="bg-white rounded-lg shadow p-6">
         {/* Table header */}
         <div className="flex justify-between items-center mb-4">
           <div>
@@ -694,23 +694,12 @@ const Onboarding: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
-                    <div className="flex items-center justify-center gap-2">
-                      <ArrowPathIcon className="w-5 h-5 text-blue-600 animate-spin" />
-                      Đang tải dữ liệu...
-                    </div>
-                  </td>
+                  <td colSpan={9} className="px-4 py-10 text-center text-gray-500">Đang tải...</td>
                 </tr>
               ) : onboardings.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-16 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <UserPlusIcon className="w-10 h-10 text-gray-300" />
-                      <p className="text-base font-medium text-gray-900">Chưa có ứng viên nào</p>
-                      <p className="text-sm text-gray-500">
-                        Bấm <strong>"Tạo quy trình mới"</strong> để bắt đầu
-                      </p>
-                    </div>
+                  <td colSpan={9} className="px-4 py-10 text-center text-gray-500">
+                    Chưa có ứng viên nào{filterStatus || filterMonth > 0 || filterSearch ? ' khớp với bộ lọc' : ''}.
                   </td>
                 </tr>
               ) : (
@@ -760,7 +749,7 @@ const Onboarding: React.FC = () => {
                         <div className="flex gap-2">
                           <button
                             onClick={() => navigate(`/dashboard/onboarding/${item.id}`)}
-                            className="px-3 py-1.5 text-xs bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-100"
+                            className="px-2.5 py-1 text-xs font-medium text-indigo-700 bg-white border border-indigo-300 rounded hover:bg-indigo-50"
                           >
                             Xem chi tiết
                           </button>
@@ -775,7 +764,7 @@ const Onboarding: React.FC = () => {
         </div>
 
         {/* ✅ Pagination — dùng component Pagination giống EmployeeList */}
-        <div className="mt-4 mb-6">
+        <div className="mt-4">
           <Pagination
             currentPage={currentPage}
             totalPages={Math.ceil(totalCount / itemsPerPage)}

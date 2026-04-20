@@ -6,6 +6,7 @@ import {
   EmployeePermissionStats,
 } from '../services/employee-permission.service';
 import { employeesAPI } from '../utils/api';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const RoleList: React.FC = () => {
   const navigate = useNavigate();
@@ -128,9 +129,13 @@ const RoleList: React.FC = () => {
     }
   };
 
-  const getPermissionText = (hasPermission: boolean) => {
-    return hasPermission ? 'Có quyền' : 'Không có quyền';
-  };
+  const getBadge = (hasPermission: boolean) => (
+    hasPermission ? (
+      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Có quyền</span>
+    ) : (
+      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Không có quyền</span>
+    )
+  );
 
   const permissionOptions = [
     { value: 'all', label: 'Tất cả quyền' },
@@ -151,7 +156,7 @@ const RoleList: React.FC = () => {
   ];
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">
           Quản lý phân quyền nhân viên
@@ -164,7 +169,7 @@ const RoleList: React.FC = () => {
 
       <div className="bg-white rounded-lg shadow p-6">
         {/* Statistics */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
             Thống kê phân quyền
           </h2>
@@ -235,37 +240,23 @@ const RoleList: React.FC = () => {
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phòng ban
-                </label>
-                <select
+                <SelectBox<string>
+                  label="Phòng ban"
                   value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Tất cả phòng ban</option>
-                  {departments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: 'all', label: 'Tất cả phòng ban' },
+                    ...departments.map((dept) => ({ value: String(dept.id), label: dept.name })),
+                  ]}
+                  onChange={setDepartmentFilter}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Loại quyền
-                </label>
-                <select
+                <SelectBox<string>
+                  label="Loại quyền"
                   value={permissionFilter}
-                  onChange={(e) => setPermissionFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {permissionOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                  options={permissionOptions}
+                  onChange={setPermissionFilter}
+                />
               </div>
             </div>
             <div className="flex justify-end">
@@ -337,8 +328,7 @@ const RoleList: React.FC = () => {
           </div>
         ) : permissions.length === 0 ? (
           <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -402,12 +392,10 @@ const RoleList: React.FC = () => {
                   </tr>
                 </tbody>
               </table>
-            </div>
           </div>
         ) : (
           <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -466,57 +454,49 @@ const RoleList: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {getPermissionText(perm.can_approve_attendance)}
-                        </div>
+                        {getBadge(perm.can_approve_attendance)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {getPermissionText(perm.can_create_employee)}
-                        </div>
+                        {getBadge(perm.can_create_employee)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {getPermissionText(perm.can_manage_attendance)}
-                        </div>
+                        {getBadge(perm.can_manage_attendance)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {getPermissionText(perm.can_manage_assets)}
-                        </div>
+                        {getBadge(perm.can_manage_assets)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {perm.has_any_permission ? 'Có quyền' : 'Không có quyền'}
-                        </div>
+                        {getBadge(perm.has_any_permission)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                        <div className="flex space-x-1">
                           <button
-                            onClick={() =>
-                              navigate(
-                                `/permissions/dashboard/roles/${perm.id}`
-                              )
-                            }
-                            className="text-primary-600 hover:text-primary-900"
+                            onClick={() => navigate(`/permissions/dashboard/roles/${perm.id}`)}
+                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                            title="Xem"
                           >
-                            Xem
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
                           </button>
                           <button
-                            onClick={() =>
-                              navigate(
-                                `/permissions/dashboard/roles/${perm.id}/edit`
-                              )
-                            }
-                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => navigate(`/permissions/dashboard/roles/${perm.id}/edit`)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                            title="Sửa"
                           >
-                            Sửa
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
                           </button>
                           <button
                             onClick={() => handleDelete(perm.id)}
-                            className="text-red-600 hover:text-red-900"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                            title="Xóa"
                           >
-                            Xóa
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                           </button>
                         </div>
                       </td>
@@ -524,7 +504,6 @@ const RoleList: React.FC = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
           </div>
         )}
       </div>

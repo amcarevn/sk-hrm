@@ -12,6 +12,7 @@ import {
   CandidateCreateData,
   CandidateSource,
 } from '../../services/recruitment.service';
+import { SelectBox } from '../../components/LandingLayout/SelectBox';
 
 const SOURCE_OPTIONS: { value: CandidateSource; label: string }[] = [
   { value: 'DIRECT', label: 'Ứng tuyển trực tiếp' },
@@ -219,15 +220,15 @@ const RecruitmentCandidates: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Ứng viên</h1>
-          <p className="text-sm text-gray-500 mt-1">Quản lý hồ sơ ứng viên</p>
+          <p className="text-gray-600 mt-2">Quản lý hồ sơ ứng viên</p>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
         >
           <PlusIcon className="h-4 w-4" />
           Thêm ứng viên
@@ -235,38 +236,42 @@ const RecruitmentCandidates: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="mb-4 flex flex-wrap gap-3">
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="Tìm theo tên, email, SĐT..."
-          />
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex flex-wrap gap-3">
+          <div className="relative">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Tìm theo tên, email, SĐT..."
+            />
+          </div>
+          <div className="w-48">
+            <SelectBox<string>
+              label=""
+              value={sourceFilter}
+              options={[
+                { value: 'all', label: 'Tất cả nguồn' },
+                ...SOURCE_OPTIONS.map(o => ({ value: o.value as string, label: o.label })),
+              ]}
+              onChange={setSourceFilter}
+            />
+          </div>
+          <div className="w-44">
+            <SelectBox<string>
+              label=""
+              value={blacklistFilter}
+              options={[
+                { value: 'all', label: 'Tất cả' },
+                { value: 'active', label: 'Đang hoạt động' },
+                { value: 'blacklisted', label: 'Blacklist' },
+              ]}
+              onChange={setBlacklistFilter}
+            />
+          </div>
         </div>
-        <select
-          value={sourceFilter}
-          onChange={e => setSourceFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          <option value="all">Tất cả nguồn</option>
-          {SOURCE_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={blacklistFilter}
-          onChange={e => setBlacklistFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          <option value="all">Tất cả</option>
-          <option value="active">Đang hoạt động</option>
-          <option value="blacklisted">Blacklist</option>
-        </select>
       </div>
 
       {error && (
@@ -284,7 +289,8 @@ const RecruitmentCandidates: React.FC = () => {
           <p>Chưa có ứng viên nào</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -364,13 +370,14 @@ const RecruitmentCandidates: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
               <h2 className="text-lg font-semibold text-gray-900">
                 {editingId ? 'Cập nhật ứng viên' : 'Thêm ứng viên mới'}
@@ -389,7 +396,7 @@ const RecruitmentCandidates: React.FC = () => {
                     type="text"
                     value={form.full_name}
                     onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -400,7 +407,7 @@ const RecruitmentCandidates: React.FC = () => {
                     type="email"
                     value={form.email}
                     onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -411,21 +418,21 @@ const RecruitmentCandidates: React.FC = () => {
                     type="tel"
                     value={form.phone}
                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Giới tính</label>
-                  <select
+                  <SelectBox<string>
+                    label="Giới tính"
                     value={form.gender}
-                    onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="">—</option>
-                    <option value="M">Nam</option>
-                    <option value="F">Nữ</option>
-                    <option value="O">Khác</option>
-                  </select>
+                    options={[
+                      { value: '', label: '—' },
+                      { value: 'M', label: 'Nam' },
+                      { value: 'F', label: 'Nữ' },
+                      { value: 'O', label: 'Khác' },
+                    ]}
+                    onChange={v => setForm(f => ({ ...f, gender: v }))}
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -435,7 +442,7 @@ const RecruitmentCandidates: React.FC = () => {
                     type="date"
                     value={form.date_of_birth}
                     onChange={e => setForm(f => ({ ...f, date_of_birth: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -447,7 +454,7 @@ const RecruitmentCandidates: React.FC = () => {
                     min="0"
                     value={form.experience_years}
                     onChange={e => setForm(f => ({ ...f, experience_years: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -458,7 +465,7 @@ const RecruitmentCandidates: React.FC = () => {
                     type="text"
                     value={form.current_company}
                     onChange={e => setForm(f => ({ ...f, current_company: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -467,24 +474,18 @@ const RecruitmentCandidates: React.FC = () => {
                     type="text"
                     value={form.current_position}
                     onChange={e => setForm(f => ({ ...f, current_position: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nguồn</label>
-                  <select
+                  <SelectBox<CandidateSource>
+                    label="Nguồn"
                     value={form.source}
-                    onChange={e => setForm(f => ({ ...f, source: e.target.value as CandidateSource }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    {SOURCE_OPTIONS.map(o => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                    options={SOURCE_OPTIONS}
+                    onChange={v => setForm(f => ({ ...f, source: v }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -494,7 +495,7 @@ const RecruitmentCandidates: React.FC = () => {
                     type="number"
                     value={form.expected_salary}
                     onChange={e => setForm(f => ({ ...f, expected_salary: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="VD: 20000000"
                   />
                 </div>
@@ -505,7 +506,7 @@ const RecruitmentCandidates: React.FC = () => {
                   type="url"
                   value={form.cv_url}
                   onChange={e => setForm(f => ({ ...f, cv_url: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="https://..."
                 />
               </div>
@@ -515,7 +516,7 @@ const RecruitmentCandidates: React.FC = () => {
                   type="text"
                   value={form.skills}
                   onChange={e => setForm(f => ({ ...f, skills: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Python, Django, PostgreSQL..."
                 />
               </div>
@@ -525,7 +526,7 @@ const RecruitmentCandidates: React.FC = () => {
                   type="text"
                   value={form.education}
                   onChange={e => setForm(f => ({ ...f, education: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -534,7 +535,7 @@ const RecruitmentCandidates: React.FC = () => {
                   rows={2}
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               {formError && <p className="text-sm text-red-600">{formError}</p>}
@@ -542,14 +543,14 @@ const RecruitmentCandidates: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {saving ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -567,26 +568,26 @@ const RecruitmentCandidates: React.FC = () => {
       {/* Blacklist Modal */}
       {blacklistId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
             <h3 className="text-base font-semibold text-gray-900 mb-2">Thêm vào Blacklist</h3>
             <p className="text-sm text-gray-600 mb-3">Nhập lý do blacklist ứng viên này:</p>
             <textarea
               rows={3}
               value={blacklistReason}
               onChange={e => setBlacklistReason(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-4"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-4"
               placeholder="VD: Vi phạm hợp đồng tại công ty cũ"
             />
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setBlacklistId(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
                 Hủy
               </button>
               <button
                 onClick={handleBlacklist}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
               >
                 Blacklist
               </button>
@@ -598,7 +599,7 @@ const RecruitmentCandidates: React.FC = () => {
       {/* Unblacklist Confirm Modal */}
       {unblacklistConfirmId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
             <h3 className="text-base font-semibold text-gray-900 mb-2">Xóa khỏi Blacklist</h3>
             <p className="text-sm text-gray-600 mb-4">
               Bạn có chắc muốn xóa ứng viên này khỏi blacklist không?
@@ -606,13 +607,13 @@ const RecruitmentCandidates: React.FC = () => {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setUnblacklistConfirmId(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
                 Hủy
               </button>
               <button
                 onClick={() => handleUnblacklist(unblacklistConfirmId)}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
               >
                 Xác nhận
               </button>

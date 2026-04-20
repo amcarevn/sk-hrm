@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { attendanceRuleAPI, AttendanceRuleConfig } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const AttendanceRuleList: React.FC = () => {
   const { user } = useAuth();
@@ -267,56 +268,47 @@ const AttendanceRuleList: React.FC = () => {
 
             {/* Rule Type */}
             <div>
-              <label htmlFor="ruleTypeFilter" className="block text-sm font-medium text-gray-700">
-                Loại quy tắc
-              </label>
-              <select
-                id="ruleTypeFilter"
+              <SelectBox<string>
+                label="Loại quy tắc"
                 value={ruleTypeFilter}
-                onChange={(e) => setRuleTypeFilter(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              >
-                <option value="all">Tất cả loại</option>
-                <option value="SHIFT_RULE">Quy tắc ca làm việc</option>
-                <option value="LATE_EARLY_RULE">Đi muộn/Về sớm</option>
-                <option value="WORK_HOUR_CALCULATION">Tính giờ làm việc</option>
-                <option value="OVERTIME_RULE">Làm thêm giờ</option>
-                <option value="BREAK_TIME_RULE">Giờ nghỉ</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Tất cả loại' },
+                  { value: 'SHIFT_RULE', label: 'Quy tắc ca làm việc' },
+                  { value: 'LATE_EARLY_RULE', label: 'Đi muộn/Về sớm' },
+                  { value: 'WORK_HOUR_CALCULATION', label: 'Tính giờ làm việc' },
+                  { value: 'OVERTIME_RULE', label: 'Làm thêm giờ' },
+                  { value: 'BREAK_TIME_RULE', label: 'Giờ nghỉ' },
+                ]}
+                onChange={setRuleTypeFilter}
+              />
             </div>
 
             {/* Active Status */}
             <div>
-              <label htmlFor="activeFilter" className="block text-sm font-medium text-gray-700">
-                Trạng thái
-              </label>
-              <select
-                id="activeFilter"
+              <SelectBox<string>
+                label="Trạng thái"
                 value={isActiveFilter}
-                onChange={(e) => setIsActiveFilter(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="active">Đang hoạt động</option>
-                <option value="inactive">Không hoạt động</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Tất cả trạng thái' },
+                  { value: 'active', label: 'Đang hoạt động' },
+                  { value: 'inactive', label: 'Không hoạt động' },
+                ]}
+                onChange={setIsActiveFilter}
+              />
             </div>
 
             {/* Current Status */}
             <div>
-              <label htmlFor="currentFilter" className="block text-sm font-medium text-gray-700">
-                Áp dụng hiện tại
-              </label>
-              <select
-                id="currentFilter"
+              <SelectBox<string>
+                label="Áp dụng hiện tại"
                 value={isCurrentFilter}
-                onChange={(e) => setIsCurrentFilter(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-              >
-                <option value="all">Tất cả</option>
-                <option value="true">Đang áp dụng</option>
-                <option value="false">Không áp dụng</option>
-              </select>
+                options={[
+                  { value: 'all', label: 'Tất cả' },
+                  { value: 'true', label: 'Đang áp dụng' },
+                  { value: 'false', label: 'Không áp dụng' },
+                ]}
+                onChange={setIsCurrentFilter}
+              />
             </div>
 
             {/* Search Button */}

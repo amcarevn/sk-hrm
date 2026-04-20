@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { employeesAPI, departmentsAPI, Employee, sendAccountEmailsAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 import Pagination from '../components/Pagination';
 import {
   EyeIcon,
@@ -711,55 +712,45 @@ const EmployeeList: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">Tìm kiếm tự động khi bạn gõ</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trạng thái
-                </label>
-                <select
+                <SelectBox<string>
+                  label="Trạng thái"
                   value={statusFilter}
-                  onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="ACTIVE">Đang làm việc</option>
-                  <option value="PROBATION">Thử việc</option>
-                  <option value="INACTIVE">Đã nghỉ</option>
-                </select>
+                  options={[
+                    { value: 'all', label: 'Tất cả trạng thái' },
+                    { value: 'ACTIVE', label: 'Đang làm việc' },
+                    { value: 'PROBATION', label: 'Thử việc' },
+                    { value: 'INACTIVE', label: 'Đã nghỉ' },
+                  ]}
+                  onChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phòng ban
-                </label>
-                <select
+                <SelectBox<string>
+                  label="Phòng ban"
                   value={departmentFilter}
-                  onChange={(e) => { setDepartmentFilter(e.target.value); setCurrentPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Tất cả phòng ban</option>
-                  {departments.map((dept) => (
-                    <option key={dept.id} value={dept.id}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: 'all', label: 'Tất cả phòng ban' },
+                    ...departments.map((dept) => ({ value: String(dept.id), label: dept.name })),
+                  ]}
+                  onChange={(v) => { setDepartmentFilter(v); setCurrentPage(1); }}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Loại hợp đồng
-                </label>
-                <select
+                <SelectBox<string>
+                  label="Loại hợp đồng"
                   value={contractTypeFilter}
-                  onChange={(e) => { setContractTypeFilter(e.target.value); setCurrentPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Tất cả loại hợp đồng</option>
-                  <option value="PROBATION">Hợp đồng thử việc</option>
-                  <option value="INTERN">Hợp đồng thực tập sinh</option>
-                  <option value="COLLABORATOR">Hợp đồng cộng tác viên</option>
-                  <option value="ONE_YEAR">Hợp đồng lao động 12 tháng</option>
-                  <option value="TWO_YEAR">Hợp đồng lao động 24 tháng</option>
-                  <option value="INDEFINITE">Hợp đồng vô thời hạn</option>
-                  <option value="SERVICE">Hợp đồng dịch vụ</option>
-                </select>
+                  options={[
+                    { value: 'all', label: 'Tất cả loại hợp đồng' },
+                    { value: 'PROBATION', label: 'Hợp đồng thử việc' },
+                    { value: 'INTERN', label: 'Hợp đồng thực tập sinh' },
+                    { value: 'COLLABORATOR', label: 'Hợp đồng cộng tác viên' },
+                    { value: 'ONE_YEAR', label: 'Hợp đồng lao động 12 tháng' },
+                    { value: 'TWO_YEAR', label: 'Hợp đồng lao động 24 tháng' },
+                    { value: 'INDEFINITE', label: 'Hợp đồng vô thời hạn' },
+                    { value: 'SERVICE', label: 'Hợp đồng dịch vụ' },
+                  ]}
+                  onChange={(v) => { setContractTypeFilter(v); setCurrentPage(1); }}
+                />
               </div>
             </div>
             <div className="flex justify-end">

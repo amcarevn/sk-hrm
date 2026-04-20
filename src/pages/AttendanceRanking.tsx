@@ -3,13 +3,13 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   TrophyIcon,
   ArrowPathIcon,
-  CalendarIcon,
   UserIcon,
   ClockIcon,
   ChevronUpIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import { attendanceService, AttendanceRankingEntry } from '../services/attendance.service';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const MONTH_NAMES = [
   'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4',
@@ -111,58 +111,41 @@ const AttendanceRanking: React.FC = () => {
   const SortIcon: React.FC<{ field: SortField }> = ({ field }) => {
     if (sortField !== field) return <ChevronUpIcon className="h-3 w-3 text-gray-300 inline ml-1" />;
     return sortDir === 'asc'
-      ? <ChevronUpIcon className="h-3 w-3 text-indigo-500 inline ml-1" />
-      : <ChevronDownIcon className="h-3 w-3 text-indigo-500 inline ml-1" />;
+      ? <ChevronUpIcon className="h-3 w-3 text-primary-500 inline ml-1" />
+      : <ChevronDownIcon className="h-3 w-3 text-primary-500 inline ml-1" />;
   };
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-yellow-100 rounded-lg">
-          <TrophyIcon className="h-6 w-6 text-yellow-600" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Bảng xếp hạng chấm công</h1>
-          <p className="text-sm text-gray-500">Thống kê nhân viên đi sớm và đúng giờ theo tháng</p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Bảng xếp hạng chấm công</h1>
+        <p className="text-gray-600 mt-2">Thống kê nhân viên đi sớm và đúng giờ theo tháng</p>
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      <div className="bg-white rounded-lg shadow p-4">
         <div className="flex flex-wrap gap-4 items-end">
           {/* Year */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              <CalendarIcon className="h-3.5 w-3.5 inline mr-1" />Năm
-            </label>
-            <select
+          <div className="w-24">
+            <SelectBox<number>
+              label="Năm"
               value={year}
-              onChange={e => setYear(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {yearOptions.map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+              options={yearOptions.map(y => ({ value: y, label: String(y) }))}
+              onChange={setYear}
+            />
           </div>
 
           {/* Month */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              <CalendarIcon className="h-3.5 w-3.5 inline mr-1" />Tháng
-            </label>
-            <select
+          <div className="w-32">
+            <SelectBox<number>
+              label="Tháng"
               value={month}
-              onChange={e => setMonth(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {MONTH_NAMES.map((name, idx) => (
-                <option key={idx + 1} value={idx + 1}>{name}</option>
-              ))}
-            </select>
+              options={MONTH_NAMES.map((name, idx) => ({ value: idx + 1, label: name }))}
+              onChange={setMonth}
+            />
           </div>
 
           {/* Type */}
@@ -170,16 +153,16 @@ const AttendanceRanking: React.FC = () => {
             <label className="block text-xs font-medium text-gray-600 mb-1">
               <ClockIcon className="h-3.5 w-3.5 inline mr-1" />Loại xếp hạng
             </label>
-            <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+            <div className="flex rounded-md border border-gray-300 overflow-hidden">
               <button
                 onClick={() => setRankType('early')}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${rankType === 'early' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${rankType === 'early' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
               >
                 🌅 Đi sớm
               </button>
               <button
                 onClick={() => setRankType('on_time')}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${rankType === 'on_time' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${rankType === 'on_time' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
               >
                 ✅ Đúng giờ
               </button>
@@ -187,28 +170,26 @@ const AttendanceRanking: React.FC = () => {
           </div>
 
           {/* Top N */}
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              Top N
-            </label>
-            <select
+          <div className="w-28">
+            <SelectBox<number>
+              label="Top N"
               value={top}
-              onChange={e => setTop(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value={5}>Top 5</option>
-              <option value={10}>Top 10</option>
-              <option value={20}>Top 20</option>
-              <option value={50}>Top 50</option>
-              <option value={0}>Tất cả</option>
-            </select>
+              options={[
+                { value: 5, label: 'Top 5' },
+                { value: 10, label: 'Top 10' },
+                { value: 20, label: 'Top 20' },
+                { value: 50, label: 'Top 50' },
+                { value: 0, label: 'Tất cả' },
+              ]}
+              onChange={setTop}
+            />
           </div>
 
           {/* Refresh button */}
           <button
             onClick={fetchRankings}
             disabled={loading}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
           >
             <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Làm mới
@@ -219,7 +200,7 @@ const AttendanceRanking: React.FC = () => {
             <button
               onClick={handleCompute}
               disabled={computing || loading}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
             >
               <TrophyIcon className={`h-4 w-4 ${computing ? 'animate-pulse' : ''}`} />
               {computing ? 'Đang tính...' : 'Tính xếp hạng'}
@@ -241,20 +222,20 @@ const AttendanceRanking: React.FC = () => {
 
       {/* My ranking card */}
       {myRanking && (
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-200 p-4">
-          <h2 className="text-sm font-semibold text-indigo-900 mb-2 flex items-center gap-2">
+        <div className="bg-indigo-50 rounded-lg border border-indigo-100 p-4">
+          <h2 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
             <UserIcon className="h-4 w-4" />
             Xếp hạng của bạn — {MONTH_NAMES[month - 1]} {year}
           </h2>
           <div className="flex flex-wrap gap-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-indigo-700">
+              <div className="text-2xl font-bold text-primary-700">
                 {getRankDisplay(myRanking.rank_early)}
               </div>
               <div className="text-xs text-gray-600 mt-0.5">Hạng đi sớm</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-indigo-700">
+              <div className="text-2xl font-bold text-primary-700">
                 {getRankDisplay(myRanking.rank_on_time)}
               </div>
               <div className="text-xs text-gray-600 mt-0.5">Hạng đúng giờ</div>
@@ -280,7 +261,7 @@ const AttendanceRanking: React.FC = () => {
       )}
 
       {/* Rankings table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">
             {rankType === 'early' ? '🌅 Bảng xếp hạng đi sớm' : '✅ Bảng xếp hạng đúng giờ'} — {MONTH_NAMES[month - 1]} {year}
@@ -294,7 +275,7 @@ const AttendanceRanking: React.FC = () => {
 
         {loading ? (
           <div className="px-5 py-10 text-center text-sm text-gray-500">
-            <ArrowPathIcon className="h-6 w-6 animate-spin mx-auto mb-2 text-indigo-400" />
+            <ArrowPathIcon className="h-6 w-6 animate-spin mx-auto mb-2 text-primary-400" />
             Đang tải dữ liệu...
           </div>
         ) : rankings.length === 0 ? (
@@ -311,33 +292,33 @@ const AttendanceRanking: React.FC = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort(rankType === 'early' ? 'rank_early' : 'rank_on_time')}
                   >
                     Hạng <SortIcon field={rankType === 'early' ? 'rank_early' : 'rank_on_time'} />
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Nhân viên
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Phòng ban
                   </th>
                   {rankType === 'early' ? (
                     <>
                       <th
-                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('early_days')}
                       >
                         Ngày đi sớm <SortIcon field="early_days" />
                       </th>
                       <th
-                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('total_early_minutes')}
                       >
                         Tổng phút sớm <SortIcon field="total_early_minutes" />
                       </th>
                       <th
-                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('avg_early_minutes')}
                       >
                         TB phút/ngày <SortIcon field="avg_early_minutes" />
@@ -346,13 +327,13 @@ const AttendanceRanking: React.FC = () => {
                   ) : (
                     <>
                       <th
-                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('on_time_days')}
                       >
                         Ngày đúng giờ <SortIcon field="on_time_days" />
                       </th>
                       <th
-                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                        className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSort('total_working_days')}
                       >
                         Tổng ngày làm <SortIcon field="total_working_days" />
@@ -368,7 +349,7 @@ const AttendanceRanking: React.FC = () => {
                   return (
                     <tr
                       key={`${entry.employee_id}-${entry.year}-${entry.month}`}
-                      className={`${isTopThree ? 'bg-yellow-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-indigo-50 transition-colors`}
+                      className={`${isTopThree ? 'bg-yellow-50' : idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-gray-50 transition-colors`}
                     >
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900">
                         <span className={`text-lg ${isTopThree ? '' : 'text-gray-600'}`}>
@@ -384,7 +365,7 @@ const AttendanceRanking: React.FC = () => {
                       </td>
                       {rankType === 'early' ? (
                         <>
-                          <td className="px-4 py-3 text-right text-sm font-medium text-indigo-700">
+                          <td className="px-4 py-3 text-right text-sm font-medium text-primary-700">
                             {entry.early_days} ngày
                           </td>
                           <td className="px-4 py-3 text-right text-sm font-medium text-purple-700">

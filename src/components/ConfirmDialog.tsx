@@ -24,25 +24,21 @@ const VARIANT_STYLES: Record<ConfirmVariant, {
   icon: typeof ExclamationTriangleIcon;
   iconBg: string;
   iconColor: string;
-  btnBg: string;
 }> = {
   danger: {
     icon: TrashIcon,
     iconBg: 'bg-red-100',
     iconColor: 'text-red-600',
-    btnBg: 'bg-red-600 hover:bg-red-700',
   },
   warning: {
     icon: ExclamationTriangleIcon,
     iconBg: 'bg-amber-100',
     iconColor: 'text-amber-600',
-    btnBg: 'bg-amber-600 hover:bg-amber-700',
   },
   info: {
     icon: QuestionMarkCircleIcon,
-    iconBg: 'bg-blue-100',
-    iconColor: 'text-blue-600',
-    btnBg: 'bg-blue-600 hover:bg-blue-700',
+    iconBg: 'bg-primary-100',
+    iconColor: 'text-primary-600',
   },
 };
 
@@ -57,7 +53,7 @@ export default function ConfirmDialog({
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
-  const { icon: Icon, iconBg, iconColor, btnBg } = VARIANT_STYLES[variant];
+  const { icon: Icon, iconBg, iconColor } = VARIANT_STYLES[variant];
 
   return (
     <Transition show={open} as={Fragment}>
@@ -104,7 +100,7 @@ export default function ConfirmDialog({
                     type="button"
                     autoFocus
                     disabled={loading}
-                    className={`inline-flex w-full justify-center rounded-xl px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-all active:scale-95 sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed ${btnBg}`}
+                    className="inline-flex w-full justify-center rounded-xl px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-all active:scale-95 sm:w-auto disabled:opacity-60 disabled:cursor-not-allowed bg-primary-600 hover:bg-primary-700"
                     onClick={onConfirm}
                   >
                     {loading ? 'Đang xử lý...' : confirmLabel}
@@ -112,7 +108,7 @@ export default function ConfirmDialog({
                   <button
                     type="button"
                     disabled={loading}
-                    className="mt-3 inline-flex w-full justify-center rounded-xl border border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-all sm:mt-0 sm:w-auto disabled:opacity-60"
+                    className="mt-3 inline-flex w-full justify-center rounded-xl border border-primary-300 bg-white px-6 py-2.5 text-sm font-semibold text-primary-600 shadow-sm hover:bg-primary-50 transition-all sm:mt-0 sm:w-auto disabled:opacity-60"
                     onClick={onClose}
                   >
                     {cancelLabel}

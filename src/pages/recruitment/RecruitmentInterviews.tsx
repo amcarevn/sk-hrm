@@ -115,7 +115,7 @@ const ScoreSelect: React.FC<{
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
     >
       {[1, 2, 3, 4, 5].map(n => (
         <option key={n} value={n}>
@@ -334,11 +334,11 @@ const RecruitmentInterviews: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Phỏng vấn & Offer</h1>
-          <p className="text-sm text-gray-500 mt-1">Quản lý lịch phỏng vấn, đánh giá và offer letter</p>
+          <p className="text-gray-600 mt-2">Quản lý lịch phỏng vấn, đánh giá và offer letter</p>
         </div>
         {activeTab === 'interviews' ? (
           <button
@@ -347,7 +347,7 @@ const RecruitmentInterviews: React.FC = () => {
               setInterviewFormError(null);
               setShowInterviewModal(true);
             }}
-            className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
           >
             <PlusIcon className="h-4 w-4" />
             Lên lịch phỏng vấn
@@ -359,7 +359,7 @@ const RecruitmentInterviews: React.FC = () => {
               setOfferFormError(null);
               setShowOfferModal(true);
             }}
-            className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
           >
             <PlusIcon className="h-4 w-4" />
             Tạo offer
@@ -386,27 +386,29 @@ const RecruitmentInterviews: React.FC = () => {
 
       {/* Interviews Tab */}
       {activeTab === 'interviews' && (
-        <>
-          <div className="mb-4 flex gap-2 flex-wrap">
-            {[
-              { value: 'all', label: 'Tất cả' },
-              { value: 'SCHEDULED', label: 'Đã lên lịch' },
-              { value: 'DONE', label: 'Đã phỏng vấn' },
-              { value: 'CANCELLED', label: 'Đã hủy' },
-              { value: 'NO_SHOW', label: 'Không đến' },
-            ].map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setStatusFilter(opt.value)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  statusFilter === opt.value
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+        <div className="space-y-4">
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { value: 'all', label: 'Tất cả' },
+                { value: 'SCHEDULED', label: 'Đã lên lịch' },
+                { value: 'DONE', label: 'Đã phỏng vấn' },
+                { value: 'CANCELLED', label: 'Đã hủy' },
+                { value: 'NO_SHOW', label: 'Không đến' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setStatusFilter(opt.value)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    statusFilter === opt.value
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
           {interviewError && (
             <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
@@ -424,7 +426,8 @@ const RecruitmentInterviews: React.FC = () => {
               <p>Chưa có lịch phỏng vấn nào</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -509,14 +512,15 @@ const RecruitmentInterviews: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Offers Tab */}
       {activeTab === 'offers' && (
-        <>
+        <div className="space-y-4">
           {offerError && (
             <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
               {offerError}
@@ -533,7 +537,8 @@ const RecruitmentInterviews: React.FC = () => {
               <p>Chưa có offer nào</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -616,15 +621,16 @@ const RecruitmentInterviews: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Create Interview Modal */}
       {showInterviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Lên lịch phỏng vấn</h2>
               <button
@@ -645,7 +651,7 @@ const RecruitmentInterviews: React.FC = () => {
                   onChange={e =>
                     setInterviewForm(f => ({ ...f, application: e.target.value }))
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -659,7 +665,7 @@ const RecruitmentInterviews: React.FC = () => {
                         interview_type: e.target.value as InterviewType,
                       }))
                     }
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     {INTERVIEW_TYPE_OPTIONS.map(o => (
                       <option key={o.value} value={o.value}>
@@ -678,7 +684,7 @@ const RecruitmentInterviews: React.FC = () => {
                     onChange={e =>
                       setInterviewForm(f => ({ ...f, duration_minutes: e.target.value }))
                     }
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -692,7 +698,7 @@ const RecruitmentInterviews: React.FC = () => {
                   onChange={e =>
                     setInterviewForm(f => ({ ...f, scheduled_at: e.target.value }))
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -703,7 +709,7 @@ const RecruitmentInterviews: React.FC = () => {
                   onChange={e =>
                     setInterviewForm(f => ({ ...f, location: e.target.value }))
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="VD: Phòng họp A3 hoặc link meet..."
                 />
               </div>
@@ -715,7 +721,7 @@ const RecruitmentInterviews: React.FC = () => {
                   onChange={e =>
                     setInterviewForm(f => ({ ...f, notes: e.target.value }))
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               {interviewFormError && (
@@ -725,14 +731,14 @@ const RecruitmentInterviews: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowInterviewModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={savingInterview}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {savingInterview ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -750,7 +756,7 @@ const RecruitmentInterviews: React.FC = () => {
       {/* Evaluation Modal */}
       {evalInterviewId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
               <h2 className="text-lg font-semibold text-gray-900">Đánh giá phỏng vấn</h2>
               <button
@@ -789,7 +795,7 @@ const RecruitmentInterviews: React.FC = () => {
                   rows={2}
                   value={evalForm.strengths}
                   onChange={e => setEvalForm(f => ({ ...f, strengths: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -798,7 +804,7 @@ const RecruitmentInterviews: React.FC = () => {
                   rows={2}
                   value={evalForm.weaknesses}
                   onChange={e => setEvalForm(f => ({ ...f, weaknesses: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -807,7 +813,7 @@ const RecruitmentInterviews: React.FC = () => {
                   rows={2}
                   value={evalForm.recommendation}
                   onChange={e => setEvalForm(f => ({ ...f, recommendation: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -827,14 +833,14 @@ const RecruitmentInterviews: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setEvalInterviewId(null)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={savingEval}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {savingEval ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -852,7 +858,7 @@ const RecruitmentInterviews: React.FC = () => {
       {/* Create Offer Modal */}
       {showOfferModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
               <h2 className="text-lg font-semibold text-gray-900">Tạo Offer Letter</h2>
               <button
@@ -871,7 +877,7 @@ const RecruitmentInterviews: React.FC = () => {
                   type="number"
                   value={offerForm.application}
                   onChange={e => setOfferForm(f => ({ ...f, application: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -883,7 +889,7 @@ const RecruitmentInterviews: React.FC = () => {
                     type="number"
                     value={offerForm.proposed_salary}
                     onChange={e => setOfferForm(f => ({ ...f, proposed_salary: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -894,7 +900,7 @@ const RecruitmentInterviews: React.FC = () => {
                     type="number"
                     value={offerForm.allowances}
                     onChange={e => setOfferForm(f => ({ ...f, allowances: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -905,7 +911,7 @@ const RecruitmentInterviews: React.FC = () => {
                     type="text"
                     value={offerForm.position_title}
                     onChange={e => setOfferForm(f => ({ ...f, position_title: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
@@ -916,7 +922,7 @@ const RecruitmentInterviews: React.FC = () => {
                     type="number"
                     value={offerForm.probation_months}
                     onChange={e => setOfferForm(f => ({ ...f, probation_months: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
@@ -930,7 +936,7 @@ const RecruitmentInterviews: React.FC = () => {
                   onChange={e =>
                     setOfferForm(f => ({ ...f, expected_onboard_date: e.target.value }))
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
@@ -939,7 +945,7 @@ const RecruitmentInterviews: React.FC = () => {
                   rows={2}
                   value={offerForm.notes}
                   onChange={e => setOfferForm(f => ({ ...f, notes: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               {offerFormError && <p className="text-sm text-red-600">{offerFormError}</p>}
@@ -947,14 +953,14 @@ const RecruitmentInterviews: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowOfferModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={savingOffer}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {savingOffer ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -972,7 +978,7 @@ const RecruitmentInterviews: React.FC = () => {
       {/* Accept Offer Modal */}
       {acceptOfferId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
             <h3 className="text-base font-semibold text-gray-900 mb-2">Chấp nhận Offer</h3>
             <p className="text-sm text-gray-600 mb-3">Ngày onboard thực tế:</p>
             <input
@@ -984,13 +990,13 @@ const RecruitmentInterviews: React.FC = () => {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setAcceptOfferId(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
                 Hủy
               </button>
               <button
                 onClick={handleAcceptOffer}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
               >
                 Xác nhận
               </button>
@@ -1002,7 +1008,7 @@ const RecruitmentInterviews: React.FC = () => {
       {/* Reject Offer Modal */}
       {rejectOfferId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
             <h3 className="text-base font-semibold text-gray-900 mb-2">Từ chối Offer</h3>
             <p className="text-sm text-gray-600 mb-3">Lý do từ chối:</p>
             <textarea
@@ -1015,13 +1021,13 @@ const RecruitmentInterviews: React.FC = () => {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setRejectOfferId(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
                 Hủy
               </button>
               <button
                 onClick={handleRejectOffer}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
               >
                 Từ chối
               </button>

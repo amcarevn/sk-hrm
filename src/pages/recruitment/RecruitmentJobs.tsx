@@ -210,15 +210,15 @@ const RecruitmentJobs: React.FC = () => {
   );
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Quản lý JD</h1>
-          <p className="text-sm text-gray-500 mt-1">Quản lý Job Description và kênh đăng tuyển</p>
+          <p className="text-gray-600 mt-2">Quản lý Job Description và kênh đăng tuyển</p>
         </div>
         <button
           onClick={openCreateJob}
-          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
+          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
         >
           <PlusIcon className="h-4 w-4" />
           Tạo tin mới
@@ -226,25 +226,27 @@ const RecruitmentJobs: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="mb-4 flex gap-2 flex-wrap">
-        {[
-          { value: 'all', label: 'Tất cả' },
-          { value: 'DRAFT', label: 'Nháp' },
-          { value: 'PUBLISHED', label: 'Đang đăng' },
-          { value: 'CLOSED', label: 'Đóng' },
-        ].map(opt => (
-          <button
-            key={opt.value}
-            onClick={() => setStatusFilter(opt.value)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              statusFilter === opt.value
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { value: 'all', label: 'Tất cả' },
+            { value: 'DRAFT', label: 'Nháp' },
+            { value: 'PUBLISHED', label: 'Đang đăng' },
+            { value: 'CLOSED', label: 'Đóng' },
+          ].map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setStatusFilter(opt.value)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                statusFilter === opt.value
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {error && (
@@ -262,7 +264,8 @@ const RecruitmentJobs: React.FC = () => {
           <p>Chưa có tin tuyển dụng nào</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -336,13 +339,14 @@ const RecruitmentJobs: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* Job Create/Edit Modal */}
       {showJobModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
               <h2 className="text-lg font-semibold text-gray-900">
                 {editingJobId ? 'Cập nhật tin tuyển dụng' : 'Tạo tin tuyển dụng mới'}
@@ -360,7 +364,7 @@ const RecruitmentJobs: React.FC = () => {
                   type="text"
                   value={jobForm.title}
                   onChange={e => setJobForm(f => ({ ...f, title: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="VD: Backend Developer – Python/Django"
                 />
               </div>
@@ -370,7 +374,7 @@ const RecruitmentJobs: React.FC = () => {
                   rows={4}
                   value={jobForm.description}
                   onChange={e => setJobForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Mô tả chi tiết công việc..."
                 />
               </div>
@@ -380,7 +384,7 @@ const RecruitmentJobs: React.FC = () => {
                   rows={3}
                   value={jobForm.requirements}
                   onChange={e => setJobForm(f => ({ ...f, requirements: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="- 2+ năm kinh nghiệm&#10;- Kỹ năng A, B, C"
                 />
               </div>
@@ -390,7 +394,7 @@ const RecruitmentJobs: React.FC = () => {
                   rows={3}
                   value={jobForm.benefits}
                   onChange={e => setJobForm(f => ({ ...f, benefits: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="- Lương cạnh tranh&#10;- Thưởng KPI"
                 />
               </div>
@@ -399,14 +403,14 @@ const RecruitmentJobs: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowJobModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {saving ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -424,7 +428,7 @@ const RecruitmentJobs: React.FC = () => {
       {/* Add Channel Modal */}
       {showChannelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">Thêm kênh đăng tuyển</h2>
               <button onClick={() => setShowChannelModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -439,7 +443,7 @@ const RecruitmentJobs: React.FC = () => {
                   onChange={e =>
                     setChannelForm(f => ({ ...f, channel_type: e.target.value as ChannelType }))
                   }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   {CHANNEL_TYPE_OPTIONS.map(o => (
                     <option key={o.value} value={o.value}>
@@ -454,7 +458,7 @@ const RecruitmentJobs: React.FC = () => {
                   type="url"
                   value={channelForm.url}
                   onChange={e => setChannelForm(f => ({ ...f, url: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="https://..."
                 />
               </div>
@@ -464,7 +468,7 @@ const RecruitmentJobs: React.FC = () => {
                   type="text"
                   value={channelForm.notes}
                   onChange={e => setChannelForm(f => ({ ...f, notes: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="VD: Budget: 500k/tháng"
                 />
               </div>
@@ -473,14 +477,14 @@ const RecruitmentJobs: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowChannelModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={savingChannel}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {savingChannel ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -498,7 +502,7 @@ const RecruitmentJobs: React.FC = () => {
       {/* Close Job Confirm Modal */}
       {closeConfirmId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
             <h3 className="text-base font-semibold text-gray-900 mb-2">Xác nhận đóng tin</h3>
             <p className="text-sm text-gray-600 mb-4">
               Bạn có chắc muốn đóng tin tuyển dụng này không?
@@ -506,13 +510,13 @@ const RecruitmentJobs: React.FC = () => {
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setCloseConfirmId(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
                 Hủy
               </button>
               <button
                 onClick={() => handleClose(closeConfirmId)}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
               >
                 Đóng tin
               </button>

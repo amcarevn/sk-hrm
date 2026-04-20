@@ -15,6 +15,7 @@ import {
 import { departmentsAPI, employeesAPI } from '../utils/api';
 import type { Department, Employee } from '../utils/api';
 import { salaryService, SalaryFormulaUpdateData, SalaryRecord } from '../services/salary.service';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const TABS = [
   { key: 'config', label: 'Cấu hình lương', icon: CurrencyDollarIcon },
@@ -62,7 +63,7 @@ const EditSalaryModal: React.FC<EditModalProps> = ({ employee, onClose, onSave, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Cấu hình lương</h2>
@@ -85,7 +86,7 @@ const EditSalaryModal: React.FC<EditModalProps> = ({ employee, onClose, onSave, 
                 step="1000"
                 value={basicSalary}
                 onChange={(e) => setBasicSalary(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="0"
               />
             </div>
@@ -99,7 +100,7 @@ const EditSalaryModal: React.FC<EditModalProps> = ({ employee, onClose, onSave, 
                 step="1000"
                 value={allowance}
                 onChange={(e) => setAllowance(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="0"
               />
             </div>
@@ -113,7 +114,7 @@ const EditSalaryModal: React.FC<EditModalProps> = ({ employee, onClose, onSave, 
               value={salaryNotes}
               onChange={(e) => setSalaryNotes(e.target.value)}
               rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="Ghi chú về lương..."
             />
           </div>
@@ -126,7 +127,7 @@ const EditSalaryModal: React.FC<EditModalProps> = ({ employee, onClose, onSave, 
               value={allowanceNotes}
               onChange={(e) => setAllowanceNotes(e.target.value)}
               rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               placeholder="Ghi chú về phụ cấp..."
             />
           </div>
@@ -136,14 +137,14 @@ const EditSalaryModal: React.FC<EditModalProps> = ({ employee, onClose, onSave, 
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
             >
               {saving ? (
                 <ArrowPathIcon className="h-4 w-4 animate-spin" />
@@ -281,43 +282,34 @@ const SalaryManagement: React.FC = () => {
   const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 bg-indigo-100 rounded-lg flex items-center justify-center">
-            <CurrencyDollarIcon className="h-5 w-5 text-indigo-600" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Quản lý tính lương</h1>
-            <p className="text-sm text-gray-500">Cấu hình công thức lương và xem bảng lương theo phòng ban</p>
-          </div>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Quản lý tính lương</h1>
+        <p className="text-gray-600 mt-2">Cấu hình công thức lương và xem bảng lương theo phòng ban</p>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 px-6">
-        <nav className="flex gap-6">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as 'config' | 'view')}
-              className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.key
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <tab.icon className="h-4 w-4" />
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+      <div className="flex border-b border-gray-200">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key as 'config' | 'view')}
+            className={`flex items-center gap-2 py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab.key
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <tab.icon className="h-4 w-4" />
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Toast notifications */}
       {saveSuccess && (
-        <div className="mx-6 mt-4 flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
+        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
           <CheckIcon className="h-4 w-4 flex-shrink-0" />
           {saveSuccess}
           <button className="ml-auto" onClick={() => setSaveSuccess(null)}>
@@ -326,7 +318,7 @@ const SalaryManagement: React.FC = () => {
         </div>
       )}
       {saveError && (
-        <div className="mx-6 mt-4 flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
           <ExclamationCircleIcon className="h-4 w-4 flex-shrink-0" />
           {saveError}
           <button className="ml-auto" onClick={() => setSaveError(null)}>
@@ -335,12 +327,12 @@ const SalaryManagement: React.FC = () => {
         </div>
       )}
 
-      <div className="px-6 py-6">
+      <div>
         {/* ── TAB 1: Salary Config ── */}
         {activeTab === 'config' && (
           <div className="space-y-4">
             {/* Filters */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 relative">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -349,7 +341,7 @@ const SalaryManagement: React.FC = () => {
                     placeholder="Tìm theo tên hoặc mã nhân viên..."
                     value={searchEmployee}
                     onChange={(e) => setSearchEmployee(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -357,7 +349,7 @@ const SalaryManagement: React.FC = () => {
                   <select
                     value={deptFilterConfig}
                     onChange={(e) => setDeptFilterConfig(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                   >
                     <option value="">Tất cả phòng ban</option>
                     {departments.map((d) => (
@@ -371,10 +363,10 @@ const SalaryManagement: React.FC = () => {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-lg shadow overflow-hidden">
               {loadingEmployees ? (
                 <div className="flex items-center justify-center py-16">
-                  <ArrowPathIcon className="h-6 w-6 text-indigo-500 animate-spin" />
+                  <ArrowPathIcon className="h-6 w-6 text-primary-400 animate-spin" />
                   <span className="ml-2 text-sm text-gray-500">Đang tải...</span>
                 </div>
               ) : employees.length === 0 ? (
@@ -412,8 +404,8 @@ const SalaryManagement: React.FC = () => {
                         <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                                <span className="text-xs font-semibold text-indigo-700">
+                              <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                <span className="text-xs font-semibold text-gray-700">
                                   {emp.full_name?.charAt(0).toUpperCase()}
                                 </span>
                               </div>
@@ -430,7 +422,7 @@ const SalaryManagement: React.FC = () => {
                                 {emp.department?.name ?? '—'}
                               </p>
                               {emp.position && (
-                                <p className="text-xs text-indigo-500 mt-0.5">{emp.position.title}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{emp.position.title}</p>
                               )}
                             </div>
                           </td>
@@ -450,7 +442,7 @@ const SalaryManagement: React.FC = () => {
                           <td className="px-4 py-3 text-center">
                             <button
                               onClick={() => setEditEmployee(emp)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors"
                             >
                               <PencilIcon className="h-3.5 w-3.5" />
                               Chỉnh sửa
@@ -473,14 +465,14 @@ const SalaryManagement: React.FC = () => {
                     <button
                       onClick={() => loadEmployees(configPage - 1)}
                       disabled={configPage === 1}
-                      className="px-3 py-1 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+                      className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-40 hover:bg-gray-50"
                     >
                       Trước
                     </button>
                     <button
                       onClick={() => loadEmployees(configPage + 1)}
                       disabled={configPage === totalConfigPages}
-                      className="px-3 py-1 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+                      className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-40 hover:bg-gray-50"
                     >
                       Sau
                     </button>
@@ -495,46 +487,43 @@ const SalaryManagement: React.FC = () => {
         {activeTab === 'view' && (
           <div className="space-y-4">
             {/* Filters */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Tháng:</label>
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                  >
-                    {monthOptions.map((m) => (
-                      <option key={m} value={m}>Tháng {m}</option>
-                    ))}
-                  </select>
+                  <div className="w-32">
+                    <SelectBox<number>
+                      label=""
+                      value={selectedMonth}
+                      options={monthOptions.map((m) => ({ value: m, label: `Tháng ${m}` }))}
+                      onChange={setSelectedMonth}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Năm:</label>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                  >
-                    {yearOptions.map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
+                  <div className="w-24">
+                    <SelectBox<number>
+                      label=""
+                      value={selectedYear}
+                      options={yearOptions.map((y) => ({ value: y, label: String(y) }))}
+                      onChange={setSelectedYear}
+                    />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <FunnelIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  <select
-                    value={deptFilterView}
-                    onChange={(e) => setDeptFilterView(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                  >
-                    <option value="">Tất cả phòng ban</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={String(d.id)}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="w-48">
+                    <SelectBox<string>
+                      label=""
+                      value={deptFilterView}
+                      options={[
+                        { value: '', label: 'Tất cả phòng ban' },
+                        ...departments.map((d) => ({ value: String(d.id), label: d.name })),
+                      ]}
+                      onChange={setDeptFilterView}
+                    />
+                  </div>
                 </div>
                 <div className="flex-1 relative min-w-48">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -543,12 +532,12 @@ const SalaryManagement: React.FC = () => {
                     placeholder="Tìm theo mã nhân viên..."
                     value={searchSalary}
                     onChange={(e) => setSearchSalary(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <button
                   onClick={loadSalary}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
                 >
                   <ArrowPathIcon className="h-4 w-4" />
                   Tải dữ liệu
@@ -557,10 +546,10 @@ const SalaryManagement: React.FC = () => {
             </div>
 
             {/* Salary Table */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-lg shadow overflow-hidden">
               {loadingSalary ? (
                 <div className="flex items-center justify-center py-16">
-                  <ArrowPathIcon className="h-6 w-6 text-indigo-500 animate-spin" />
+                  <ArrowPathIcon className="h-6 w-6 text-primary-400 animate-spin" />
                   <span className="ml-2 text-sm text-gray-500">Đang tải bảng lương...</span>
                 </div>
               ) : salaryError ? (

@@ -72,7 +72,7 @@ const SectionCreate: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <div className="mb-6">
         <button
           onClick={() => navigate('/dashboard/sections')}

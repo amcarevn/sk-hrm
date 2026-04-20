@@ -1,9 +1,10 @@
 // pages/PasswordReset.tsx
 
 import { useState, useEffect } from 'react';
-import { MagnifyingGlassIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { employeesAPI, departmentsAPI, managementApi } from '../utils/api';
 import Pagination from '../components/Pagination';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 interface Employee {
   id: number;
@@ -32,6 +33,7 @@ export default function PasswordReset() {
     department: '',
   });
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -149,20 +151,18 @@ export default function PasswordReset() {
     }
   };
 
-  const handleResetPassword = async (employee: Employee) => {
-    if (!window.confirm(`Bạn có chắc muốn reset mật khẩu cho nhân viên ${employee.full_name}?`)) {
-      return;
-    }
+  const handleResetPassword = async () => {
+    if (!confirmTarget) return;
 
     try {
       setResetting(true);
       setMessage(null);
-      
-      console.log('🔄 Resetting password for employee:', employee.id);
-      
+
+      console.log('🔄 Resetting password for employee:', confirmTarget.id);
+
       // ✅ ĐÚNG: POST /api-hrm/employees/{id}/reset-password/ (action của EmployeeViewSet)
       const response = await managementApi.post(
-        `/api-hrm/employees/${employee.id}/reset-password/`,
+        `/api-hrm/employees/${confirmTarget.id}/reset-password/`,
         {}
       );
 
@@ -170,257 +170,268 @@ export default function PasswordReset() {
 
       setMessage({
         type: 'success',
-        text: `✅ Đã reset mật khẩu thành công cho ${employee.full_name}. Hệ thống đã gửi email thông tin tài khoản mới.`,
+        text: `✅ Đã reset mật khẩu thành công cho ${confirmTarget.full_name}. Hệ thống đã gửi email thông tin tài khoản mới.`,
       });
 
-      // Refresh employee list and go back to first page
       setCurrentPage(1);
       setSelectedEmployee(null);
+      setConfirmTarget(null);
 
     } catch (error: any) {
       console.error('❌ Error resetting password:', error);
       console.error('Error response:', error.response?.data);
-      
+
       const errorMsg = error.response?.data?.error || error.response?.data?.detail || error.message || 'Lỗi khi reset mật khẩu';
       setMessage({
         type: 'error',
         text: `❌ ${errorMsg}`,
       });
+      setConfirmTarget(null);
     } finally {
       setResetting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Reset Mật Khẩu Nhân Viên</h1>
-          <p className="mt-2 text-gray-600">
-            Sử dụng công cụ này để reset mật khẩu cho nhân viên quên mật khẩu. Hệ thống sẽ gửi email tài khoản mới đến nhân viên.
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Reset Mật Khẩu Nhân Viên</h1>
+        <p className="mt-2 text-gray-600">
+          Sử dụng công cụ này để reset mật khẩu cho nhân viên quên mật khẩu. Hệ thống sẽ gửi email tài khoản mới đến nhân viên.
+        </p>
+      </div>
 
-        {/* Message Alert */}
-        {message && (
-          <div
-            className={`mb-6 p-4 rounded-md ${
-              message.type === 'success'
-                ? 'bg-green-50 border border-green-200'
-                : 'bg-red-50 border border-red-200'
+      {/* Message Alert */}
+      {message && (
+        <div
+          className={`p-4 rounded-md ${
+            message.type === 'success'
+              ? 'bg-green-50 border border-green-200'
+              : 'bg-red-50 border border-red-200'
+          }`}
+        >
+          <p
+            className={`text-sm font-medium ${
+              message.type === 'success' ? 'text-green-800' : 'text-red-800'
             }`}
           >
-            <p
-              className={`text-sm font-medium ${
-                message.type === 'success' ? 'text-green-800' : 'text-red-800'
-              }`}
-            >
-              {message.text}
-            </p>
+            {message.text}
+          </p>
+        </div>
+      )}
+
+      {/* Main card */}
+      <div className="bg-white rounded-lg shadow p-6">
+        {/* Filter section */}
+        <div className="mb-6 bg-gray-50 p-4 rounded-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Tìm kiếm nhân viên</h3>
+            {loading && (
+              <div className="flex items-center text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                Đang tìm kiếm...
+              </div>
+            )}
+          </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mã nhân viên
+                </label>
+                <input
+                  type="text"
+                  name="employee_id"
+                  value={filters.employee_id}
+                  onChange={handleFilterChange}
+                  placeholder="VD: TA00001"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Họ tên
+                </label>
+                <input
+                  type="text"
+                  name="full_name"
+                  value={filters.full_name}
+                  onChange={handleFilterChange}
+                  placeholder="VD: Nguyễn Văn A"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <SelectBox<string>
+                  label="Phòng ban"
+                  value={filters.department}
+                  options={[
+                    { value: '', label: '-- Tất cả phòng ban --' },
+                    ...departments.map(dept => ({ value: dept.code, label: dept.name })),
+                  ]}
+                  onChange={(v) => setFilters(prev => ({ ...prev, department: v }))}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setFilters({ employee_id: '', full_name: '', department: '' });
+                  setCurrentPage(1);
+                  setSelectedEmployee(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Xóa bộ lọc
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* List header */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Danh sách nhân viên</h2>
+            <p className="text-gray-500 text-sm">Tổng số: {totalCount} nhân viên</p>
+          </div>
+        </div>
+
+        {/* Content */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <p className="mt-4 text-gray-600">Đang tải danh sách nhân viên...</p>
+          </div>
+        ) : filteredEmployees.length === 0 ? (
+          <div className="border rounded-lg overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã NV</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phòng ban</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center">
+                      <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <p className="text-lg font-medium text-gray-900">Không tìm thấy nhân viên</p>
+                      <p className="text-gray-500 mt-1">Thay đổi bộ lọc để tìm kiếm</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="border rounded-lg overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã NV</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phòng ban</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredEmployees.map(employee => (
+                  <tr
+                    key={employee.id}
+                    className={`hover:bg-gray-50 transition-colors ${
+                      selectedEmployee?.id === employee.id ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {employee.employee_id}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {employee.full_name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {employee.personal_email}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {employee.department?.name || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => setConfirmTarget(employee)}
+                        disabled={resetting}
+                        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                          resetting
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-red-50 text-red-600 hover:bg-red-100'
+                        }`}
+                      >
+                        {resetting ? 'Đang xử lý...' : 'Reset'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex items-center mb-4">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 mr-2" />
-            <h2 className="text-lg font-semibold text-gray-900">Tìm kiếm nhân viên</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Employee ID Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mã nhân viên
-              </label>
-              <input
-                type="text"
-                name="employee_id"
-                value={filters.employee_id}
-                onChange={handleFilterChange}
-                placeholder="VD: TA00001"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Full Name Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Họ tên
-              </label>
-              <input
-                type="text"
-                name="full_name"
-                value={filters.full_name}
-                onChange={handleFilterChange}
-                placeholder="VD: Nguyễn Văn A"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {/* Department Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phòng ban
-              </label>
-              <select
-                name="department"
-                value={filters.department}
-                onChange={handleFilterChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">-- Tất cả phòng ban --</option>
-                {departments.map(dept => (
-                  <option key={dept.id} value={dept.code}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Clear Filters Button */}
-          <div className="mt-4">
-            <button
-              onClick={() => {
-                setFilters({ employee_id: '', full_name: '', department: '' });
-                setCurrentPage(1);
-                setSelectedEmployee(null);
-              }}
-              className="text-sm text-gray-600 hover:text-gray-900 underline"
-            >
-              Xóa bộ lọc
-            </button>
-          </div>
-        </div>
-
-        {/* Results */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {/* Loading State */}
-          {loading ? (
-            <div className="flex items-center justify-center h-48">
-              <div className="text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-2"></div>
-                <p className="text-gray-600">Đang tải danh sách nhân viên...</p>
-              </div>
-            </div>
-          ) : filteredEmployees.length === 0 ? (
-            // Empty State
-            <div className="flex items-center justify-center h-48">
-              <div className="text-center">
-                <MagnifyingGlassIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-600">
-                  {employees.length === 0
-                    ? 'Không tìm thấy nhân viên nào.'
-                    : 'Không có kết quả phù hợp với bộ lọc'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            // Table
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                      Mã NV
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                      Họ tên
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                      Phòng ban
-                    </th>
-                    <th className="px-6 py-3 text-right text-sm font-semibold text-gray-900">
-                      Hành động
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredEmployees.map(employee => (
-                    <tr
-                      key={employee.id}
-                      className={`hover:bg-gray-50 transition-colors ${
-                        selectedEmployee?.id === employee.id ? 'bg-blue-50' : ''
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {employee.employee_id}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {employee.full_name}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {employee.personal_email}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {employee.department?.name || '-'}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleResetPassword(employee)}
-                          disabled={resetting}
-                          className={`inline-flex items-center px-3 py-2 rounded-lg font-medium transition-colors ${
-                            resetting
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : 'bg-red-100 text-red-700 hover:bg-red-200'
-                          }`}
-                        >
-                          <ArrowPathIcon className="h-4 w-4 mr-1" />
-                          {resetting ? 'Đang xử lý...' : 'Reset'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {!loading && filteredEmployees.length > 0 && (
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={Math.ceil(totalCount / itemsPerPage)}
-                totalItems={totalCount}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
-                onItemsPerPageChange={setItemsPerPage}
-                showItemsPerPage={true}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Info Box */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="font-semibold text-blue-900 mb-2">ℹ️ Thông tin cần biết</h3>
-          <ul className="text-sm text-blue-800 space-y-1">
-            <li>✓ Mật khẩu mới sẽ được tạo ngẫu nhiên: <code className="bg-blue-100 px-2 py-1 rounded">amcare@XXXXX</code></li>
-            <li>✓ Email thông tin tài khoản sẽ được gửi đến nhân viên</li>
-            <li>✓ Nhân viên PHẢI đổi mật khẩu sau lần đăng nhập đầu tiên</li>
-            <li>✓ Hệ thống sẽ ghi nhận lịch sử reset mật khẩu</li>
-          </ul>
-        </div>
-
-        {/* Debug Info - Chỉ hiển thị khi có lỗi */}
-        {employees.length === 0 && !loading && (
-          <div className="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h3 className="font-semibold text-yellow-900 mb-2">⚠️ Debug Info</h3>
-            <ul className="text-sm text-yellow-800 space-y-1">
-              <li>• Không có dữ liệu nhân viên được tải</li>
-              <li>• Vui lòng mở DevTools (F12) → Console để xem chi tiết lỗi</li>
-              <li>• Kiểm tra API endpoint: /api-hrm/employees/</li>
-              <li>• Kiểm tra authentication token</li>
-            </ul>
+        {/* Pagination */}
+        {!loading && filteredEmployees.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(totalCount / itemsPerPage)}
+              totalItems={totalCount}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={setItemsPerPage}
+              showItemsPerPage={true}
+            />
           </div>
         )}
       </div>
+
+      {/* Info Box */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h3 className="font-semibold text-blue-900 mb-2">ℹ️ Thông tin cần biết</h3>
+        <ul className="text-sm text-blue-800 space-y-1">
+          <li>✓ Mật khẩu mới sẽ được tạo ngẫu nhiên: <code className="bg-blue-100 px-2 py-1 rounded">amcare@XXXXX</code></li>
+          <li>✓ Email thông tin tài khoản sẽ được gửi đến nhân viên</li>
+          <li>✓ Nhân viên PHẢI đổi mật khẩu sau lần đăng nhập đầu tiên</li>
+          <li>✓ Hệ thống sẽ ghi nhận lịch sử reset mật khẩu</li>
+        </ul>
+      </div>
+
+      {/* Debug Info - Chỉ hiển thị khi có lỗi */}
+      {employees.length === 0 && !loading && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h3 className="font-semibold text-yellow-900 mb-2">⚠️ Debug Info</h3>
+          <ul className="text-sm text-yellow-800 space-y-1">
+            <li>• Không có dữ liệu nhân viên được tải</li>
+            <li>• Vui lòng mở DevTools (F12) → Console để xem chi tiết lỗi</li>
+            <li>• Kiểm tra API endpoint: /api-hrm/employees/</li>
+            <li>• Kiểm tra authentication token</li>
+          </ul>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        variant="warning"
+        title="Reset mật khẩu nhân viên"
+        message={confirmTarget ? `Bạn có chắc muốn reset mật khẩu cho nhân viên ${confirmTarget.full_name}?` : ''}
+        confirmLabel="Reset"
+        loading={resetting}
+        onConfirm={handleResetPassword}
+        onClose={() => setConfirmTarget(null)}
+      />
     </div>
   );
 }

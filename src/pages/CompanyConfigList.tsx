@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { companyConfigAPI, CompanyConfig } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const CompanyConfigList: React.FC = () => {
   const { user } = useAuth();
@@ -223,36 +224,30 @@ const CompanyConfigList: React.FC = () => {
 
               {/* Active Status */}
               <div>
-                <label htmlFor="activeFilter" className="block text-sm font-medium text-gray-700">
-                  Trạng thái
-                </label>
-                <select
-                  id="activeFilter"
+                <SelectBox<string>
+                  label="Trạng thái"
                   value={isActiveFilter}
-                  onChange={(e) => setIsActiveFilter(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="active">Đang hoạt động</option>
-                  <option value="inactive">Không hoạt động</option>
-                </select>
+                  options={[
+                    { value: 'all', label: 'Tất cả trạng thái' },
+                    { value: 'active', label: 'Đang hoạt động' },
+                    { value: 'inactive', label: 'Không hoạt động' },
+                  ]}
+                  onChange={setIsActiveFilter}
+                />
               </div>
 
               {/* Current Status */}
               <div>
-                <label htmlFor="currentFilter" className="block text-sm font-medium text-gray-700">
-                  Áp dụng hiện tại
-                </label>
-                <select
-                  id="currentFilter"
+                <SelectBox<string>
+                  label="Áp dụng hiện tại"
                   value={isCurrentFilter}
-                  onChange={(e) => setIsCurrentFilter(e.target.value)}
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                >
-                  <option value="all">Tất cả</option>
-                  <option value="true">Đang áp dụng</option>
-                  <option value="false">Không áp dụng</option>
-                </select>
+                  options={[
+                    { value: 'all', label: 'Tất cả' },
+                    { value: 'true', label: 'Đang áp dụng' },
+                    { value: 'false', label: 'Không áp dụng' },
+                  ]}
+                  onChange={setIsCurrentFilter}
+                />
               </div>
 
               {/* Search Button */}

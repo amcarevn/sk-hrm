@@ -185,17 +185,17 @@ const Approvals: React.FC = () => {
 
   // Skeleton component for better UX
   const SkeletonItem = () => (
-    <div className="animate-pulse bg-white border border-slate-100 rounded-[32px] p-6 mb-4 shadow-sm">
+    <div className="animate-pulse bg-white border border-gray-100 rounded-lg p-6 mb-4 shadow-sm">
       <div className="flex items-center gap-4 mb-4">
-        <div className="w-12 h-12 bg-slate-200 rounded-2xl"></div>
+        <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
         <div className="space-y-2 flex-1">
-          <div className="h-4 bg-slate-200 rounded w-1/4"></div>
-          <div className="h-3 bg-slate-100 rounded w-1/6"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-3 bg-gray-100 rounded w-1/6"></div>
         </div>
       </div>
       <div className="space-y-3">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-16 bg-slate-50 rounded-2xl border border-slate-100/50"></div>
+          <div key={i} className="h-16 bg-gray-50 rounded-lg border border-gray-100/50"></div>
         ))}
       </div>
     </div>
@@ -603,10 +603,10 @@ const Approvals: React.FC = () => {
       ? 'bg-rose-50 text-rose-600 border-rose-100'
       : ratio >= 0.7
         ? 'bg-amber-50 text-amber-600 border-amber-100'
-        : 'bg-slate-50 text-slate-500 border-slate-100';
+        : 'bg-gray-50 text-gray-500 border-gray-100';
 
     return (
-      <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] font-bold tracking-tighter uppercase transition-colors ${colors}`}>
+      <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-xs font-bold tracking-tighter uppercase transition-colors ${colors}`}>
         {label} {used}/{max}
       </div>
     );
@@ -1237,20 +1237,11 @@ const Approvals: React.FC = () => {
       return (
         <div className="flex items-center shrink-0">
           {isApproved ? (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 border border-emerald-100 rounded-full">
-              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-emerald-700 whitespace-nowrap">Hoàn tất</span>
-            </div>
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 whitespace-nowrap">Hoàn tất</span>
           ) : isRejected ? (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-50 border border-rose-100 rounded-full">
-              <div className="w-1.5 h-1.5 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-rose-700 whitespace-nowrap">Từ chối</span>
-            </div>
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800 whitespace-nowrap">Từ chối</span>
           ) : (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 border border-amber-100 rounded-full">
-              <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-              <span className="text-[10px] font-bold uppercase tracking-tighter text-amber-700 whitespace-nowrap text-nowrap">Đang duyệt</span>
-            </div>
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 whitespace-nowrap">Đang duyệt</span>
           )}
         </div>
       );
@@ -1261,20 +1252,11 @@ const Approvals: React.FC = () => {
         {/* Main Status Badge */}
         <div className="flex items-center">
           {isApproved ? (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 border border-emerald-100 rounded-full">
-              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Hoàn tất</span>
-            </div>
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800">Hoàn tất</span>
           ) : isRejected ? (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-rose-50 border border-rose-100 rounded-full">
-              <div className="w-1.5 h-1.5 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700">Từ chối</span>
-            </div>
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800">Từ chối</span>
           ) : (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 border border-amber-100 rounded-full">
-              <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Đang duyệt</span>
-            </div>
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">Đang duyệt</span>
           )}
         </div>
 
@@ -1282,43 +1264,43 @@ const Approvals: React.FC = () => {
         <div className="flex items-center gap-0">
           {/* Step 1: Manager */}
           <div className="flex flex-col items-center relative">
-            <div className={`z-10 w-5 h-5 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${step1.rejected ? 'bg-rose-500 border-rose-100 text-white' :
-              step1.active ? 'bg-emerald-500 border-emerald-100 text-white' :
-                'bg-white border-slate-200 text-slate-400'
+            <div className={`z-10 w-5 h-5 rounded-full flex items-center justify-center border-2 transition-all ${step1.rejected ? 'bg-red-500 border-red-100 text-white' :
+              step1.active ? 'bg-green-500 border-green-100 text-white' :
+                'bg-white border-gray-200 text-gray-400'
               }`}>
               {step1.rejected ? (
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
               ) : step1.active ? (
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" /></svg>
               ) : (
-                <span className="text-[9px] font-bold">1</span>
+                <span className="text-xs font-bold">1</span>
               )}
             </div>
-            <span className={`text-[9px] font-bold mt-1 uppercase tracking-tighter ${step1.active ? 'text-emerald-600' : step1.rejected ? 'text-rose-600' : 'text-slate-400'}`}>QLTT</span>
+            <span className={`text-xs font-medium mt-1 ${step1.active ? 'text-green-600' : step1.rejected ? 'text-red-600' : 'text-gray-400'}`}>QLTT</span>
           </div>
 
           {!isRequesterHR && (
             <>
               {/* Connecting Line */}
-              <div className="flex-1 h-[2px] w-8 mx-0 mb-3.5 relative overflow-hidden bg-slate-100 -translate-y-0.5">
-                <div className={`absolute inset-0 transition-transform duration-700 ${step1.active ? 'translate-x-0 bg-emerald-400' : '-translate-x-full'}`} />
+              <div className="flex-1 h-[2px] w-8 mx-0 mb-3.5 relative overflow-hidden bg-gray-100 -translate-y-0.5">
+                <div className={`absolute inset-0 transition-transform duration-300 ${step1.active ? 'translate-x-0 bg-green-400' : '-translate-x-full'}`} />
               </div>
 
               {/* Step 2: HR */}
               <div className="flex flex-col items-center relative">
-                <div className={`z-10 w-5 h-5 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${step2.rejected ? 'bg-rose-500 border-rose-100 text-white' :
-                  step2.active ? 'bg-emerald-500 border-emerald-100 text-white' :
-                    'bg-white border-slate-200 text-slate-400'
+                <div className={`z-10 w-5 h-5 rounded-full flex items-center justify-center border-2 transition-all ${step2.rejected ? 'bg-red-500 border-red-100 text-white' :
+                  step2.active ? 'bg-green-500 border-green-100 text-white' :
+                    'bg-white border-gray-200 text-gray-400'
                   }`}>
                   {step2.rejected ? (
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                   ) : step2.active ? (
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" /></svg>
                   ) : (
-                    <span className="text-[9px] font-bold">2</span>
+                    <span className="text-xs font-bold">2</span>
                   )}
                 </div>
-                <span className={`text-[9px] font-bold mt-1 uppercase tracking-tighter ${step2.active ? 'text-emerald-600' : step2.rejected ? 'text-rose-600' : 'text-slate-400'}`}>Nhân sự</span>
+                <span className={`text-xs font-medium mt-1 ${step2.active ? 'text-green-600' : step2.rejected ? 'text-red-600' : 'text-gray-400'}`}>Nhân sự</span>
               </div>
             </>
           )}
@@ -1810,19 +1792,19 @@ const Approvals: React.FC = () => {
   const getTotalFilteredCount = () => getTotalCount();
 
   return (
-    <div className="w-full relative pb-20">
+    <div>
       {/* Cập nhật nhanh - Floating indicator */}
       <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[60] transition-all duration-500 transform ${showRefreshToast ? 'translate-y-0 opacity-100' : '-translate-y-12 opacity-0 pointer-events-none'}`}>
-        <div className="bg-slate-900 text-white px-6 py-2.5 rounded-full shadow-2xl flex items-center gap-3 border border-slate-700/50 backdrop-blur-md">
-          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-          <span className="text-xs font-black uppercase tracking-widest">Đã cập nhật dữ liệu mới</span>
+        <div className="bg-gray-800 text-white px-4 py-2 rounded-lg shadow flex items-center gap-3">
+          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+          <span className="text-xs font-medium">Đã cập nhật dữ liệu mới</span>
         </div>
       </div>
 
       <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Phê duyệt</h1>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">
+          <h1 className="text-2xl font-bold text-gray-900">Phê duyệt</h1>
+          <p className="text-gray-500 text-sm mt-1">
             Cập nhật lần cuối: {lastRefreshedAt.toLocaleTimeString('vi-VN')}
           </p>
         </div>
@@ -1830,13 +1812,13 @@ const Approvals: React.FC = () => {
         {/* Floating Refresh FAB for Mobile */}
         <button
           onClick={() => fetchAllData(true)}
-          className={`fixed bottom-6 right-6 sm:hidden z-50 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center border-4 border-white transition-all active:scale-90 ${loading ? 'animate-pulse' : ''}`}
+          className={`fixed bottom-6 right-6 sm:hidden z-50 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center border-4 border-white transition-all active:scale-90 ${loading ? 'animate-pulse' : ''}`}
         >
           <svg className={`w-6 h-6 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
         </button>
       </div>
 
-      <div className="mb-4 sm:mb-6">
+      <div>
         <p className="text-base sm:text-lg text-gray-600 mt-1 sm:mt-2">
           Duyệt các đơn xin nghỉ phép, giải trình chấm công và các
           yêu cầu khác.
@@ -1848,7 +1830,7 @@ const Approvals: React.FC = () => {
         <FinalizationLockBanner year={filterYear} month={filterMonth} bypassRoles={['ADMIN', 'HR']} />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-3 sm:p-4 md:p-6 border border-gray-100">
+      <div className="bg-white rounded-lg shadow p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">
@@ -1872,80 +1854,59 @@ const Approvals: React.FC = () => {
           </div>
         </div>
 
-        {/* Tabs Điều hướng - Responsive Premium */}
-        <div className="mb-6 sm:mb-10 px-0.5">
-          <div className="bg-slate-100/50 p-1.5 rounded-[24px] grid grid-cols-3 gap-1.5 sm:gap-3 border border-slate-200/60 backdrop-blur-sm shadow-sm">
-            <button
-              onClick={() => setActiveTab('pending')}
-              className={`relative flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-6 py-2.5 sm:py-3.5 rounded-[20px] group ${activeTab === 'pending'
-                ? 'bg-white text-indigo-600 shadow-xl shadow-indigo-100 ring-1 ring-slate-200'
-                : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
-                }`}
-            >
-              <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${activeTab === 'pending' ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 text-slate-400 group-hover:bg-slate-200'
-                }`}>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
-                <span className="text-[10px] xs:text-[11px] sm:text-sm font-black uppercase tracking-widest leading-none">Chờ duyệt</span>
-                <span className={`mt-0.5 text-[9px] sm:text-xs font-bold px-2 py-0.5 rounded-full ${activeTab === 'pending' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200/50 text-slate-400'
-                  }`}>
-                  {stats.total_pending} <span className="hidden xs:inline">yêu cầu</span>
-                </span>
-              </div>
-              {activeTab === 'pending' && stats.total_pending > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('approved')}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-6 py-2.5 sm:py-3.5 rounded-[20px] group ${activeTab === 'approved'
-                ? 'bg-white text-emerald-600 shadow-xl shadow-emerald-100 ring-1 ring-slate-200'
-                : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
-                }`}
-            >
-              <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${activeTab === 'approved' ? 'bg-emerald-500 text-white' : 'bg-slate-200/70 text-slate-400 group-hover:bg-slate-200'
-                }`}>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
-                <span className="text-[10px] xs:text-[11px] sm:text-sm font-black uppercase tracking-widest leading-none">Đã duyệt</span>
-                <span className={`mt-0.5 text-[9px] sm:text-xs font-bold px-2 py-0.5 rounded-full ${activeTab === 'approved' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-200/50 text-slate-400'
-                  }`}>
-                  {stats.total_approved} <span className="hidden xs:inline">đơn</span>
-                </span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('rejected')}
-              className={`flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3 px-2 sm:px-6 py-2.5 sm:py-3.5 rounded-[20px] group ${activeTab === 'rejected'
-                ? 'bg-white text-rose-600 shadow-xl shadow-rose-100 ring-1 ring-slate-200'
-                : 'text-slate-500 hover:bg-white/60 hover:text-slate-700'
-                }`}
-            >
-              <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${activeTab === 'rejected' ? 'bg-rose-500 text-white' : 'bg-slate-200/70 text-slate-400 group-hover:bg-slate-200'
-                }`}>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
-                <span className="text-[10px] xs:text-[11px] sm:text-sm font-black uppercase tracking-widest leading-none">Từ chối</span>
-                <span className={`mt-0.5 text-[9px] sm:text-xs font-bold px-2 py-0.5 rounded-full ${activeTab === 'rejected' ? 'bg-rose-50 text-rose-600' : 'bg-slate-200/50 text-slate-400'
-                  }`}>
-                  {stats.total_rejected} <span className="hidden xs:inline">đơn</span>
-                </span>
-              </div>
-            </button>
-          </div>
+        {/* Tabs Điều hướng */}
+        <div className="flex border-b border-gray-200 mb-6">
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${activeTab === 'pending'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Chờ duyệt
+            {stats.total_pending > 0 && (
+              <span className="ml-1 min-w-[20px] h-5 inline-flex items-center justify-center px-1.5 rounded-full text-xs font-bold bg-red-500 text-white">
+                {stats.total_pending}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('approved')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${activeTab === 'approved'
+              ? 'border-green-600 text-green-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+            Đã duyệt
+            {stats.total_approved > 0 && (
+              <span className="ml-1 min-w-[20px] h-5 inline-flex items-center justify-center px-1.5 rounded-full text-xs font-bold bg-green-500 text-white">
+                {stats.total_approved}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('rejected')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${activeTab === 'rejected'
+              ? 'border-red-600 text-red-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Từ chối
+            {stats.total_rejected > 0 && (
+              <span className="ml-1 min-w-[20px] h-5 inline-flex items-center justify-center px-1.5 rounded-full text-xs font-bold bg-orange-500 text-white">
+                {stats.total_rejected}
+              </span>
+            )}
+          </button>
         </div>
 
 
@@ -1959,77 +1920,73 @@ const Approvals: React.FC = () => {
           ].map((item) => (
             <div
               key={item.type}
-              className={`relative overflow-hidden p-3.5 sm:p-5 rounded-xl border text-left shadow-sm ${item.color === 'amber' ? 'bg-amber-50/50 border-amber-100' :
-                  item.color === 'indigo' ? 'bg-indigo-50/50 border-indigo-100' :
-                    item.color === 'blue' ? 'bg-blue-50/50 border-blue-100' :
-                      'bg-teal-50/50 border-teal-100'
+              className={`p-4 rounded-lg border text-left shadow-sm ${item.color === 'amber' ? 'bg-amber-50 border-amber-100' :
+                  item.color === 'indigo' ? 'bg-indigo-50 border-indigo-100' :
+                    item.color === 'blue' ? 'bg-blue-50 border-blue-100' :
+                      'bg-teal-50 border-teal-100'
                 }`}
             >
-              <div className="flex justify-between items-start relative z-10">
-                <div className={`p-2 rounded-2xl bg-${item.color}-500 text-white shadow-sm ring-4 ring-${item.color}-500/10`}>
+              <div className="flex justify-between items-start">
+                <div className={`p-2 rounded-lg bg-${item.color}-500 text-white shadow-sm ring-4 ring-${item.color}-500/10`}>
                   <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={item.icon} />
                   </svg>
                 </div>
                 <div className={`flex items-center gap-1 sm:hidden text-${item.color}-600/60`}>
-                  <span className="text-[10px] font-black uppercase tracking-tighter">
+                  <span className="text-xs font-semibold uppercase tracking-tighter">
                     {activeTab === 'pending' ? 'Chờ' : activeTab === 'approved' ? 'Duyệt' : 'Từ chối'}
                   </span>
                 </div>
               </div>
 
-              <div className="mt-3 sm:mt-4 relative z-10">
-                <h3 className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.15em] text-${item.color}-600/80`}>
+              <div className="mt-3 sm:mt-4">
+                <h3 className={`text-xs sm:text-xs font-semibold uppercase tracking-[0.15em] text-${item.color}-600/80`}>
                   <span className="sm:hidden">{item.label}</span>
                   <span className="hidden sm:inline">{item.fullLabel}</span>
                 </h3>
                 <div className="flex items-baseline gap-1 mt-1 sm:mt-2">
-                  <span className={`text-2xl sm:text-3xl font-black text-${item.color}-900`}>
+                  <span className={`text-2xl sm:text-3xl font-semibold text-${item.color}-900`}>
                     {item.count}
                   </span>
-                  <span className={`text-[10px] font-bold uppercase text-${item.color}-400`}>đơn</span>
+                  <span className={`text-xs font-bold uppercase text-${item.color}-400`}>đơn</span>
                 </div>
               </div>
 
-              {/* Background Glow */}
-              <div className={`absolute -right-4 -bottom-4 w-20 h-20 rounded-full blur-3xl bg-${item.color}-400 opacity-20`} />
             </div>
           ))}
 
           {/* Month Summary Card */}
-          <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 p-4 sm:p-5 rounded-xl shadow-xl shadow-indigo-100 relative overflow-hidden flex flex-col justify-between col-span-2 lg:col-span-1 xl:col-span-1">
-            <div className="relative z-10 flex justify-between items-start">
+          <div className="bg-indigo-600 p-4 rounded-lg flex flex-col justify-between col-span-2 lg:col-span-1 xl:col-span-1">
+            <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-black text-[10px] sm:text-xs uppercase tracking-[0.15em] text-indigo-100/80">Tháng này</h3>
-                <div className="flex items-baseline gap-1 mt-1 sm:mt-2 text-white">
-                  <span className="text-2xl sm:text-3xl font-black">{stats.total_approved}</span>
-                  <span className="text-[10px] font-bold uppercase">đã duyệt</span>
+                <h3 className="font-medium text-xs uppercase tracking-wide text-indigo-200">Tháng này</h3>
+                <div className="flex items-baseline gap-1 mt-1 text-white">
+                  <span className="text-2xl font-semibold">{stats.total_approved}</span>
+                  <span className="text-xs font-medium uppercase">đã duyệt</span>
                 </div>
               </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center text-white border border-white/10">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-white">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
             </div>
 
-            <div className="relative z-10 mt-4 sm:mt-6">
+            <div className="mt-4">
               <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-emerald-400 h-full rounded-full" style={{ width: '100%' }}></div>
+                <div className="bg-green-400 h-full rounded-full" style={{ width: '100%' }}></div>
               </div>
-              <p className="text-[9px] font-bold text-indigo-100/50 uppercase tracking-widest mt-2 flex justify-between">
+              <p className="text-xs text-indigo-200 mt-2 flex justify-between">
                 <span>Hoàn thành xử lý</span>
                 <span>100%</span>
               </p>
             </div>
-
-            <div className="absolute -left-6 -bottom-6 w-24 h-24 bg-white/5 rounded-full blur-2xl" />
           </div>
         </div>
 
 
         {/* Bộ lọc */}
-        <div className="bg-white border border-slate-100 rounded-[32px] p-4 sm:p-7 mb-8 shadow-sm">
+        <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col lg:flex-row lg:items-end gap-6">
               {/* Cụm Tìm kiếm & Phòng ban */}
@@ -2037,7 +1994,7 @@ const Approvals: React.FC = () => {
                 {/* Tên nhân viên */}
                 {(isAdmin || isHR || isManagement) && (
                   <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" /></svg>
                       Tìm nhân viên
                     </label>
@@ -2046,7 +2003,7 @@ const Approvals: React.FC = () => {
                       value={filterName}
                       onChange={e => setFilterName(e.target.value)}
                       placeholder="Nhập tên hoặc mã nhân viên..."
-                      className="w-full px-4 py-2.5 text-sm font-bold border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 bg-slate-50/50 transition-all placeholder:text-slate-300 placeholder:font-medium h-[46px]"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                   </div>
                 )}
@@ -2054,7 +2011,7 @@ const Approvals: React.FC = () => {
                 {/* Phòng ban */}
                 {(isAdmin || isHR) && (
                   <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                       Phòng ban
                     </label>
@@ -2077,7 +2034,7 @@ const Approvals: React.FC = () => {
               <div className="w-full lg:w-[320px]">
                 <div className="flex gap-3">
                   <div className="flex-1 flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       Tháng
                     </label>
@@ -2093,7 +2050,7 @@ const Approvals: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-1 flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1 h-4">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       Năm
                     </label>
@@ -2116,16 +2073,16 @@ const Approvals: React.FC = () => {
             </div>
 
             {/* Loại đơn Chips - Premium Design - Even Display */}
-            <div className="border-t border-slate-50 mt-6 pt-5">
+            <div className="border-t border-gray-50 mt-6 pt-5">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                  <div className="flex items-center gap-2 text-xs sm:text-xs font-semibold uppercase tracking-wide text-gray-400">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" /></svg>
                     Phân loại đơn:
                     {(filterTypes.length > 0 || filterExplanationSubTypes.length > 0 || filterRegistrationSubTypes.length > 0) && (
                       <button
                         onClick={clearTypeFilters}
-                        className="ml-1 flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-500 border border-transparent hover:border-rose-200 text-[9px] font-black uppercase tracking-widest transition-all duration-200 group"
+                        className="ml-1 flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 hover:bg-rose-50 text-gray-400 hover:text-rose-500 border border-transparent hover:border-rose-200 text-xs font-semibold uppercase tracking-widest transition-all duration-200 group"
                       >
                         <svg className="w-2.5 h-2.5 group-hover:rotate-90 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
@@ -2139,9 +2096,9 @@ const Approvals: React.FC = () => {
                     {/* Đơn của tôi Toggle */}
                     <button
                       onClick={() => setFilterOnlyMine(!filterOnlyMine)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border-2 ${filterOnlyMine
-                        ? 'bg-rose-500 text-white border-transparent shadow-lg shadow-rose-200'
-                        : 'bg-white text-slate-400 border-slate-100 hover:border-rose-200 hover:text-rose-500'
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${filterOnlyMine
+                        ? 'bg-primary-600 text-white border-transparent'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300'
                         }`}
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -2153,7 +2110,7 @@ const Approvals: React.FC = () => {
                       onClick={() => {
                         fetchAllData(true);
                       }}
-                      className="p-2 sm:p-2.5 bg-white text-slate-400 border-2 border-slate-100 rounded-xl hover:border-indigo-200 hover:text-indigo-500 hover:rotate-180 transition-all duration-500 shadow-sm group"
+                      className="p-2 bg-white text-gray-400 border border-gray-200 rounded-md hover:text-primary-600 transition-colors"
                     >
                       <svg className="w-4 h-4 group-active:scale-90 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                     </button>
@@ -2170,27 +2127,18 @@ const Approvals: React.FC = () => {
                     { value: 'ONLINE_WORK', label: 'Làm việc online', count: getTabCount('ONLINE_WORK'), color: 'teal', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
                   ].map(opt => {
                     const isActive = filterTypes.includes(opt.value);
-                    const colorConfigs: Record<string, any> = {
-                      amber: { active: 'bg-amber-500 text-white shadow-amber-200', inactive: 'bg-white text-slate-500 hover:text-amber-600 border-slate-100 hover:border-amber-200' },
-                      indigo: { active: 'bg-indigo-600 text-white shadow-indigo-200', inactive: 'bg-white text-slate-500 hover:text-indigo-600 border-slate-100 hover:border-indigo-200' },
-                      blue: { active: 'bg-blue-500 text-white shadow-blue-200', inactive: 'bg-white text-slate-500 hover:text-blue-600 border-slate-100 hover:border-blue-200' },
-                      teal: { active: 'bg-teal-600 text-white shadow-teal-200', inactive: 'bg-white text-slate-500 hover:text-teal-600 border-slate-100 hover:border-teal-200' }
-                    };
-
                     return (
                       <button
                         key={opt.value}
                         onClick={() => toggleFilter(opt.value)}
-                        className={`group flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-[9px] sm:text-xs font-black uppercase tracking-widest transition-all duration-500 border-2 w-full md:w-auto h-[52px] whitespace-nowrap md:min-w-[140px] ${isActive ? `${colorConfigs[opt.color].active} border-transparent shadow-xl scale-[1.02]` : `${colorConfigs[opt.color].inactive} shadow-sm`
-                          }`}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border ${isActive ? `bg-${opt.color}-600 text-white border-transparent` : `bg-white text-gray-600 border-gray-200 hover:border-${opt.color}-300`}`}
                       >
-                        <svg className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isActive ? 'text-white/90' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isActive ? 3 : 2} d={opt.icon} />
+                        <svg className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white/90' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={opt.icon} />
                         </svg>
                         {opt.label}
                         {opt.count > 0 && (
-                          <span className={`ml-1 px-1.5 py-0.5 rounded-lg text-[9px] font-black min-w-[18px] text-center ${isActive ? 'bg-white/20 text-white' : `bg-${opt.color}-50 text-${opt.color}-600`
-                            }`}>
+                          <span className={`ml-1 px-1.5 py-0.5 rounded text-xs font-medium ${isActive ? 'bg-white/20 text-white' : `bg-${opt.color}-50 text-${opt.color}-600`}`}>
                             {opt.count}
                           </span>
                         )}
@@ -2205,9 +2153,9 @@ const Approvals: React.FC = () => {
 
             {/* Sub-filters for Explanations - Modern Style & Even Display */}
             {filterTypes.includes('EXPLANATION') && (
-              <div className="border-t border-slate-50 mt-4 pt-4 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="border-t border-gray-50 mt-4 pt-4 animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="flex flex-col gap-3">
-                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
                     Chi tiết giải trình:
                   </span>
@@ -2226,9 +2174,9 @@ const Approvals: React.FC = () => {
                         <button
                           key={sub.value}
                           onClick={() => toggleSubTypeFilter(sub.value)}
-                          className={`flex items-center justify-center md:justify-start gap-2 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 border-2 w-full md:w-auto md:min-w-[120px] ${isSubActive
-                            ? 'bg-amber-50 text-amber-700 border-amber-500/50 shadow-sm scale-[1.03]'
-                            : 'bg-white text-slate-400 border-slate-100 hover:border-amber-200 hover:text-amber-500'
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border ${isSubActive
+                            ? 'bg-amber-50 text-amber-700 border-amber-300'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-amber-200'
                             }`}
                         >
                           <svg className={`w-3 h-3 ${isSubActive ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2247,9 +2195,9 @@ const Approvals: React.FC = () => {
 
             {/* Sub-filters for Registrations - Modern Style & Even Display */}
             {filterTypes.includes('REGISTRATION') && (
-              <div className="border-t border-slate-50 mt-4 pt-4 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="border-t border-gray-50 mt-4 pt-4 animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="flex flex-col gap-3">
-                  <div className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                  <div className="text-xs font-semibold text-gray-300 uppercase tracking-wide flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
                     Chi tiết đăng ký:
                   </div>
@@ -2266,9 +2214,9 @@ const Approvals: React.FC = () => {
                         <button
                           key={sub.value}
                           onClick={() => toggleRegSubTypeFilter(sub.value)}
-                          className={`flex items-center justify-center sm:justify-start gap-2 px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 border-2 w-full sm:w-auto ${isSubActive
-                            ? 'bg-indigo-50 text-indigo-700 border-indigo-500/50 shadow-sm scale-[1.03]'
-                            : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-200 hover:text-indigo-500'
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors border ${isSubActive
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-200'
                             }`}
                         >
                           <svg className={`w-3 h-3 ${isSubActive ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2290,7 +2238,7 @@ const Approvals: React.FC = () => {
 
         <div className="space-y-4">
           {loading && fetchProgress && (
-            <div className="px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl flex flex-col gap-1.5">
+            <div className="px-4 py-3 bg-blue-50 border border-blue-100 rounded-lg flex flex-col gap-1.5">
               <div className="flex justify-between text-xs text-blue-600 font-medium">
                 <span>Đang tải dữ liệu...</span>
                 <span>{fetchProgress.loaded}{fetchProgress.total ? ` / ${fetchProgress.total}` : ''} đơn</span>
@@ -2311,7 +2259,7 @@ const Approvals: React.FC = () => {
               <SkeletonItem />
             </div>
           ) : Object.keys(getGroupedRequests()).length === 0 ? (
-            <div className="bg-white border rounded-xl overflow-hidden p-12 text-center shadow-sm">
+            <div className="bg-white border rounded-lg overflow-hidden p-12 text-center shadow-sm">
               <div className="flex flex-col items-center justify-center">
                 <svg
                   className="h-12 w-12 text-gray-400 mb-4"
@@ -2356,7 +2304,7 @@ const Approvals: React.FC = () => {
               const pendingInDept = allItemsInDept.filter((r: any) => r.status === 'PENDING' && canApproveRequest(r)).length;
 
               return (
-                <div key={deptName} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow mb-4">
+                <div key={deptName} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-3">
                   {/* Department Header */}
                   <div className={`w-full flex items-center justify-between p-3 sm:p-4 ${deptName === 'Đơn của Tôi' ? 'bg-rose-50/80 border-rose-100' : 'bg-gray-50 border-gray-200'} border-b`}>
                     <button
@@ -2370,11 +2318,11 @@ const Approvals: React.FC = () => {
                       </div>
 
                       <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3 overflow-hidden">
-                        <h3 className="font-black text-slate-800 uppercase tracking-tight text-base sm:text-lg truncate">{deptName}</h3>
+                        <h3 className="font-semibold text-gray-800 text-base truncate">{deptName}</h3>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs sm:text-sm font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{allItemsInDept.length} đơn</span>
+                          <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{allItemsInDept.length} đơn</span>
                           {pendingInDept > 0 && (activeTab === 'pending') && (
-                            <span className="text-xs sm:text-sm font-black text-rose-600 flex items-center gap-1">
+                            <span className="text-xs sm:text-sm font-semibold text-rose-600 flex items-center gap-1">
                               <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse"></span>
                               {pendingInDept} mới
                             </span>
@@ -2390,7 +2338,7 @@ const Approvals: React.FC = () => {
                             e.stopPropagation();
                             handleBulkApproveItems(allItemsInDept, `phòng ${deptName}`);
                           }}
-                          className="hidden sm:flex items-center gap-2 h-9 px-4 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black rounded-xl shadow-lg shadow-emerald-100 transition-all uppercase tracking-wider"
+                          className="hidden sm:flex items-center gap-2 h-9 px-4 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-md transition-colors"
                           title={`Duyệt nhanh tất cả đơn của phòng ${deptName}`}
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
@@ -2418,7 +2366,7 @@ const Approvals: React.FC = () => {
                         const pendingInPos = allItemsInPos.filter((r: any) => r.status === 'PENDING' && canApproveRequest(r)).length;
 
                         return (
-                          <div key={posName} className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden border-l-4 border-l-primary-500">
+                          <div key={posName} className="bg-white border border-gray-100 rounded-lg shadow-sm overflow-hidden border-l-4 border-l-primary-500">
                             {/* Position Sub-Header */}
                             <div className="flex items-center justify-between px-5 py-4 bg-gray-50/50 border-b border-gray-100">
                               <div className="flex items-center gap-3">
@@ -2426,10 +2374,10 @@ const Approvals: React.FC = () => {
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                 </div>
                                 <div>
-                                  <h4 className="text-sm font-black text-gray-800 uppercase tracking-widest leading-none mb-1">
+                                  <h4 className="text-sm font-semibold text-gray-800">
                                     Vị trí: {posName}
                                   </h4>
-                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                  <span className="text-xs font-bold text-gray-400">
                                     Tổng: {allItemsInPos.length} đơn đang xử lý
                                   </span>
                                 </div>
@@ -2441,7 +2389,7 @@ const Approvals: React.FC = () => {
                                     e.stopPropagation();
                                     handleBulkApproveItems(allItemsInPos, `vị trí ${posName}`);
                                   }}
-                                  className="hidden sm:flex items-center gap-2 h-8 px-4 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white text-[9px] font-black rounded-lg border border-emerald-200/50 transition-all uppercase tracking-wider"
+                                  className="hidden sm:flex items-center gap-2 h-8 px-4 bg-green-50 hover:bg-green-600 text-green-700 hover:text-white text-xs font-medium rounded-md border border-green-200 transition-colors"
                                   title={`Duyệt nhanh tất cả đơn của vị trí ${posName}`}
                                 >
                                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
@@ -2459,10 +2407,10 @@ const Approvals: React.FC = () => {
                                 const firstItem = items[0];
 
                                 return (
-                                  <div key={empName} className={`border rounded-xl overflow-hidden transition-all duration-300 ${isEmpExpanded ? 'border-primary-100 ring-2 ring-primary-50 shadow-md' : 'border-gray-100 hover:border-primary-200'}`}>
+                                  <div key={empName} className={`border rounded-lg overflow-hidden transition-colors ${isEmpExpanded ? 'border-primary-100 shadow-sm' : 'border-gray-100 hover:border-primary-200'}`}>
                                     {/* Employee Accordion Header */}
                                     <div
-                                      className={`flex flex-col px-4 py-3 cursor-pointer transition-colors ${isEmpExpanded ? 'bg-primary-50/40' : 'bg-white hover:bg-slate-50'}`}
+                                      className={`flex flex-col px-4 py-3 cursor-pointer transition-colors ${isEmpExpanded ? 'bg-primary-50/40' : 'bg-white hover:bg-gray-50'}`}
                                       onClick={() => {
                                         setExpandedEmployees((prev: string[]) =>
                                           prev.includes(accordionKey)
@@ -2475,26 +2423,26 @@ const Approvals: React.FC = () => {
                                       <div className="flex items-start justify-between w-full">
                                         <div className="flex items-center gap-3">
                                           <div className="relative">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white text-xs font-black shadow-lg transform rotate-2">
+                                            <div className="w-10 h-10 rounded-lg bg-gray-700 flex items-center justify-center text-white text-xs font-semibold">
                                               {empName.charAt(0)}
                                             </div>
                                             {pendingInEmp > 0 && activeTab === 'pending' && (
-                                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black flex items-center justify-center rounded-full border-2 border-white animate-bounce">
+                                              <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-xs font-semibold flex items-center justify-center rounded-full border-2 border-white animate-pulse">
                                                 {pendingInEmp}
                                               </span>
                                             )}
                                           </div>
                                           <div className="flex flex-col">
                                             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                                              <div className="text-base font-black text-slate-800 leading-tight">
+                                              <div className="text-base font-semibold text-gray-800 leading-tight">
                                                 {empName}
                                               </div>
-                                              <span className="w-fit px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-black border border-indigo-100 uppercase tracking-widest leading-none">
+                                              <span className="w-fit px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-semibold border border-indigo-100 uppercase tracking-widest leading-none">
                                                 {posName}
                                               </span>
                                             </div>
                                             <div className="mt-1">
-                                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/50">MÃ NV: {firstItem?.employee_code}</span>
+                                              <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-lg border border-gray-200/50">Mã nhân viên: {firstItem?.employee_code}</span>
                                             </div>
                                           </div>
                                         </div>
@@ -2509,13 +2457,13 @@ const Approvals: React.FC = () => {
                                                   setCalendarModalEmployee({ id: Number(empId), name: empName, month: filterMonth, year: filterYear });
                                                 }
                                               }}
-                                              className="flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-100 bg-white hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700 transition-all shadow-sm"
+                                              className="flex items-center justify-center w-9 h-9 rounded-lg border border-indigo-100 bg-white hover:bg-indigo-50 text-indigo-500 hover:text-indigo-700 transition-all shadow-sm"
                                               title={`Xem lịch công của ${empName}`}
                                             >
                                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                             </button>
                                           </div>
-                                          <div className={`p-2 rounded-full transition-transform duration-500 ${isEmpExpanded ? 'rotate-180 bg-primary-100 text-primary-600' : 'bg-slate-50 text-slate-400'}`}>
+                                          <div className={`p-2 rounded-full transition-transform duration-500 ${isEmpExpanded ? 'rotate-180 bg-primary-100 text-primary-600' : 'bg-gray-50 text-gray-400'}`}>
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                                           </div>
                                         </div>
@@ -2555,9 +2503,9 @@ const Approvals: React.FC = () => {
                                             ];
 
                                             return quotas.map(q => (
-                                              <div key={q.id} className={`flex flex-col items-center justify-center p-1.5 rounded-xl border ${q.border} ${q.bg} min-w-[75px] flex-1 sm:flex-none transition-all shadow-sm`}>
-                                                <span className={`text-[8px] font-black uppercase tracking-tighter opacity-60 ${q.text} mb-0.5 text-center leading-none`}>{q.label}</span>
-                                                <span className={`text-[11px] font-black ${q.text} leading-none truncate`}>
+                                              <div key={q.id} className={`flex flex-col items-center justify-center p-1.5 rounded-lg border ${q.border} ${q.bg} min-w-[75px] flex-1 sm:flex-none transition-all shadow-sm`}>
+                                                <span className={`text-[8px] font-semibold ${q.text} mb-0.5 text-center leading-none`}>{q.label}</span>
+                                                <span className={`text-xs font-semibold ${q.text} leading-none truncate`}>
                                                   {q.value || 0}{q.max ? `/${q.max}` : ''}
                                                 </span>
                                               </div>
@@ -2571,51 +2519,51 @@ const Approvals: React.FC = () => {
                                       <div className="bg-white">
                                         {/* Desktop Table */}
                                         <div className="hidden lg:block overflow-x-auto">
-                                          <table className="min-w-full divide-y divide-slate-100">
-                                            <thead className="bg-slate-50/50">
+                                          <table className="min-w-full divide-y divide-gray-100">
+                                            <thead className="bg-gray-50/50">
                                               <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Loại đơn & Lý do</th>
-                                                <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Thời gian</th>
-                                                <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Chi tiết</th>
-                                                <th className="px-6 py-3 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Trạng thái</th>
-                                                <th className="px-6 py-3 text-center text-xs font-black text-slate-400 uppercase tracking-widest">Thao tác</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại đơn & Lý do</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chi tiết</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                                                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-400 uppercase tracking-widest">Thao tác</th>
                                               </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-slate-50">
+                                            <tbody className="divide-y divide-gray-100">
                                               {items.map((item) => {
                                                 const itemKey = `${item._itemType}-${item.id}`;
                                                 const itemTypeConfig = getItemTypeConfig(item);
                                                 return (
-                                                  <tr key={itemKey} className="group hover:bg-primary-50/30 transition-colors">
+                                                  <tr key={itemKey} className="group hover:bg-gray-50 transition-colors">
                                                     <td className="px-6 py-4">
                                                       <div className="flex items-center gap-3">
-                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border ${itemTypeConfig.tableCls}`}>
+                                                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center border ${itemTypeConfig.tableCls}`}>
                                                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={itemTypeConfig.iconPath} /></svg>
                                                         </div>
                                                         <div>
-                                                          <div className="text-sm font-black text-slate-800 uppercase tracking-tight">{getRequestTypeLabel(item)}</div>
-                                                          <div className="text-[11px] text-slate-400 italic line-clamp-1 max-w-[200px]">{cleanReasonText(item.reason || item.work_plan || '', getRequestTypeLabel(item))}</div>
+                                                          <div className="text-sm font-medium text-gray-900">{getRequestTypeLabel(item)}</div>
+                                                          <div className="text-xs text-gray-400 italic line-clamp-1 max-w-[200px]">{cleanReasonText(item.reason || item.work_plan || '', getRequestTypeLabel(item))}</div>
                                                         </div>
                                                       </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                      <div className="text-sm font-black text-slate-700">
+                                                      <div className="text-sm font-semibold text-gray-700">
                                                         {getDayOfWeek(item.attendance_date || item.registration_date || item.work_date || item.start_date || item.date)}, {formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date || item.date)}
                                                       </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                       <div className="flex flex-col gap-1">
                                                         {item.late_minutes > 0 && (
-                                                          <span className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 w-fit">Muộn {item.late_minutes} phút</span>
+                                                          <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 w-fit">Muộn {item.late_minutes} phút</span>
                                                         )}
                                                         {item.early_leave_minutes > 0 && (
-                                                          <span className="text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100 w-fit">Về sớm {item.early_leave_minutes} phút</span>
+                                                          <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100 w-fit">Về sớm {item.early_leave_minutes} phút</span>
                                                         )}
                                                         {item.penalty_amount > 0 && (
-                                                          <span className="text-[11px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100 w-fit">-{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</span>
+                                                          <span className="text-xs font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 w-fit">-{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</span>
                                                         )}
                                                         {item._itemType === 'REGISTRATION' && calculateDuration(item.start_time, item.end_time) && (
-                                                          <span className="text-[11px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100 w-fit">
+                                                          <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 w-fit">
                                                             {calculateDuration(item.start_time, item.end_time)}
                                                           </span>
                                                         )}
@@ -2626,12 +2574,12 @@ const Approvals: React.FC = () => {
                                                             return (
                                                               <>
                                                                 {checkIn && (
-                                                                  <span className="text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100 w-fit">
+                                                                  <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 w-fit">
                                                                     Vào: {checkIn}
                                                                   </span>
                                                                 )}
                                                                 {checkOut && (
-                                                                  <span className="text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg border border-orange-100 w-fit">
+                                                                  <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100 w-fit">
                                                                     Ra: {checkOut}
                                                                   </span>
                                                                 )}
@@ -2649,26 +2597,26 @@ const Approvals: React.FC = () => {
                                                             <div className="flex items-center gap-2 mr-2">
                                                               <button
                                                                 onClick={() => openApproveModal(item)}
-                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-all border border-emerald-100 shadow-sm group"
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-600 hover:text-white rounded-md border border-green-200 transition-colors"
                                                                 title="Phê duyệt yêu cầu"
                                                               >
                                                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                                                <span className="text-[10px] font-black uppercase tracking-wider">Phê duyệt</span>
+                                                                <span className="text-xs font-semibold uppercase tracking-wider">Phê duyệt</span>
                                                               </button>
                                                               <button
                                                                 onClick={() => openRejectModal(item)}
-                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-500 hover:bg-rose-600 hover:text-white rounded-lg transition-all border border-rose-100 shadow-sm group"
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-md border border-red-200 transition-colors"
                                                                 title="Từ chối yêu cầu"
                                                               >
                                                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                                <span className="text-[10px] font-black uppercase tracking-wider">Từ chối</span>
+                                                                <span className="text-xs font-semibold uppercase tracking-wider">Từ chối</span>
                                                               </button>
                                                             </div>
                                                           )}
 
                                                           <button
                                                             onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)}
-                                                            className="group flex items-center gap-2 px-4 py-2 bg-slate-900 text-white hover:bg-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-md shadow-slate-200 hover:shadow-indigo-200"
+                                                            className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 text-white hover:bg-primary-600 rounded-md text-xs font-medium transition-colors"
                                                           >
                                                             <span>Chi tiết</span>
                                                             <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
@@ -2677,7 +2625,7 @@ const Approvals: React.FC = () => {
                                                           {canDeleteRequest(item) && (
                                                             <button
                                                               onClick={() => openDeleteModal(item)}
-                                                              className="p-2 text-slate-400 hover:bg-rose-500 hover:text-white rounded-lg transition-all border border-slate-100 bg-slate-50/50"
+                                                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
                                                               title="Xóa đơn"
                                                             >
                                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2687,11 +2635,8 @@ const Approvals: React.FC = () => {
                                                           )}
                                                         </div>
 
-                                                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 rounded-full border border-slate-100/50">
-                                                          <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                                                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                                                            Gửi lúc: <span className="text-slate-600 font-black">{formatTimeOnly(item.created_at)}</span> • {formatDate(item.created_at)}
-                                                          </span>
+                                                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-gray-50 rounded border border-gray-200 text-xs text-gray-400">
+                                                          Gửi lúc: <span className="text-gray-600">{formatTimeOnly(item.created_at)}</span> • {formatDate(item.created_at)}
                                                         </div>
                                                       </div>
                                                     </td>
@@ -2704,10 +2649,10 @@ const Approvals: React.FC = () => {
                                                 return (
                                                   <tr className="bg-rose-50/30 border-t-2 border-rose-100/50">
                                                     <td colSpan={5} className="px-6 py-5 text-center">
-                                                      <div className="flex flex-col items-center gap-1.5 rounded-2xl p-2 transition-all duration-300">
-                                                        <span className="text-xs font-black text-rose-400 uppercase tracking-widest">TỔNG CỘNG TIỀN PHẠT</span>
-                                                        <div className="inline-flex items-center gap-2 px-8 py-2.5 bg-rose-600 shadow-xl shadow-rose-200 rounded-2xl transform hover:scale-105 transition-transform duration-300">
-                                                          <span className="text-2xl font-black text-white tracking-tighter drop-shadow-sm">
+                                                      <div className="flex flex-col items-center gap-1.5 rounded-lg p-2 transition-all duration-300">
+                                                        <span className="text-xs font-semibold text-rose-400 uppercase tracking-widest">TỔNG CỘNG TIỀN PHẠT</span>
+                                                        <div className="inline-flex items-center gap-2 px-8 py-2.5 bg-rose-600 shadow-xl shadow-rose-200 rounded-lg transform hover:scale-105 transition-transform duration-300">
+                                                          <span className="text-2xl font-semibold text-white tracking-tighter drop-shadow-sm">
                                                             {totalPenalty.toLocaleString('vi-VN')} VNĐ
                                                           </span>
                                                         </div>
@@ -2721,23 +2666,23 @@ const Approvals: React.FC = () => {
                                         </div>
 
                                         {/* Mobile Cards */}
-                                        <div className="lg:hidden p-4 space-y-4 bg-slate-50/50">
+                                        <div className="lg:hidden p-4 space-y-4 bg-gray-50/50">
                                           {items.map((item) => {
                                             const itemKey = `${item._itemType}-${item.id}`;
                                             const itemTypeConfig = getItemTypeConfig(item);
                                             return (
-                                              <div key={itemKey} className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm active:scale-[0.98] transition-all">
+                                              <div key={itemKey} className="p-4 bg-white rounded-lg border border-gray-100 shadow-sm transition-colors">
                                                 <div className="flex justify-between items-start mb-4 gap-2">
                                                   <div className="flex items-center gap-3 min-w-0">
-                                                    <div className={`p-2.5 rounded-xl shadow-md ${itemTypeConfig.mobileBg} text-white shrink-0`}>
+                                                    <div className={`p-2.5 rounded-lg shadow-md ${itemTypeConfig.mobileBg} text-white shrink-0`}>
                                                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={itemTypeConfig.iconPath} /></svg>
                                                     </div>
                                                     <div className="flex flex-col min-w-0">
-                                                      <h3 className="text-[14px] font-black text-slate-900 leading-tight mb-0.5 truncate">{item.employee_name}</h3>
+                                                      <h3 className="text-[14px] font-semibold text-gray-900 leading-tight mb-0.5 truncate">{item.employee_name}</h3>
                                                       <div className="flex items-center gap-2">
-                                                        <span className="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 uppercase tracking-tighter shrink-0">{item.employee_position || item.position_name || 'NV'}</span>
-                                                        <span className="w-1 h-1 rounded-full bg-slate-200 shrink-0"></span>
-                                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{getRequestTypeLabel(item)}</h4>
+                                                        <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 shrink-0">{item.employee_position || item.position_name || 'NV'}</span>
+                                                        <span className="w-1 h-1 rounded-full bg-gray-200 shrink-0"></span>
+                                                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest truncate">{getRequestTypeLabel(item)}</h4>
                                                       </div>
                                                     </div>
                                                   </div>
@@ -2747,32 +2692,32 @@ const Approvals: React.FC = () => {
                                                 </div>
 
                                                 {/* Reason Box - Thiết kế hiện đại & nổi bật */}
-                                                <div className="relative p-4 bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden">
+                                                <div className="relative p-4 bg-gray-50 rounded-lg border border-gray-100 overflow-hidden">
                                                   <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500/20"></div>
                                                   <div className="flex justify-between items-start gap-4">
                                                     <div className="flex-1 min-w-0">
-                                                      <div className="text-[12px] font-bold text-slate-700 leading-relaxed italic line-clamp-2">
+                                                      <div className="text-[12px] font-bold text-gray-700 leading-relaxed italic line-clamp-2">
                                                         "{cleanReasonText(item.reason || item.work_plan || '', getRequestTypeLabel(item))}"
                                                       </div>
                                                       <div className="mt-2.5 flex flex-wrap gap-1.5">
-                                                        <span className="px-2 py-0.5 bg-white text-slate-400 text-[9px] font-black rounded-lg border border-slate-100 uppercase tracking-tighter">
+                                                        <span className="px-2 py-0.5 bg-white text-gray-400 text-xs font-semibold rounded-lg border border-gray-100 uppercase tracking-tighter">
                                                           {getDayOfWeek(item.attendance_date || item.registration_date || item.work_date || item.start_date)}, {formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}
                                                         </span>
-                                                        {item.late_minutes > 0 && <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-tighter">Muộn {item.late_minutes}m</span>}
-                                                        {item.early_leave_minutes > 0 && <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-[9px] font-black rounded-lg border border-orange-100 uppercase tracking-tighter">Về sớm {item.early_leave_minutes}m</span>}
-                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_in || item.forgot_checkin_time) && <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-tighter">Vào: {(item.actual_check_in || item.forgot_checkin_time)?.substring(0, 5)}</span>}
-                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_out || item.forgot_checkout_time) && <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-[9px] font-black rounded-lg border border-orange-100 uppercase tracking-tighter">Ra: {(item.actual_check_out || item.forgot_checkout_time)?.substring(0, 5)}</span>}
+                                                        {item.late_minutes > 0 && <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs font-medium rounded border border-amber-100">Muộn {item.late_minutes}m</span>}
+                                                        {item.early_leave_minutes > 0 && <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-xs font-medium rounded border border-orange-100">Về sớm {item.early_leave_minutes}m</span>}
+                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_in || item.forgot_checkin_time) && <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs font-medium rounded border border-amber-100">Vào: {(item.actual_check_in || item.forgot_checkin_time)?.substring(0, 5)}</span>}
+                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_out || item.forgot_checkout_time) && <span className="px-2 py-0.5 bg-orange-50 text-orange-600 text-xs font-medium rounded border border-orange-100">Ra: {(item.actual_check_out || item.forgot_checkout_time)?.substring(0, 5)}</span>}
                                                       </div>
                                                     </div>
                                                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                                                       {item.penalty_amount > 0 && (
                                                         <div className="px-3 py-1 bg-rose-500 text-white rounded-lg shadow-sm">
-                                                          <span className="text-[11px] font-black">-{item.penalty_amount.toLocaleString('vi-VN')}</span>
+                                                          <span className="text-xs font-semibold">-{item.penalty_amount.toLocaleString('vi-VN')}</span>
                                                         </div>
                                                       )}
                                                       {item._itemType === 'REGISTRATION' && calculateDuration(item.start_time, item.end_time) && (
                                                         <div className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg border border-blue-200">
-                                                          <span className="text-[10px] font-black">{calculateDuration(item.start_time, item.end_time)}</span>
+                                                          <span className="text-xs font-semibold">{calculateDuration(item.start_time, item.end_time)}</span>
                                                         </div>
                                                       )}
                                                     </div>
@@ -2780,37 +2725,37 @@ const Approvals: React.FC = () => {
                                                 </div>
 
                                                 {/* Mobile Stepper Timeline */}
-                                                <div className="mt-3 px-3 py-2.5 bg-indigo-50/30 rounded-2xl border border-indigo-100/50 flex items-center justify-between">
+                                                <div className="mt-3 px-3 py-2.5 bg-indigo-50/30 rounded-lg border border-indigo-100/50 flex items-center justify-between">
                                                   <div className="flex items-center gap-1.5">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
-                                                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Tiến độ</span>
+                                                    <span className="text-xs font-semibold text-indigo-400 uppercase tracking-widest">Tiến độ</span>
                                                   </div>
                                                   <div className="flex items-center gap-2.5">
                                                     {/* Step 1: QLTT */}
                                                     <div className="flex items-center gap-1.5">
-                                                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black border-2 transition-all ${
-                                                        item.direct_manager_approved ? 'bg-emerald-500 border-emerald-100 text-white' : 
-                                                        (item.status === 'REJECTED' && !item.direct_manager_approved) ? 'bg-rose-500 border-rose-100 text-white' : 
-                                                        'bg-white border-slate-200 text-slate-400'
+                                                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all ${
+                                                        item.direct_manager_approved ? 'bg-green-500 border-green-100 text-white' :
+                                                        (item.status === 'REJECTED' && !item.direct_manager_approved) ? 'bg-red-500 border-red-100 text-white' :
+                                                        'bg-white border-gray-200 text-gray-400'
                                                       }`}>
                                                         {item.direct_manager_approved ? '✓' : '1'}
                                                       </div>
-                                                      <span className={`text-[9px] font-black uppercase ${item.direct_manager_approved ? 'text-emerald-600' : 'text-slate-400'}`}>QLTT</span>
+                                                      <span className={`text-xs font-medium ${item.direct_manager_approved ? 'text-green-600' : 'text-gray-400'}`}>QLTT</span>
                                                     </div>
 
-                                                    <div className="w-3 h-[1px] bg-slate-200"></div>
+                                                    <div className="w-3 h-[1px] bg-gray-200"></div>
 
                                                     {/* Step 2: HR */}
                                                     {!item.employee_is_hr && (
                                                       <div className="flex items-center gap-1.5">
-                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black border-2 transition-all ${
-                                                          item.hr_approved ? 'bg-emerald-500 border-emerald-100 text-white' : 
-                                                          (item.status === 'REJECTED' && item.direct_manager_approved) ? 'bg-rose-500 border-rose-100 text-white' : 
-                                                          'bg-white border-slate-200 text-slate-400'
+                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all ${
+                                                          item.hr_approved ? 'bg-green-500 border-green-100 text-white' :
+                                                          (item.status === 'REJECTED' && item.direct_manager_approved) ? 'bg-red-500 border-red-100 text-white' :
+                                                          'bg-white border-gray-200 text-gray-400'
                                                         }`}>
                                                           {item.hr_approved ? '✓' : '2'}
                                                         </div>
-                                                        <span className={`text-[9px] font-black uppercase ${item.hr_approved ? 'text-emerald-600' : 'text-slate-400'}`}>NS</span>
+                                                        <span className={`text-xs font-medium ${item.hr_approved ? 'text-green-600' : 'text-gray-400'}`}>NS</span>
                                                       </div>
                                                     )}
                                                   </div>
@@ -2820,35 +2765,35 @@ const Approvals: React.FC = () => {
                                                     <div className="flex gap-2">
                                                       {activeTab === 'pending' && canApproveRequest(item) && (
                                                         <>
-                                                          <button onClick={() => openApproveModal(item)} className="flex-[2] py-3.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-100 active:scale-95 transition-all outline-none border-none flex items-center justify-center gap-2" title="Phê duyệt nhanh">
+                                                          <button onClick={() => openApproveModal(item)} className="flex-[2] py-3 bg-green-600 text-white rounded-md transition-colors flex items-center justify-center gap-2" title="Phê duyệt nhanh">
                                                             <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                                            <span className="text-[11px] font-black uppercase tracking-wider">Phê duyệt</span>
+                                                            <span className="text-xs font-semibold uppercase tracking-wider">Phê duyệt</span>
                                                           </button>
-                                                          <button onClick={() => openRejectModal(item)} className="flex-[2] py-3.5 bg-rose-500 text-white rounded-xl shadow-lg shadow-rose-100 active:scale-95 transition-all outline-none border-none flex items-center justify-center gap-2" title="Từ chối nhanh">
+                                                          <button onClick={() => openRejectModal(item)} className="flex-[2] py-3 bg-red-600 text-white rounded-md transition-colors flex items-center justify-center gap-2" title="Từ chối nhanh">
                                                             <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                            <span className="text-[11px] font-black uppercase tracking-wider">Từ chối</span>
+                                                            <span className="text-xs font-semibold uppercase tracking-wider">Từ chối</span>
                                                           </button>
                                                         </>
                                                       )}
                                                       {canDeleteRequest(item) && (
                                                         <button
                                                           onClick={() => openDeleteModal(item)}
-                                                          className="flex-1 py-3.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl active:scale-95 transition-all outline-none flex items-center justify-center gap-2"
+                                                          className="flex-1 py-3.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-lg active:scale-95 transition-all outline-none flex items-center justify-center gap-2"
                                                           title="Xóa đơn"
                                                         >
                                                           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                           </svg>
-                                                          <span className="text-[10px] font-black uppercase tracking-tight">Xóa đơn</span>
+                                                          <span className="text-xs font-semibold uppercase tracking-tight">Xóa đơn</span>
                                                         </button>
                                                       )}
                                                     </div>
                                                   )}
-                                                  <button onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)} className="w-full py-3.5 bg-slate-900 text-white rounded-xl text-[11px] font-black uppercase tracking-wider shadow-lg shadow-slate-200 active:scale-95 transition-all outline-none border-none">Chi tiết</button>
+                                                  <button onClick={() => (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item)} className="w-full py-3 bg-gray-800 text-white rounded-md text-xs font-medium transition-colors">Chi tiết</button>
                                                   
-                                                  <div className="flex items-center justify-center gap-2 py-2 bg-slate-50 rounded-xl border border-dashed border-slate-200 mt-3">
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
-                                                      Gửi lúc: <span className="text-slate-600 font-black">{formatTimeOnly(item.created_at)}</span> • {formatDate(item.created_at)}
+                                                  <div className="flex items-center justify-center gap-2 py-2 bg-gray-50 rounded-lg border border-dashed border-gray-200 mt-3">
+                                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-tight">
+                                                      Gửi lúc: <span className="text-gray-600 font-semibold">{formatTimeOnly(item.created_at)}</span> • {formatDate(item.created_at)}
                                                     </span>
                                                   </div>
                                                 </div>
@@ -2859,15 +2804,15 @@ const Approvals: React.FC = () => {
                                             const totalPenalty = items.reduce((sum, i) => sum + (i.penalty_amount || 0), 0);
                                             if (totalPenalty === 0) return null;
                                             return (
-                                              <div className="p-5 bg-gradient-to-br from-rose-500 to-rose-600 rounded-2xl shadow-xl shadow-rose-200 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                              <div className="p-5 bg-gradient-to-br from-rose-500 to-rose-600 rounded-lg shadow-xl shadow-rose-200 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                                 <div className="flex flex-col items-center text-center gap-2">
                                                   <div className="flex flex-col">
-                                                    <span className="text-sm font-extrabold text-white mt-1 uppercase tracking-tight">
+                                                    <span className="text-sm font-semibold text-white mt-1 uppercase tracking-tight">
                                                       Tổng cộng tiền phạt
                                                     </span>
                                                   </div>
                                                   <div className="text-right">
-                                                    <div className="text-2xl font-black text-white tracking-tighter drop-shadow-md">
+                                                    <div className="text-2xl font-semibold text-white tracking-tighter drop-shadow-md">
                                                       {totalPenalty.toLocaleString('vi-VN')} <span className="text-xs text-rose-100 ml-0.5">VNĐ</span>
                                                     </div>
                                                   </div>
@@ -2882,13 +2827,13 @@ const Approvals: React.FC = () => {
                                           - Quản lý (Manager) thông thường KHÔNG được sử dụng nút này để buộc phải xem chi tiết hoặc duyệt theo nhóm lớn hơn.
                                         */}
                                         {hasBulkApprovePermission && activeTab === 'pending' && pendingInEmp > 0 && (
-                                          <div className="p-4 flex justify-end bg-slate-50/30 border-t border-slate-50">
+                                          <div className="p-4 flex justify-end bg-gray-50/30 border-t border-gray-50">
                                             <button
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleBulkApproveItems(items, `nhân viên ${empName}`);
                                               }}
-                                              className="flex items-center gap-2 h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black rounded-lg shadow-lg shadow-emerald-100 transition-all uppercase tracking-wider"
+                                              className="flex items-center gap-2 h-10 px-6 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-lg shadow-lg shadow-green-100 transition-all uppercase tracking-wider"
                                             >
 
                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
@@ -2918,18 +2863,18 @@ const Approvals: React.FC = () => {
         {/* BẢNG YÊU CẦU CHỜ DUYỆT RIÊNG BIỆT CHO QUẢN LÝ (Viết ở dưới theo yêu cầu) */}
         {activeTab === 'pending' && !loading && (isAdmin || isManagement) && (
           <div className="mt-8 mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 bg-white p-3 sm:p-4 md:p-5 rounded-xl shadow-sm border border-slate-100">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 bg-white p-3 sm:p-4 md:p-5 rounded-lg shadow-sm border border-gray-100">
               <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-100">
                   <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                   </svg>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg sm:text-xl lg:text-2xl font-black text-slate-800 uppercase tracking-tight leading-tight">Phê duyệt chốt công NV</h3>
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-800">Phê duyệt chốt công nhân viên</h1>
                   <div className="flex items-center gap-1.5 sm:gap-2 mt-1 sm:mt-0.5">
                     <span className="flex h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-rose-500 animate-ping"></span>
-                    <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-wider leading-tight">Ưu tiên xử lý các đơn này</p>
+                    <p className="text-xs sm:text-sm text-gray-400 font-bold">Ưu tiên xử lý các đơn này</p>
                   </div>
                 </div>
               </div>
@@ -2937,42 +2882,42 @@ const Approvals: React.FC = () => {
               {(() => {
                 const count = workFinalizationApprovals.length;
                 return (
-                  <div className="flex items-center gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100 mt-1 sm:mt-0 justify-end">
+                  <div className="flex items-center gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100 mt-1 sm:mt-0 justify-end">
                     <div className="text-right">
-                      <div className="text-xs font-black text-slate-400 uppercase leading-none">Số lượng phòng</div>
-                      <div className="text-3xl font-black text-indigo-600 leading-none mt-1">{count}</div>
+                      <div className="text-xs font-semibold text-gray-400">Số lượng phòng</div>
+                      <div className="text-3xl font-semibold text-indigo-600 leading-none mt-1">{count}</div>
                     </div>
                   </div>
                 );
               })()}
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-[32px] overflow-hidden shadow-2xl shadow-slate-200/40">
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-lg shadow-slate-200/40">
               {/* Desktop Table View */}
               <div className="hidden lg:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-100">
-                  <thead className="bg-slate-50/50">
+                <table className="min-w-full divide-y divide-gray-100">
+                  <thead className="bg-gray-50/50">
                     <tr>
-                      <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest border-r border-slate-100/50">STT</th>
-                      <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Mã NV/Phòng</th>
-                      <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Nhân viên / Đơn vị</th>
-                      <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Số công / Chi tiết</th>
-                      <th className="px-6 py-5 text-left text-xs font-black text-slate-400 uppercase tracking-widest">Thời gian gửi</th>
-                      <th className="px-6 py-5 text-center text-xs font-black text-slate-400 uppercase tracking-widest bg-indigo-50/30">Hành động</th>
+                      <th className="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest border-r border-gray-100/50">STT</th>
+                      <th className="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">Mã NV/Phòng</th>
+                      <th className="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">Nhân viên / Đơn vị</th>
+                      <th className="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">Số công / Chi tiết</th>
+                      <th className="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">Thời gian gửi</th>
+                      <th className="px-6 py-5 text-center text-xs font-semibold text-gray-400 uppercase tracking-widest bg-indigo-50/30">Hành động</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-slate-50">
+                  <tbody className="bg-white divide-y divide-gray-50">
                     {(() => {
                       if (workFinalizationApprovals.length === 0) {
                         return (
                           <tr>
-                            <td colSpan={6} className="px-6 py-20 text-center bg-slate-50/20">
+                            <td colSpan={6} className="px-6 py-20 text-center bg-gray-50/20">
                               <div className="flex flex-col items-center max-w-sm mx-auto">
-                                <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mb-6 shadow-sm">
+                                <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-green-500 mb-6 shadow-sm">
                                   <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                                 </div>
-                                <h4 className="text-lg font-black text-slate-800">Hoàn thành tuyệt vời!</h4>
-                                <p className="text-slate-400 text-base mt-2 font-medium">Bạn đã xử lý hết tất cả các đơn thuộc quyền hạn của mình.</p>
+                                <h4 className="text-lg font-semibold text-gray-800">Hoàn thành tuyệt vời!</h4>
+                                <p className="text-gray-400 text-base mt-2 font-medium">Bạn đã xử lý hết tất cả các đơn thuộc quyền hạn của mình.</p>
                               </div>
                             </td>
                           </tr>
@@ -2987,57 +2932,57 @@ const Approvals: React.FC = () => {
                           }
                           (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item);
                         }}>
-                          <td className="px-6 py-5 whitespace-nowrap text-base font-black text-slate-300 border-r border-slate-50">
+                          <td className="px-6 py-5 whitespace-nowrap text-base font-semibold text-gray-300 border-r border-gray-50">
                             {(index + 1).toString().padStart(2, '0')}
                           </td>
                           <td className="px-6 py-5 whitespace-nowrap">
-                            <span className="px-2.5 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-black border border-slate-200 group-hover:bg-white group-hover:shadow-sm transition-all duration-300">
+                            <span className="px-2.5 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-semibold border border-gray-200 group-hover:bg-white group-hover:shadow-sm transition-all duration-300">
                               {item.department_code}
                             </span>
                           </td>
                           <td className="px-6 py-5 whitespace-nowrap">
                             <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-black shadow-md shadow-indigo-100">
+                              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-semibold shadow-md shadow-indigo-100">
                                 {item.department_name?.charAt(0)}
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-base font-black text-slate-800 group-hover:text-indigo-600 transition-colors">{item.department_name || item.department_code}</span>
-                                <span className="text-xs text-slate-400 font-bold uppercase tracking-tight">Chốt công tháng {item.month}/{item.year}</span>
+                                <span className="text-base font-semibold text-gray-800 group-hover:text-indigo-600 transition-colors">{item.department_name || item.department_code}</span>
+                                <span className="text-xs text-gray-400 font-bold uppercase tracking-tight">Chốt công tháng {item.month}/{item.year}</span>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-5 whitespace-nowrap">
                             <div className="flex flex-col gap-1.5">
                               <div className="flex items-center gap-2">
-                                <span className={`text-base font-black text-slate-800`}>
+                                <span className={`text-base font-semibold text-gray-800`}>
                                   Xem chi tiết ↗
                                 </span>
                               </div>
                               <div className="flex items-center gap-3">
-                                <span className="text-xs font-bold text-slate-400 italic">Người gửi: {item.sent_by_name} ({item.sent_by_role || 'Admin'})</span>
+                                <span className="text-xs font-bold text-gray-400 italic">Người gửi: {item.sent_by_name} ({item.sent_by_role || 'Admin'})</span>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-5 whitespace-nowrap">
-                            <div className="text-base font-black text-slate-700">
+                            <div className="text-base font-semibold text-gray-700">
                               {formatDateTime(item.created_at)}
                             </div>
                           </td>
-                          <td className="px-6 py-5 whitespace-nowrap text-center bg-indigo-50/5 group-hover:bg-indigo-50/10 transition-all border-l border-slate-50" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-6 py-5 whitespace-nowrap text-center bg-indigo-50/5 group-hover:bg-indigo-50/10 transition-all border-l border-gray-50" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center min-h-[50px]">
                               {/* PHẦN HIỂN THỊ DÀNH CHO QUẢN LÝ (KHI CÓ QUYỀN DUYỆT) */}
                               {item.status === 'PENDING' && isManagement && !isAdmin ? (
                                 <div className="flex items-center gap-3">
                                   <button
                                     onClick={() => openApproveModal(item)}
-                                    className="group h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-black rounded-xl shadow-lg shadow-emerald-100 transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap uppercase tracking-widest flex items-center gap-2"
+                                    className="group h-10 px-6 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-lg shadow-lg shadow-green-100 transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap uppercase tracking-widest flex items-center gap-2"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                                     PHÊ DUYỆT
                                   </button>
                                   <button
                                     onClick={() => openRejectModal(item)}
-                                    className="h-10 px-6 bg-white hover:bg-rose-50 text-rose-500 text-[11px] font-black rounded-xl border border-slate-200 hover:border-rose-200 transition-all uppercase tracking-widest flex items-center gap-2"
+                                    className="h-10 px-6 bg-white hover:bg-rose-50 text-rose-500 text-xs font-semibold rounded-lg border border-gray-200 hover:border-rose-200 transition-all uppercase tracking-widest flex items-center gap-2"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                                     TỪ CHỐI
@@ -3047,25 +2992,25 @@ const Approvals: React.FC = () => {
                                 /* PHẦN HIỂN THỊ DÀNH CHO ADMIN (HOẶC KHI ĐÃ DUYỆT XONG) */
                                 <div className="flex flex-col items-center">
                                   {item.status === 'APPROVED' ? (
-                                    <div className="flex items-center gap-3 px-5 py-2.5 bg-emerald-50 border border-emerald-100 rounded-2xl shadow-sm">
-                                      <div className="w-7 h-7 bg-emerald-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-emerald-100">
+                                    <div className="flex items-center gap-3 px-5 py-2.5 bg-green-50 border border-green-100 rounded-lg shadow-sm">
+                                      <div className="w-7 h-7 bg-green-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-green-100">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
                                       </div>
-                                      <span className="text-emerald-700 font-black text-xs uppercase tracking-widest">QLTT ĐÃ PHÊ DUYỆT</span>
+                                      <span className="text-green-700 font-semibold text-xs uppercase tracking-widest">QLTT ĐÃ PHÊ DUYỆT</span>
                                     </div>
                                   ) : item.status === 'REJECTED' ? (
-                                    <div className="flex items-center gap-3 px-5 py-2.5 bg-rose-50 border border-rose-100 rounded-2xl shadow-sm">
+                                    <div className="flex items-center gap-3 px-5 py-2.5 bg-rose-50 border border-rose-100 rounded-lg shadow-sm">
                                       <div className="w-7 h-7 bg-rose-500 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm shadow-rose-100">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M6 18L18 6M6 6l12 12" /></svg>
                                       </div>
-                                      <span className="text-rose-700 font-black text-xs uppercase tracking-widest">QLTT ĐÃ TỪ CHỐI</span>
+                                      <span className="text-rose-700 font-semibold text-xs uppercase tracking-widest">QLTT ĐÃ TỪ CHỐI</span>
                                     </div>
                                   ) : (
-                                    <div className="flex items-center gap-3 px-5 py-2.5 bg-amber-50 border border-amber-100 rounded-2xl shadow-sm">
+                                    <div className="flex items-center gap-3 px-5 py-2.5 bg-amber-50 border border-amber-100 rounded-lg shadow-sm">
                                       <div className="w-7 h-7 bg-amber-500 rounded-full flex items-center justify-center text-white shrink-0 animate-pulse shadow-sm shadow-amber-100">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                       </div>
-                                      <span className="text-amber-700 font-black text-xs uppercase tracking-widest">ĐANG CHỜ QLTT DUYỆT</span>
+                                      <span className="text-amber-700 font-semibold text-xs uppercase tracking-widest">ĐANG CHỜ QLTT DUYỆT</span>
                                     </div>
                                   )}
                                 </div>
@@ -3080,14 +3025,14 @@ const Approvals: React.FC = () => {
               </div>
 
               {/* Mobile Card View for Manager Table */}
-              <div className="lg:hidden divide-y divide-slate-100">
+              <div className="lg:hidden divide-y divide-gray-100">
                 {workFinalizationApprovals.length === 0 ? (
-                  <div className="px-6 py-16 text-center bg-slate-50/20">
+                  <div className="px-6 py-16 text-center bg-gray-50/20">
                     <div className="flex flex-col items-center max-w-sm mx-auto">
-                      <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mb-4">
+                      <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-green-500 mb-4">
                         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
                       </div>
-                      <h4 className="text-base font-black text-slate-800 uppercase tracking-tight">Tất cả đã xử lý!</h4>
+                      <h4 className="text-base font-semibold text-gray-800 uppercase tracking-tight">Tất cả đã xử lý!</h4>
                     </div>
                   </div>
                 ) : (
@@ -3101,52 +3046,52 @@ const Approvals: React.FC = () => {
                         }
                         (item._itemType === 'ONLINE_WORK' || item._itemType === 'REGISTRATION' || item._itemType === 'OVERTIME') ? handleViewOnlineWorkDetails(item) : handleViewDetails(item);
                       }}
-                      className="p-5 bg-white active:bg-slate-50 transition-all border-b border-slate-50"
+                      className="p-5 bg-white active:bg-gray-50 transition-all border-b border-gray-50"
                     >
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-100">
+                          <div className="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-semibold shadow-lg shadow-indigo-100">
                             {item.department_name?.charAt(0)}
                           </div>
                           <div>
-                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">{item.department_name || item.department_code}</h4>
-                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.1em]">Chốt công : {item.month}/{item.year}</p>
+                            <h4 className="text-sm font-semibold text-gray-800 uppercase tracking-tight">{item.department_name || item.department_code}</h4>
+                            <p className="text-xs font-bold text-indigo-500 uppercase tracking-[0.1em]">Chốt công : {item.month}/{item.year}</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Thời gian gửi</div>
-                          <div className="text-[11px] font-black text-slate-500">
+                          <div className="text-xs font-bold text-gray-300 uppercase tracking-widest">Thời gian gửi</div>
+                          <div className="text-xs font-semibold text-gray-500">
                             {getDayOfWeek(item.created_at)}, {formatDateTime(item.created_at).split(' ')[0]}
                           </div>
                         </div>
                       </div>
 
-                      <div className="px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100 mb-4">
+                      <div className="px-4 py-3 bg-gray-50 rounded-lg border border-gray-100 mb-4">
                         <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Trạng thái hiện tại:</span>
+                          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Trạng thái hiện tại:</span>
                           {item.status === 'APPROVED' ? (
-                            <span className="text-[10px] font-black text-emerald-600 uppercase">Đã phê duyệt</span>
+                            <span className="text-xs font-semibold text-green-600 uppercase">Đã phê duyệt</span>
                           ) : item.status === 'REJECTED' ? (
-                            <span className="text-[10px] font-black text-rose-600 uppercase">Đã từ chối</span>
+                            <span className="text-xs font-semibold text-rose-600 uppercase">Đã từ chối</span>
                           ) : (
-                            <span className="text-[10px] font-black text-amber-600 uppercase animate-pulse">Đang chờ xử lý</span>
+                            <span className="text-xs font-semibold text-amber-600 uppercase animate-pulse">Đang chờ xử lý</span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-1 italic font-medium">Người gửi: {item.sent_by_name}</p>
+                        <p className="text-xs text-gray-400 mt-1 italic font-medium">Người gửi: {item.sent_by_name}</p>
                       </div>
 
                       {item.status === 'PENDING' && isManagement && !isAdmin && (
                         <div className="flex gap-3 mt-2" onClick={e => e.stopPropagation()}>
                           <button
                             onClick={() => openApproveModal(item)}
-                            className="flex-1 py-3.5 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-100 active:scale-95 transition-all flex items-center justify-center gap-2"
+                            className="flex-1 py-3.5 bg-green-500 text-white rounded-lg text-xs font-semibold uppercase tracking-widest shadow-lg shadow-green-100 active:scale-95 transition-all flex items-center justify-center gap-2"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                             PHÊ DUYỆT
                           </button>
                           <button
                             onClick={() => openRejectModal(item)}
-                            className="flex-1 py-3.5 bg-white border border-rose-100 text-rose-500 rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                            className="flex-1 py-3.5 bg-white border border-rose-100 text-rose-500 rounded-lg text-xs font-semibold uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                             TỪ CHỐI
@@ -3154,7 +3099,7 @@ const Approvals: React.FC = () => {
                         </div>
                       )}
 
-                      <button className="w-full mt-3 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em]">
+                      <button className="w-full mt-3 py-3 bg-gray-900 text-white rounded-lg text-xs font-semibold uppercase tracking-wide">
                         XEM CHI TIẾT BẢNG CÔNG
                       </button>
                     </div>
@@ -3169,35 +3114,35 @@ const Approvals: React.FC = () => {
         <div className="mt-12 tracking-tight">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-1.5 h-6 bg-indigo-600 rounded-full"></div>
-            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+            <h3 className="text-xl font-semibold text-gray-800 uppercase tracking-tight">
               Quy trình & Quyền hạn của bạn
             </h3>
           </div>
 
-          <div className="bg-gradient-to-br from-slate-50 to-indigo-50/30 p-6 sm:p-8 rounded-[32px] border border-slate-100 relative overflow-hidden">
+          <div className="bg-gradient-to-br from-slate-50 to-indigo-50/30 p-6 sm:p-8 rounded-lg border border-gray-100 relative overflow-hidden">
             <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-black rounded-md uppercase tracking-widest">Quyền hạn cao nhất</span>
+                  <span className="px-2 py-0.5 bg-indigo-600 text-white text-xs font-semibold rounded-md uppercase tracking-widest">Quyền hạn cao nhất</span>
                 </div>
-                <p className="text-slate-700 text-lg font-bold leading-snug">
+                <p className="text-gray-700 text-lg font-bold leading-snug">
                   Bạn có quyền phê duyệt quản lý các loại đơn:{' '}
                   <span className="text-indigo-600 border-b-2 border-indigo-100">
                     Nghỉ phép, Tăng ca, Giải trình chấm công & Chốt công tháng.
                   </span>
                 </p>
-                <div className="flex flex-wrap items-center gap-4 mt-4 text-slate-400 font-bold text-xs uppercase tracking-widest leading-none">
-                  <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-slate-100">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                <div className="flex flex-wrap items-center gap-4 mt-4 text-gray-400 font-bold text-xs uppercase tracking-widest leading-none">
+                  <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-gray-100">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
                     Cấp duyệt: QLTT
                   </div>
-                  <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-slate-100">
+                  <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full border border-gray-100">
                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
                     Thời gian: 24h
                   </div>
                 </div>
               </div>
-              <button className="w-full sm:w-auto px-8 py-4 bg-slate-900 border-2 border-slate-900 hover:bg-indigo-600 hover:border-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-md hover:shadow-xl shadow-slate-200">
+              <button className="w-full sm:w-auto px-8 py-4 bg-gray-900 border-2 border-gray-900 hover:bg-indigo-600 hover:border-indigo-600 text-white rounded-lg text-xs font-semibold uppercase tracking-wide transition-all shadow-md hover:shadow-xl shadow-slate-200">
                 CẤU HÌNH QUY TRÌNH
               </button>
 
@@ -3212,19 +3157,19 @@ const Approvals: React.FC = () => {
 
       {/* Modal Chi tiết Chốt công (Danh sách nhân viên) */}
       {showWfDetailModal && selectedWfApproval && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
+          <div className="bg-white rounded-t-3xl sm:rounded-lg shadow-lg max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="px-4 sm:px-6 py-4 border-b border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-100 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-xl font-black text-slate-800 uppercase tracking-tight line-clamp-2">Chi tiết bảng công {selectedWfApproval.department_name || selectedWfApproval.department_code}</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Tháng {selectedWfApproval.month}/{selectedWfApproval.year} • {wfEmployees.length} nhân sự</p>
+                  <h3 className="text-base sm:text-xl font-semibold text-gray-800 uppercase tracking-tight line-clamp-2">Chi tiết bảng công {selectedWfApproval.department_name || selectedWfApproval.department_code}</h3>
+                  <p className="text-xs text-gray-400 font-bold">Tháng {selectedWfApproval.month}/{selectedWfApproval.year} • {wfEmployees.length} nhân sự</p>
                 </div>
               </div>
               <button
@@ -3233,43 +3178,43 @@ const Approvals: React.FC = () => {
                   setSelectedWfApproval(null);
                   setWfEmployees([]);
                 }}
-                className="absolute sm:relative top-4 right-4 sm:top-auto sm:right-auto text-slate-400 hover:text-slate-600 p-2 rounded-lg hover:bg-slate-100 font-black text-xl"
+                className="absolute sm:relative top-4 right-4 sm:top-auto sm:right-auto text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 font-semibold text-xl"
               >
                 ✕
               </button>
             </div>
 
             {/* Modal Body - Responsive Content */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-50/30">
-              <div className="bg-white border border-slate-200 rounded-[24px] sm:rounded-3xl overflow-hidden shadow-sm">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-gray-50/30">
+              <div className="bg-white border border-gray-200 rounded-lg sm:rounded-3xl overflow-hidden shadow-sm">
 
                 {/* Desktop View (Table) */}
                 <div className="hidden lg:block overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-100">
-                    <thead className="bg-slate-50">
+                  <table className="min-w-full divide-y divide-gray-100">
+                    <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-5 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Nhân viên</th>
-                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Công thực tế</th>
-                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Tăng ca</th>
-                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Làm thêm giờ</th>
-                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Trực tối</th>
-                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Live</th>
-                        <th className="px-3 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Nghỉ phép tháng</th>
-                        <th className="px-5 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Tổng phạt</th>
+                        <th className="px-5 py-4 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">Nhân viên</th>
+                        <th className="px-3 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-widest">Công thực tế</th>
+                        <th className="px-3 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-widest">Tăng ca</th>
+                        <th className="px-3 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-widest">Làm thêm giờ</th>
+                        <th className="px-3 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-widest">Trực tối</th>
+                        <th className="px-3 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-widest">Live</th>
+                        <th className="px-3 py-4 text-center text-xs font-semibold text-gray-400 uppercase tracking-widest">Nghỉ phép tháng</th>
+                        <th className="px-5 py-4 text-right text-xs font-semibold text-gray-400 uppercase tracking-widest">Tổng phạt</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-gray-50">
                       {wfEmployees.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="px-6 py-10 text-center text-slate-400 italic">Không tìm thấy dữ liệu nhân viên</td>
+                          <td colSpan={8} className="px-6 py-10 text-center text-gray-400 italic">Không tìm thấy dữ liệu nhân viên</td>
                         </tr>
                       ) : (
                         wfEmployees.map((emp) => (
-                          <tr key={`wf-emp-${emp.employee_id}`} className="hover:bg-slate-50/50 group">
+                          <tr key={`wf-emp-${emp.employee_id}`} className="hover:bg-gray-50/50 group">
                             <td className="px-5 py-4">
                               <div className="flex flex-col">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-sm font-black text-slate-800 tracking-tight group-hover:text-indigo-600">{emp.ho_va_ten}</span>
+                                  <span className="text-sm font-semibold text-gray-800 tracking-tight group-hover:text-indigo-600">{emp.ho_va_ten}</span>
                                   {emp.is_locked && (
                                     <div className="bg-amber-100 text-amber-600 p-0.5 rounded shadow-sm" title="Dữ liệu đã khóa">
                                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -3278,46 +3223,46 @@ const Approvals: React.FC = () => {
                                     </div>
                                   )}
                                 </div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">{emp.ma_nv} • {emp.vi_tri || 'N/A'}</span>
+                                <span className="text-xs font-bold text-gray-400 mt-0.5">{emp.ma_nv} • {emp.vi_tri || 'N/A'}</span>
                               </div>
                             </td>
                             <td className="px-3 py-4 text-center">
                               <div className="flex flex-col items-center">
-                                <span className="text-sm font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{emp.cong_thuc_te}</span>
-                                <span className="text-[9px] font-bold text-slate-400 mt-1">Tổng: {emp.tong_cong}</span>
+                                <span className="text-sm font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{emp.cong_thuc_te}</span>
+                                <span className="text-xs font-bold text-gray-400 mt-1">Tổng: {emp.tong_cong}</span>
                               </div>
                             </td>
                             <td className="px-3 py-4 text-center">
                               {emp.tang_ca > 0 ? (
-                                <span className="text-sm font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg">{emp.tang_ca}h</span>
+                                <span className="text-sm font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-lg">{emp.tang_ca}h</span>
                               ) : (
-                                <span className="text-xs text-slate-300">-</span>
+                                <span className="text-xs text-gray-300">-</span>
                               )}
                             </td>
                             <td className="px-3 py-4 text-center">
                               {emp.lam_them_gio > 0 ? (
-                                <span className="text-sm font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">{emp.lam_them_gio}h</span>
+                                <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">{emp.lam_them_gio}h</span>
                               ) : (
-                                <span className="text-xs text-slate-300">-</span>
+                                <span className="text-xs text-gray-300">-</span>
                               )}
                             </td>
                             <td className="px-3 py-4 text-center">
                               {emp.truc_toi > 0 ? (
-                                <span className="text-sm font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded-lg">{emp.truc_toi}</span>
+                                <span className="text-sm font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-lg">{emp.truc_toi}</span>
                               ) : (
-                                <span className="text-xs text-slate-300">-</span>
+                                <span className="text-xs text-gray-300">-</span>
                               )}
                             </td>
                             <td className="px-3 py-4 text-center">
                               {emp.live > 0 ? (
-                                <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">{emp.live}</span>
+                                <span className="text-sm font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{emp.live}</span>
                               ) : (
-                                <span className="text-xs text-slate-300">-</span>
+                                <span className="text-xs text-gray-300">-</span>
                               )}
                             </td>
-                            <td className="px-3 py-4 text-center text-sm font-bold text-slate-500">{emp.nghi_phep_thang > 0 ? emp.nghi_phep_thang : '-'}</td>
+                            <td className="px-3 py-4 text-center text-sm font-bold text-gray-500">{emp.nghi_phep_thang > 0 ? emp.nghi_phep_thang : '-'}</td>
                             <td className="px-5 py-4 text-right">
-                              <span className="text-sm font-black text-rose-600">{(emp.tong_phat || 0) > 0 ? `${(emp.tong_phat || 0).toLocaleString('vi-VN')} VNĐ` : '-'}</span>
+                              <span className="text-sm font-semibold text-rose-600">{(emp.tong_phat || 0) > 0 ? `${(emp.tong_phat || 0).toLocaleString('vi-VN')} VNĐ` : '-'}</span>
                             </td>
                           </tr>
                         ))
@@ -3327,9 +3272,9 @@ const Approvals: React.FC = () => {
                 </div>
 
                 {/* Mobile/Tablet View (Cards) */}
-                <div className="lg:hidden divide-y divide-slate-100">
+                <div className="lg:hidden divide-y divide-gray-100">
                   {wfEmployees.length === 0 ? (
-                    <div className="px-6 py-10 text-center text-slate-400 italic">Không tìm thấy dữ liệu nhân viên</div>
+                    <div className="px-6 py-10 text-center text-gray-400 italic">Không tìm thấy dữ liệu nhân viên</div>
                   ) : (
                     wfEmployees.map((emp) => (
                       <div key={`wf-emp-mobile-${emp.employee_id}`} className="p-4 sm:p-6 space-y-5 bg-white">
@@ -3337,7 +3282,7 @@ const Approvals: React.FC = () => {
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-black text-slate-800 tracking-tight truncate">{emp.ho_va_ten}</span>
+                              <span className="text-sm font-semibold text-gray-800 tracking-tight truncate">{emp.ho_va_ten}</span>
                               {emp.is_locked && (
                                 <div className="bg-amber-100 text-amber-600 p-0.5 rounded shadow-sm shrink-0">
                                   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -3346,35 +3291,35 @@ const Approvals: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-1">{emp.ma_nv} • {emp.vi_tri || 'N/A'}</span>
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-tighter mt-1">{emp.ma_nv} • {emp.vi_tri || 'N/A'}</span>
                           </div>
                           <div className="text-right shrink-0">
-                            <span className="text-[10px] font-black text-rose-600 uppercase block mb-1">Tổng phạt</span>
-                            <span className="text-sm font-black text-rose-600">{(emp.tong_phat || 0) > 0 ? `${(emp.tong_phat || 0).toLocaleString('vi-VN')} VNĐ` : '0 VNĐ'}</span>
+                            <span className="text-xs font-semibold text-rose-600 uppercase block mb-1">Tổng phạt</span>
+                            <span className="text-sm font-semibold text-rose-600">{(emp.tong_phat || 0) > 0 ? `${(emp.tong_phat || 0).toLocaleString('vi-VN')} VNĐ` : '0 VNĐ'}</span>
                           </div>
                         </div>
 
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 xs:grid-cols-3 gap-3">
-                          <div className="bg-indigo-50/50 p-2.5 rounded-2xl border border-indigo-100/50">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Công thực tế</span>
+                          <div className="bg-indigo-50/50 p-2.5 rounded-lg border border-indigo-100/50">
+                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest block mb-1.5">Công thực tế</span>
                             <div className="flex items-baseline gap-1.5">
-                              <span className="text-base font-black text-indigo-600">{emp.cong_thuc_te}</span>
-                              <span className="text-[10px] font-bold text-slate-400">/ {emp.tong_cong}</span>
+                              <span className="text-base font-semibold text-indigo-600">{emp.cong_thuc_te}</span>
+                              <span className="text-xs font-bold text-gray-400">/ {emp.tong_cong}</span>
                             </div>
                           </div>
-                          <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Tăng ca</span>
+                          <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest block mb-1.5">Tăng ca</span>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-black text-orange-600">{emp.tang_ca}h</span>
+                              <span className="text-xs font-semibold text-orange-600">{emp.tang_ca}h</span>
                             </div>
                           </div>
-                          <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Trực tối/Live</span>
+                          <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest block mb-1.5">Trực tối/Live</span>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-black text-purple-600">{emp.truc_toi}</span>
-                              <span className="text-slate-300">|</span>
-                              <span className="text-xs font-black text-emerald-600">{emp.live}</span>
+                              <span className="text-xs font-semibold text-purple-600">{emp.truc_toi}</span>
+                              <span className="text-gray-300">|</span>
+                              <span className="text-xs font-semibold text-green-600">{emp.live}</span>
                             </div>
                           </div>
                         </div>
@@ -3386,19 +3331,19 @@ const Approvals: React.FC = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-4 sm:px-6 py-5 bg-white border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="px-4 sm:px-6 py-5 bg-white border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-indigo-500 shrink-0"></div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic leading-tight">Toàn bộ dữ liệu đã được đối soát tự động</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest italic leading-tight">Toàn bộ dữ liệu đã được đối soát tự động</p>
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                 {selectedWfApproval.status === 'APPROVED' && (
-                  <span className="w-full sm:w-auto text-center px-4 py-3 bg-emerald-50 text-emerald-600 text-[10px] font-black rounded-xl border border-emerald-100 uppercase tracking-widest">
+                  <span className="w-full sm:w-auto text-center px-4 py-3 bg-green-50 text-green-600 text-xs font-semibold rounded-lg border border-green-100 uppercase tracking-widest">
                     Bảng công đã được phê duyệt
                   </span>
                 )}
                 {selectedWfApproval.status === 'REJECTED' && (
-                  <span className="w-full sm:w-auto text-center px-4 py-3 bg-rose-50 text-rose-600 text-[10px] font-black rounded-xl border border-rose-100 uppercase tracking-widest">
+                  <span className="w-full sm:w-auto text-center px-4 py-3 bg-rose-50 text-rose-600 text-xs font-semibold rounded-lg border border-rose-100 uppercase tracking-widest">
                     Bảng công đã bị từ chối
                   </span>
                 )}
@@ -3408,7 +3353,7 @@ const Approvals: React.FC = () => {
                       setShowWfDetailModal(false);
                       openApproveModal(selectedWfApproval);
                     }}
-                    className="w-full sm:w-auto h-12 px-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-black rounded-2xl shadow-xl shadow-emerald-100 uppercase tracking-widest"
+                    className="w-full sm:w-auto h-12 px-8 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-lg shadow-xl shadow-green-100 uppercase tracking-widest"
                   >
                     Duyệt bảng công này
                   </button>
@@ -3422,22 +3367,22 @@ const Approvals: React.FC = () => {
       {/* Modal chi tiết */}
       {showDetailModal &&
         (selectedExplanation || selectedOnlineWorkRequest) && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 transition-all duration-300">
-            <div className="bg-white rounded-t-xl sm:rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 transition-all duration-300">
+            <div className="bg-white rounded-t-xl sm:rounded-lg shadow-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               {/* Modal Header - Sticky */}
-              <div className="sticky top-0 z-20 px-6 py-4 border-b border-slate-100 bg-white/95 backdrop-blur-sm shadow-sm">
+              <div className="sticky top-0 z-20 px-6 py-4 border-b border-gray-100 bg-white/95 shadow-sm">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                     </div>
                     <div>
-                      <h3 className="text-xl font-black text-slate-800 leading-none">
+                      <h3 className="text-xl font-semibold text-gray-800 leading-none">
                         Thông tin đơn
                       </h3>
                       <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loại đơn:</span>
-                        <span className="text-[11px] font-black text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded-md">
+                        <span className="text-xs font-bold text-gray-400">Loại đơn:</span>
+                        <span className="text-xs font-semibold text-indigo-600">
                           {getRequestTypeLabel(selectedExplanation || selectedOnlineWorkRequest)}
                         </span>
                       </div>
@@ -3450,7 +3395,7 @@ const Approvals: React.FC = () => {
                       setSelectedExplanation(null);
                       setSelectedOnlineWorkRequest(null);
                     }}
-                    className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+                    className="w-10 h-10 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all duration-200"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
@@ -3477,22 +3422,22 @@ const Approvals: React.FC = () => {
                 {/* 2. Grid Thông tin Nhân viên & Chi tiết Đơn */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   {/* Cột 1: Profile Card */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
+                  <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
                     <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center">
                       <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                       Thông tin nhân viên
                     </h4>
                     <div className="flex items-center gap-4 mb-6">
                       <div className="relative group">
-                        <div className="h-16 w-16 bg-gradient-to-tr from-indigo-500 to-blue-400 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-blue-100 ring-4 ring-white transition-transform group-hover:scale-105 duration-300">
+                        <div className="h-16 w-16 bg-gradient-to-tr from-indigo-500 to-blue-400 rounded-lg flex items-center justify-center text-white text-2xl font-semibold shadow-lg shadow-blue-100 ring-4 ring-white transition-transform group-hover:scale-105 duration-300">
                           {(selectedExplanation ? selectedExplanation.employee_name : selectedOnlineWorkRequest.employee_name)?.charAt(0) || 'U'}
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 border-2 border-white rounded-full shadow-sm flex items-center justify-center">
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-2 border-white rounded-full shadow-sm flex items-center justify-center">
                           <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                         </div>
                       </div>
                       <div>
-                        <h4 className="text-xl font-black text-slate-800 leading-tight tracking-tight">
+                        <h4 className="text-xl font-semibold text-gray-800 leading-tight tracking-tight">
                           {selectedExplanation ? selectedExplanation.employee_name : selectedOnlineWorkRequest.employee_name}
                         </h4>
                         <div className="flex items-center gap-2 mt-1">
@@ -3503,42 +3448,42 @@ const Approvals: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-3 pt-4 border-t border-slate-50">
+                    <div className="space-y-3 pt-4 border-t border-gray-50">
                       {/* Department */}
-                      <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors group/item">
+                      <div className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 transition-colors group/item">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover/item:bg-indigo-50 group-hover/item:text-indigo-600 transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 group-hover/item:bg-indigo-50 group-hover/item:text-indigo-600 transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                           </div>
-                          <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Phòng ban</span>
+                          <span className="text-sm font-bold text-gray-400 uppercase tracking-tighter">Phòng ban</span>
                         </div>
-                        <span className="text-sm font-black text-slate-700">
+                        <span className="text-sm font-semibold text-gray-700">
                           {(selectedExplanation ? (selectedExplanation.employee_department || selectedExplanation.department_name) : selectedOnlineWorkRequest.department_name) || 'N/A'}
                         </span>
                       </div>
 
                       {/* Position */}
-                      <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors group/item">
+                      <div className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 transition-colors group/item">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 group-hover/item:bg-blue-50 group-hover/item:text-blue-600 transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                           </div>
-                          <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Vị trí</span>
+                          <span className="text-sm font-bold text-gray-400 uppercase tracking-tighter">Vị trí</span>
                         </div>
-                        <span className="text-sm font-black text-slate-700">
+                        <span className="text-sm font-semibold text-gray-700">
                           {(selectedExplanation ? (selectedExplanation.employee_position || selectedExplanation.position_name) : (selectedOnlineWorkRequest.employee_position || selectedOnlineWorkRequest.position_name)) || 'N/A'}
                         </span>
                       </div>
 
                       {/* Manager */}
-                      <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 transition-colors group/item">
+                      <div className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 transition-colors group/item">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover/item:bg-emerald-50 group-hover/item:text-emerald-600 transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 group-hover/item:bg-green-50 group-hover/item:text-green-600 transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                           </div>
-                          <span className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Quản lý duyệt</span>
+                          <span className="text-sm font-bold text-gray-400 uppercase tracking-tighter">Quản lý duyệt</span>
                         </div>
-                        <span className="text-sm font-black text-slate-700">
+                        <span className="text-sm font-semibold text-gray-700">
                           {(selectedExplanation ? (selectedExplanation.employee_manager_name || selectedExplanation.employee_department_manager_name) : (selectedOnlineWorkRequest.employee_manager_name || selectedOnlineWorkRequest.employee_department_manager_name)) || 'N/A'}
                         </span>
                       </div>
@@ -3546,7 +3491,7 @@ const Approvals: React.FC = () => {
                   </div>
 
                   {/* Cột 2: Request Info (Meta Data) */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
+                  <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
                     <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center">
                       <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       Cụ thể yêu cầu
@@ -3554,12 +3499,12 @@ const Approvals: React.FC = () => {
 
                     <div className="space-y-4">
                       {/* Priority Status Section */}
-                      <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100 flex items-center justify-between group/status">
+                      <div className="bg-gray-50/50 rounded-lg p-4 border border-gray-100 flex items-center justify-between group/status">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-slate-400 shadow-sm border border-slate-100 group-hover/status:text-indigo-500 transition-colors">
+                          <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center text-gray-400 shadow-sm border border-gray-100 group-hover/status:text-indigo-500 transition-colors">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                           </div>
-                          <span className="text-sm font-bold text-slate-500 uppercase tracking-tight">Trạng thái duyệt</span>
+                          <span className="text-sm font-bold text-gray-500 uppercase tracking-tight">Trạng thái duyệt</span>
                         </div>
                         {getStatusBadge(selectedExplanation || selectedOnlineWorkRequest)}
                       </div>
@@ -3567,9 +3512,9 @@ const Approvals: React.FC = () => {
                       {/* Info List */}
                       <div className="space-y-3 px-1">
                         {/* Request ID */}
-                        <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
-                          <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Mã định danh đơn</span>
-                          <span className="text-[11px] font-mono font-black text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 whitespace-nowrap">
+                        <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
+                          <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Mã định danh đơn</span>
+                          <span className="text-xs font-mono font-semibold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 whitespace-nowrap">
                             {selectedExplanation?.request_code || selectedOnlineWorkRequest?.request_code || '---'}
                           </span>
                         </div>
@@ -3577,13 +3522,13 @@ const Approvals: React.FC = () => {
                         {selectedExplanation ? (
                           <>
                             {/* Date Detail */}
-                            <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
-                              <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">
+                            <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
+                              <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">
                                 {selectedExplanation._itemType === 'REGISTRATION' ? 'Ngày đăng ký' :
                                   selectedExplanation._itemType === 'LEAVE' ? 'Thời gian nghỉ' :
                                     'Ngày hiệu lực'}
                               </span>
-                              <span className="text-[15px] font-black text-slate-700 whitespace-nowrap">
+                              <span className="text-[15px] font-semibold text-gray-700 whitespace-nowrap">
                                 {selectedExplanation._itemType === 'LEAVE'
                                   ? (selectedExplanation.start_date === selectedExplanation.end_date
                                     ? formatDate(selectedExplanation.start_date)
@@ -3594,9 +3539,9 @@ const Approvals: React.FC = () => {
 
                             {/* Time Range (if applicable) */}
                             {selectedExplanation._itemType === 'REGISTRATION' && (selectedExplanation.start_time || selectedExplanation.end_time) && (
-                              <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
-                                <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Khung thời gian</span>
-                                <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 whitespace-nowrap">
+                              <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
+                                <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Khung thời gian</span>
+                                <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 whitespace-nowrap">
                                   {selectedExplanation.start_time?.substring(0, 5) || '??:??'} - {selectedExplanation.end_time?.substring(0, 5) || '??:??'}
                                 </span>
                               </div>
@@ -3607,20 +3552,20 @@ const Approvals: React.FC = () => {
                               <>
                                 <div className="flex flex-col gap-3 py-2">
                                   <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dữ liệu gốc</span>
-                                    <span className="text-sm font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Dữ liệu gốc</span>
+                                    <span className="text-sm font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">
                                       {selectedExplanation.original_status_display || getOriginalStatusText(selectedExplanation.original_status)}
                                     </span>
                                   </div>
 
                                   <div className="flex justify-between items-center">
                                     <div className="flex items-center gap-2">
-                                      <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Kỳ vọng thay đổi</span>
+                                      <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Kỳ vọng thay đổi</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full shadow-sm">
-                                      <div className="w-1 h-1 bg-emerald-500 rounded-full" />
-                                      <span className="text-sm font-black text-emerald-700">
+                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 border border-green-100 rounded-full shadow-sm">
+                                      <div className="w-1 h-1 bg-green-500 rounded-full" />
+                                      <span className="text-sm font-semibold text-green-700">
                                         {selectedExplanation.expected_status_display?.includes('đủ công đúng công') ? 'Tính đủ công' : (selectedExplanation.expected_status_display || getExpectedStatusText(selectedExplanation.expected_status))}
                                       </span>
                                     </div>
@@ -3629,46 +3574,46 @@ const Approvals: React.FC = () => {
 
                                 {/* Hiển thị chi tiết vi phạm và phạt nếu có */}
                                 {(selectedExplanation.late_minutes > 0 || selectedExplanation.early_leave_minutes > 0 || selectedExplanation.penalty_amount > 0) && (
-                                  <div className="mt-4 p-4 rounded-xl bg-rose-50/50 border border-rose-100 shadow-sm relative overflow-hidden group/violation">
+                                  <div className="mt-4 p-4 rounded-lg bg-rose-50/50 border border-rose-100 shadow-sm relative overflow-hidden group/violation">
                                     {/* Decorative background element */}
                                     <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-100/30 rounded-full blur-2xl group-hover/violation:bg-rose-100/50 transition-colors duration-500" />
 
                                     <div className="flex items-center gap-3 mb-4 scale-in-center">
-                                      <div className="flex-shrink-0 w-9 h-9 bg-rose-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-200">
+                                      <div className="flex-shrink-0 w-9 h-9 bg-rose-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-rose-200">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                                       </div>
                                       <div>
-                                        <span className="text-sm font-extrabold text-rose-800 uppercase tracking-widest block leading-none">Thông tin vi phạm & Phạt</span>
+                                        <span className="text-sm font-semibold text-rose-800 uppercase tracking-widest block leading-none">Thông tin vi phạm & Phạt</span>
                                       </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                       {/* Thời gian vi phạm card */}
                                       {(selectedExplanation.late_minutes > 0 || selectedExplanation.early_leave_minutes > 0) && (
-                                        <div className="bg-white/80 backdrop-blur-sm p-3 rounded-xl border border-rose-100/50 shadow-sm hover:shadow-md transition-shadow duration-300">
-                                          <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-3">Thời gian vi phạm</span>
+                                        <div className="bg-white/80 p-3 rounded-lg border border-rose-100/50 shadow-sm hover:shadow-md transition-shadow duration-300">
+                                          <span className="text-xs text-gray-400 font-semibold uppercase tracking-widest block mb-3">Thời gian vi phạm</span>
                                           <div className="space-y-2">
                                             {selectedExplanation.late_minutes > 0 && (
-                                              <div className="flex justify-between items-center p-2 rounded-xl bg-amber-50/80 border border-amber-100/50 group/item">
+                                              <div className="flex justify-between items-center p-2 rounded-lg bg-amber-50/80 border border-amber-100/50 group/item">
                                                 <div className="flex items-center gap-2">
                                                   <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
-                                                  <span className="text-[11px] font-extrabold text-amber-700 uppercase tracking-tighter">Đi muộn:</span>
+                                                  <span className="text-xs font-semibold text-amber-700 uppercase tracking-tighter">Đi muộn:</span>
                                                 </div>
                                                 <div className="flex items-baseline gap-0.5">
-                                                  <span className="text-base font-black text-amber-600 tracking-tighter">{selectedExplanation.late_minutes}</span>
-                                                  <span className="text-[10px] font-bold text-amber-400 uppercase ml-0.5">phút</span>
+                                                  <span className="text-base font-semibold text-amber-600 tracking-tighter">{selectedExplanation.late_minutes}</span>
+                                                  <span className="text-xs font-bold text-amber-400 uppercase ml-0.5">phút</span>
                                                 </div>
                                               </div>
                                             )}
                                             {selectedExplanation.early_leave_minutes > 0 && (
-                                              <div className="flex justify-between items-center p-2 rounded-xl bg-rose-50/80 border border-rose-100/50 group/item">
+                                              <div className="flex justify-between items-center p-2 rounded-lg bg-rose-50/80 border border-rose-100/50 group/item">
                                                 <div className="flex items-center gap-2">
                                                   <div className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
-                                                  <span className="text-[11px] font-extrabold text-rose-700 uppercase tracking-tighter">Về sớm:</span>
+                                                  <span className="text-xs font-semibold text-rose-700 uppercase tracking-tighter">Về sớm:</span>
                                                 </div>
                                                 <div className="flex items-baseline gap-0.5">
-                                                  <span className="text-base font-black text-rose-600 tracking-tighter">{selectedExplanation.early_leave_minutes}</span>
-                                                  <span className="text-[10px] font-bold text-rose-400 uppercase ml-0.5">phút</span>
+                                                  <span className="text-base font-semibold text-rose-600 tracking-tighter">{selectedExplanation.early_leave_minutes}</span>
+                                                  <span className="text-xs font-bold text-rose-400 uppercase ml-0.5">phút</span>
                                                 </div>
                                               </div>
                                             )}
@@ -3678,13 +3623,13 @@ const Approvals: React.FC = () => {
 
                                       {/* Tiền phạt card */}
                                       {selectedExplanation.penalty_amount > 0 && (
-                                        <div className="bg-gradient-to-br from-rose-500 to-rose-600 p-3 rounded-xl shadow-lg shadow-rose-200 flex flex-col justify-between group/total">
-                                          <span className="text-[10px] text-rose-100 font-extrabold uppercase tracking-widest block mb-1">Tiền phạt</span>
+                                        <div className="bg-gradient-to-br from-rose-500 to-rose-600 p-3 rounded-lg shadow-lg shadow-rose-200 flex flex-col justify-between group/total">
+                                          <span className="text-xs text-rose-100 font-semibold uppercase tracking-widest block mb-1">Tiền phạt</span>
                                           <div className="flex items-baseline gap-1.5 justify-end">
-                                            <span className="text-2xl font-black text-white font-mono tracking-tighter drop-shadow-sm">
+                                            <span className="text-2xl font-semibold text-white font-mono tracking-tighter drop-shadow-sm">
                                               {(selectedExplanation.penalty_amount || 0).toLocaleString('vi-VN')}
                                             </span>
-                                            <span className="text-xs font-black text-rose-100 uppercase tracking-tighter">VNĐ</span>
+                                            <span className="text-xs font-semibold text-rose-100 uppercase tracking-tighter">VNĐ</span>
                                           </div>
                                         </div>
                                       )}
@@ -3694,36 +3639,36 @@ const Approvals: React.FC = () => {
 
                                 {/* Hiển thị timeline quên chấm công */}
                                 {selectedExplanation.explanation_type === 'INCOMPLETE_ATTENDANCE' && (
-                                  <div className="mt-4 p-4 rounded-xl bg-indigo-50/50 border border-indigo-100 shadow-sm">
+                                  <div className="mt-4 p-4 rounded-lg bg-indigo-50/50 border border-indigo-100 shadow-sm">
                                     <div className="flex items-center gap-3 mb-4">
-                                      <div className="flex-shrink-0 w-9 h-9 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                                      <div className="flex-shrink-0 w-9 h-9 bg-indigo-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-200">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                       </div>
-                                      <span className="text-sm font-extrabold text-indigo-800 uppercase tracking-widest">Timeline chấm công</span>
+                                      <span className="text-sm font-semibold text-indigo-800 uppercase tracking-widest">Timeline chấm công</span>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                       {/* Giờ vào */}
-                                      <div className="bg-white/80 p-3 rounded-xl border border-indigo-100/50 shadow-sm">
-                                        <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">Giờ vào</span>
-                                        <span className="text-lg font-black text-amber-600">
+                                      <div className="bg-white/80 p-3 rounded-lg border border-indigo-100/50 shadow-sm">
+                                        <span className="text-xs text-gray-400 font-semibold uppercase tracking-widest block mb-1">Giờ vào</span>
+                                        <span className="text-lg font-semibold text-amber-600">
                                           {(selectedExplanation.actual_check_in || selectedExplanation.forgot_checkin_time)?.substring(0, 5) || '--:--'}
                                         </span>
                                         {selectedExplanation.forgot_punch_type === 'checkin' || selectedExplanation.forgot_punch_type === 'both' ? (
-                                          <span className="block text-[9px] font-bold text-amber-500 uppercase mt-0.5">NV khai</span>
+                                          <span className="block text-xs font-bold text-amber-500 uppercase mt-0.5">NV khai</span>
                                         ) : (
-                                          <span className="block text-[9px] font-bold text-emerald-500 uppercase mt-0.5">Máy chấm</span>
+                                          <span className="block text-xs font-bold text-green-500 uppercase mt-0.5">Máy chấm</span>
                                         )}
                                       </div>
                                       {/* Giờ ra */}
-                                      <div className="bg-white/80 p-3 rounded-xl border border-indigo-100/50 shadow-sm">
-                                        <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">Giờ ra</span>
-                                        <span className="text-lg font-black text-orange-600">
+                                      <div className="bg-white/80 p-3 rounded-lg border border-indigo-100/50 shadow-sm">
+                                        <span className="text-xs text-gray-400 font-semibold uppercase tracking-widest block mb-1">Giờ ra</span>
+                                        <span className="text-lg font-semibold text-orange-600">
                                           {(selectedExplanation.actual_check_out || selectedExplanation.forgot_checkout_time)?.substring(0, 5) || '--:--'}
                                         </span>
                                         {selectedExplanation.forgot_punch_type === 'checkout' || selectedExplanation.forgot_punch_type === 'both' ? (
-                                          <span className="block text-[9px] font-bold text-amber-500 uppercase mt-0.5">NV khai</span>
+                                          <span className="block text-xs font-bold text-amber-500 uppercase mt-0.5">NV khai</span>
                                         ) : (
-                                          <span className="block text-[9px] font-bold text-emerald-500 uppercase mt-0.5">Máy chấm</span>
+                                          <span className="block text-xs font-bold text-green-500 uppercase mt-0.5">Máy chấm</span>
                                         )}
                                       </div>
                                       {/* Tổng giờ */}
@@ -3735,12 +3680,12 @@ const Approvals: React.FC = () => {
                                           const [h2, m2] = co.split(':').map(Number);
                                           const hours = ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60;
                                           return (
-                                            <div className={`p-3 rounded-xl border shadow-sm ${hours >= 5.5 ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-                                              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">Tổng giờ</span>
-                                              <span className={`text-lg font-black ${hours >= 5.5 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                            <div className={`p-3 rounded-lg border shadow-sm ${hours >= 5.5 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                                              <span className="text-xs text-gray-400 font-semibold uppercase tracking-widest block mb-1">Tổng giờ</span>
+                                              <span className={`text-lg font-semibold ${hours >= 5.5 ? 'text-green-600' : 'text-amber-600'}`}>
                                                 {hours.toFixed(1)}h
                                               </span>
-                                              <span className={`block text-[9px] font-bold uppercase mt-0.5 ${hours >= 5.5 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                              <span className={`block text-xs font-bold uppercase mt-0.5 ${hours >= 5.5 ? 'text-green-500' : 'text-amber-500'}`}>
                                                 {hours >= 5.5 ? '→ 1.0 công' : '→ 0.5 công'}
                                               </span>
                                             </div>
@@ -3757,31 +3702,31 @@ const Approvals: React.FC = () => {
                         ) : (
                           /* Online Work / Registration specifics */
                           <>
-                            <div className="flex justify-between items-center py-2.5 border-b border-slate-50">
-                              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Ngày thực hiện</span>
-                              <span className="text-sm font-black text-slate-700">
+                            <div className="flex justify-between items-center py-2.5 border-b border-gray-50">
+                              <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Ngày thực hiện</span>
+                              <span className="text-sm font-semibold text-gray-700">
                                 {formatDate(selectedOnlineWorkRequest.work_date || selectedOnlineWorkRequest.attendance_date || selectedOnlineWorkRequest.registration_date || selectedOnlineWorkRequest.event_date)}
                               </span>
                             </div>
                             {/* Giờ bắt đầu / Giờ kết thúc / Tổng thời gian — luôn hiện cho REGISTRATION */}
                             {(selectedOnlineWorkRequest._itemType === 'REGISTRATION' || selectedOnlineWorkRequest._itemType === 'OVERTIME') && (
                               <>
-                                <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
-                                  <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Giờ bắt đầu</span>
-                                  <span className="text-sm font-black text-slate-700 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 whitespace-nowrap">
+                                <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
+                                  <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Giờ bắt đầu</span>
+                                  <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100 whitespace-nowrap">
                                     {selectedOnlineWorkRequest.start_time?.substring(0, 5) || 'N/A'}
                                   </span>
                                 </div>
-                                <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
-                                  <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Giờ kết thúc</span>
-                                  <span className="text-sm font-black text-slate-700 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 whitespace-nowrap">
+                                <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
+                                  <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Giờ kết thúc</span>
+                                  <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100 whitespace-nowrap">
                                     {selectedOnlineWorkRequest.end_time?.substring(0, 5) || 'N/A'}
                                   </span>
                                 </div>
                                 {calculateDuration(selectedOnlineWorkRequest.start_time, selectedOnlineWorkRequest.end_time) && (
-                                  <div className="flex justify-between items-center py-2.5 border-b border-slate-50 gap-4">
-                                    <span className="text-sm font-bold text-slate-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Tổng thời gian</span>
-                                    <span className="text-sm font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 whitespace-nowrap">
+                                  <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
+                                    <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Tổng thời gian</span>
+                                    <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 whitespace-nowrap">
                                       {calculateDuration(selectedOnlineWorkRequest.start_time, selectedOnlineWorkRequest.end_time)}
                                     </span>
                                   </div>
@@ -3794,9 +3739,9 @@ const Approvals: React.FC = () => {
                         )}
 
                         {/* Common metadata footer */}
-                        <div className="flex justify-between items-center pt-2.5 border-t border-slate-100 mt-2">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Ngày tạo đơn</span>
-                          <span className="text-sm font-bold text-slate-600">
+                        <div className="flex justify-between items-center pt-2.5 border-t border-gray-100 mt-2">
+                          <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Ngày tạo đơn</span>
+                          <span className="text-sm font-bold text-gray-600">
                             {formatDateTime(
                               selectedExplanation
                                 ? selectedExplanation.created_at
@@ -3833,7 +3778,7 @@ const Approvals: React.FC = () => {
                     <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     Quy trình duyệt
                   </h4>
-                  <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm ring-1 ring-black/5">
+                  <div className="bg-white border border-gray-100 rounded-lg p-6 shadow-sm ring-1 ring-black/5">
                     <div className="relative border-l-2 border-gray-100 ml-4 space-y-8">
                       {(() => {
                         const workflowSteps = selectedExplanation
@@ -3866,7 +3811,7 @@ const Approvals: React.FC = () => {
                               </div>
 
                               {/* Step Content */}
-                              <div className={`bg-gray-50/50 p-4 rounded-xl border ${isRejected ? 'border-red-100/60' : isApproved ? 'border-green-100/60' : 'border-gray-100 opacity-80'}`}>
+                              <div className={`bg-gray-50/50 p-4 rounded-lg border ${isRejected ? 'border-red-100/60' : isApproved ? 'border-green-100/60' : 'border-gray-100 opacity-80'}`}>
                                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                                   <div>
                                     <p className="text-base font-bold text-gray-900 flex items-center">
@@ -3888,7 +3833,7 @@ const Approvals: React.FC = () => {
 
                                   {step.date && (
                                     <div className="text-left sm:text-right bg-white px-3 py-1.5 rounded-lg border border-gray-100 shadow-sm">
-                                      <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">Thời gian</p>
+                                      <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Thời gian</p>
                                       <p className="text-base font-semibold text-gray-800">{formatDateTime(step.date)}</p>
                                     </div>
                                   )}
@@ -3912,7 +3857,7 @@ const Approvals: React.FC = () => {
                         openDeleteModal(selectedExplanation || selectedOnlineWorkRequest);
                         setShowDetailModal(false);
                       }}
-                      className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl sm:rounded-md hover:bg-red-100 transition-colors font-semibold"
+                      className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg sm:rounded-md hover:bg-red-100 transition-colors font-semibold"
                     >
                       Xoá đơn
                     </button>
@@ -3924,7 +3869,7 @@ const Approvals: React.FC = () => {
                     setSelectedExplanation(null);
                     setSelectedOnlineWorkRequest(null);
                   }}
-                  className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 border border-gray-300 text-gray-700 font-semibold rounded-xl sm:rounded-md hover:bg-gray-50 transition-colors order-1"
+                  className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg sm:rounded-md hover:bg-gray-50 transition-colors order-1"
                 >
                   Đóng
                 </button>
@@ -3938,7 +3883,7 @@ const Approvals: React.FC = () => {
                               openApproveModal(selectedExplanation);
                               setShowDetailModal(false);
                             }}
-                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-green-600 text-white font-semibold rounded-xl sm:rounded-md hover:bg-green-700 transition-colors order-3"
+                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-green-600 text-white font-semibold rounded-lg sm:rounded-md hover:bg-green-700 transition-colors order-3"
                           >
                             Duyệt
                           </button>
@@ -3947,7 +3892,7 @@ const Approvals: React.FC = () => {
                               openRejectModal(selectedExplanation);
                               setShowDetailModal(false);
                             }}
-                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-red-600 text-white font-semibold rounded-xl sm:rounded-md hover:bg-red-700 transition-colors order-2"
+                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-red-600 text-white font-semibold rounded-lg sm:rounded-md hover:bg-red-700 transition-colors order-2"
                           >
                             Từ chối
                           </button>
@@ -3961,7 +3906,7 @@ const Approvals: React.FC = () => {
                               openApproveModal(selectedOnlineWorkRequest);
                               setShowDetailModal(false);
                             }}
-                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-green-600 text-white font-semibold rounded-xl sm:rounded-md hover:bg-green-700 transition-colors order-3"
+                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-green-600 text-white font-semibold rounded-lg sm:rounded-md hover:bg-green-700 transition-colors order-3"
                           >
                             Duyệt
                           </button>
@@ -3970,7 +3915,7 @@ const Approvals: React.FC = () => {
                               openRejectModal(selectedOnlineWorkRequest);
                               setShowDetailModal(false);
                             }}
-                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-red-600 text-white font-semibold rounded-xl sm:rounded-md hover:bg-red-700 transition-colors order-2"
+                            className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-red-600 text-white font-semibold rounded-lg sm:rounded-md hover:bg-red-700 transition-colors order-2"
                           >
                             Từ chối
                           </button>
@@ -3985,8 +3930,8 @@ const Approvals: React.FC = () => {
 
       {/* 1. Modal Duyệt/Từ chối với Ghi chú */}
       {actionModalOpen && targetItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100] transition-all">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100] transition-all">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full overflow-hidden">
             {/* Header */}
             <div className={`px-6 py-4 flex items-center gap-3 border-b ${actionType === 'APPROVE' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
               <div className={`p-2 rounded-full ${actionType === 'APPROVE' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
@@ -4006,7 +3951,7 @@ const Approvals: React.FC = () => {
               <div className="mb-4">
                 <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Nội dung ghi chú:</p>
                 <textarea
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all h-24 text-base font-medium"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all h-24 text-base font-medium"
                   placeholder="Nhập ghi chú phản hồi..."
                   value={approvalNote}
                   onChange={(e) => setApprovalNote(e.target.value)}
@@ -4017,14 +3962,14 @@ const Approvals: React.FC = () => {
                 <button
                   disabled={isProcessing}
                   onClick={() => setActionModalOpen(false)}
-                  className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all text-base"
+                  className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-100 transition-all text-base"
                 >
                   Hủy
                 </button>
                 <button
                   disabled={isProcessing}
                   onClick={confirmAction}
-                  className={`flex-1 px-4 py-2.5 text-white font-bold rounded-xl shadow-lg transition-all text-base flex items-center justify-center gap-2 ${actionType === 'APPROVE' ? 'bg-green-600 hover:bg-green-700 shadow-green-200/50' : 'bg-red-600 hover:bg-red-700 shadow-red-200/50'}`}
+                  className={`flex-1 px-4 py-2.5 text-white font-bold rounded-lg shadow-lg transition-all text-base flex items-center justify-center gap-2 ${actionType === 'APPROVE' ? 'bg-green-600 hover:bg-green-700 shadow-green-200/50' : 'bg-red-600 hover:bg-red-700 shadow-red-200/50'}`}
                 >
                   {isProcessing ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -4038,8 +3983,8 @@ const Approvals: React.FC = () => {
 
       {/* 2. Modal Xác nhận Xóa */}
       {deleteModalOpen && targetItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]">
+          <div className="bg-white rounded-lg shadow-lg max-w-sm w-full overflow-hidden">
             <div className="p-6 text-center">
               <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -4064,14 +4009,14 @@ const Approvals: React.FC = () => {
               <button
                 disabled={isProcessing}
                 onClick={() => setDeleteModalOpen(false)}
-                className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-100 transition-all text-base order-last sm:order-first"
+                className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-100 transition-all text-base order-last sm:order-first"
               >
                 Hủy
               </button>
               <button
                 disabled={isProcessing}
                 onClick={confirmDelete}
-                className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all text-base flex items-center justify-center gap-2 shadow-lg shadow-red-200/50 disabled:bg-gray-400 disabled:shadow-none"
+                className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all text-base flex items-center justify-center gap-2 shadow-lg shadow-red-200/50 disabled:bg-gray-400 disabled:shadow-none"
               >
                 {isProcessing ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -4084,8 +4029,8 @@ const Approvals: React.FC = () => {
 
       {/* 3. Modal Thông báo Lỗi */}
       {errorModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110]">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[110]">
+          <div className="bg-white rounded-lg shadow-lg max-w-sm w-full overflow-hidden">
             <div className="p-6 text-center">
               <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4100,7 +4045,7 @@ const Approvals: React.FC = () => {
             <div className="px-6 py-4 bg-gray-50 flex gap-3">
               <button
                 onClick={() => setErrorModalOpen(false)}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all text-base shadow-lg shadow-red-200"
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all text-base shadow-lg shadow-red-200"
               >
                 Đã hiểu
               </button>
@@ -4111,9 +4056,9 @@ const Approvals: React.FC = () => {
 
       {/* 4. Modal Xác nhận Duyệt hàng loạt (Smart) */}
       {bulkConfirmModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110]">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3 flex-shrink-0">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[110]">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="bg-green-600 px-6 py-4 flex items-center gap-3 flex-shrink-0">
               <div className="p-2 bg-white/20 rounded-lg text-white">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
               </div>
@@ -4121,17 +4066,17 @@ const Approvals: React.FC = () => {
             </div>
             <div className="p-6 overflow-y-auto flex-1">
               <p className="text-gray-600 mb-2 leading-relaxed">
-                Bạn đang thực hiện duyệt nhanh cho <span className="font-black text-gray-900">{(bulkConfirmModal as any).name}</span>.
+                Bạn đang thực hiện duyệt nhanh cho <span className="font-semibold text-gray-900">{(bulkConfirmModal as any).name}</span>.
               </p>
 
               <div className="flex gap-2 mb-6">
-                <div className="flex-1 bg-emerald-50 border border-emerald-100 p-2 rounded-xl text-center">
-                  <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Sẽ phê duyệt</div>
-                  <div className="text-lg font-black text-emerald-700">{(bulkConfirmModal as any).approvalItems.length}</div>
+                <div className="flex-1 bg-green-50 border border-green-100 p-2 rounded-lg text-center">
+                  <div className="text-xs font-bold text-green-600 uppercase tracking-tighter">Sẽ phê duyệt</div>
+                  <div className="text-lg font-semibold text-green-700">{(bulkConfirmModal as any).approvalItems.length}</div>
                 </div>
-                <div className="flex-1 bg-rose-50 border border-rose-100 p-2 rounded-xl text-center">
-                  <div className="text-[10px] font-bold text-rose-600 uppercase tracking-tighter">Sẽ từ chối</div>
-                  <div className="text-lg font-black text-rose-700">{(bulkConfirmModal as any).rejectionItems.length}</div>
+                <div className="flex-1 bg-rose-50 border border-rose-100 p-2 rounded-lg text-center">
+                  <div className="text-xs font-bold text-rose-600 uppercase tracking-tighter">Sẽ từ chối</div>
+                  <div className="text-lg font-semibold text-rose-700">{(bulkConfirmModal as any).rejectionItems.length}</div>
                 </div>
               </div>
 
@@ -4140,43 +4085,43 @@ const Approvals: React.FC = () => {
                 <div className="space-y-6 mb-6">
                   {/* Sẽ được phê duyệt */}
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                       Danh sách phê duyệt
-                      <span className="h-[1px] flex-1 bg-slate-100"></span>
+                      <span className="h-[1px] flex-1 bg-gray-100"></span>
                     </p>
                     <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                       {(bulkConfirmModal as any).approvalItems.length > 0 ? (bulkConfirmModal as any).approvalItems.map((item: any, idx: number) => (
-                        <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                        <div key={idx} className="flex justify-between items-center p-2.5 bg-gray-50/50 rounded-lg border border-gray-100/50">
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                              <span className="text-[10px] font-extrabold text-slate-800 leading-none">{item.employee_name}</span>
-                              <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-black rounded border border-indigo-100 uppercase tracking-tighter">
+                              <span className="text-xs font-semibold text-gray-800 leading-none">{item.employee_name}</span>
+                              <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-semibold rounded border border-indigo-100 uppercase tracking-tighter">
                                 {item.employee_position || item.position_name || 'NV'}
                               </span>
-                              <span className="h-0.5 w-0.5 rounded-full bg-slate-200"></span>
-                              <span className="text-[10px] font-black text-slate-400 uppercase leading-none">{getRequestTypeLabel(item)}</span>
-                              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded uppercase">Duyệt</span>
+                              <span className="h-0.5 w-0.5 rounded-full bg-gray-200"></span>
+                              <span className="text-xs font-semibold text-gray-400 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                              <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[8px] font-semibold rounded uppercase">Duyệt</span>
                               {item.is_penalty && (
-                                <span className="text-amber-600 font-black ml-1 uppercase text-[8px]">
+                                <span className="text-amber-600 font-semibold ml-1 uppercase text-[8px]">
                                   (Bị trừ công)
                                 </span>
                               )}
                             </div>
-                            <span className="text-[9px] font-bold text-slate-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                            <span className="text-xs font-bold text-gray-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
                             {(item.reason || item.notes || item.explanation) && (
-                              <span className="text-[9px] text-slate-500 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                              <span className="text-xs text-gray-500 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
                                 Lý do: {item.reason || item.notes || item.explanation}
                               </span>
                             )}
                           </div>
                           <div className="text-right">
                             {item.penalty_amount > 0 && (
-                              <div className="text-[11px] font-black text-emerald-600">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
+                              <div className="text-xs font-semibold text-green-600">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
                             )}
                           </div>
                         </div>
                       )) : (
-                        <div className="text-center py-4 text-[10px] font-bold text-slate-300 uppercase italic">Trống</div>
+                        <div className="text-center py-4 text-xs font-bold text-gray-300 uppercase italic">Trống</div>
                       )}
                     </div>
                   </div>
@@ -4184,33 +4129,33 @@ const Approvals: React.FC = () => {
                   {/* Sẽ bị từ chối tự động */}
                   {(bulkConfirmModal as any).rejectionItems.length > 0 && (
                     <div className="space-y-3">
-                      <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-2">
+                      <p className="text-xs font-semibold text-rose-400 uppercase tracking-widest flex items-center gap-2">
                         Từ chối (Hết hạn mức)
                         <span className="h-[1px] flex-1 bg-rose-100"></span>
                       </p>
                       <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                         {(bulkConfirmModal as any).rejectionItems.map((item: any, idx: number) => (
-                          <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-xl border border-rose-100/50 grayscale-[0.5]">
+                          <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-lg border border-rose-100/50 grayscale-[0.5]">
                             <div className="flex flex-col">
                               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                <span className="text-[10px] font-extrabold text-rose-800/80 leading-none">{item.employee_name}</span>
-                                <span className="px-1.5 py-0.5 bg-rose-50 text-rose-800/60 text-[8px] font-black rounded border border-rose-100 uppercase tracking-tighter">
+                                <span className="text-xs font-semibold text-rose-800/80 leading-none">{item.employee_name}</span>
+                                <span className="px-1.5 py-0.5 bg-rose-50 text-rose-800/60 text-[8px] font-semibold rounded border border-rose-100 uppercase tracking-tighter">
                                   {item.employee_position || item.position_name || 'NV'}
                                 </span>
                                 <span className="h-0.5 w-0.5 rounded-full bg-rose-100"></span>
-                                <span className="text-[10px] font-black text-rose-800/50 uppercase leading-none">{getRequestTypeLabel(item)}</span>
-                                <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
+                                <span className="text-xs font-semibold text-rose-800/50 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                                <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-semibold rounded uppercase">Hết lượt</span>
                               </div>
-                              <span className="text-[9px] font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                              <span className="text-xs font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
                               {(item.reason || item.notes || item.explanation) && (
-                                <span className="text-[9px] text-rose-400/70 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                                <span className="text-xs text-rose-400/70 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
                                   Lý do: {item.reason || item.notes || item.explanation}
                                 </span>
                               )}
                             </div>
                             <div className="text-right">
                               {item.penalty_amount > 0 && (
-                                <div className="text-[10px] font-black text-rose-400 line-through">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
+                                <div className="text-xs font-semibold text-rose-400 line-through">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
                               )}
                             </div>
                           </div>
@@ -4241,13 +4186,13 @@ const Approvals: React.FC = () => {
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => setBulkConfirmModal(null)}
-                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   onClick={executeBulkApprove}
-                  className="flex-1 py-2.5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-200/50 transition-all font-black"
+                  className="flex-1 py-2.5 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-lg shadow-green-200/50 transition-all font-semibold"
                 >
                   Đồng ý duyệt
                 </button>
@@ -4259,9 +4204,9 @@ const Approvals: React.FC = () => {
 
       {/* 5. Modal Kết quả Duyệt hàng loạt */}
       {bulkActionResult && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[120]">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-emerald-600 px-6 py-4 flex items-center gap-3 flex-shrink-0">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[120]">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="bg-green-600 px-6 py-4 flex items-center gap-3 flex-shrink-0">
               <div className="p-2 bg-white/20 rounded-lg text-white">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
               </div>
@@ -4269,17 +4214,17 @@ const Approvals: React.FC = () => {
             </div>
             <div className="p-6 overflow-y-auto flex-1">
               <p className="text-gray-600 mb-2 leading-relaxed">
-                Kết quả duyệt nhanh tại <span className="font-black text-gray-900">{bulkActionResult.groupName}</span>.
+                Kết quả duyệt nhanh tại <span className="font-semibold text-gray-900">{bulkActionResult.groupName}</span>.
               </p>
 
               <div className="flex gap-2 mb-6">
-                <div className="flex-1 bg-emerald-50 border border-emerald-100 p-2 rounded-xl text-center">
-                  <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Đã phê duyệt</div>
-                  <div className="text-lg font-black text-emerald-700">{bulkActionResult.approvalItems.length}</div>
+                <div className="flex-1 bg-green-50 border border-green-100 p-2 rounded-lg text-center">
+                  <div className="text-xs font-bold text-green-600 uppercase tracking-tighter">Đã phê duyệt</div>
+                  <div className="text-lg font-semibold text-green-700">{bulkActionResult.approvalItems.length}</div>
                 </div>
-                <div className="flex-1 bg-rose-50 border border-rose-100 p-2 rounded-xl text-center">
-                  <div className="text-[10px] font-bold text-rose-600 uppercase tracking-tighter">Đã từ chối</div>
-                  <div className="text-lg font-black text-rose-700">{bulkActionResult.rejectionItems.length}</div>
+                <div className="flex-1 bg-rose-50 border border-rose-100 p-2 rounded-lg text-center">
+                  <div className="text-xs font-bold text-rose-600 uppercase tracking-tighter">Đã từ chối</div>
+                  <div className="text-lg font-semibold text-rose-700">{bulkActionResult.rejectionItems.length}</div>
                 </div>
               </div>
 
@@ -4287,43 +4232,43 @@ const Approvals: React.FC = () => {
                 <div className="space-y-6 mb-6">
                   {/* Đã được phê duyệt */}
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                       Danh sách phê duyệt
-                      <span className="h-[1px] flex-1 bg-slate-100"></span>
+                      <span className="h-[1px] flex-1 bg-gray-100"></span>
                     </p>
                     <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                       {bulkActionResult.approvalItems.length > 0 ? bulkActionResult.approvalItems.map((item: any, idx: number) => (
-                        <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50/50 rounded-xl border border-slate-100/50">
+                        <div key={idx} className="flex justify-between items-center p-2.5 bg-gray-50/50 rounded-lg border border-gray-100/50">
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                              <span className="text-[10px] font-extrabold text-slate-800 leading-none">{item.employee_name}</span>
-                              <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-black rounded border border-indigo-100 uppercase tracking-tighter">
+                              <span className="text-xs font-semibold text-gray-800 leading-none">{item.employee_name}</span>
+                              <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[8px] font-semibold rounded border border-indigo-100 uppercase tracking-tighter">
                                 {item.employee_position || item.position_name || 'NV'}
                               </span>
-                              <span className="h-0.5 w-0.5 rounded-full bg-slate-200"></span>
-                              <span className="text-[10px] font-black text-slate-400 uppercase leading-none">{getRequestTypeLabel(item)}</span>
-                              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded uppercase">Đã duyệt</span>
+                              <span className="h-0.5 w-0.5 rounded-full bg-gray-200"></span>
+                              <span className="text-xs font-semibold text-gray-400 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                              <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[8px] font-semibold rounded uppercase">Đã duyệt</span>
                               {item.is_penalty && (
-                                <span className="text-amber-600 font-black ml-1 uppercase text-[8px]">
+                                <span className="text-amber-600 font-semibold ml-1 uppercase text-[8px]">
                                   (Bị trừ công)
                                 </span>
                               )}
                             </div>
-                            <span className="text-[9px] font-bold text-slate-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                            <span className="text-xs font-bold text-gray-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
                             {(item.reason || item.notes || item.explanation) && (
-                              <span className="text-[9px] text-slate-500 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                              <span className="text-xs text-gray-500 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
                                 Lý do: {item.reason || item.notes || item.explanation}
                               </span>
                             )}
                           </div>
                           <div className="text-right">
                             {item.penalty_amount > 0 && (
-                              <div className="text-[11px] font-black text-emerald-600">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
+                              <div className="text-xs font-semibold text-green-600">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
                             )}
                           </div>
                         </div>
                       )) : (
-                        <div className="text-center py-4 text-[10px] font-bold text-slate-300 uppercase italic">Trống</div>
+                        <div className="text-center py-4 text-xs font-bold text-gray-300 uppercase italic">Trống</div>
                       )}
                     </div>
                   </div>
@@ -4331,33 +4276,33 @@ const Approvals: React.FC = () => {
                   {/* Đã bị từ chối */}
                   {bulkActionResult.rejectionItems.length > 0 && (
                     <div className="space-y-3">
-                      <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-2">
+                      <p className="text-xs font-semibold text-rose-400 uppercase tracking-widest flex items-center gap-2">
                         Từ chối (Hết hạn mức)
                         <span className="h-[1px] flex-1 bg-rose-100"></span>
                       </p>
                       <div className="max-h-[240px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                         {bulkActionResult.rejectionItems.map((item: any, idx: number) => (
-                          <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-xl border border-rose-100/50 grayscale-[0.5]">
+                          <div key={idx} className="flex justify-between items-center p-2.5 bg-rose-50/30 rounded-lg border border-rose-100/50 grayscale-[0.5]">
                             <div className="flex flex-col">
                               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                <span className="text-[10px] font-extrabold text-rose-800/80 leading-none">{item.employee_name}</span>
-                                <span className="px-1.5 py-0.5 bg-rose-50 text-rose-800/60 text-[8px] font-black rounded border border-rose-100 uppercase tracking-tighter">
+                                <span className="text-xs font-semibold text-rose-800/80 leading-none">{item.employee_name}</span>
+                                <span className="px-1.5 py-0.5 bg-rose-50 text-rose-800/60 text-[8px] font-semibold rounded border border-rose-100 uppercase tracking-tighter">
                                   {item.employee_position || item.position_name || 'NV'}
                                 </span>
                                 <span className="h-0.5 w-0.5 rounded-full bg-rose-100"></span>
-                                <span className="text-[10px] font-black text-rose-800/50 uppercase leading-none">{getRequestTypeLabel(item)}</span>
-                                <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-black rounded uppercase">Hết lượt</span>
+                                <span className="text-xs font-semibold text-rose-800/50 uppercase leading-none">{getRequestTypeLabel(item)}</span>
+                                <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[8px] font-semibold rounded uppercase">Hết lượt</span>
                               </div>
-                              <span className="text-[9px] font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
+                              <span className="text-xs font-bold text-rose-400 italic">{formatDate(item.attendance_date || item.registration_date || item.work_date || item.start_date)}</span>
                               {(item.reason || item.notes || item.explanation) && (
-                                <span className="text-[9px] text-rose-400/70 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
+                                <span className="text-xs text-rose-400/70 truncate max-w-[220px]" title={item.reason || item.notes || item.explanation}>
                                   Lý do: {item.reason || item.notes || item.explanation}
                                 </span>
                               )}
                             </div>
                             <div className="text-right">
                               {item.penalty_amount > 0 && (
-                                <div className="text-[10px] font-black text-rose-400 line-through">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
+                                <div className="text-xs font-semibold text-rose-400 line-through">{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</div>
                               )}
                             </div>
                           </div>
@@ -4371,7 +4316,7 @@ const Approvals: React.FC = () => {
             <div className="px-6 pb-6 flex-shrink-0">
               <button
                 onClick={() => setBulkActionResult(null)}
-                className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors"
+                className="w-full py-3 bg-gray-900 text-white font-bold rounded-lg hover:bg-black transition-colors"
               >
                 OK
               </button>
@@ -4382,21 +4327,21 @@ const Approvals: React.FC = () => {
 
       {/* Employee Attendance Calendar Modal */}
       {calendarModalEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-slate-800">Lịch công của {calendarModalEmployee.name}</h2>
-                  <p className="text-xs text-slate-400 font-semibold">Tháng {calendarModalEmployee.month}/{calendarModalEmployee.year}</p>
+                  <h2 className="text-base font-semibold text-gray-800">Lịch công của {calendarModalEmployee.name}</h2>
+                  <p className="text-xs text-gray-400 font-semibold">Tháng {calendarModalEmployee.month}/{calendarModalEmployee.year}</p>
                 </div>
               </div>
               <button
                 onClick={() => setCalendarModalEmployee(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
