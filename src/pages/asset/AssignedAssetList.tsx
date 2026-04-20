@@ -133,6 +133,8 @@ export default function AssignedAssetList() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterCondition, setFilterCondition] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [pendingHandovers, setPendingHandovers] = useState<AssetAssignmentHistory[]>([]);
@@ -300,7 +302,10 @@ export default function AssignedAssetList() {
     const matchStatus = !filterStatus || asset.status === filterStatus;
     const matchCondition = !filterCondition || asset.condition === filterCondition;
     const matchType = !filterType || asset.asset_type === filterType;
-    return matchSearch && matchStatus && matchCondition && matchType;
+    const assetDate = asset.assigned_date ? asset.assigned_date.slice(0, 10) : '';
+    const matchDateFrom = !dateFrom || assetDate >= dateFrom;
+    const matchDateTo = !dateTo || assetDate <= dateTo;
+    return matchSearch && matchStatus && matchCondition && matchType && matchDateFrom && matchDateTo;
   });
 
   return (
@@ -314,27 +319,118 @@ export default function AssignedAssetList() {
         <p className="text-sm text-gray-500">Danh sách thiết bị, tài sản công ty đã bàn giao cho bạn sử dụng.</p>
       </div>
 
-      {/* Stats banner */}
-      <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Tổng thiết bị</p>
-          <p className="text-2xl font-bold text-gray-900">{assets.length}</p>
+      {/* Sticky wrapper: Stats + Filters */}
+      <div className="sticky top-16 z-20 -mx-6 px-6 py-4 bg-gray-50/95 backdrop-blur space-y-4">
+        {/* Stats banner */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <p className="text-sm text-gray-500">Tổng thiết bị</p>
+            <p className="text-2xl font-bold text-gray-900">{assets.length}</p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <p className="text-sm text-gray-500">Đang sử dụng</p>
+            <p className="text-2xl font-bold text-green-600">{assets.filter(a => a.status === 'IN_USE').length}</p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <p className="text-sm text-gray-500">Bảo hành còn hạn</p>
+            <p className="text-2xl font-bold text-blue-600">
+              {assets.filter(a => a.warranty_expiry && !isWarrantyExpired(a.warranty_expiry)).length}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <p className="text-sm text-gray-500">Sắp hết bảo hành</p>
+            <p className="text-2xl font-bold text-amber-500">
+              {assets.filter(a => isWarrantyExpiringSoon(a.warranty_expiry)).length}
+            </p>
+          </div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Đang sử dụng</p>
-          <p className="text-2xl font-bold text-green-600">{assets.filter(a => a.status === 'IN_USE').length}</p>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Bảo hành còn hạn</p>
-          <p className="text-2xl font-bold text-blue-600">
-            {assets.filter(a => a.warranty_expiry && !isWarrantyExpired(a.warranty_expiry)).length}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <p className="text-sm text-gray-500">Sắp hết bảo hành</p>
-          <p className="text-2xl font-bold text-amber-500">
-            {assets.filter(a => isWarrantyExpiringSoon(a.warranty_expiry)).length}
-          </p>
+
+        {/* Search + Filters */}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tìm kiếm</label>
+            <input
+              type="text"
+              placeholder="Tìm theo mã, tên, hãng, model..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div className="w-48">
+            <SelectBox
+              label="Trạng thái vận hành"
+              value={filterStatus}
+              options={STATUS_OPTIONS}
+              onChange={setFilterStatus}
+            />
+          </div>
+          <div className="w-48">
+            <SelectBox
+              label="Tình trạng vật lý"
+              value={filterCondition}
+              options={CONDITION_OPTIONS}
+              onChange={setFilterCondition}
+            />
+          </div>
+          <div className="w-40">
+            <SelectBox
+              label="Loại tài sản"
+              value={filterType}
+              options={TYPE_OPTIONS}
+              onChange={setFilterType}
+            />
+          </div>
+          <div className="flex items-end gap-2 flex-wrap">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ngày nhận từ</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="block rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Đến ngày</label>
+              <input
+                type="date"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="block rounded-lg border border-gray-300 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex items-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => { const t = new Date().toISOString().slice(0, 10); setDateFrom(t); setDateTo(t); }}
+                className="px-3 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+              >
+                Hôm nay
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  setDateFrom(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10));
+                  setDateTo(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10));
+                }}
+                className="px-3 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+              >
+                Tháng này
+              </button>
+              {(dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  onClick={() => { setDateFrom(''); setDateTo(''); }}
+                  className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+                >
+                  Xóa lọc
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -497,43 +593,6 @@ export default function AssignedAssetList() {
         </div>
       )}
 
-      {/* Search + Filters */}
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div className="flex-1 min-w-[200px]">
-          <input
-            type="text"
-            placeholder="Tìm theo mã, tên, hãng, model..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-        <div className="w-48">
-          <SelectBox
-            label="Trạng thái vận hành"
-            value={filterStatus}
-            options={STATUS_OPTIONS}
-            onChange={setFilterStatus}
-          />
-        </div>
-        <div className="w-48">
-          <SelectBox
-            label="Tình trạng vật lý"
-            value={filterCondition}
-            options={CONDITION_OPTIONS}
-            onChange={setFilterCondition}
-          />
-        </div>
-        <div className="w-40">
-          <SelectBox
-            label="Loại tài sản"
-            value={filterType}
-            options={TYPE_OPTIONS}
-            onChange={setFilterType}
-          />
-        </div>
-      </div>
-
       {/* Messages */}
       {error && (
         <div className="mb-4 p-4 bg-red-50 rounded-lg text-sm text-red-700">{error}</div>
@@ -541,10 +600,11 @@ export default function AssignedAssetList() {
 
       {/* Table */}
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[calc(100vh-16rem)]">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12">STT</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Mã thiết bị</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Model</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Loại tài sản</th>
@@ -571,19 +631,22 @@ export default function AssignedAssetList() {
                 ))
               ) : filteredAssets.length === 0 ? (
                 <tr> 
-                  <td colSpan={12} className="px-6 py-16 text-center">
+                  <td colSpan={13} className="px-6 py-16 text-center">
                     <ComputerDesktopIcon className="mx-auto h-12 w-12 text-gray-300 mb-3" />
                     <p className="text-gray-500 font-medium">Bạn chưa được bàn giao tài sản nào.</p>
                     <p className="text-sm text-gray-400 mt-1">Liên hệ phòng IT để được hỗ trợ.</p>
                   </td>
                 </tr>
               ) : (
-                filteredAssets.map((asset) => {
+                filteredAssets.map((asset, index) => {
                   const isReturned = asset.status === 'IDLE' || asset.status === 'RETIRED';
                   const isUnderMaintenance = asset.status === 'UNDER_MAINTENANCE';
-                  
+
                   return (
                     <tr key={asset.id} className={`hover:bg-gray-50 transition-colors ${(isReturned || isUnderMaintenance) ? 'bg-gray-50/50 opacity-50 grayscale-[0.5]' : ''}`}>
+                      <td className="px-3 py-4 text-center text-xs font-medium text-gray-500 w-12">
+                        {index + 1}
+                      </td>
                       {/* Tên tài sản */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-bold text-primary-700 bg-primary-50 px-2 py-1 rounded inline-block">

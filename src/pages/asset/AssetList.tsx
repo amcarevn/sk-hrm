@@ -92,6 +92,8 @@ export default function AssetList() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [conditionFilter, setConditionFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -174,8 +176,11 @@ export default function AssetList() {
     const matchesStatus = statusFilter === 'all' || asset.status === statusFilter;
     const matchesType = typeFilter.length === 0 || typeFilter.includes(asset.asset_type);
     const matchesCondition = conditionFilter === 'all' || asset.condition === conditionFilter;
+    const assetDate = asset.created_at ? asset.created_at.slice(0, 10) : '';
+    const matchesDateFrom = !dateFrom || assetDate >= dateFrom;
+    const matchesDateTo = !dateTo || assetDate <= dateTo;
 
-    return matchesSearch && matchesStatus && matchesType && matchesCondition;
+    return matchesSearch && matchesStatus && matchesType && matchesCondition && matchesDateFrom && matchesDateTo;
   }).sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
 
   const formatCurrency = (amount: number) => {
@@ -560,6 +565,64 @@ export default function AssetList() {
             allLabel="Tất cả loại"
           />
         </div>
+
+        {/* Hàng 2: lọc ngày tạo */}
+        <div className="flex flex-wrap items-end gap-3 pt-3 border-t border-gray-100">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Ngày tạo từ</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="mt-1 block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Đến ngày</label>
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="mt-1 block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const today = new Date().toISOString().slice(0, 10);
+                setDateFrom(today);
+                setDateTo(today);
+              }}
+              className="px-3 py-[7px] rounded-md border border-indigo-200 bg-indigo-50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+            >
+              Hôm nay
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const now = new Date();
+                const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+                const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+                setDateFrom(first);
+                setDateTo(last);
+              }}
+              className="px-3 py-[7px] rounded-md border border-indigo-200 bg-indigo-50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+            >
+              Tháng này
+            </button>
+            {(dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={() => { setDateFrom(''); setDateTo(''); }}
+                className="px-3 py-[7px] rounded-md border border-gray-200 bg-white text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                Xóa lọc
+              </button>
+            )}
+          </div>
+        </div>
       </div>
       </div>
 
@@ -610,9 +673,9 @@ export default function AssetList() {
 
       {/* Assets Table */}
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[calc(100vh-16rem)]">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 <th scope="col" className="w-10 px-3 py-3 text-center">
                   <input
@@ -627,6 +690,9 @@ export default function AssetList() {
                       }
                     }}
                   />
+                </th>
+                <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                  STT
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Mã thiết bị
@@ -658,6 +724,9 @@ export default function AssetList() {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Nhà cung cấp
                 </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  Ngày tạo
+                </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Thao tác
                 </th>
@@ -666,7 +735,7 @@ export default function AssetList() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredAssets.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-6 py-12 text-center">
+                  <td colSpan={14} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center">
                       <ComputerDesktopIcon className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-gray-900">
@@ -682,7 +751,7 @@ export default function AssetList() {
                   </td>
                 </tr>
               ) : (
-                filteredAssets.map((asset) => (
+                filteredAssets.map((asset, index) => (
                   <tr key={asset.id} className={`hover:bg-gray-50 ${selectedAssetIds.has(asset.id) ? 'bg-indigo-50' : ''}`}>
                     <td className="w-10 px-3 py-4 text-center">
                       <input
@@ -698,6 +767,9 @@ export default function AssetList() {
                           });
                         }}
                       />
+                    </td>
+                    <td className="px-3 py-4 text-center text-xs font-medium text-gray-500 w-12">
+                      {index + 1}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-bold text-primary-700 bg-primary-50 px-2 py-1 rounded inline-block">
@@ -820,6 +892,9 @@ export default function AssetList() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={asset.supplier || ''}>
                       {asset.supplier || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                      {formatDate(asset.created_at)}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1.5 min-w-[80px]">
