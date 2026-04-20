@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import AssetDetailModal from './AssetDetailModal';
 import FeedbackDialog, { FeedbackVariant } from '../../components/FeedbackDialog';
+import { SelectBox } from '../../components/LandingLayout/SelectBox';
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -51,16 +52,23 @@ const getConditionColor = (condition: string) => {
   }
 };
 
-const getTypeColor = (type: string) => {
-  switch (type) {
-    case 'LAPTOP': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
-    case 'DESKTOP': return 'bg-blue-50 text-blue-700 border-blue-100';
-    case 'MONITOR': return 'bg-cyan-50 text-cyan-700 border-cyan-100';
-    case 'PHONE': return 'bg-rose-50 text-rose-700 border-rose-100';
-    case 'PRINTER': return 'bg-orange-50 text-orange-700 border-orange-100';
-    case 'NETWORK': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-    default: return 'bg-gray-50 text-gray-700 border-gray-100';
-  }
+// Màu badge type — không trùng với Status/Condition:
+// Status blocked:    green(IN_USE), amber(IDLE), indigo(MAINTENANCE), rose(DAMAGED), slate(RETIRED), black(LOST)
+// Condition blocked: emerald(EXCELLENT), blue(GOOD), amber(FAIR), orange(POOR), red(BROKEN)
+const ASSET_TYPE_COLOR_MAP: Record<string, string> = {
+  LAPTOP:    'bg-cyan-100 text-cyan-800 border-cyan-200',
+  DESKTOP:   'bg-pink-100 text-pink-800 border-pink-200',
+  MONITOR:   'bg-violet-100 text-violet-800 border-violet-200',
+  PHONE:     'bg-sky-100 text-sky-800 border-sky-200',
+  TABLET:    'bg-teal-100 text-teal-800 border-teal-200',
+  PRINTER:   'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200',
+  SCANNER:   'bg-lime-100 text-lime-800 border-lime-200',
+  NETWORK:   'bg-purple-100 text-purple-800 border-purple-200',
+  SERVER:    'bg-yellow-100 text-yellow-800 border-yellow-200',
+  SIM:       'bg-stone-100 text-stone-700 border-stone-200',
+  FURNITURE: 'bg-zinc-100 text-zinc-700 border-zinc-200',
+  VEHICLE:   'bg-neutral-100 text-neutral-700 border-neutral-200',
+  OTHER:     'bg-gray-200 text-gray-600 border-gray-300',
 };
 
 function formatDate(dateStr?: string) {
@@ -81,11 +89,50 @@ function isWarrantyExpired(expiryDate?: string): boolean {
   return new Date(expiryDate) < new Date();
 }
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'Tất cả trạng thái' },
+  { value: 'IN_USE', label: 'Đang sử dụng' },
+  { value: 'IDLE', label: 'Chờ bàn giao' },
+  { value: 'UNDER_MAINTENANCE', label: 'Đang bảo trì' },
+  { value: 'DAMAGED', label: 'Hư hỏng' },
+  { value: 'RETIRED', label: 'Thanh lý' },
+  { value: 'LOST', label: 'Mất' },
+];
+
+const CONDITION_OPTIONS = [
+  { value: '', label: 'Tất cả tình trạng' },
+  { value: 'EXCELLENT', label: 'Mới 100%' },
+  { value: 'GOOD', label: 'Cũ (Chất lượng tốt)' },
+  { value: 'FAIR', label: 'Cũ (Trầy xước / Cấn móp)' },
+  { value: 'POOR', label: 'Cũ (Kém / Lỗi chức năng)' },
+  { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
+];
+
+const TYPE_OPTIONS = [
+  { value: '', label: 'Tất cả loại' },
+  { value: 'LAPTOP', label: 'Laptop' },
+  { value: 'DESKTOP', label: 'Desktop' },
+  { value: 'MONITOR', label: 'Màn hình' },
+  { value: 'PHONE', label: 'Điện thoại' },
+  { value: 'TABLET', label: 'Máy tính bảng' },
+  { value: 'PRINTER', label: 'Máy in' },
+  { value: 'SCANNER', label: 'Máy scan' },
+  { value: 'NETWORK', label: 'Thiết bị mạng' },
+  { value: 'SERVER', label: 'Máy chủ' },
+  { value: 'SIM', label: 'SIM' },
+  { value: 'FURNITURE', label: 'Nội thất' },
+  { value: 'VEHICLE', label: 'Phương tiện' },
+  { value: 'OTHER', label: 'Khác' },
+];
+
 export default function AssignedAssetList() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterCondition, setFilterCondition] = useState('');
+  const [filterType, setFilterType] = useState('');
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [pendingHandovers, setPendingHandovers] = useState<AssetAssignmentHistory[]>([]);
@@ -93,7 +140,12 @@ export default function AssignedAssetList() {
   const [rejectingHistory, setRejectingHistory] = useState<AssetAssignmentHistory | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [feedback, setFeedback] = useState<{ variant: FeedbackVariant; title: string; message?: string } | null>(null);
-  const [returnNotice, setReturnNotice] = useState<AssetAssignmentHistory | null>(null);
+  const [returnNotices, setReturnNotices] = useState<AssetAssignmentHistory[]>([]);
+  const [isAcknowledging, setIsAcknowledging] = useState(false);
+  const [isBulkConfirming, setIsBulkConfirming] = useState(false);
+  const [showBulkRejectDialog, setShowBulkRejectDialog] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState('');
+  const [isBulkRejecting, setIsBulkRejecting] = useState(false);
 
   useEffect(() => {
     fetchAssignedAssets();
@@ -101,44 +153,27 @@ export default function AssignedAssetList() {
     checkRecentReturns();
   }, []);
 
-  const RETURN_ACK_STORAGE_KEY = 'asset_return_acknowledged_ids';
-
-  const getAcknowledgedIds = (): number[] => {
-    try {
-      const raw = localStorage.getItem(RETURN_ACK_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const acknowledgeReturnId = (id: number) => {
-    try {
-      const existing = new Set(getAcknowledgedIds());
-      existing.add(id);
-      localStorage.setItem(RETURN_ACK_STORAGE_KEY, JSON.stringify([...existing].slice(-200)));
-    } catch {
-      /* ignore */
-    }
-  };
-
   const checkRecentReturns = async () => {
     try {
       const data = await assetsAPI.recentReturns(7);
       const list = Array.isArray(data) ? data : [];
-      const acked = new Set(getAcknowledgedIds());
-      const firstUnseen = list.find((h) => !acked.has(h.id));
-      if (firstUnseen) setReturnNotice(firstUnseen);
+      setReturnNotices(list);
     } catch (err) {
       console.error('Error fetching recent returns:', err);
     }
   };
 
-  const handleAcknowledgeReturn = () => {
-    if (returnNotice) acknowledgeReturnId(returnNotice.id);
-    setReturnNotice(null);
-    // Check for the next unseen return (if manager returned multiple assets)
-    setTimeout(checkRecentReturns, 100);
+  const handleAcknowledgeAllReturns = async () => {
+    const ids = returnNotices.map((h) => h.id);
+    setIsAcknowledging(true);
+    try {
+      await assetsAPI.acknowledgeReturns(ids);
+      setReturnNotices([]);
+    } catch (err) {
+      console.error('Failed to mark returns as seen:', err);
+    } finally {
+      setIsAcknowledging(false);
+    }
   };
 
   const fetchAssignedAssets = async () => {
@@ -197,6 +232,39 @@ export default function AssignedAssetList() {
     setRejectionReason('');
   };
 
+  const handleBulkConfirm = async () => {
+    setIsBulkConfirming(true);
+    const settled = await Promise.allSettled(
+      pendingHandovers.map((h) => assetsAPI.confirmHandover(h.asset))
+    );
+    await Promise.all([fetchAssignedAssets(), fetchPendingHandovers()]);
+    setIsBulkConfirming(false);
+    const successCount = settled.filter((r) => r.status === 'fulfilled').length;
+    const failCount = settled.length - successCount;
+    setFeedback({
+      variant: failCount === 0 ? 'success' : 'warning',
+      title: failCount === 0 ? 'Đã xác nhận tất cả' : `${successCount} thành công, ${failCount} thất bại`,
+      message: `Đã xác nhận nhận ${successCount} tài sản vào danh sách thiết bị của bạn.`,
+    });
+  };
+
+  const handleBulkReject = async () => {
+    setIsBulkRejecting(true);
+    const settled = await Promise.allSettled(
+      pendingHandovers.map((h) => assetsAPI.rejectHandover(h.asset, bulkRejectReason.trim()))
+    );
+    await Promise.all([fetchAssignedAssets(), fetchPendingHandovers()]);
+    setIsBulkRejecting(false);
+    setShowBulkRejectDialog(false);
+    setBulkRejectReason('');
+    const successCount = settled.filter((r) => r.status === 'fulfilled').length;
+    setFeedback({
+      variant: 'success',
+      title: 'Đã từ chối tất cả',
+      message: `Đã từ chối ${successCount} yêu cầu bàn giao.`,
+    });
+  };
+
   const handleRejectHandover = async () => {
     if (!rejectingHistory) return;
     const rejected = rejectingHistory;
@@ -224,12 +292,15 @@ export default function AssignedAssetList() {
 
   const filteredAssets = assets.filter(asset => {
     const q = searchTerm.toLowerCase();
-    return (
+    const matchSearch =
       asset.asset_code.toLowerCase().includes(q) ||
       asset.name.toLowerCase().includes(q) ||
       (asset.brand?.toLowerCase() || '').includes(q) ||
-      (asset.model?.toLowerCase() || '').includes(q)
-    );
+      (asset.model?.toLowerCase() || '').includes(q);
+    const matchStatus = !filterStatus || asset.status === filterStatus;
+    const matchCondition = !filterCondition || asset.condition === filterCondition;
+    const matchType = !filterType || asset.asset_type === filterType;
+    return matchSearch && matchStatus && matchCondition && matchType;
   });
 
   return (
@@ -270,14 +341,30 @@ export default function AssignedAssetList() {
       {/* Pending handovers section */}
       {pendingHandovers.length > 0 && (
         <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             <ClockIcon className="h-5 w-5 text-amber-600" />
-            <h2 className="text-base font-bold text-amber-900">
+            <h2 className="flex-1 text-base font-bold text-amber-900">
               Bàn giao chờ xác nhận
               <span className="ml-2 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-900">
                 {pendingHandovers.length}
               </span>
             </h2>
+            <button
+              onClick={handleBulkConfirm}
+              disabled={isBulkConfirming || isBulkRejecting}
+              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 disabled:bg-emerald-300 transition-all active:scale-95"
+            >
+              <CheckCircleIcon className="h-3.5 w-3.5" />
+              {isBulkConfirming ? 'Đang xử lý...' : `Xác nhận tất cả (${pendingHandovers.length})`}
+            </button>
+            <button
+              onClick={() => { setBulkRejectReason(''); setShowBulkRejectDialog(true); }}
+              disabled={isBulkConfirming || isBulkRejecting}
+              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 shadow-sm hover:bg-red-100 disabled:opacity-50 transition-all active:scale-95"
+            >
+              <XCircleIcon className="h-3.5 w-3.5" />
+              Từ chối tất cả ({pendingHandovers.length})
+            </button>
           </div>
           <p className="mb-3 text-xs italic text-amber-700">
             Bạn có {pendingHandovers.length} yêu cầu bàn giao tài sản đang chờ phản hồi. Hãy xác nhận khi bạn đã nhận máy vật lý, hoặc từ chối nếu có vấn đề.
@@ -410,15 +497,41 @@ export default function AssignedAssetList() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="mb-4">
-        <input
-          type="text"
-          placeholder="Tìm theo mã, tên, hãng, model..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="w-full sm:w-80 px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+      {/* Search + Filters */}
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-[200px]">
+          <input
+            type="text"
+            placeholder="Tìm theo mã, tên, hãng, model..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div className="w-48">
+          <SelectBox
+            label="Trạng thái vận hành"
+            value={filterStatus}
+            options={STATUS_OPTIONS}
+            onChange={setFilterStatus}
+          />
+        </div>
+        <div className="w-48">
+          <SelectBox
+            label="Tình trạng vật lý"
+            value={filterCondition}
+            options={CONDITION_OPTIONS}
+            onChange={setFilterCondition}
+          />
+        </div>
+        <div className="w-40">
+          <SelectBox
+            label="Loại tài sản"
+            value={filterType}
+            options={TYPE_OPTIONS}
+            onChange={setFilterType}
+          />
+        </div>
       </div>
 
       {/* Messages */}
@@ -485,7 +598,7 @@ export default function AssignedAssetList() {
                       </td>
                       {/* Loại tài sản */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getTypeColor(asset.asset_type)} uppercase tracking-tight`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${ASSET_TYPE_COLOR_MAP[asset.asset_type] ?? 'bg-gray-100 text-gray-800 border-gray-200'} uppercase tracking-tight`}>
                           {asset.asset_type === 'OTHER' && (asset as any).other_type_name
                             ? `Khác (${(asset as any).other_type_name})`
                             : asset.asset_type_display}
@@ -615,28 +728,60 @@ export default function AssignedAssetList() {
       />
 
       {/* Return-notice dialog — hiện khi manager đã thu hồi tài sản của current user */}
-      <FeedbackDialog
-        open={!!returnNotice}
-        variant="info"
-        title="Thiết bị đã được thu hồi"
-        message={
-          returnNotice
-            ? `Tài sản [${returnNotice.asset_code}] ${returnNotice.asset_name} đã được thu hồi${
-                returnNotice.returned_date
-                  ? ` ngày ${new Date(returnNotice.returned_date).toLocaleDateString('vi-VN')}`
-                  : ''
-              }${
-                returnNotice.return_notes ? `\n\nGhi chú thu hồi: ${returnNotice.return_notes}` : ''
-              }${
-                returnNotice.return_condition_display
-                  ? `\nTình trạng khi trả: ${returnNotice.return_condition_display}`
-                  : ''
-              }`
-            : ''
-        }
-        okLabel="Đã xem"
-        onClose={handleAcknowledgeReturn}
-      />
+      {returnNotices.length > 0 && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" />
+            <div className="relative w-full max-w-md transform rounded-2xl bg-white p-6 text-left shadow-2xl">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
+                  <ArrowPathRoundedSquareIcon className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">
+                    Thiết bị đã được thu hồi
+                    {returnNotices.length > 1 && (
+                      <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                        {returnNotices.length}
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Quản lý kho đã thu hồi các thiết bị sau</p>
+                </div>
+              </div>
+              <div className="max-h-56 overflow-y-auto space-y-2 mb-5">
+                {returnNotices.map((h) => (
+                  <div key={h.id} className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-sm">
+                    <p className="font-semibold text-gray-900">
+                      <span className="font-mono text-xs text-indigo-700">[{h.asset_code}]</span>{' '}
+                      {h.asset_name}
+                    </p>
+                    {h.returned_date && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Thu hồi ngày {new Date(h.returned_date).toLocaleDateString('vi-VN')}
+                        {h.return_condition_display && ` · Tình trạng: ${h.return_condition_display}`}
+                      </p>
+                    )}
+                    {h.return_notes && (
+                      <p className="text-xs text-gray-500 italic mt-0.5">Ghi chú: {h.return_notes}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleAcknowledgeAllReturns}
+                  disabled={isAcknowledging}
+                  className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:bg-blue-400 transition-all active:scale-95"
+                >
+                  {isAcknowledging ? 'Đang lưu...' : 'Đã xem tất cả'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reject reason dialog */}
       {rejectingHistory && (
@@ -687,6 +832,57 @@ export default function AssignedAssetList() {
                 <button
                   type="button"
                   onClick={closeRejectDialog}
+                  className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto"
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Reject Dialog */}
+      {showBulkRejectDialog && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm"
+              onClick={() => setShowBulkRejectDialog(false)}
+            />
+            <div className="relative w-full max-w-md transform rounded-2xl bg-white p-6 text-left shadow-2xl">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+                  <XCircleIcon className="h-6 w-6 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-900">
+                    Từ chối tất cả {pendingHandovers.length} bàn giao
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Lý do từ chối (áp dụng cho tất cả, không bắt buộc)
+                  </p>
+                  <textarea
+                    value={bulkRejectReason}
+                    onChange={(e) => setBulkRejectReason(e.target.value)}
+                    rows={3}
+                    placeholder="VD: Chưa nhận máy vật lý, cần xác nhận lại..."
+                    className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  />
+                </div>
+              </div>
+              <div className="mt-5 flex flex-col gap-2 sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={handleBulkReject}
+                  disabled={isBulkRejecting}
+                  className="inline-flex w-full justify-center rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 disabled:bg-red-300 transition-all active:scale-95 sm:w-auto"
+                >
+                  {isBulkRejecting ? 'Đang gửi...' : `Từ chối ${pendingHandovers.length} tài sản`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkRejectDialog(false)}
                   className="inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto"
                 >
                   Hủy

@@ -649,6 +649,14 @@ export interface Asset {
     assigned_date: string;
     assignment_notes?: string;
   }>;
+  pending_assignment?: {
+    id: number;
+    assigned_to?: number;
+    assigned_to_name?: string;
+    assigned_date?: string;
+    assigned_by_name?: string;
+    assignment_notes?: string;
+  } | null;
 }
 
 export type AssetAssignmentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED' | 'RETURNED';

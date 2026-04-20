@@ -106,6 +106,10 @@ export const assetsAPI = {
     return response.data;
   },
 
+  acknowledgeReturns: async (ids: number[]): Promise<void> => {
+    await managementApi.post('/api-hrm/assets/acknowledge_returns/', { ids });
+  },
+
   exportExcel: async (params?: {
     search?: string;
     asset_type?: string;
