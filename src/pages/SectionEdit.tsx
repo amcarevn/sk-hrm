@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { sectionsAPI, departmentsAPI, Department } from '../utils/api';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const SectionEdit: React.FC = () => {
@@ -82,6 +81,7 @@ const SectionEdit: React.FC = () => {
       };
 
       await sectionsAPI.update(Number(id), sectionData);
+
       setSuccess('Cập nhật bộ phận thành công!');
 
       setTimeout(() => {
@@ -97,51 +97,45 @@ const SectionEdit: React.FC = () => {
 
   if (loadingData) {
     return (
-      <div className="space-y-6">
+      <div className="p-6">
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <p className="mt-4 text-sm text-gray-500">Đang tải thông tin bộ phận...</p>
+          <p className="mt-4 text-gray-600">Đang tải thông tin bộ phận...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div>
+    <div className="p-6">
+      <div className="mb-6">
         <button
           onClick={() => navigate('/dashboard/sections')}
-          className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 mb-3"
+          className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mb-4"
         >
-          <ArrowLeftIcon className="w-4 h-4" />
-          Quay lại danh sách bộ phận
+          ← Quay lại
         </button>
-        <div className="flex items-center">
-          <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Chỉnh sửa bộ phận</h1>
-            <p className="text-sm text-gray-900 mt-0.5">Cập nhật thông tin bộ phận</p>
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Chỉnh sửa bộ phận</h1>
+        <p className="text-gray-600 mt-2">Cập nhật thông tin bộ phận</p>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-700">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-          <p className="text-sm text-emerald-700">{success}</p>
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+          <p className="text-green-700">{success}</p>
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-lg shadow p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Tên bộ phận *
               </label>
               <input
@@ -149,14 +143,14 @@ const SectionEdit: React.FC = () => {
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="input-field"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Da liễu, Phẫu thuật..."
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Mã bộ phận *
               </label>
               <input
@@ -164,11 +158,11 @@ const SectionEdit: React.FC = () => {
                 name="code"
                 value={formData.code}
                 onChange={handleInputChange}
-                className="input-field"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="DALIEU"
                 required
               />
-              <p className="text-xs text-gray-400 mt-1">Mã bộ phận phải là duy nhất</p>
+              <p className="text-xs text-gray-500 mt-1">Mã bộ phận phải là duy nhất</p>
             </div>
 
             <div className="md:col-span-2">
@@ -186,7 +180,7 @@ const SectionEdit: React.FC = () => {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Mô tả
               </label>
               <textarea
@@ -194,24 +188,39 @@ const SectionEdit: React.FC = () => {
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={3}
-                className="input-field"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Mô tả về chức năng, nhiệm vụ của bộ phận..."
               />
             </div>
+
+            {/* <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Trưởng bộ phận
+              </label>
+              <select
+                name="manager"
+                value={formData.manager}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Chưa chỉ định</option>
+                <option value="" disabled>Chức năng chọn nhân viên sẽ được thêm sau</option>
+              </select>
+            </div> */}
           </div>
 
-          <div className="flex justify-end gap-3 pt-5 border-t border-gray-100">
+          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
             <button
               type="button"
               onClick={() => navigate('/dashboard/sections')}
-              className="btn-secondary"
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary disabled:opacity-50"
+              className="px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? 'Đang cập nhật...' : 'Cập nhật bộ phận'}
             </button>

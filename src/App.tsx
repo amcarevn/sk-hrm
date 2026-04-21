@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout/Layout';
@@ -53,7 +53,6 @@ import PositionList from './pages/PositionList';
 import PositionCreate from './pages/PositionCreate';
 import PositionEdit from './pages/PositionEdit';
 import PositionEmployees from './pages/PositionEmployees';
-import CompanyUnitList from './pages/CompanyUnitList';
 import AttendanceManagement from './pages/AttendanceManagement';
 import AttendanceUpload from './pages/AttendanceUpload';
 import AttendanceView from './pages/AttendanceView';
@@ -83,21 +82,15 @@ import { EmployeeOnboardingForm } from "./pages/EmployeeOnboardingForm";
 import WorkFinalization from './pages/WorkFinalization';
 import WorkFinalizationApprovals from './pages/WorkFinalizationApprovals';
 import ContractTemplates from './pages/ContractTemplates';
-import BulkContracts from './pages/BulkContracts';
-import ContractRenewal from './pages/ContractRenewal';
 import DocumentTemplates from './pages/DocumentTemplates';
 import PasswordReset from './pages/PasswordReset';
 import ShiftConfiguration from './pages/ShiftConfiguration';
 import AIChat from './pages/AIChat';
-import SalaryPayroll from './pages/SalaryPayroll';
-import SalaryEmployeeConfig from './pages/SalaryEmployeeConfig';
-import SalaryData from './pages/SalaryData';
-import OvertimeRateConfigPage from './pages/OvertimeRateConfig';
+import SalaryManagement from './pages/SalaryManagement';
 import AttendanceRanking from './pages/AttendanceRanking';
 import RecruitmentNeeds from './pages/recruitment/RecruitmentNeeds';
 import RecruitmentJobs from './pages/recruitment/RecruitmentJobs';
 import RecruitmentCandidates from './pages/recruitment/RecruitmentCandidates';
-import AnnouncementList from './pages/AnnouncementList';
 
 function App() {
   return (
@@ -106,7 +99,11 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={<LandingPage />}
+            element={
+              <LandingLayout>
+                <LandingPage />
+              </LandingLayout>
+            }
           />
           <Route
             path="/terms-of-service"
@@ -455,17 +452,6 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <EmployeeEdit />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          {/* Company Unit Management Routes */}
-          <Route
-            path="/dashboard/company-units"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <CompanyUnitList />
                 </Layout>
               </ProtectedRoute>
             }
@@ -923,26 +909,6 @@ function App() {
             }
           />
           <Route
-            path="/dashboard/bulk-contracts"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <BulkContracts />
-                  </Layout>
-                </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/contract-renewals"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <ContractRenewal />
-                  </Layout>
-                </ProtectedRoute>
-            }
-          />
-          <Route
             path="/dashboard/document-templates"
               element={
                 <ProtectedRoute>
@@ -986,47 +952,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Navigate to="/dashboard/salary-management/config" replace />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/salary-management/config"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <SalaryEmployeeConfig />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/salary-management/payroll"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <SalaryPayroll />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/salary-management/penalty"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <SalaryData />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/salary-management/overtime"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <OvertimeRateConfigPage />
+                  <SalaryManagement />
                 </Layout>
               </ProtectedRoute>
             }
@@ -1058,18 +984,6 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <RecruitmentCandidates />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Announcements Route */}
-          <Route
-            path="/dashboard/announcements"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <AnnouncementList />
                 </Layout>
               </ProtectedRoute>
             }

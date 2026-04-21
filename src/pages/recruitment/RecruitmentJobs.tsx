@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import {
   PlusIcon,
   PencilIcon,
@@ -15,12 +14,10 @@ import {
   JobChannelCreateData,
   ChannelType,
 } from '../../services/recruitment.service';
-import ConfirmDialog from '../../components/ConfirmDialog';
-import { SelectBox } from '../../components/LandingLayout/SelectBox';
 
 const JOB_STATUS_COLORS: Record<string, string> = {
-  DRAFT: 'bg-amber-100 text-amber-800',
-  PUBLISHED: 'bg-emerald-100 text-emerald-800',
+  DRAFT: 'bg-yellow-100 text-yellow-800',
+  PUBLISHED: 'bg-green-100 text-green-800',
   CLOSED: 'bg-gray-100 text-gray-800',
 };
 
@@ -214,23 +211,22 @@ const RecruitmentJobs: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Quản lý JD</h1>
-          <p className="text-gray-900 mt-1 text-sm">Quản lý Job Description và kênh đăng tuyển</p>
+          <h1 className="text-2xl font-bold text-gray-900">Quản lý JD</h1>
+          <p className="text-gray-600 mt-2">Quản lý Job Description và kênh đăng tuyển</p>
         </div>
         <button
           onClick={openCreateJob}
-          className="btn-primary flex items-center gap-2"
+          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
         >
           <PlusIcon className="h-4 w-4" />
           Tạo tin mới
         </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+      {/* Filters */}
+      <div className="bg-white rounded-lg shadow p-4">
         <div className="flex gap-2 flex-wrap">
           {[
             { value: 'all', label: 'Tất cả' },
@@ -241,10 +237,10 @@ const RecruitmentJobs: React.FC = () => {
             <button
               key={opt.value}
               onClick={() => setStatusFilter(opt.value)}
-              className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 statusFilter === opt.value
-                  ? 'bg-primary-600 text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               {opt.label}
@@ -254,117 +250,112 @@ const RecruitmentJobs: React.FC = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-xl border border-red-100 text-sm">
-          {error}
-        </div>
+        <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>
       )}
 
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-16 bg-gray-100 rounded-2xl animate-pulse" />
+            <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
           ))}
         </div>
       ) : filteredJobs.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-500">
-          <p className="text-sm">Chưa có tin tuyển dụng nào</p>
+        <div className="text-center py-12 text-gray-500">
+          <p>Chưa có tin tuyển dụng nào</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="table-header">Tiêu đề</th>
-                  <th className="table-header">Trạng thái</th>
-                  <th className="table-header">Kênh</th>
-                  <th className="table-header">Đăng lúc</th>
-                  <th className="table-header">Tạo lúc</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {filteredJobs.map(job => (
-                  <tr key={job.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="table-cell">
-                      <p className="text-sm font-semibold text-gray-900">{job.title}</p>
-                    </td>
-                    <td className="table-cell">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${JOB_STATUS_COLORS[job.status] ?? 'bg-gray-100 text-gray-800'}`}
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tiêu đề</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kênh</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Đăng lúc</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tạo lúc</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredJobs.map(job => (
+                <tr key={job.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <p className="text-sm font-medium text-gray-900">{job.title}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${JOB_STATUS_COLORS[job.status] ?? 'bg-gray-100 text-gray-800'}`}
+                    >
+                      {job.status_display}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{job.channel_count} kênh</td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {job.published_at
+                      ? new Date(job.published_at).toLocaleDateString('vi-VN')
+                      : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {new Date(job.created_at).toLocaleDateString('vi-VN')}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center gap-2 justify-end">
+                      <button
+                        onClick={() => openEditJob(job.id)}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                        title="Chỉnh sửa"
                       >
-                        {job.status_display}
-                      </span>
-                    </td>
-                    <td className="table-cell text-sm text-gray-600">{job.channel_count} kênh</td>
-                    <td className="table-cell text-sm text-gray-500">
-                      {job.published_at
-                        ? new Date(job.published_at).toLocaleDateString('vi-VN')
-                        : '—'}
-                    </td>
-                    <td className="table-cell text-sm text-gray-500">
-                      {new Date(job.created_at).toLocaleDateString('vi-VN')}
-                    </td>
-                    <td className="table-cell text-right">
-                      <div className="flex items-center gap-2 justify-end">
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      {job.status === 'DRAFT' && (
                         <button
-                          onClick={() => openEditJob(job.id)}
-                          className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                          title="Chỉnh sửa"
+                          onClick={() => handlePublish(job.id)}
+                          className="text-gray-400 hover:text-green-600 transition-colors"
+                          title="Đăng tin"
                         >
-                          <PencilIcon className="h-4 w-4" />
+                          <ArrowUpCircleIcon className="h-4 w-4" />
                         </button>
-                        {job.status === 'DRAFT' && (
-                          <button
-                            onClick={() => handlePublish(job.id)}
-                            className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                            title="Đăng tin"
-                          >
-                            <ArrowUpCircleIcon className="h-4 w-4" />
-                          </button>
-                        )}
-                        {job.status !== 'CLOSED' && (
-                          <button
-                            onClick={() => setCloseConfirmId(job.id)}
-                            className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                            title="Đóng tin"
-                          >
-                            <XCircleIcon className="h-4 w-4" />
-                          </button>
-                        )}
+                      )}
+                      {job.status !== 'CLOSED' && (
                         <button
-                          onClick={() => openAddChannel(job.id)}
-                          className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
-                          title="Thêm kênh"
+                          onClick={() => setCloseConfirmId(job.id)}
+                          className="text-gray-400 hover:text-red-600 transition-colors"
+                          title="Đóng tin"
                         >
-                          <PlusIcon className="h-4 w-4" />
+                          <XCircleIcon className="h-4 w-4" />
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      )}
+                      <button
+                        onClick={() => openAddChannel(job.id)}
+                        className="text-gray-400 hover:text-purple-600 transition-colors"
+                        title="Thêm kênh"
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
           </div>
         </div>
       )}
 
       {/* Job Create/Edit Modal */}
-      {showJobModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
-              <h2 className="text-base font-bold text-gray-900">
+      {showJobModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+              <h2 className="text-lg font-semibold text-gray-900">
                 {editingJobId ? 'Cập nhật tin tuyển dụng' : 'Tạo tin tuyển dụng mới'}
               </h2>
-              <button
-                onClick={() => setShowJobModal(false)}
-                className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              >
+              <button onClick={() => setShowJobModal(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleJobSubmit} className="px-6 py-5 space-y-4">
+            <form onSubmit={handleJobSubmit} className="px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tiêu đề <span className="text-red-500">*</span>
@@ -373,7 +364,7 @@ const RecruitmentJobs: React.FC = () => {
                   type="text"
                   value={jobForm.title}
                   onChange={e => setJobForm(f => ({ ...f, title: e.target.value }))}
-                  className="input-field"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="VD: Backend Developer – Python/Django"
                 />
               </div>
@@ -383,7 +374,7 @@ const RecruitmentJobs: React.FC = () => {
                   rows={4}
                   value={jobForm.description}
                   onChange={e => setJobForm(f => ({ ...f, description: e.target.value }))}
-                  className="input-field resize-none"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Mô tả chi tiết công việc..."
                 />
               </div>
@@ -393,7 +384,7 @@ const RecruitmentJobs: React.FC = () => {
                   rows={3}
                   value={jobForm.requirements}
                   onChange={e => setJobForm(f => ({ ...f, requirements: e.target.value }))}
-                  className="input-field resize-none"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="- 2+ năm kinh nghiệm&#10;- Kỹ năng A, B, C"
                 />
               </div>
@@ -403,25 +394,23 @@ const RecruitmentJobs: React.FC = () => {
                   rows={3}
                   value={jobForm.benefits}
                   onChange={e => setJobForm(f => ({ ...f, benefits: e.target.value }))}
-                  className="input-field resize-none"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="- Lương cạnh tranh&#10;- Thưởng KPI"
                 />
               </div>
-              {formError && (
-                <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{formError}</p>
-              )}
-              <div className="flex justify-end gap-3 pt-2 border-t border-gray-100 pb-1">
+              {formError && <p className="text-sm text-red-600">{formError}</p>}
+              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowJobModal(false)}
-                  className="btn-secondary"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {saving ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -433,39 +422,43 @@ const RecruitmentJobs: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>,
-        document.body
+        </div>
       )}
 
       {/* Add Channel Modal */}
-      {showChannelModal && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-base font-bold text-gray-900">Thêm kênh đăng tuyển</h2>
-              <button
-                onClick={() => setShowChannelModal(false)}
-                className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              >
+      {showChannelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Thêm kênh đăng tuyển</h2>
+              <button onClick={() => setShowChannelModal(false)} className="text-gray-400 hover:text-gray-600">
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleChannelSubmit} className="px-6 py-5 space-y-4">
-              <SelectBox
-                label="Kênh"
-                value={channelForm.channel_type}
-                options={CHANNEL_TYPE_OPTIONS}
-                onChange={(val: ChannelType) =>
-                  setChannelForm(f => ({ ...f, channel_type: val }))
-                }
-              />
+            <form onSubmit={handleChannelSubmit} className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Kênh</label>
+                <select
+                  value={channelForm.channel_type}
+                  onChange={e =>
+                    setChannelForm(f => ({ ...f, channel_type: e.target.value as ChannelType }))
+                  }
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  {CHANNEL_TYPE_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">URL bài đăng</label>
                 <input
                   type="url"
                   value={channelForm.url}
                   onChange={e => setChannelForm(f => ({ ...f, url: e.target.value }))}
-                  className="input-field"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="https://..."
                 />
               </div>
@@ -475,25 +468,23 @@ const RecruitmentJobs: React.FC = () => {
                   type="text"
                   value={channelForm.notes}
                   onChange={e => setChannelForm(f => ({ ...f, notes: e.target.value }))}
-                  className="input-field"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="VD: Budget: 500k/tháng"
                 />
               </div>
-              {channelError && (
-                <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{channelError}</p>
-              )}
-              <div className="flex justify-end gap-3 pt-2 border-t border-gray-100 pb-1">
+              {channelError && <p className="text-sm text-red-600">{channelError}</p>}
+              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowChannelModal(false)}
-                  className="btn-secondary"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={savingChannel}
-                  className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                 >
                   {savingChannel ? (
                     <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -505,21 +496,34 @@ const RecruitmentJobs: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>,
-        document.body
+        </div>
       )}
 
-      {/* Close Job Confirm Dialog */}
-      <ConfirmDialog
-        open={closeConfirmId !== null}
-        variant="danger"
-        title="Xác nhận đóng tin"
-        message="Bạn có chắc muốn đóng tin tuyển dụng này không?"
-        confirmLabel="Đóng tin"
-        cancelLabel="Hủy"
-        onConfirm={() => closeConfirmId !== null && handleClose(closeConfirmId)}
-        onClose={() => setCloseConfirmId(null)}
-      />
+      {/* Close Job Confirm Modal */}
+      {closeConfirmId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-2">Xác nhận đóng tin</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Bạn có chắc muốn đóng tin tuyển dụng này không?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setCloseConfirmId(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleClose(closeConfirmId)}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+              >
+                Đóng tin
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

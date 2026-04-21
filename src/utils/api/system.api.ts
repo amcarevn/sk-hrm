@@ -1,10 +1,6 @@
-import axios from 'axios';
 import type { AxiosResponse } from 'axios';
-import { managementApi, API_BASE_URL } from './client';
+import { managementApi } from './client';
 import type { FacebookPage, FacebookConnection } from './types';
-
-// Public (no-auth) axios instance
-const publicApi = axios.create({ baseURL: API_BASE_URL, timeout: 10000 });
 
 // Health check
 export const healthAPI = {
@@ -132,13 +128,6 @@ export const facebookAPI = {
 };
 
 // Dashboard API
-export const publicStatsAPI = {
-  getStats: async (): Promise<{ active: number; department_count: number; monthly_leave: number }> => {
-    const res = await publicApi.get('/api-hrm/public/stats/');
-    return res.data;
-  },
-};
-
 export const dashboardAPI = {
   getCTOStats: async (): Promise<any> => {
     const response: AxiosResponse<{ success: boolean; data: any }> =

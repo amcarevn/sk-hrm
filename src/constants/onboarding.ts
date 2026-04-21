@@ -125,7 +125,7 @@ export const SUB_DEPARTMENT_OPTIONS = [
 ];
 
 export const RANK_OPTIONS = [
-  'Nhân viên', 'Leader', 'Quản lý', 'Trưởng phòng tập sự', 'Phó phòng',
+  'Nhân viên', 'Leader', 'Trưởng phòng tập sự', 'Phó phòng',
   'Trưởng phòng', 'Phó Giám đốc', 'Giám đốc', 'Chủ tịch',
 ];
 

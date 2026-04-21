@@ -73,17 +73,17 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'IN_USE':
-        return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'IDLE':
         return 'bg-amber-100 text-amber-800 border border-amber-200';
       case 'UNDER_MAINTENANCE':
-        return 'bg-primary-100 text-primary-800 border border-primary-200';
+        return 'bg-blue-100 text-blue-800 border border-blue-200';
       case 'DAMAGED':
         return 'bg-red-100 text-red-800 border border-red-200';
       case 'RETIRED':
         return 'bg-gray-100 text-gray-800 border border-gray-200';
       case 'NEW':
-        return 'bg-violet-100 text-violet-800 border border-violet-200';
+        return 'bg-purple-100 text-purple-800 border border-purple-200';
       default:
         return 'bg-gray-100 text-gray-800 border border-gray-200';
     }
@@ -92,13 +92,13 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
   const getConditionColor = (condition: string) => {
     switch (condition) {
       case 'EXCELLENT':
-        return 'bg-violet-100 text-violet-800 border border-violet-200';
+        return 'bg-purple-100 text-purple-800 border border-purple-200';
       case 'GOOD':
-        return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'FAIR':
         return 'bg-amber-100 text-amber-800 border border-amber-200';
       case 'POOR':
-        return 'bg-amber-100 text-amber-800 border border-amber-200';
+        return 'bg-orange-100 text-orange-800 border border-orange-200';
       case 'BROKEN':
         return 'bg-red-100 text-red-800 border border-red-200';
       default:
@@ -133,23 +133,21 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <DialogPanel className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl">
+              <DialogPanel className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-3xl">
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center">
-                      <ComputerDesktopIcon className="h-5 w-5" />
-                    </div>
-                    <DialogTitle as="h3" className="text-lg font-bold leading-6 text-gray-900">
+                <div className="bg-primary-600 px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-3 text-white">
+                    <ComputerDesktopIcon className="h-6 w-6" />
+                    <DialogTitle as="h3" className="text-lg font-bold leading-6">
                       Chi tiết tài sản: {asset.asset_code}
                     </DialogTitle>
                   </div>
                   <button
                     type="button"
-                    className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors outline-none text-gray-500"
+                    className="rounded-full p-1 text-white hover:bg-primary-500 transition-colors outline-none"
                     onClick={onClose}
                   >
-                    <XMarkIcon className="h-5 w-5" />
+                    <XMarkIcon className="h-6 w-6" />
                   </button>
                 </div>
 
@@ -187,7 +185,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                       {/* Thương hiệu */}
                       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center space-x-3 mb-2">
-                          <BuildingStorefrontIcon className="h-4 w-4 text-primary-500" />
+                          <BuildingStorefrontIcon className="h-4 w-4 text-blue-500" />
                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Thương hiệu</span>
                         </div>
                         <p className="text-sm font-bold text-gray-900">{asset.brand || ''}</p>
@@ -196,7 +194,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                       {/* Model */}
                       <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center space-x-3 mb-2">
-                          <ComputerDesktopIcon className="h-4 w-4 text-primary-500" />
+                          <ComputerDesktopIcon className="h-4 w-4 text-indigo-500" />
                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Model thiết bị</span>
                         </div>
                         <p className="text-sm font-bold text-gray-900">{asset.model || ''}</p>
@@ -216,10 +214,10 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
 
                     {/* Usage & Management Section */}
                     <div className="space-y-4 md:col-span-2">
-                      <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2">
+                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">
                         {isEmployee ? 'Thông tin tài sản đang giữ' : 'Nhân sự phụ trách'}
                       </h4>
-
+                      
                       {/* MONITOR multi-holder: Manager view — full holder list + Thu hồi buttons */}
                       {isMultiHolder && isManager && (
                         <div className="bg-emerald-50/50 rounded-xl p-4 border border-emerald-100">
@@ -249,9 +247,6 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                                         <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">
                                           {h.assigned_quantity}                                        </span>
                                       </div>
-                                      {h.employee_code && (
-                                        <p className="text-xs text-emerald-600 font-mono">{h.employee_code}</p>
-                                      )}
                                       {h.department_name && (
                                         <p className="text-xs text-emerald-700 truncate">{h.department_name}</p>
                                       )}
@@ -291,9 +286,6 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                             <div>
                               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Đơn vị quản lý kho</p>
                               <p className="text-base font-bold text-gray-900">{asset.managed_by_name || 'Hệ thống tự động'}</p>
-                              {asset.managed_by_employee_id && (
-                                <p className="text-xs text-slate-500 font-mono">{asset.managed_by_employee_id}</p>
-                              )}
                               <p className="text-sm text-slate-600">{asset.department_name || 'Bộ phận: Chưa xác định'}</p>
                             </div>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(asset.status)} uppercase tracking-tight`}>
@@ -333,9 +325,6 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                                 {asset.assigned_to_name ? (
                                   <>
                                     <p className="text-base font-bold text-gray-900">{asset.assigned_to_name}</p>
-                                    {asset.assigned_to_employee_id && (
-                                      <p className="text-xs text-emerald-600 font-mono">{asset.assigned_to_employee_id}</p>
-                                    )}
                                     <p className="text-sm text-emerald-700">{asset.assigned_to_department_name || 'Phòng ban: -'}</p>
                                     <div className="mt-2 flex items-center text-xs text-emerald-600 font-medium">
                                       <CalendarIcon className="h-3 w-3 mr-1" />
@@ -370,9 +359,6 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                             <div className="flex-1">
                               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Đơn vị quản lý kho</p>
                               <p className="text-base font-bold text-gray-900">{asset.managed_by_name || 'Hệ thống tự động'}</p>
-                              {asset.managed_by_employee_id && (
-                                <p className="text-xs text-slate-500 font-mono">{asset.managed_by_employee_id}</p>
-                              )}
                               <p className="text-sm text-slate-600">{asset.department_name || 'Bộ phận: Chưa xác định'}</p>
                               <div className="mt-2 flex items-center">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(asset.status)} uppercase tracking-tight`}>
@@ -390,9 +376,6 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                               <div className="flex-1">
                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Đơn vị quản lý kho</p>
                                 <p className="text-base font-bold text-gray-900">{asset.managed_by_name || 'Hệ thống'}</p>
-                                {asset.managed_by_employee_id && (
-                                  <p className="text-xs text-slate-500 font-mono">{asset.managed_by_employee_id}</p>
-                                )}
                                 <p className="text-sm text-slate-600">{asset.department_name || 'Bộ phận: Chưa xác định'}</p>
                               </div>
                             </div>
@@ -414,7 +397,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                             </p>
                           </div>
                         )}
-
+                        
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {(asset as any).assignment_notes && (
                             <div className="bg-emerald-50/30 p-3 rounded-xl border border-emerald-100">
@@ -441,7 +424,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                     {/* Desktop Configuration - Full width if applicable */}
                     {asset.asset_type === 'DESKTOP' && asset.specifications && (
                       <div className="md:col-span-2 space-y-4">
-                        <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2">Cấu hình máy tính</h4>
+                        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Cấu hình máy tính</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {/* CPU */}
                           <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-100 hover:border-primary-200 transition-colors">
@@ -478,8 +461,8 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
 
                           {/* Storage */}
                           <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-100 hover:border-primary-200 transition-colors">
-                            <div className="bg-primary-100 p-2 rounded-lg">
-                              <CircleStackIcon className="h-5 w-5 text-primary-600" />
+                            <div className="bg-indigo-100 p-2 rounded-lg">
+                              <CircleStackIcon className="h-5 w-5 text-indigo-600" />
                             </div>
                             <div className="min-w-0">
                               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Ổ cứng</p>
@@ -500,8 +483,8 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
 
                           {/* Power */}
                           <div className="flex items-center space-x-3 bg-slate-50 p-3 rounded-xl border border-slate-100 hover:border-primary-200 transition-colors">
-                            <div className="bg-amber-100 p-2 rounded-lg">
-                              <BoltIcon className="h-5 w-5 text-amber-600" />
+                            <div className="bg-yellow-100 p-2 rounded-lg">
+                              <BoltIcon className="h-5 w-5 text-yellow-600" />
                             </div>
                             <div className="min-w-0">
                               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Nguồn</p>
@@ -511,15 +494,15 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                         </div>
                       </div>
                     )}
-
+                    
                     {/* Multi-holder quantity Information */}
                     {MULTI_HOLDER_TYPES.includes(asset.asset_type) && asset.specifications && isManager && (
                       <div className="md:col-span-2 space-y-4">
-                        <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2">Thông tin số lượng</h4>
+                        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Thông tin số lượng</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="flex items-center space-x-3 bg-violet-50 p-3 rounded-xl border border-violet-100">
-                            <div className="bg-violet-100 p-2 rounded-lg">
-                              <Square3Stack3DIcon className="h-5 w-5 text-violet-600" />
+                          <div className="flex items-center space-x-3 bg-purple-50 p-3 rounded-xl border border-purple-100">
+                            <div className="bg-purple-100 p-2 rounded-lg">
+                              <Square3Stack3DIcon className="h-5 w-5 text-purple-600" />
                             </div>
                             <div>
                               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">
@@ -540,12 +523,12 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                     {/* SIM Information */}
                     {asset.asset_type === 'SIM' && asset.specifications && (
                       <div className="md:col-span-2 space-y-4">
-                        <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2">Thông tin SIM</h4>
+                        <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Thông tin SIM</h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {/* Số điện thoại */}
-                          <div className="flex items-center space-x-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                            <div className="bg-emerald-100 p-2 rounded-lg">
-                              <BoltIcon className="h-5 w-5 text-emerald-600" />
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <BoltIcon className="h-5 w-5 text-green-600" />
                             </div>
                             <div>
                               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Số điện thoại</p>
@@ -553,9 +536,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                             </div>
                           </div>
                           {/* Nhà mạng */}
-                          <div className="flex items-center space-x-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                            <div className="bg-emerald-100 p-2 rounded-lg">
-                              <BuildingOfficeIcon className="h-5 w-5 text-emerald-600" />
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <BuildingOfficeIcon className="h-5 w-5 text-green-600" />
                             </div>
                             <div>
                               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Nhà mạng</p>
@@ -563,9 +546,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                             </div>
                           </div>
                           {/* Phân loại Sim */}
-                          <div className="flex items-center space-x-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                            <div className="bg-emerald-100 p-2 rounded-lg">
-                              <TagIcon className="h-5 w-5 text-emerald-600" />
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <TagIcon className="h-5 w-5 text-green-600" />
                             </div>
                             <div>
                               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Phân loại Sim</p>
@@ -577,9 +560,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                             </div>
                           </div>
                           {/* Bác sĩ */}
-                          <div className="flex items-center space-x-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                            <div className="bg-emerald-100 p-2 rounded-lg">
-                              <UserIcon className="h-5 w-5 text-emerald-600" />
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <UserIcon className="h-5 w-5 text-green-600" />
                             </div>
                             <div>
                               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Bác sĩ</p>
@@ -587,9 +570,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                             </div>
                           </div>
                           {/* Vùng miền */}
-                          <div className="flex items-center space-x-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                            <div className="bg-emerald-100 p-2 rounded-lg">
-                              <BuildingOfficeIcon className="h-5 w-5 text-emerald-600" />
+                          <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <BuildingOfficeIcon className="h-5 w-5 text-green-600" />
                             </div>
                             <div>
                               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Vùng miền</p>
@@ -603,9 +586,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                           </div>
                           {/* Vị trí (Chức vụ) */}
                           {(asset.specifications as any).position_id && (
-                            <div className="flex items-center space-x-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                              <div className="bg-emerald-100 p-2 rounded-lg">
-                                <IdentificationIcon className="h-5 w-5 text-emerald-600" />
+                            <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                              <div className="bg-green-100 p-2 rounded-lg">
+                                <IdentificationIcon className="h-5 w-5 text-green-600" />
                               </div>
                               <div>
                                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Vị trí (Chức vụ)</p>
@@ -617,9 +600,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                           )}
                           {/* Công ty (Đơn vị làm việc) */}
                           {((asset.specifications as any).sim_company_name || (asset.specifications as any).sim_company) && (
-                            <div className="flex items-center space-x-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                              <div className="bg-emerald-100 p-2 rounded-lg">
-                                <BuildingOfficeIcon className="h-5 w-5 text-emerald-600" />
+                            <div className="flex items-center space-x-3 bg-green-50 p-3 rounded-xl border border-green-100">
+                              <div className="bg-green-100 p-2 rounded-lg">
+                                <BuildingOfficeIcon className="h-5 w-5 text-green-600" />
                               </div>
                               <div>
                                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Công ty</p>
@@ -636,17 +619,17 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                     {/* Purchase Info Section — manager only */}
                     {isManager && (
                     <div className="md:col-span-2 space-y-4 mt-2">
-                      <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2">Thông tin mua hàng & Bảo hành</h4>
+                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2">Thông tin mua hàng & Bảo hành</h4>
                       <div className="space-y-4 bg-gray-50 rounded-xl p-4 border border-gray-100">
                         <div className="flex items-start space-x-3">
-                          <ShoppingBagIcon className="h-5 w-5 text-amber-500 mt-0.5" />
+                          <ShoppingBagIcon className="h-5 w-5 text-orange-500 mt-0.5" />
                           <div>
                             <p className="text-xs text-gray-500">Nhà cung cấp</p>
                             <p className="text-sm font-bold text-gray-900">{asset.supplier || 'N/A'}</p>
                           </div>
                         </div>
                         <div className="flex items-start space-x-3">
-                          <CalendarIcon className="h-5 w-5 text-primary-500 mt-0.5" />
+                          <CalendarIcon className="h-5 w-5 text-blue-500 mt-0.5" />
                           <div>
                             <p className="text-xs text-gray-500">Ngày mua</p>
                             <p className="text-sm font-bold text-gray-900">{formatDate(asset.purchase_date)}</p>
@@ -655,7 +638,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
 
                         {(asset as any).warranty_period && (
                           <div className="flex items-start space-x-3">
-                            <ShieldCheckIcon className="h-5 w-5 text-emerald-500 mt-0.5" />
+                            <ShieldCheckIcon className="h-5 w-5 text-green-500 mt-0.5" />
                             <div>
                               <p className="text-xs text-gray-500">Thời hạn bảo hành</p>
                               <p className="text-sm font-bold text-gray-900">{(asset as any).warranty_period} tháng</p>
@@ -677,7 +660,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                     {/* Assignment History Section — manager only */}
                     {isManager && (
                     <div className="md:col-span-2 space-y-4 mt-2">
-                      <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2 flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
                         Lịch sử bàn giao & thu hồi
                         {!historyLoading && history.length > 0 && (
                           <span className="ml-auto text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
@@ -761,14 +744,11 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                                 </span>
                                 <div className={`p-3 rounded-xl border ${panelBg}`}>
                                   <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
+                                    <div className="flex items-center gap-2">
                                       <UserIcon className={`h-4 w-4 ${iconColor}`} />
                                       <span className="text-sm font-bold text-gray-900">
                                         {h.assigned_to_name || `NV #${h.assigned_to}`}
                                       </span>
-                                      {h.assigned_to_employee_id && (
-                                        <span className="text-xs font-mono text-gray-500">({h.assigned_to_employee_id})</span>
-                                      )}
                                     </div>
                                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${badge}`}>
                                       {label}
@@ -855,10 +835,10 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                   </div>
                 </div>
 
-                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl sm:flex sm:flex-row-reverse">
+                <div className="bg-gray-50 px-6 py-4 sm:flex sm:flex-row-reverse rounded-b-2xl">
                   <button
                     type="button"
-                    className="btn-primary inline-flex w-full justify-center sm:ml-3 sm:w-auto"
+                    className="inline-flex w-full justify-center rounded-xl bg-primary-600 px-6 py-2 text-sm font-bold text-white shadow-sm hover:bg-primary-700 sm:ml-3 sm:w-auto transition-all"
                     onClick={onClose}
                   >
                     Đóng

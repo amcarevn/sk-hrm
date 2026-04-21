@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../utils/api';
 import {
   CheckCircleIcon,
   ClockIcon,
@@ -31,7 +32,6 @@ type OnboardingTask = {
   name: string;
   description: string;
   task_type: string;
-  task_code: string | null;
   order: number;
   deadline: string | null;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';
@@ -117,7 +117,7 @@ const getStatusBadge = (status: string, isOverdue: boolean) => {
 // MAIN COMPONENT
 // ============================================
 
-const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onUpdate, canCompleteTask }) => {
+const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpdate, canCompleteTask }) => {
   const [expandedTaskId, setExpandedTaskId] = useState<number | null>(null);
   const [completionNote, setCompletionNote] = useState('');
   const [showCompleteModal, setShowCompleteModal] = useState(false);
@@ -172,6 +172,9 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onUpdate, canComplet
     if (task.status === 'COMPLETED' || task.status === 'SKIPPED') {
       return null;
     }
+
+    const guard = canCompleteTask ? canCompleteTask(task) : { allowed: true };
+    const completeDisabled = !guard.allowed;
 
     return (
       <div className="flex gap-2">
@@ -327,7 +330,7 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onUpdate, canComplet
                 </div>
               )}
 
-              {task.task_type !== 'DOCUMENT' && renderChecklist(task)}
+              {renderChecklist(task)}
 
               {task.completion_note && (
                 <div className="mt-4 p-3 bg-green-50 rounded-md">

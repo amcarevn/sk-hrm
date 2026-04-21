@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { assetsAPI, positionsAPI } from '../../utils/api';
+import { assetsAPI } from '../../utils/api';
 import {
   PlusIcon,
   PencilIcon,
@@ -41,21 +42,23 @@ const ASSET_TYPE_OPTIONS: SelectOption<string>[] = [
   { value: 'OTHER', label: 'Khác' },
 ];
 
-// Màu badge loại tài sản — chỉ dùng màu semantic được phép trong design system
+// Màu badge Fibonacci golden angle — đã loại toàn bộ hue trùng với Status/Condition:
+// Blocked: green(IN_USE/GOOD), amber(IDLE/FAIR), blue(MAINTENANCE), red(DAMAGED/BROKEN),
+//          gray(RETIRED), rose(TERMINATED), slate(LOST), purple(NEW/EXCELLENT), orange(POOR)
 const ASSET_TYPE_COLOR_MAP: Record<string, string> = {
-  LAPTOP:    'bg-primary-100 text-primary-800 border-primary-200',
+  LAPTOP:    'bg-cyan-100 text-cyan-800 border-cyan-200',
   DESKTOP:   'bg-pink-100 text-pink-800 border-pink-200',
   MONITOR:   'bg-violet-100 text-violet-800 border-violet-200',
-  PHONE:     'bg-primary-100 text-primary-700 border-primary-200',
-  TABLET:    'bg-emerald-100 text-emerald-800 border-emerald-200',
-  PRINTER:   'bg-pink-100 text-pink-700 border-pink-200',
-  SCANNER:   'bg-amber-100 text-amber-800 border-amber-200',
-  NETWORK:   'bg-violet-100 text-violet-700 border-violet-200',
-  SERVER:    'bg-amber-100 text-amber-700 border-amber-200',
+  PHONE:     'bg-sky-100 text-sky-800 border-sky-200',
+  TABLET:    'bg-teal-100 text-teal-800 border-teal-200',
+  PRINTER:   'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200',
+  SCANNER:   'bg-lime-100 text-lime-800 border-lime-200',
+  NETWORK:   'bg-indigo-100 text-indigo-800 border-indigo-200',
+  SERVER:    'bg-yellow-100 text-yellow-800 border-yellow-200',
   SIM:       'bg-emerald-100 text-emerald-800 border-emerald-200',
-  FURNITURE: 'bg-gray-100 text-gray-700 border-gray-200',
-  VEHICLE:   'bg-gray-100 text-gray-700 border-gray-200',
-  OTHER:     'bg-gray-100 text-gray-600 border-gray-200',
+  FURNITURE: 'bg-stone-100 text-stone-700 border-stone-200',
+  VEHICLE:   'bg-zinc-100 text-zinc-700 border-zinc-200',
+  OTHER:     'bg-neutral-100 text-neutral-700 border-neutral-200',
 };
 
 const ASSET_STATUS_OPTIONS: SelectOption<string>[] = [
@@ -79,22 +82,8 @@ const ASSET_CONDITION_OPTIONS: SelectOption<string>[] = [
   { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
 ];
 
-// Format helpers chuẩn design system
-const formatNumber = (n: number) =>
-  n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-
-const formatDate = (d: Date | string | undefined) => {
-  if (!d) return 'N/A';
-  const date = typeof d === 'string' ? new Date(d) : d;
-  if (isNaN(date.getTime())) return 'N/A';
-  const dd = String(date.getDate()).padStart(2, '0');
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const yyyy = date.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-};
-
 export default function AssetList() {
-  useAuth();
+  const { user } = useAuth();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [stats, setStats] = useState<AssetStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,8 +94,6 @@ export default function AssetList() {
   const [conditionFilter, setConditionFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [positions, setPositions] = useState<SelectOption<string>[]>([]);
-  const [locationFilter, setLocationFilter] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -124,24 +111,11 @@ export default function AssetList() {
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(new Set());
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
   const [isBulkReturnModalOpen, setIsBulkReturnModalOpen] = useState(false);
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
-  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
-
-  useEffect(() => {
-    const anyOpen = isDeleteDialogOpen || isBulkDeleteDialogOpen;
-    document.body.style.overflow = anyOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [isDeleteDialogOpen, isBulkDeleteDialogOpen]);
 
   useEffect(() => {
     fetchAssets();
     fetchStats();
-    positionsAPI.list({ page_size: 100 }).then((data) => {
-      setPositions(
-        (data.results || []).map((pos) => ({ value: String(pos.id), label: pos.title }))
-      );
-    }).catch(() => {});
   }, []);
 
   const fetchAssets = async () => {
@@ -167,42 +141,6 @@ export default function AssetList() {
     }
   };
 
-  const handleBulkDelete = async () => {
-    setIsBulkDeleting(true);
-    const selectedAssets = filteredAssets.filter((a) => selectedAssetIds.has(a.id));
-    const assignedAssets = selectedAssets.filter((a) => !!a.assigned_to_name);
-    const today = new Date().toISOString().slice(0, 10);
-    // Giai đoạn 1: thu hồi các tài sản đang bàn giao
-    if (assignedAssets.length > 0) {
-      await Promise.allSettled(
-        assignedAssets.map((a) =>
-          assetsAPI.returnAsset(a.id, {
-            return_date: today,
-            condition: a.condition,
-            notes: 'Tự động thu hồi trước khi xóa',
-          })
-        )
-      );
-    }
-    // Giai đoạn 2: xóa tất cả
-    const ids = selectedAssets.map((a) => a.id);
-    const settled = await Promise.allSettled(ids.map((id) => assetsAPI.delete(id)));
-    setAssets((prev) => prev.filter((a) => !ids.includes(a.id) || settled[ids.indexOf(a.id)]?.status === 'rejected'));
-    fetchStats();
-    setIsBulkDeleting(false);
-    setIsBulkDeleteDialogOpen(false);
-    setSelectedAssetIds(new Set());
-    const successCount = settled.filter((r) => r.status === 'fulfilled').length;
-    const failCount = settled.length - successCount;
-    setFeedback({
-      variant: failCount === 0 ? 'success' : 'warning',
-      title: failCount === 0 ? 'Đã xóa thành công' : `${successCount} thành công, ${failCount} thất bại`,
-      message: assignedAssets.length > 0
-        ? `Đã thu hồi ${assignedAssets.length} tài sản, sau đó xóa ${successCount} tài sản.`
-        : `Đã xóa ${successCount} tài sản.`,
-    });
-  };
-
   const confirmDelete = (id: number) => {
     setAssetToDelete(id);
     setIsDeleteDialogOpen(true);
@@ -214,7 +152,7 @@ export default function AssetList() {
     try {
       await assetsAPI.delete(assetToDelete);
       setAssets(assets.filter(asset => asset.id !== assetToDelete));
-      fetchStats();
+      fetchStats(); // Refresh stats after deletion
       setIsDeleteDialogOpen(false);
       setAssetToDelete(null);
     } catch (err: any) {
@@ -222,6 +160,8 @@ export default function AssetList() {
       setFeedback({ variant: 'error', title: 'Không thể xóa tài sản', message: 'Đã có lỗi xảy ra. Vui lòng thử lại sau.' });
     }
   };
+
+
 
   const filteredAssets = assets.filter(asset => {
     const term = searchTerm.toLowerCase();
@@ -239,10 +179,22 @@ export default function AssetList() {
     const assetDate = asset.created_at ? asset.created_at.slice(0, 10) : '';
     const matchesDateFrom = !dateFrom || assetDate >= dateFrom;
     const matchesDateTo = !dateTo || assetDate <= dateTo;
-    const matchesLocation = !locationFilter || String((asset.specifications as any)?.position_id ?? '') === locationFilter;
 
-    return matchesSearch && matchesStatus && matchesType && matchesCondition && matchesDateFrom && matchesDateTo && matchesLocation;
+    return matchesSearch && matchesStatus && matchesType && matchesCondition && matchesDateFrom && matchesDateTo;
   }).sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('vi-VN');
+  };
 
   const handleEditClick = (asset: Asset) => {
     setEditingAsset(asset);
@@ -275,6 +227,9 @@ export default function AssetList() {
   const handleExportExcel = async () => {
     setIsExporting(true);
     try {
+      // Gọi BE export — schema khớp với hrm.asset_export.build_workbook
+      // (cùng schema với template import → round-trip OK).
+      // Gửi filter hiện tại để file export khớp với bảng đang hiển thị.
       const blob = await assetsAPI.exportExcel({
         search: searchTerm || undefined,
         asset_type: typeFilter.length > 0 ? typeFilter.join(',') : undefined,
@@ -313,8 +268,11 @@ export default function AssetList() {
 
     setIsImporting(true);
     try {
+      // Upload file lên BE — toàn bộ parse + upsert + handover do BE xử lý
+      // qua hrm.asset_import.import_workbook. Xem AssetViewSet.bulk_import_excel.
       const result = await assetsAPI.bulkImportExcel(file);
 
+      // Refresh danh sách asset + stats sau khi import
       await Promise.all([fetchAssets(), fetchStats()]);
 
       const { created, updated, failed_count, failed } = result;
@@ -332,7 +290,7 @@ export default function AssetList() {
           message: (
             <div className="space-y-2">
               <p><span className="font-semibold text-emerald-600">{total} tài sản</span> đã được xử lý thành công.</p>
-              <div className="flex gap-4 text-xs bg-emerald-50 rounded-xl px-3 py-2 border border-emerald-100">
+              <div className="flex gap-4 text-xs bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
                 <span>Tạo mới: <strong className="text-emerald-700">{created}</strong></span>
                 <span>Cập nhật: <strong className="text-emerald-700">{updated}</strong></span>
               </div>
@@ -347,11 +305,11 @@ export default function AssetList() {
           ),
           message: (
             <div className="space-y-3">
-              <div className="flex gap-4 text-xs bg-emerald-50 rounded-xl px-3 py-2 border border-emerald-100">
+              <div className="flex gap-4 text-xs bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
                 <span>Tạo mới: <strong className="text-emerald-700">{created}</strong></span>
                 <span>Cập nhật: <strong className="text-emerald-700">{updated}</strong></span>
               </div>
-              <div className="bg-red-50 rounded-xl px-3 py-2 border border-red-100">
+              <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-100">
                 <p className="text-xs font-semibold text-red-700 mb-1">{failed_count} dòng không import được:</p>
                 <div className="text-xs text-red-600 whitespace-pre-line">{failedLines}</div>
                 {moreCount > 0 && <p className="text-xs text-red-400 mt-1 italic">...và {moreCount} lỗi khác</p>}
@@ -367,7 +325,7 @@ export default function AssetList() {
           message: (
             <div className="space-y-3">
               <p>Không có dòng nào được import. <span className="font-semibold text-red-600">{failed_count} dòng lỗi</span>:</p>
-              <div className="bg-red-50 rounded-xl px-3 py-2 border border-red-100">
+              <div className="bg-red-50 rounded-lg px-3 py-2 border border-red-100">
                 <div className="text-xs text-red-600 whitespace-pre-line">{failedLines}</div>
                 {moreCount > 0 && <p className="text-xs text-red-400 mt-1 italic">...và {moreCount} lỗi khác</p>}
               </div>
@@ -403,12 +361,12 @@ export default function AssetList() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'IN_USE':
-        return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'IDLE':
         return 'bg-amber-100 text-amber-800 border border-amber-200';
       case 'UNDER_MAINTENANCE':
         // Cũng dùng cho SIM "Tạm khóa"
-        return 'bg-primary-100 text-primary-800 border border-primary-200';
+        return 'bg-blue-100 text-blue-800 border border-blue-200';
       case 'DAMAGED':
         return 'bg-red-100 text-red-800 border border-red-200';
       case 'RETIRED':
@@ -417,9 +375,9 @@ export default function AssetList() {
         // SIM "Đã cắt" — màu rose để phân biệt với RETIRED
         return 'bg-rose-100 text-rose-800 border border-rose-200';
       case 'LOST':
-        return 'bg-gray-200 text-gray-800 border border-gray-300';
+        return 'bg-slate-200 text-slate-800 border border-slate-300';
       case 'NEW':
-        return 'bg-violet-100 text-violet-800 border border-violet-200';
+        return 'bg-purple-100 text-purple-800 border border-purple-200';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -428,13 +386,13 @@ export default function AssetList() {
   const getConditionColor = (condition: string) => {
     switch (condition) {
       case 'EXCELLENT':
-        return 'bg-violet-100 text-violet-800 border-violet-200';
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'GOOD':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        return 'bg-green-100 text-green-800 border-green-200';
       case 'FAIR':
         return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'POOR':
-        return 'bg-amber-100 text-amber-700 border-amber-200';
+        return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'BROKEN':
         return 'bg-red-100 text-red-800 border-red-200';
       default:
@@ -459,8 +417,8 @@ export default function AssetList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Quản lý tài sản</h1>
-          <p className="mt-1 text-sm text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900">Quản lý tài sản</h1>
+          <p className="mt-1 text-sm text-gray-600">
             Quản lý tất cả tài sản công ty, theo dõi trạng thái và người sử dụng
           </p>
         </div>
@@ -475,11 +433,11 @@ export default function AssetList() {
           <button
             onClick={handleImportClick}
             disabled={isImporting}
-            className="btn-secondary bg-white inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isImporting ? (
               <>
-                <svg className="animate-spin h-4 w-4 text-primary-600" viewBox="0 0 24 24" fill="none">
+                <svg className="animate-spin h-5 w-5 mr-2 text-primary-600" viewBox="0 0 24 24" fill="none">
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
                   <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                 </svg>
@@ -487,7 +445,7 @@ export default function AssetList() {
               </>
             ) : (
               <>
-                <ArrowUpTrayIcon className="h-4 w-4" />
+                <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
                 Nhập Excel
               </>
             )}
@@ -495,11 +453,11 @@ export default function AssetList() {
           <button
             onClick={handleExportExcel}
             disabled={isExporting}
-            className="btn-secondary bg-white inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isExporting ? (
               <>
-                <svg className="animate-spin h-4 w-4 text-primary-600" viewBox="0 0 24 24" fill="none">
+                <svg className="animate-spin h-5 w-5 mr-2 text-primary-600" viewBox="0 0 24 24" fill="none">
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
                   <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
                 </svg>
@@ -507,176 +465,170 @@ export default function AssetList() {
               </>
             ) : (
               <>
-                <ArrowDownTrayIcon className="h-4 w-4" />
+                <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
                 Xuất Excel
               </>
             )}
           </button>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="btn-primary inline-flex items-center gap-2"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
           >
-            <PlusIcon className="h-4 w-4" />
+            <PlusIcon className="h-5 w-5 mr-2" />
             Thêm tài sản mới
           </button>
         </div>
       </div>
 
+      {/* Sticky wrapper: Stats + Filters */}
+      <div className="sticky top-16 z-20 -mx-6 px-6 py-4 bg-gray-50/95 backdrop-blur space-y-4">
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center gap-4">
-                <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <ComputerDesktopIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Tổng số tài sản</p>
-                  <p className="text-2xl font-extrabold text-gray-900 tracking-tight">{formatNumber(stats.total)}</p>
-                </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <ComputerDesktopIcon className="h-8 w-8 text-blue-600" />
               </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center gap-4">
-                <div className="h-9 w-9 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <UserIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Đang sử dụng</p>
-                  <p className="text-2xl font-extrabold text-gray-900 tracking-tight">{formatNumber(stats.in_use)}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center gap-4">
-                <div className="h-9 w-9 bg-red-100 text-red-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <ShieldCheckIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Hết hạn bảo hành</p>
-                  <p className="text-2xl font-extrabold text-gray-900 tracking-tight">{formatNumber(stats.expired_warranty)}</p>
-                </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Tổng số tài sản</p>
+                <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
               </div>
             </div>
           </div>
-        )}
+          
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <UserIcon className="h-8 w-8 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Đang sử dụng</p>
+                <p className="text-2xl font-semibold text-gray-900">{stats.in_use}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <ShieldCheckIcon className="h-8 w-8 text-red-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Hết hạn bảo hành</p>
+                <p className="text-2xl font-semibold text-gray-900">{stats.expired_warranty}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <label htmlFor="search" className="block text-sm font-medium text-gray-700">
-                Tìm kiếm
-              </label>
-              <input
-                type="text"
-                id="search"
-                className="input-field mt-1 w-full"
-                placeholder="Nhập từ khóa tìm kiếm..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <p className="mt-1 text-xs text-gray-400">
-                Tìm theo: mã tài sản, tên, thương hiệu, model, người quản lý kho, người sử dụng
-              </p>
-            </div>
-
-            <SelectBox
-              label="Trạng thái vận hành"
-              value={statusFilter}
-              options={ASSET_STATUS_OPTIONS}
-              onChange={(val) => setStatusFilter(val)}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700">
+              Tìm kiếm
+            </label>
+            <input
+              type="text"
+              id="search"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              placeholder="Nhập từ khóa tìm kiếm..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
-
-            <SelectBox
-              label="Tình trạng vật lý"
-              value={conditionFilter}
-              options={ASSET_CONDITION_OPTIONS}
-              onChange={(val) => setConditionFilter(val)}
-            />
-
-            <MultiSelectBox
-              label="Loại tài sản"
-              value={typeFilter}
-              options={ASSET_TYPE_OPTIONS}
-              onChange={(val) => setTypeFilter(val)}
-              allLabel="Tất cả loại"
-            />
-
-            <SelectBox
-              label="Vị trí"
-              value={locationFilter}
-              options={[{ value: '', label: 'Tất cả vị trí' }, ...positions]}
-              onChange={setLocationFilter}
-              placeholder="Chọn vị trí"
-              searchable={true}
-            />
+            <p className="mt-1 text-xs text-gray-400">
+              Tìm theo: mã tài sản, tên, thương hiệu, model, người quản lý kho, người sử dụng
+            </p>
           </div>
 
-          {/* Lọc ngày tạo */}
-          <div className="flex flex-wrap items-end gap-3 pt-3 border-t border-gray-100 mt-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Ngày tạo từ</label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="input-field mt-1 block"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Đến ngày</label>
-              <input
-                type="date"
-                value={dateTo}
-                min={dateFrom || undefined}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="input-field mt-1 block"
-              />
-            </div>
-            <div className="flex items-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const today = new Date().toISOString().slice(0, 10);
-                  setDateFrom(today);
-                  setDateTo(today);
-                }}
-                className="px-3 py-[7px] rounded-xl border border-primary-200 bg-primary-50 text-xs font-semibold text-primary-700 hover:bg-primary-100 transition-colors"
-              >
-                Hôm nay
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const now = new Date();
-                  const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-                  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
-                  setDateFrom(first);
-                  setDateTo(last);
-                }}
-                className="px-3 py-[7px] rounded-xl border border-primary-200 bg-primary-50 text-xs font-semibold text-primary-700 hover:bg-primary-100 transition-colors"
-              >
-                Tháng này
-              </button>
-              {(dateFrom || dateTo) && (
-                <button
-                  type="button"
-                  onClick={() => { setDateFrom(''); setDateTo(''); }}
-                  className="px-3 py-[7px] rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
-                >
-                  Xóa lọc
-                </button>
-              )}
-            </div>
+          <SelectBox
+            label="Trạng thái vận hành"
+            value={statusFilter}
+            options={ASSET_STATUS_OPTIONS}
+            onChange={(val) => setStatusFilter(val)}
+          />
+
+          <SelectBox
+            label="Tình trạng vật lý"
+            value={conditionFilter}
+            options={ASSET_CONDITION_OPTIONS}
+            onChange={(val) => setConditionFilter(val)}
+          />
+
+          <MultiSelectBox
+            label="Loại tài sản"
+            value={typeFilter}
+            options={ASSET_TYPE_OPTIONS}
+            onChange={(val) => setTypeFilter(val)}
+            allLabel="Tất cả loại"
+          />
+        </div>
+
+        {/* Hàng 2: lọc ngày tạo */}
+        <div className="flex flex-wrap items-end gap-3 pt-3 border-t border-gray-100">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Ngày tạo từ</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="mt-1 block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Đến ngày</label>
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="mt-1 block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const today = new Date().toISOString().slice(0, 10);
+                setDateFrom(today);
+                setDateTo(today);
+              }}
+              className="px-3 py-[7px] rounded-md border border-indigo-200 bg-indigo-50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+            >
+              Hôm nay
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const now = new Date();
+                const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+                const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+                setDateFrom(first);
+                setDateTo(last);
+              }}
+              className="px-3 py-[7px] rounded-md border border-indigo-200 bg-indigo-50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+            >
+              Tháng này
+            </button>
+            {(dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={() => { setDateFrom(''); setDateTo(''); }}
+                className="px-3 py-[7px] rounded-md border border-gray-200 bg-white text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                Xóa lọc
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
       </div>
 
       {/* Error Message */}
       {error && (
-        <div className="rounded-2xl bg-red-50 border border-red-100 p-4">
+        <div className="rounded-md bg-red-50 p-4">
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -690,34 +642,29 @@ export default function AssetList() {
         </div>
       )}
 
+
+
       {/* Bulk action toolbar */}
       {selectedAssetIds.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-primary-50 border border-primary-200 rounded-2xl">
-          <span className="text-sm font-medium text-primary-800">Đã chọn {selectedAssetIds.size} tài sản</span>
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-lg">
+          <span className="text-sm font-medium text-indigo-800">Đã chọn {selectedAssetIds.size} tài sản</span>
           <button
             onClick={() => setIsBulkAssignModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary-600 text-white text-xs font-semibold hover:bg-primary-700 transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-all"
           >
             <UserPlusIcon className="h-3.5 w-3.5" />
             Bàn giao nhiều
           </button>
           <button
             onClick={() => setIsBulkReturnModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-all"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-all"
           >
             <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5" />
             Thu hồi nhiều
           </button>
           <button
-            onClick={() => setIsBulkDeleteDialogOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-all"
-          >
-            <TrashIcon className="h-3.5 w-3.5" />
-            Xóa nhanh ({selectedAssetIds.size})
-          </button>
-          <button
             onClick={() => setSelectedAssetIds(new Set())}
-            className="text-xs text-primary-600 hover:text-primary-800 underline ml-auto"
+            className="text-xs text-indigo-600 hover:text-indigo-800 underline ml-auto"
           >
             Bỏ chọn tất cả
           </button>
@@ -725,15 +672,15 @@ export default function AssetList() {
       )}
 
       {/* Assets Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-auto max-h-[calc(100vh-28rem)]">
-          <table className="min-w-full divide-y divide-gray-100">
+      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div className="overflow-auto max-h-[calc(100vh-16rem)]">
+          <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 <th scope="col" className="w-10 px-3 py-3 text-center">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                     checked={filteredAssets.length > 0 && filteredAssets.every((a) => selectedAssetIds.has(a.id))}
                     onChange={(e) => {
                       if (e.target.checked) {
@@ -744,48 +691,48 @@ export default function AssetList() {
                     }}
                   />
                 </th>
-                <th scope="col" className="table-header px-3 py-3 text-center w-12">
+                <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                   STT
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Mã thiết bị
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Model
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Loại tài sản
                 </th>
-                <th scope="col" className="table-header px-4 py-3 text-center">
+                <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Số lượng
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Trạng thái vận hành
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tình trạng vật lý
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Quản lý kho
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Người sử dụng
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Thông tin mua
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Nhà cung cấp
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left whitespace-nowrap">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                   Ngày tạo
                 </th>
-                <th scope="col" className="table-header px-6 py-3 text-left">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Thao tác
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
+            <tbody className="bg-white divide-y divide-gray-200">
               {filteredAssets.length === 0 ? (
                 <tr>
                   <td colSpan={14} className="px-6 py-12 text-center">
@@ -805,11 +752,11 @@ export default function AssetList() {
                 </tr>
               ) : (
                 filteredAssets.map((asset, index) => (
-                  <tr key={asset.id} className={`hover:bg-gray-50 transition-colors ${selectedAssetIds.has(asset.id) ? 'bg-primary-50' : ''}`}>
+                  <tr key={asset.id} className={`hover:bg-gray-50 ${selectedAssetIds.has(asset.id) ? 'bg-indigo-50' : ''}`}>
                     <td className="w-10 px-3 py-4 text-center">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                         checked={selectedAssetIds.has(asset.id)}
                         onChange={(e) => {
                           setSelectedAssetIds((prev) => {
@@ -821,28 +768,28 @@ export default function AssetList() {
                         }}
                       />
                     </td>
-                    <td className="table-cell px-3 py-4 text-center w-12 text-gray-400">
+                    <td className="px-3 py-4 text-center text-xs font-medium text-gray-500 w-12">
                       {index + 1}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-primary-700 bg-primary-50 px-2 py-1 rounded-lg inline-block">
+                      <div className="text-sm font-bold text-primary-700 bg-primary-50 px-2 py-1 rounded inline-block">
                         {asset.name}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="table-cell font-medium">
+                      <div className="text-sm text-gray-900 font-medium">
                         {asset.model || '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${ASSET_TYPE_COLOR_MAP[asset.asset_type] ?? 'bg-gray-100 text-gray-800 border-gray-200'} uppercase tracking-tight`}>
-                        {asset.asset_type === 'OTHER' && (asset.specifications as any)?.type_name
-                          ? `Khác (${(asset.specifications as any).type_name})`
+                        {asset.asset_type === 'OTHER' && (asset.specifications as any)?.type_name 
+                          ? `Khác (${(asset.specifications as any).type_name})` 
                           : asset.asset_type_display}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-center whitespace-nowrap">
-                      <span className="table-cell font-medium">
+                      <span className="text-sm font-medium text-gray-900">
                         {asset.specifications?.quantity || '-'}
                       </span>
                     </td>
@@ -863,11 +810,11 @@ export default function AssetList() {
                             <div className="text-sm font-medium text-gray-900">{asset.managed_by_name}</div>
                           )}
                           {asset.department_name && (
-                            <div className="text-xs text-gray-400">{asset.department_name}</div>
+                            <div className="text-sm text-gray-500">{asset.department_name}</div>
                           )}
                         </>
                       ) : (
-                        <span className="text-sm text-gray-400">-</span>
+                        <span className="text-sm text-gray-500">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -880,7 +827,7 @@ export default function AssetList() {
                           if (holders.length === 0) {
                             return (
                               <div className="flex flex-col gap-0.5">
-                                <span className="text-sm text-gray-400">Chưa bàn giao</span>
+                                <span className="text-sm text-gray-500">Chưa bàn giao</span>
                                 <span className="text-[11px] text-gray-400">0/{total}</span>
                               </div>
                             );
@@ -902,7 +849,7 @@ export default function AssetList() {
                               {shown.map((h) => (
                                 <div
                                   key={h.employee_id}
-                                  className="text-xs font-medium text-emerald-700 bg-emerald-50 inline-flex rounded-full px-2 py-0.5 w-fit"
+                                  className="text-xs font-medium text-green-700 bg-green-50 inline-flex rounded-full px-2 py-0.5 w-fit"
                                 >
                                   {h.name} ({h.assigned_quantity})
                                 </div>
@@ -919,18 +866,18 @@ export default function AssetList() {
                         if (asset.assigned_to_name) {
                           return (
                             <div className="flex flex-col">
-                              <div className="text-sm font-medium text-emerald-700 bg-emerald-50 inline-flex rounded-full px-2 py-0.5 w-fit">
+                              <div className="text-sm font-medium text-green-700 bg-green-50 inline-flex rounded-full px-2 py-0.5 w-fit">
                                 {asset.assigned_to_name}
                               </div>
                               {asset.assigned_to_department_name && (
-                                <div className="text-xs text-gray-400 mt-0.5">
+                                <div className="text-sm text-gray-500">
                                   {asset.assigned_to_department_name}
                                 </div>
                               )}
                             </div>
                           );
                         }
-                        return <span className="text-sm text-gray-400">Chưa bàn giao</span>;
+                        return <span className="text-sm text-gray-500">Chưa bàn giao</span>;
                       })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -938,7 +885,7 @@ export default function AssetList() {
                         {formatDate(asset.purchase_date)}
                       </div>
                       {asset.warranty_expiry && (
-                        <div className="text-xs text-gray-400 mt-1">
+                        <div className="text-xs text-gray-500 mt-1">
                           BH: {formatDate(asset.warranty_expiry)}
                         </div>
                       )}
@@ -955,7 +902,7 @@ export default function AssetList() {
                         <div className="flex gap-1.5">
                           <button
                             onClick={() => handleDetailClick(asset)}
-                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 transition-colors font-semibold text-xs whitespace-nowrap"
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 transition-all font-semibold text-xs whitespace-nowrap"
                             title="Xem chi tiết"
                           >
                             <EyeIcon className="h-3.5 w-3.5 flex-shrink-0" />
@@ -963,14 +910,14 @@ export default function AssetList() {
                           </button>
                           <button
                             onClick={() => handleEditClick(asset)}
-                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 transition-colors font-semibold text-xs whitespace-nowrap"
+                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all font-semibold text-xs whitespace-nowrap"
                             title="Chỉnh sửa thông tin"
                           >
                             <PencilIcon className="h-3.5 w-3.5 flex-shrink-0" />
                             <span className="hidden xl:inline">Sửa</span>
                           </button>
                         </div>
-                        {/* Row 2: Bàn giao + Thu hồi + Xóa */}
+                        {/* Row 2: Bàn giao + Thu hồi */}
                         <div className="flex gap-1.5">
                           {(() => {
                             const isMulti = ['MONITOR', 'OTHER'].includes(asset.asset_type) && (asset.total_quantity ?? 1) > 1;
@@ -978,13 +925,14 @@ export default function AssetList() {
                             const showAssign = !asset.assigned_to_name || canAssignMore;
                             const hasHolders = (asset.holders?.length ?? 0) > 0;
                             const showReturn = !!asset.assigned_to_name || hasHolders;
+                            // Multi-holder có >1 holder → mở DetailModal để user chọn holder cụ thể.
                             const multiNeedsPicker = isMulti && (asset.holders?.length ?? 0) > 1;
                             return (
                               <>
                                 {showAssign && (
                                   <button
                                     onClick={() => handleAssignClick(asset)}
-                                    className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 transition-colors font-semibold text-xs whitespace-nowrap"
+                                    className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all font-semibold text-xs whitespace-nowrap"
                                     title="Bàn giao người dùng"
                                   >
                                     <UserPlusIcon className="h-3.5 w-3.5 flex-shrink-0" />
@@ -1000,25 +948,26 @@ export default function AssetList() {
                                         handleReturnClick(asset);
                                       }
                                     }}
-                                    className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors font-semibold text-xs whitespace-nowrap"
+                                    className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all font-semibold text-xs whitespace-nowrap"
                                     title={multiNeedsPicker ? 'Chọn người cần thu hồi trong Chi tiết' : 'Thu hồi về kho'}
                                   >
                                     <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5 flex-shrink-0" />
                                     <span className="hidden xl:inline">Thu hồi</span>
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => confirmDelete(asset.id)}
-                                  className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors font-semibold text-xs whitespace-nowrap"
-                                  title="Xóa tài sản"
-                                >
-                                  <TrashIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                                  <span className="hidden xl:inline">Xóa</span>
-                                </button>
                               </>
                             );
                           })()}
                         </div>
+                        {/* Row 3: Xóa full width */}
+                        <button
+                          onClick={() => confirmDelete(asset.id)}
+                          className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all font-semibold text-xs whitespace-nowrap"
+                          title="Xóa tài sản"
+                        >
+                          <TrashIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span className="hidden xl:inline">Xóa</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1028,7 +977,6 @@ export default function AssetList() {
           </table>
         </div>
       </div>
-
       <AssetCreateModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -1125,100 +1073,17 @@ export default function AssetList() {
         assets={filteredAssets.filter((a) => selectedAssetIds.has(a.id))}
       />
 
-      {/* Bulk Delete Confirmation Dialog */}
-      {isBulkDeleteDialogOpen && (() => {
-        const selectedAssets = filteredAssets.filter((a) => selectedAssetIds.has(a.id));
-        const assignedAssets = selectedAssets.filter((a) => !!a.assigned_to_name);
-        return (
-          <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsBulkDeleteDialogOpen(false)} />
-              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-              <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div className="bg-white px-6 pt-6 pb-4">
-                  <div className="sm:flex sm:items-start">
-                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                      <TrashIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
-                    </div>
-                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                      <h3 className="text-lg leading-6 font-bold text-gray-900">
-                        Xóa {selectedAssets.length} tài sản đã chọn?
-                      </h3>
-
-                      {assignedAssets.length > 0 && (
-                        <div className="mt-3 space-y-3">
-                          <div className="rounded-2xl bg-amber-50 border border-amber-200 p-3">
-                            <p className="text-sm font-semibold text-amber-800">
-                              Bước 1 — Thu hồi {assignedAssets.length} tài sản đang bàn giao
-                            </p>
-                            <p className="text-xs text-amber-700 mt-0.5">Hệ thống sẽ tự động thu hồi trước khi xóa.</p>
-                            <div className="mt-2 max-h-28 overflow-y-auto space-y-1">
-                              {assignedAssets.map((a) => (
-                                <div key={a.id} className="flex items-center gap-1.5 text-xs text-amber-900">
-                                  <span className="font-mono font-semibold">[{a.asset_code}]</span>
-                                  <span className="truncate">{a.name}</span>
-                                  <span className="ml-auto flex-shrink-0 text-amber-600">→ {a.assigned_to_name}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="rounded-2xl bg-red-50 border border-red-200 p-3">
-                            <p className="text-sm font-semibold text-red-800">
-                              Bước 2 — Xóa tất cả {selectedAssets.length} tài sản
-                            </p>
-                            <p className="text-xs text-red-700 mt-0.5">Hành động này không thể hoàn tác.</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {assignedAssets.length === 0 && (
-                        <div className="mt-2">
-                          <p className="text-sm text-gray-500">
-                            Hành động này không thể hoàn tác. Tất cả dữ liệu liên quan sẽ bị xóa vĩnh viễn.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex flex-row-reverse gap-3">
-                  <button
-                    type="button"
-                    disabled={isBulkDeleting}
-                    onClick={handleBulkDelete}
-                    className="btn-danger inline-flex justify-center disabled:opacity-50"
-                  >
-                    {isBulkDeleting
-                      ? 'Đang xử lý...'
-                      : assignedAssets.length > 0
-                        ? `Thu hồi & Xóa (${selectedAssets.length} tài sản)`
-                        : `Xóa ${selectedAssets.length} tài sản`
-                    }
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsBulkDeleteDialogOpen(false)}
-                    className="btn-secondary inline-flex justify-center"
-                  >
-                    Hủy
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* Delete Confirmation Dialog */}
       {isDeleteDialogOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" aria-hidden="true" onClick={() => setIsDeleteDialogOpen(false)}></div>
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setIsDeleteDialogOpen(false)}></div>
 
+            {/* This element is to trick the browser into centering the modal contents. */}
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-            <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-6 pt-6 pb-4">
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
                     <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -1226,7 +1091,7 @@ export default function AssetList() {
                     </svg>
                   </div>
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <h3 className="text-lg leading-6 font-bold text-gray-900" id="modal-title">
+                    <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
                       Xác nhận xóa tài sản
                     </h3>
                     <div className="mt-2">
@@ -1237,17 +1102,17 @@ export default function AssetList() {
                   </div>
                 </div>
               </div>
-              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex flex-row-reverse gap-3">
+              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
                   type="button"
-                  className="btn-danger inline-flex justify-center"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm"
                   onClick={handleDelete}
                 >
                   Xóa
                 </button>
                 <button
                   type="button"
-                  className="btn-secondary inline-flex justify-center"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                   onClick={() => setIsDeleteDialogOpen(false)}
                 >
                   Hủy

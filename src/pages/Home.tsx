@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useNotificationDrawer } from '../contexts/NotificationDrawerContext';
-import { hrmAPI, managementApi } from '../utils/api';
 import { employeesAPI, departmentsAPI, birthdayWishesAPI, BirthdayWish } from '../utils/api';
 import {
   BuildingOfficeIcon,
   UserGroupIcon,
   CalendarIcon,
+  BellAlertIcon,
   DocumentTextIcon,
   ScaleIcon,
   ArrowRightIcon,
@@ -22,9 +20,6 @@ import {
   EyeIcon,
   CheckCircleIcon,
   TrophyIcon,
-  MegaphoneIcon,
-  ExclamationTriangleIcon,
-  BellAlertIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import onboardingService from '../services/onboarding.service';
@@ -64,19 +59,17 @@ const Home: React.FC = () => {
     employee_id: number;
     full_name: string;
     date_of_birth: string;
-    avatar_url?: string | null;
     department: { id: number; name: string; code: string } | null;
   }>>([]);
   const [tomorrowBirthdayEmployees, setTomorrowBirthdayEmployees] = useState<Array<{
     employee_id: number;
     full_name: string;
     date_of_birth: string;
-    avatar_url?: string | null;
     department: { id: number; name: string; code: string } | null;
   }>>([]);
   const [wishModal, setWishModal] = useState<{
     open: boolean;
-    employee: { employee_id: number; full_name: string; avatar_url?: string | null } | null;
+    employee: { employee_id: number; full_name: string } | null;
   }>({ open: false, employee: null });
   const [wishMessage, setWishMessage] = useState('');
   const [wishSent, setWishSent] = useState<Set<number>>(new Set());
@@ -86,12 +79,11 @@ const Home: React.FC = () => {
   const [viewingDoc, setViewingDoc] = useState<any>(null);
   const [docReadable, setDocReadable] = useState(false);
   const [markingReadId, setMarkingReadId] = useState<number | null>(null);
-  const [showDocGate, setShowDocGate] = useState(false);
   const [wishSending, setWishSending] = useState(false);
   const [wishError, setWishError] = useState<string | null>(null);
   const [wishListModal, setWishListModal] = useState<{
     open: boolean;
-    employee: { employee_id: number; full_name: string; avatar_url?: string | null } | null;
+    employee: { employee_id: number; full_name: string } | null;
     wishes: BirthdayWish[];
     loading: boolean;
   }>({ open: false, employee: null, wishes: [], loading: false });
@@ -104,117 +96,23 @@ const Home: React.FC = () => {
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
 
-  // Contract expiry alert (ADMIN/HR only)
-  type ExpiringContract = {
-    id: number;
-    employee_name: string;
-    end_date: string | null;
-    contract_type_display: string;
-    contract_number: string | null;
-    days: number;
-  };
-  const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
-  const [showContractAlert, setShowContractAlert] = useState(false);
-
-  // Employee's own contract — non-dismissable alert if no active contract
-  type MyContract = { id: number; status: string; contract_type: string; end_date: string | null };
-  // Các loại hợp đồng lao động thực sự — cam kết/thoả thuận (CONFIDENTIALITY, COMPANY_RULES, NURSING_COMMITMENT) không tính
-  const LABOR_CONTRACT_TYPES = ['PROBATION', 'INTERN', 'COLLABORATOR', 'ONE_YEAR', 'TWO_YEAR', 'INDEFINITE', 'SERVICE'];
-  const [myContracts, setMyContracts] = useState<MyContract[] | null>(null); // null = not yet fetched or admin
-  const [contractCheckLoading, setContractCheckLoading] = useState(false);
-  const [contractCheckFailed, setContractCheckFailed] = useState(false);
-
-  // Unread announcements for highlight section
-  const { unreadIds, markRead, openDrawer } = useNotificationDrawer();
-  const [unreadAnnouncements, setUnreadAnnouncements] = useState<any[]>([]);
-
   useEffect(() => {
     fetchEmployeeData();
     fetchBirthdaysToday();
     fetchBirthdaysTomorrow();
     fetchAttendanceRanking();
-    fetchExpiringContracts();
-    fetchMyContracts();
   }, []);
 
-  const fetchExpiringContracts = async () => {
-    try {
-      const res = await managementApi.get('/api-hrm/employee-contracts/expiring-alert/');
-      const { dismissed_today, contracts } = res.data;
-      if (!contracts?.length) return;
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const expiring: ExpiringContract[] = contracts.map((c: any) => {
-        const expiry = new Date(c.end_date);
-        expiry.setHours(0, 0, 0, 0);
-        const days = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        return { id: c.id, employee_name: c.employee_name, end_date: c.end_date, contract_type_display: c.contract_type_display, contract_number: c.contract_number, days };
-      });
-
-      setExpiringContracts(expiring);
-      if (!dismissed_today) setShowContractAlert(true);
-    } catch {
-      // Không có quyền (nhân viên thường) → bỏ qua
-    }
-  };
-
-  const dismissContractAlert = async () => {
-    setShowContractAlert(false);
-    try {
-      await managementApi.post('/api-hrm/employee-contracts/expiring-alert/');
-    } catch { }
-  };
-
-  const fetchMyContracts = async (isManualCheck = false) => {
-    if (isManualCheck) {
-      setContractCheckLoading(true);
-      setContractCheckFailed(false);
-    }
-    try {
-      const res = await managementApi.get('/api-hrm/employee-contracts/my-contracts/');
-      setMyContracts(res.data);
-      if (isManualCheck) setContractCheckFailed(false);
-    } catch (err: any) {
-      // 403 = ADMIN without employee profile → no dialog needed
-      setMyContracts(null);
-      if (isManualCheck) setContractCheckFailed(true);
-    } finally {
-      if (isManualCheck) setContractCheckLoading(false);
-    }
-  };
-
-  const hasActiveContract =
-    myContracts !== null &&
-    myContracts.some((c) => {
-      if (c.status !== 'SIGNED') return false;
-      if (!LABOR_CONTRACT_TYPES.includes(c.contract_type)) return false;
-      if (!c.end_date) return true;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const end = new Date(c.end_date);
-      end.setHours(0, 0, 0, 0);
-      return end.getTime() >= today.getTime();
-    });
-
+  // Lock body scroll khi modal tài liệu mở
   useEffect(() => {
-    hrmAPI.getCompanyAnnouncements({ is_current: true, unread_only: true, page_size: 5 })
-      .then((res) => setUnreadAnnouncements(res.results || []))
-      .catch(() => { });
-  }, []);
+    if (viewingDoc) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [viewingDoc]);
 
-  // Tự đóng gate khi đã đọc hết tất cả REGULATION bắt buộc
-  useEffect(() => {
-    if (!onboarding) return;
-    const unread = (onboarding.documents || []).filter(
-      (d: any) => d.document_type === 'REGULATION' && d.is_required && !d.is_read
-    );
-    if (unread.length === 0) setShowDocGate(false);
-  }, [onboarding]);
-
-  const noActiveContractDialog = myContracts !== null && myContracts.length > 0 && !hasActiveContract;
-  //useLockBodyScroll(!!viewingDoc || showDocGate || showContractAlert || noActiveContractDialog);
-  useLockBodyScroll(!!viewingDoc || showDocGate || showContractAlert);
   const fetchBirthdaysToday = async () => {
     try {
       const data = await employeesAPI.birthdays_today();
@@ -267,7 +165,7 @@ const Home: React.FC = () => {
     }
   };
 
-  const openWishModal = (emp: { employee_id: number; full_name: string; avatar_url?: string | null }) => {
+  const openWishModal = (emp: { employee_id: number; full_name: string }) => {
     setWishMessage(`Chúc mừng sinh nhật ${emp.full_name}! 🎂🎉 Chúc bạn luôn vui vẻ, mạnh khỏe và thành công!`);
     setWishError(null);
     setWishModal({ open: true, employee: emp });
@@ -307,7 +205,7 @@ const Home: React.FC = () => {
     }
   };
 
-  const openWishListModal = async (emp: { employee_id: number; full_name: string; avatar_url?: string | null }) => {
+  const openWishListModal = async (emp: { employee_id: number; full_name: string }) => {
     setWishListModal({ open: true, employee: emp, wishes: [], loading: true });
     try {
       const wishes = await birthdayWishesAPI.list({ recipient: emp.employee_id, year: new Date().getFullYear() });
@@ -343,10 +241,6 @@ const Home: React.FC = () => {
         if (myOb?.id) {
           const fullOb = await onboardingService.get(myOb.id);
           setOnboarding(fullOb);
-          const unread = (fullOb.documents || []).filter(
-            (d: any) => d.document_type === 'REGULATION' && d.is_required && !d.is_read
-          );
-          if (unread.length > 0) setShowDocGate(true);
         }
       } catch (err) {
         // Không có onboarding — bỏ qua
@@ -361,123 +255,62 @@ const Home: React.FC = () => {
   // Calculate working days based on start date
   const calculateWorkingDays = () => {
     if (!employee?.start_date) return 0;
-
+    
     const startDate = new Date(employee.start_date);
     const today = new Date();
-
+    
     // Calculate difference in days
     const diffTime = Math.abs(today.getTime() - startDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
+    
     return diffDays;
   };
 
   const userStats = [
-    { label: 'Ngày làm việc', value: employee ? calculateWorkingDays().toString() : '0', icon: CalendarIcon, color: 'bg-primary-100 text-primary-600' },
-    { label: 'Điểm danh', value: '0%', icon: ClockIcon, color: 'bg-emerald-100 text-emerald-600' },
+    { label: 'Ngày làm việc', value: employee ? calculateWorkingDays().toString() : '0', change: '', icon: CalendarIcon, color: 'bg-blue-100 text-blue-600' },
+    { label: 'Điểm danh', value: '0%', change: '', icon: ClockIcon, color: 'bg-green-100 text-green-600' },
+    { label: 'Thông báo', value: '0', change: '', icon: BellAlertIcon, color: 'bg-yellow-100 text-yellow-600' },
   ];
 
   const quickActions = [
-    { title: 'Xin nghỉ phép', description: 'Đăng ký nghỉ phép năm, nghỉ ốm', icon: CalendarIcon, color: 'bg-primary-100 text-primary-700', path: '/dashboard/approvals' },
-    { title: 'Báo cáo công việc', description: 'Gửi báo cáo tuần/tháng', icon: DocumentTextIcon, color: 'bg-emerald-100 text-emerald-700', path: '/company/internal-forms' },
-    { title: 'Đề xuất', description: 'Đề xuất công tác, mua sắm', icon: ScaleIcon, color: 'bg-amber-100 text-amber-700', path: '/dashboard/approvals' },
-    { title: 'Đào tạo', description: 'Đăng ký khóa đào tạo', icon: UserGroupIcon, color: 'bg-violet-100 text-violet-700', path: '/company/training' },
+    { title: 'Xin nghỉ phép', description: 'Đăng ký nghỉ phép năm, nghỉ ốm', icon: CalendarIcon, color: 'bg-blue-50 text-blue-700', path: '/dashboard/approvals' },
+    { title: 'Báo cáo công việc', description: 'Gửi báo cáo tuần/tháng', icon: DocumentTextIcon, color: 'bg-green-50 text-green-700', path: '/company/internal-forms' },
+    { title: 'Đề xuất', description: 'Đề xuất công tác, mua sắm', icon: ScaleIcon, color: 'bg-yellow-50 text-yellow-700', path: '/dashboard/approvals' },
+    { title: 'Đào tạo', description: 'Đăng ký khóa đào tạo', icon: UserGroupIcon, color: 'bg-purple-50 text-purple-700', path: '/company/training' },
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-primary-900 via-primary-800 to-primary-600 rounded-2xl text-white shadow-lg">
-        {/* Decorative blobs */}
-        <div className="pointer-events-none absolute -top-16 -right-16 h-64 w-64 rounded-full bg-white/5" />
-        <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full bg-white/5" />
-        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-white/[0.03]" />
-
-        <div className="relative px-10 py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="flex items-center gap-5">
-            {/* Avatar */}
-            <div className="h-20 w-20 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0 ring-2 ring-white/20 shadow-lg">
-              {employee?.avatar_url ? (
-                <img src={employee.avatar_url} alt="" className="h-full w-full rounded-2xl object-cover" />
-              ) : (
-                <span className="text-3xl font-extrabold text-white">
-                  {(employee?.full_name || user?.username || 'N')?.charAt(0).toUpperCase()}
-                </span>
-              )}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-white/80 tracking-widest uppercase mb-1">Chào mừng trở lại</p>
-              <h1 className="text-3xl font-extrabold tracking-tight leading-tight">
-                {employee?.full_name || user?.username || 'Nhân viên'}
-              </h1>
-              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-white/90">
-                <span className="flex items-center gap-1.5">
-                  <UserIcon className="h-4 w-4 text-white/70" />
-                  {user?.username || 'N/A'}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <BuildingOfficeIcon className="h-4 w-4 text-white/70" />
-                  {loading ? 'Đang tải...' : (department?.name || employee?.department?.name || 'Chưa phân phòng')}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CalendarIcon className="h-4 w-4 text-white/70" />
-                  {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </span>
+      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-8 text-white">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Chào mừng trở lại, {user?.username || 'Nhân viên'}!</h1>
+            <p className="mt-2 text-primary-100">
+              Hôm nay là {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+            <div className="mt-4 flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <UserIcon className="h-5 w-5" />
+                <span>Mã NV: {user?.username || 'N/A'}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <BuildingOfficeIcon className="h-5 w-5" />
+                <span>Phòng: {loading ? 'Đang tải...' : (department?.name || employee?.department?.name || 'Chưa phân phòng')}</span>
               </div>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/dashboard/me')}
-            className="self-start md:self-auto inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-sm font-semibold text-white backdrop-blur transition-all duration-200 shadow-sm"
-          >
-            <UserIcon className="h-4 w-4" />
-            Hồ sơ cá nhân
-          </button>
+          <div className="mt-6 md:mt-0">
+            <button
+              onClick={() => navigate('/dashboard/me')}
+              className="inline-flex items-center px-6 py-3 border-2 border-white text-sm font-medium rounded-lg text-white hover:bg-white hover:text-primary-700 transition-colors"
+            >
+              <UserIcon className="h-5 w-5 mr-2" />
+              Xem hồ sơ cá nhân
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Thông báo chưa đọc — chỉ hiển thị 1 mới nhất */}
-      {(() => {
-        const unread = unreadAnnouncements.filter(ann => unreadIds.has(ann.id));
-        if (unread.length === 0) return null;
-        const latest = unread[0];
-        const extra = unread.length - 1;
-        return (
-          <button
-            onClick={() => { markRead(latest.id); openDrawer(latest); }}
-            className="w-full text-left rounded-2xl border border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors px-4 py-3.5 flex items-center gap-3 shadow-sm group"
-          >
-            {/* Icon */}
-            <div className="relative h-9 w-9 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0">
-              <MegaphoneIcon className="w-5 h-5 text-white" />
-              {unread.length > 1 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold ring-2 ring-white">
-                  {unread.length > 9 ? '9+' : unread.length}
-                </span>
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide">Thông báo mới</span>
-                {latest.announcement_type_display && (
-                  <span className="text-[10px] text-amber-600">· {latest.announcement_type_display}</span>
-                )}
-              </div>
-              <p className="text-sm font-semibold text-gray-900 truncate">{latest.title}</p>
-              {extra > 0 && (
-                <p className="text-xs text-amber-600 mt-0.5">+{extra} thông báo chưa đọc khác</p>
-              )}
-            </div>
-
-            {/* CTA */}
-            <div className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-amber-700 group-hover:text-amber-900">
-              Xem <ArrowRightIcon className="h-3.5 w-3.5" />
-            </div>
-          </button>
-        );
-      })()}
 
       {/* Tài liệu onboarding cần đọc */}
       {(() => {
@@ -489,35 +322,49 @@ const Home: React.FC = () => {
         if (unreadCount === 0) return null; // Đã đọc hết → ẩn section
 
         return (
-          <div className="rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50 to-blue-50 p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-9 w-9 rounded-xl bg-primary-600 flex items-center justify-center flex-shrink-0">
-                <DocumentTextIcon className="w-5 h-5 text-white" />
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 p-6 shadow-sm">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-14 h-14 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-600/20">
+                <DocumentTextIcon className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-gray-900">Tài liệu cần đọc</h2>
-                <p className="text-xs text-gray-500">Bạn có <span className="font-bold text-primary-700">{unreadCount}</span> tài liệu bắt buộc chưa đọc</p>
+                <h2 className="text-lg font-bold text-gray-900">Tài liệu cần đọc</h2>
+                <p className="text-sm text-gray-600">
+                  Bạn có <span className="font-semibold text-blue-700">{unreadCount}</span> tài liệu bắt buộc chưa đọc
+                </p>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {requiredDocs.map((doc: any) => (
-                <div key={doc.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-start justify-between gap-3 hover:shadow-sm transition-shadow">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm">{doc.document_name}</p>
-                    {doc.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{doc.description}</p>}
-                    {doc.is_read ? (
-                      <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                        <CheckCircleIcon className="w-3 h-3" /> Đã đọc
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-                        <ClockIcon className="w-3 h-3" /> Chưa đọc
-                      </span>
-                    )}
+                <div key={doc.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm">{doc.document_name}</p>
+                      {doc.description && (
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{doc.description}</p>
+                      )}
+                      {doc.is_read ? (
+                        <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <CheckCircleIcon className="w-3.5 h-3.5" /> Đã đọc
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                          <ClockIcon className="w-3.5 h-3.5" /> Chưa đọc
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setViewingDoc(doc);
+                        setDocReadable(false);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex-shrink-0 inline-flex items-center gap-1.5 shadow-sm"
+                    >
+                      <EyeIcon className="w-4 h-4" />
+                      Xem
+                    </button>
                   </div>
-                  <button onClick={() => { setViewingDoc(doc); setDocReadable(false); }} className="px-3 py-1.5 bg-primary-600 text-white rounded-lg text-xs font-semibold hover:bg-primary-700 transition-colors flex-shrink-0 inline-flex items-center gap-1">
-                    <EyeIcon className="w-3.5 h-3.5" /> Xem
-                  </button>
                 </div>
               ))}
             </div>
@@ -526,66 +373,73 @@ const Home: React.FC = () => {
       })()}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {userStats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 border-l-4 border-l-primary-500">
-            <div className={`h-11 w-11 ${stat.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
-              <stat.icon className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">{stat.label}</p>
-              <p className="text-2xl font-extrabold text-gray-900 mt-0.5 tracking-tight">{stat.value}</p>
+          <div key={index} className="bg-white rounded-xl shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                <div className="flex items-baseline mt-2">
+                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                  <span className="ml-2 text-sm font-medium text-green-600">{stat.change}</span>
+                </div>
+              </div>
+              <div className={`h-12 w-12 ${stat.color} rounded-lg flex items-center justify-center`}>
+                <stat.icon className="h-6 w-6" />
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Birthday Section */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 bg-pink-100 rounded-xl flex items-center justify-center">
-              <CakeIcon className="h-5 w-5 text-pink-600" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-gray-900">Chúc mừng sinh nhật hôm nay</h2>
-              <p className="text-xs text-gray-600">{birthdayEmployees.length === 0 ? 'Không có sinh nhật hôm nay' : `${birthdayEmployees.length} nhân viên`}</p>
-            </div>
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="h-10 w-10 bg-pink-100 rounded-lg flex items-center justify-center">
+            <CakeIcon className="h-6 w-6 text-pink-600" />
           </div>
+          <h2 className="text-xl font-bold text-gray-900">🎂 Chúc mừng sinh nhật</h2>
         </div>
-
-        {birthdayEmployees.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+        {birthdayEmployees.length === 0 ? (
+          <p className="text-sm text-gray-500">Hôm nay không có nhân viên nào có sinh nhật.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {birthdayEmployees.map((emp) => (
-              <div key={emp.employee_id} className="flex flex-col gap-3 p-4 bg-pink-50 border border-pink-100 rounded-2xl">
-                <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 rounded-full flex-shrink-0 overflow-hidden ring-2 ring-pink-200">
-                    {emp.avatar_url ? (
-                      <img src={emp.avatar_url} alt={emp.full_name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: stringToColor(emp.full_name) }}>
-                        <span className="text-white text-sm font-bold">{getInitials(emp.full_name)}</span>
-                      </div>
-                    )}
+              <div key={emp.employee_id} className="flex flex-col p-4 bg-pink-50 border border-pink-200 rounded-xl">
+                <div className="flex items-center space-x-4">
+                  <div className="h-12 w-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl">🎉</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{emp.full_name}</p>
-                    {emp.department && <p className="text-xs text-gray-500 truncate">{emp.department.name}</p>}
-                    <p className="text-xs text-pink-500 font-medium mt-0.5">{formatBirthDate(emp.date_of_birth)}</p>
+                    <p className="font-semibold text-gray-900">{emp.full_name}</p>
+                    {emp.department && (
+                      <p className="text-sm text-gray-500">{emp.department.name}</p>
+                    )}
+                    <p className="text-xs text-pink-600 mt-1">
+                      {formatBirthDate(emp.date_of_birth)}
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="mt-3 flex items-center gap-2">
                   {wishSent.has(emp.employee_id) ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-green-600 font-semibold">
-                      <CheckCircleIcon className="h-3.5 w-3.5" /> Đã gửi lời chúc
+                    <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+                      ✅ Đã gửi lời chúc
                     </span>
                   ) : (
-                    <button onClick={() => openWishModal(emp)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-pink-500 hover:bg-pink-600 text-white text-xs font-semibold rounded-lg transition-colors">
-                      <PaperAirplaneIcon className="h-3.5 w-3.5" /> Gửi lời chúc
+                    <button
+                      onClick={() => openWishModal(emp)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-pink-500 hover:bg-pink-600 text-white text-xs font-medium rounded-lg transition-colors"
+                    >
+                      <PaperAirplaneIcon className="h-3.5 w-3.5" />
+                      Gửi lời chúc
                     </button>
                   )}
-                  <button onClick={() => openWishListModal(emp)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-pink-200 hover:bg-pink-50 text-pink-600 text-xs font-semibold rounded-lg transition-colors">
-                    <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" /> Lời chúc
+                  <button
+                    onClick={() => openWishListModal(emp)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-pink-300 hover:bg-pink-50 text-pink-600 text-xs font-medium rounded-lg transition-colors"
+                  >
+                    <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" />
+                    Xem lời chúc
                   </button>
                 </div>
               </div>
@@ -594,30 +448,28 @@ const Home: React.FC = () => {
         )}
 
         {/* Tomorrow's Birthdays */}
-        <div className={birthdayEmployees.length > 0 ? 'pt-4 border-t border-gray-100' : ''}>
-          <div className="flex items-center gap-2 mb-3">
-            <CakeIcon className="h-4 w-4 text-gray-300" />
-            <h3 className="text-sm font-semibold text-gray-600">Sinh nhật ngày mai</h3>
+        <div className="mt-6 pt-6 border-t border-gray-100">
+          <div className="flex items-center space-x-2 mb-4">
+            <CakeIcon className="h-5 w-5 text-gray-400" />
+            <h3 className="text-base font-semibold text-gray-500">Sinh nhật ngày mai</h3>
           </div>
           {tomorrowBirthdayEmployees.length === 0 ? (
-            <p className="text-sm text-gray-600">Không có sinh nhật ngày mai.</p>
+            <p className="text-sm text-gray-400">Ngày mai không có nhân viên nào có sinh nhật.</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {tomorrowBirthdayEmployees.map((emp) => (
-                <div key={emp.employee_id} className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl">
-                  <div className="h-10 w-10 rounded-full flex-shrink-0 overflow-hidden">
-                    {emp.avatar_url ? (
-                      <img src={emp.avatar_url} alt={emp.full_name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: stringToColor(emp.full_name) }}>
-                        <span className="text-white text-sm font-bold">{getInitials(emp.full_name)}</span>
-                      </div>
-                    )}
+                <div key={emp.employee_id} className="flex items-center space-x-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                  <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-xl">🎂</span>
                   </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-500 text-sm truncate">{emp.full_name}</p>
-                    {emp.department && <p className="text-xs text-gray-400 truncate">{emp.department.name}</p>}
-                    <p className="text-xs text-gray-400 mt-0.5">{formatBirthDate(emp.date_of_birth)}</p>
+                  <div>
+                    <p className="font-semibold text-gray-500">{emp.full_name}</p>
+                    {emp.department && (
+                      <p className="text-sm text-gray-400">{emp.department.name}</p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">
+                      {formatBirthDate(emp.date_of_birth)}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -627,68 +479,98 @@ const Home: React.FC = () => {
       </div>
 
       {/* Attendance Ranking Section */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 bg-amber-100 rounded-xl flex items-center justify-center">
-              <TrophyIcon className="h-5 w-5 text-amber-600" />
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <div className="h-10 w-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <TrophyIcon className="h-6 w-6 text-yellow-600" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-900">Bảng vinh danh đi sớm</h2>
-              <p className="text-xs text-gray-400">Top 10 · tháng {rankingPeriod.month}/{rankingPeriod.year}</p>
+              <h2 className="text-xl font-bold text-gray-900">🏆 Bảng vinh danh đi sớm</h2>
+              <p className="text-sm text-gray-500">
+                Top 10 nhân viên đi sớm nhất tháng {rankingPeriod.month}/{rankingPeriod.year}
+              </p>
             </div>
           </div>
-          <button onClick={() => navigate('/dashboard/attendance/ranking')} className="text-xs font-semibold text-primary-600 hover:text-primary-800 flex items-center gap-1">
-            Xem chi tiết <ArrowRightIcon className="h-3.5 w-3.5" />
+          <button
+            onClick={() => navigate('/dashboard/attendance/ranking')}
+            className="text-primary-600 hover:text-primary-800 text-sm font-medium flex items-center"
+          >
+            Xem chi tiết <ArrowRightIcon className="h-4 w-4 ml-1" />
           </button>
         </div>
 
         {rankingLoading ? (
-          <div className="flex items-center justify-center py-8 gap-3">
-            <div className="animate-spin h-5 w-5 border-2 border-amber-400 border-t-transparent rounded-full" />
-            <span className="text-sm text-gray-400">Đang tải...</span>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin h-6 w-6 border-2 border-yellow-500 border-t-transparent rounded-full" />
+            <span className="ml-3 text-sm text-gray-500">Đang tải bảng xếp hạng...</span>
           </div>
         ) : attendanceRankings.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">Chưa có dữ liệu xếp hạng.</p>
+          <p className="text-sm text-gray-500 text-center py-6">Chưa có dữ liệu xếp hạng cho tháng này.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {attendanceRankings.map((entry, index) => {
               const rankNum = entry.rank_early ?? index + 1;
               const medal = RANK_MEDALS[rankNum - 1] ?? null;
+              const initials = getInitials(entry.full_name);
+              const avatarBg = stringToColor(entry.full_name);
               return (
                 <div
                   key={entry.employee_id}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${
-                    rankNum === 1 ? 'bg-amber-50 border-amber-200' :
-                    rankNum === 2 ? 'bg-slate-50 border-slate-200' :
-                    rankNum === 3 ? 'bg-primary-50 border-primary-200' :
-                    'bg-white border-gray-100 hover:bg-slate-50'
+                  className={`flex items-center gap-4 p-3 rounded-xl border transition-shadow hover:shadow-md ${
+                    rankNum === 1
+                      ? 'bg-yellow-50 border-yellow-200'
+                      : rankNum === 2
+                      ? 'bg-gray-50 border-gray-200'
+                      : rankNum === 3
+                      ? 'bg-orange-50 border-orange-200'
+                      : 'bg-white border-gray-100'
                   }`}
                 >
-                  <div className="w-7 text-center flex-shrink-0">
-                    {medal ? <span className="text-lg">{medal}</span> : <span className="text-xs font-bold text-gray-400">#{rankNum}</span>}
-                  </div>
-                  <div className="h-9 w-9 rounded-full flex-shrink-0 overflow-hidden">
-                    {entry.avatar ? (
-                      <img src={entry.avatar} alt={entry.full_name} className="h-full w-full object-cover" />
+                  {/* Rank badge */}
+                  <div className="w-8 text-center flex-shrink-0">
+                    {medal ? (
+                      <span className="text-xl">{medal}</span>
                     ) : (
-                      <div className="h-full w-full flex items-center justify-center text-white text-xs font-bold" style={{ backgroundColor: stringToColor(entry.full_name) }}>
-                        {getInitials(entry.full_name)}
+                      <span className="text-sm font-bold text-gray-500">#{rankNum}</span>
+                    )}
+                  </div>
+
+                  {/* Avatar */}
+                  <div className="h-10 w-10 rounded-full flex-shrink-0 overflow-hidden">
+                    {entry.avatar ? (
+                      <img
+                        src={entry.avatar}
+                        alt={entry.full_name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="h-full w-full flex items-center justify-center text-white text-sm font-bold"
+                        style={{ backgroundColor: avatarBg }}
+                      >
+                        {initials}
                       </div>
                     )}
                   </div>
+
+                  {/* Name & department */}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 text-sm truncate">{entry.full_name}</p>
-                    {entry.department && <p className="text-xs text-gray-400 truncate">{entry.department}</p>}
+                    {entry.department && (
+                      <p className="text-xs text-gray-500 truncate">{entry.department}</p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0 text-right">
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 flex-shrink-0 text-right">
                     <div>
-                      <p className="text-[10px] text-gray-400 uppercase tracking-wide">Ngày sớm</p>
-                      <p className="text-sm font-bold text-amber-600">{entry.early_days}</p>
+                      <p className="text-xs text-gray-400">Ngày đi sớm</p>
+                      <p className="text-sm font-bold text-yellow-600">{entry.early_days}</p>
                     </div>
                     <div className="hidden sm:block">
-                      <p className="text-[10px] text-gray-400 uppercase tracking-wide">TB sớm</p>
-                      <p className="text-sm font-bold text-gray-700">{entry.avg_early_minutes}p</p>
+                      <p className="text-xs text-gray-400">TB sớm</p>
+                      <p className="text-sm font-bold text-gray-700">{entry.avg_early_minutes} phút</p>
                     </div>
                   </div>
                 </div>
@@ -699,88 +581,161 @@ const Home: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-gray-900">Thao tác nhanh</h2>
-          <button onClick={() => navigate('/dashboard')} className="text-xs font-semibold text-primary-600 hover:text-primary-800 flex items-center gap-1">
-            Dashboard <ArrowRightIcon className="h-3.5 w-3.5" />
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Thao tác nhanh</h2>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="text-primary-600 hover:text-primary-800 text-sm font-medium flex items-center"
+          >
+            Xem Dashboard <ArrowRightIcon className="h-4 w-4 ml-1" />
           </button>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action, index) => (
             <button
               key={index}
               onClick={() => navigate(action.path)}
-              className="flex flex-col items-center gap-3 p-4 border border-gray-100 rounded-2xl hover:border-primary-200 hover:bg-primary-50 transition-all duration-200 group"
+              className="flex flex-col items-center p-6 border-2 border-gray-200 rounded-xl hover:border-primary-500 hover:bg-primary-50 transition-colors"
             >
-              <div className={`h-11 w-11 ${action.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
-                <action.icon className="h-5 w-5" />
+              <div className={`h-12 w-12 ${action.color} rounded-lg flex items-center justify-center mb-4`}>
+                <action.icon className="h-6 w-6" />
               </div>
-              <div className="text-center">
-                <p className="text-sm font-semibold text-gray-800">{action.title}</p>
-                <p className="text-xs text-gray-400 mt-0.5 leading-snug">{action.description}</p>
-              </div>
+              <h3 className="font-medium text-gray-900 text-center">{action.title}</h3>
+              <p className="text-sm text-gray-500 text-center mt-2">{action.description}</p>
             </button>
           ))}
         </div>
       </div>
 
       {/* Company Information Section */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="h-9 w-9 bg-primary-100 rounded-xl flex items-center justify-center">
-            <BuildingOfficeIcon className="h-5 w-5 text-primary-600" />
-          </div>
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Thông tin công ty</h2>
-            <p className="text-xs text-gray-400">Tài liệu, nội quy và quy trình nội bộ</p>
+            <h2 className="text-xl font-bold text-gray-900">Thông tin công ty</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Tài liệu đào tạo, thông báo, quyết định, nội quy lao động và các thông tin nội bộ
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <BuildingOfficeIcon className="h-8 w-8 text-gray-400" />
+            <span className="text-sm font-medium text-gray-700">Nội bộ công ty</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { label: 'Tài liệu đào tạo', desc: 'Hướng dẫn nhân viên mới', path: '/company/training', color: 'bg-primary-100 text-primary-600',
-              icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /> },
-            { label: 'Nội quy lao động', desc: 'Quy định làm việc', path: '/company/labor-rules', color: 'bg-emerald-100 text-emerald-600',
-              icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /> },
-            { label: 'Mẫu giấy tờ', desc: 'Biểu mẫu nội bộ', path: '/company/internal-forms', color: 'bg-amber-100 text-amber-600',
-              icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /> },
-            { label: 'Quy trình làm việc', desc: 'Quy trình các bộ phận', path: '/company/work-procedures', color: 'bg-violet-100 text-violet-600',
-              icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /> },
-          ].map((item) => (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className="flex flex-col items-center gap-3 p-4 border border-gray-100 rounded-2xl hover:border-primary-200 hover:bg-primary-50 transition-all duration-200 group"
-            >
-              <div className={`h-11 w-11 ${item.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">{item.icon}</svg>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-semibold text-gray-800">{item.label}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
-              </div>
-            </button>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Training Documents Button */}
+          <button
+            onClick={() => navigate('/company/training')}
+            className="flex flex-col items-center justify-center p-6 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors"
+          >
+            <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <h3 className="font-medium text-gray-900 text-center">Tài liệu đào tạo hội nhập</h3>
+            <p className="text-sm text-gray-500 text-center mt-2">Tài liệu hướng dẫn và đào tạo nhân viên mới</p>
+          </button>
+
+          {/* Labor Rules Button */}
+          <button
+            onClick={() => navigate('/company/labor-rules')}
+            className="flex flex-col items-center justify-center p-6 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors"
+          >
+            <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <h3 className="font-medium text-gray-900 text-center">Nội quy lao động</h3>
+            <p className="text-sm text-gray-500 text-center mt-2">Quy định và nội quy làm việc trong công ty</p>
+          </button>
+
+          {/* Internal Forms Button */}
+          <button
+            onClick={() => navigate('/company/internal-forms')}
+            className="flex flex-col items-center justify-center p-6 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors"
+          >
+            <div className="h-12 w-12 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="font-medium text-gray-900 text-center">Mẫu giấy tờ nội bộ</h3>
+            <p className="text-sm text-gray-500 text-center mt-2">Các mẫu đơn, biểu mẫu sử dụng nội bộ</p>
+          </button>
+
+          {/* Work Procedures Button */}
+          <button
+            onClick={() => navigate('/company/work-procedures')}
+            className="flex flex-col items-center justify-center p-6 border-2 border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors"
+          >
+            <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <h3 className="font-medium text-gray-900 text-center">Quy trình làm việc</h3>
+            <p className="text-sm text-gray-500 text-center mt-2">Quy trình làm việc của các bộ phận</p>
+          </button>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Liên kết nhanh</p>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: 'Chính sách công ty', path: '/company/policies' },
-              { label: 'Quyết định ban hành', path: '/company/decisions' },
-              { label: 'Sơ đồ tổ chức', path: '/dashboard/organization-chart' },
-            ].map((link) => (
-              <button
-                key={link.path}
-                onClick={() => navigate(link.path)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-primary-50 hover:text-primary-700 border border-gray-100 hover:border-primary-200 rounded-lg transition-all"
-              >
-                {link.label}
-                <ArrowRightIcon className="h-3 w-3" />
-              </button>
-            ))}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Company Announcements */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-900 mb-4">Thông báo mới nhất</h3>
+              <div className="space-y-3">
+                <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
+                  <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Thông báo về chính sách mới</p>
+                    <p className="text-xs text-gray-500 mt-1">Đăng ngày: 05/01/2026</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3 p-3 bg-yellow-50 rounded-lg">
+                  <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="h-4 w-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Lịch đào tạo tháng 1</p>
+                    <p className="text-xs text-gray-500 mt-1">Đăng ngày: 03/01/2026</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-900 mb-4">Liên kết nhanh</h3>
+              <div className="space-y-2">
+                <button onClick={() => navigate('/company/policies')} className="flex items-center justify-between w-full p-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg">
+                  <span>Chính sách công ty</span>
+                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                <button onClick={() => navigate('/company/decisions')} className="flex items-center justify-between w-full p-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg">
+                  <span>Quyết định ban hành</span>
+                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                <button onClick={() => navigate('/dashboard/organization-chart')} className="flex items-center justify-between w-full p-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg">
+                  <span>Sơ đồ tổ chức</span>
+                  <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -800,8 +755,8 @@ const Home: React.FC = () => {
       </a>
 
       {/* Birthday Wish Modal */}
-      {wishModal.open && wishModal.employee && createPortal(
-        <div className="fixed inset-0 z-[9997] flex items-center justify-center p-4 bg-black/50">
+      {wishModal.open && wishModal.employee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div className="flex items-center gap-3">
@@ -851,13 +806,12 @@ const Home: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>,
-        document.body
+        </div>
       )}
 
       {/* Wishes List Modal */}
-      {wishListModal.open && wishListModal.employee && createPortal(
-        <div className="fixed inset-0 z-[9997] flex items-center justify-center p-4 bg-black/50">
+      {wishListModal.open && wishListModal.employee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div className="flex items-center gap-3">
@@ -886,20 +840,9 @@ const Home: React.FC = () => {
                   {wishListModal.wishes.map((wish) => (
                     <li key={wish.id} className="p-3 bg-pink-50 rounded-xl text-sm text-gray-700">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2 flex-1 min-w-0">
-                          <div className="h-8 w-8 rounded-full flex-shrink-0 overflow-hidden bg-pink-200">
-                            {wish.sender.avatar_url ? (
-                              <img src={wish.sender.avatar_url} alt={wish.sender.full_name} className="h-full w-full object-cover" />
-                            ) : (
-                              <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: stringToColor(wish.sender.full_name) }}>
-                                <span className="text-white text-xs font-bold">{getInitials(wish.sender.full_name)}</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-pink-700 mb-1">{wish.sender.full_name}</p>
-                            <p className="whitespace-pre-wrap">{wish.message}</p>
-                          </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-pink-700 mb-1">{wish.sender.full_name}</p>
+                          <p className="whitespace-pre-wrap">{wish.message}</p>
                         </div>
                         {wish.is_liked && (
                           <div
@@ -927,205 +870,7 @@ const Home: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Blocking gate: bắt buộc đọc nội quy trước khi dùng hệ thống */}
-      {showDocGate && createPortal((() => {
-        const regulationDocs = (onboarding?.documents || []).filter(
-          (d: any) => d.document_type === 'REGULATION' && d.is_required
-        );
-        const readCount = regulationDocs.filter((d: any) => d.is_read).length;
-        const totalRequired = regulationDocs.length;
-        return (
-          <div
-            className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-            onKeyDown={(e) => { if (e.key === 'Escape') e.preventDefault(); }}
-          >
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                  <ExclamationTriangleIcon className="w-6 h-6 text-amber-600" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Đọc nội quy trước khi tiếp tục</h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Bạn cần đọc và xác nhận các tài liệu bắt buộc dưới đây trước khi sử dụng hệ thống.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-gray-100 rounded-full h-2">
-                  <div
-                    className="h-2 rounded-full bg-green-500 transition-all duration-500"
-                    style={{ width: totalRequired > 0 ? `${(readCount / totalRequired) * 100}%` : '0%' }}
-                  />
-                </div>
-                <span className="text-sm text-gray-600 shrink-0">
-                  <span className="font-semibold text-green-600">{readCount}</span> / {totalRequired} tài liệu
-                </span>
-              </div>
-
-              <div className="space-y-2 max-h-72 overflow-y-auto">
-                {regulationDocs.map((doc: any) => (
-                  <div key={doc.id} className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${doc.is_read ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
-                    <div className="flex items-center gap-3 min-w-0">
-                      {doc.is_read
-                        ? <CheckCircleIcon className="w-5 h-5 text-green-500 shrink-0" />
-                        : <DocumentTextIcon className="w-5 h-5 text-amber-500 shrink-0" />}
-                      <span className={`text-sm truncate ${doc.is_read ? 'line-through text-gray-400' : 'text-gray-800 font-medium'}`}>
-                        {doc.document_name}
-                      </span>
-                    </div>
-                    {!doc.is_read && (
-                      <button
-                        onClick={() => { setViewingDoc(doc); setDocReadable(false); }}
-                        className="ml-3 shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                      >
-                        <EyeIcon className="w-3.5 h-3.5" />
-                        Xem
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      })(), document.body)}
-
-      {/* Non-dismissable dialog: employee has fetched contracts but none are active */}
-      {/* TEMPORARILY DISABLED
-      {noActiveContractDialog && createPortal(
-        <div className="fixed inset-0 z-[9997] flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-5 flex items-center gap-3">
-              <ExclamationTriangleIcon className="h-8 w-8 text-white flex-shrink-0" />
-              <div>
-                <h3 className="text-lg font-bold text-white">Hợp đồng đã hết hạn</h3>
-                <p className="text-red-100 text-sm mt-0.5">Cần ký hợp đồng mới để tiếp tục sử dụng dịch vụ</p>
-              </div>
-            </div>
-            <div className="px-6 py-5 space-y-4">
-              <p className="text-sm text-gray-700 leading-relaxed">
-                Hợp đồng lao động của bạn hiện <strong>không còn hiệu lực</strong>.
-                Vui lòng liên hệ phòng HCNS để được ký hợp đồng mới hoặc gia hạn.
-              </p>
-              <p className="text-xs text-gray-400">
-                Thông báo sẽ tự đóng sau khi hợp đồng được cập nhật.
-              </p>
-              {contractCheckFailed && (
-                <p className="text-xs text-center text-red-500">
-                  Vẫn chưa có hợp đồng hiệu lực. Hãy liên hệ HCNS và thử lại sau.
-                </p>
-              )}
-            </div>
-            <div className="px-6 pb-5">
-              <button
-                onClick={() => fetchMyContracts(true)}
-                disabled={contractCheckLoading}
-                className="w-full flex items-center justify-center gap-2 py-2.5 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {contractCheckLoading ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin text-gray-500" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                    </svg>
-                    Đang kiểm tra...
-                  </>
-                ) : (
-                  <>
-                    Tôi đã liên hệ HCNS — Kiểm tra lại
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-      */}
-
-      {/* Contract expiry alert dialog */}
-      {showContractAlert && expiringContracts.length > 0 && createPortal(
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/60">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-t-2xl px-6 py-5 flex items-start gap-4">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                <BellAlertIcon className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-white">Cảnh báo hợp đồng sắp hết hạn</h3>
-                <p className="text-sm text-white/80 mt-0.5">
-                  {expiringContracts.filter(c => c.days <= 0).length > 0
-                    ? `${expiringContracts.filter(c => c.days <= 0).length} hợp đồng đã hết hạn · ${expiringContracts.filter(c => c.days > 0).length} sắp hết hạn`
-                    : `${expiringContracts.length} hợp đồng sắp hết hạn trong 5 ngày tới`
-                  }
-                </p>
-              </div>
-              <button
-                onClick={dismissContractAlert}
-                className="p-1.5 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
-              >
-                <XMarkIcon className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Contract list */}
-            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-2">
-              {expiringContracts.map((c) => (
-                <div
-                  key={c.id}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${c.days <= 0
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-orange-50 border-orange-200'
-                    }`}
-                >
-                  <ExclamationTriangleIcon className={`w-5 h-5 flex-shrink-0 ${c.days <= 0 ? 'text-red-500' : 'text-orange-500'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{c.employee_name}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {c.contract_type_display}
-                      {c.contract_number ? ` · ${c.contract_number}` : ''}
-                      {c.end_date ? ` · HH: ${new Date(c.end_date).toLocaleDateString('vi-VN')}` : ''}
-                    </p>
-                  </div>
-                  <span className={`text-xs font-bold whitespace-nowrap px-2.5 py-1 rounded-full ${c.days <= 0
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-orange-100 text-orange-700'
-                    }`}>
-                    {c.days <= 0 ? 'Đã hết hạn' : `Còn ${c.days} ngày`}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Footer actions */}
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3">
-              <button
-                onClick={dismissContractAlert}
-                className="text-sm text-gray-500 hover:text-gray-700 underline"
-              >
-                Không nhắc lại hôm nay
-              </button>
-              <button
-                onClick={() => {
-                  dismissContractAlert();
-                  navigate('/dashboard/bulk-contracts');
-                }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors"
-              >
-                Xử lý ngay
-                <ArrowRightIcon className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
+        </div>
       )}
 
       {/* Modal xem tài liệu onboarding — dùng Portal để thoát Layout stacking context */}
@@ -1164,7 +909,7 @@ const Home: React.FC = () => {
               <p className="text-xs text-gray-500">
                 {viewingDoc.is_read ? '✓ Bạn đã đọc tài liệu này'
                   : docReadable ? '✓ Có thể xác nhận đã đọc'
-                    : '⏳ Vui lòng đọc hết tài liệu (tối thiểu 10 giây)...'}
+                  : '⏳ Vui lòng đọc hết tài liệu (tối thiểu 10 giây)...'}
               </p>
               {!viewingDoc.is_read && (
                 <button

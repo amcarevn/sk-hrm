@@ -194,7 +194,6 @@ export const employeesAPI = {
     employee_id: number;
     full_name: string;
     date_of_birth: string;
-    avatar_url?: string | null;
     department: {
       id: number;
       name: string;
@@ -225,19 +224,6 @@ export const employeesAPI = {
       await managementApi.post('/api-hrm/change-avatar/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-    return response.data;
-  },
-
-  importFile: async (file: File): Promise<{
-    success: boolean;
-    summary: { total: number; created: number; updated: number; failed: number };
-    errors: Array<{ row: number; employee_id?: string; warnings?: string[]; errors?: string[] }>;
-  }> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await managementApi.post('/api-hrm/employees/import/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
     return response.data;
   },
 };

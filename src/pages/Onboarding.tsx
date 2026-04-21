@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { positionsAPI, employeesAPI, companyUnitsAPI } from '../utils/api';
+import { positionsAPI, employeesAPI } from '../utils/api';
 import {
   ArrowPathIcon,
   LinkIcon,
@@ -17,7 +17,6 @@ import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import { useDebounce } from '../hooks/useDebounce';
-import FeedbackDialog, { FeedbackVariant } from '../components/FeedbackDialog';
 
 // ============================================
 // TYPES
@@ -52,7 +51,6 @@ type CreateOnboardingForm = {
   gender: 'M' | 'F' | 'O';
   candidate_email: string;
   direct_manager_id: string;
-  company_unit: string;
 };
 
 type EmployeeOption = {
@@ -73,9 +71,9 @@ const getProgressPercentage = (value?: number | string | null): number => {
 const getStatusBadge = (status?: string | null) => {
   const map: Record<string, { label: string; color: string }> = {
     DRAFT: { label: 'Nháp', color: 'bg-gray-100 text-gray-700' },
-    PENDING: { label: 'Chờ xử lý', color: 'bg-amber-100 text-amber-600' },
-    IN_PROGRESS: { label: 'Đang thực hiện', color: 'bg-primary-100 text-primary-600' },
-    COMPLETED: { label: 'Hoàn thành', color: 'bg-emerald-100 text-emerald-600' },
+    PENDING: { label: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-700' },
+    IN_PROGRESS: { label: 'Đang thực hiện', color: 'bg-blue-100 text-blue-700' },
+    COMPLETED: { label: 'Hoàn thành', color: 'bg-green-100 text-green-700' },
     CANCELLED: { label: 'Đã hủy', color: 'bg-red-100 text-red-700' },
   };
   if (!status) return null;
@@ -101,23 +99,12 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
   const [submitting, setSubmitting] = useState(false);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
-  const [companyUnits, setCompanyUnits] = useState<Array<{ id: number; name: string; prefix_code?: string; code: string }>>([]);
-  const [loadingUnits, setLoadingUnits] = useState(true);
-  const [feedback, setFeedback] = useState<{ open: boolean; variant: FeedbackVariant; title: string; message?: string; onCloseCb?: () => void }>({ open: false, variant: 'info', title: '' });
-  const showFeedback = (variant: FeedbackVariant, title: string, message?: string, onCloseCb?: () => void) =>
-    setFeedback({ open: true, variant, title, message, onCloseCb });
-  const closeFeedback = () => {
-    const cb = feedback.onCloseCb;
-    setFeedback(f => ({ ...f, open: false, onCloseCb: undefined }));
-    cb?.();
-  };
 
   const [form, setForm] = useState<CreateOnboardingForm>({
     candidate_name: '',
     gender: 'M',
     candidate_email: '',
     direct_manager_id: '',
-    company_unit: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof CreateOnboardingForm, string>>>({});
 
@@ -153,20 +140,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
         setLoadingEmployees(false);
       }
     };
-    const fetchUnits = async () => {
-      setLoadingUnits(true);
-      try {
-        const res = await companyUnitsAPI.list({ page_size: 100, active_only: true });
-        setCompanyUnits(res.results ?? []);
-      } catch (err) {
-        console.error('Failed to load company units:', err);
-      } finally {
-        setLoadingUnits(false);
-      }
-    };
-
     fetchManagers();
-    fetchUnits();
   }, []);
 
   const validate = (): boolean => {
@@ -177,7 +151,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
     if (!form.candidate_email.trim()) errs.candidate_email = 'Vui lòng nhập email';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.candidate_email))
       errs.candidate_email = 'Email không hợp lệ';
-    if (!form.company_unit) errs.company_unit = 'Vui lòng chọn đơn vị làm việc';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -196,11 +169,9 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
       if (form.direct_manager_id) {
         payload.direct_manager_id = parseInt(form.direct_manager_id);
       }
-      if (form.company_unit) {
-        payload.company_unit = parseInt(form.company_unit);
-      }
       await onboardingService.create(payload);
-      showFeedback('success', 'Tạo quy trình thành công', undefined, onSuccess);
+      alert(`✅ Tạo quy trình thành công!\n`);
+      onSuccess();
     } catch (e: any) {
       console.error(e);
       const errData = e.response?.data || {};
@@ -214,7 +185,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
       } else if (errData.detail) {
         msg = errData.detail;
       }
-      showFeedback('error', 'Tạo quy trình thất bại', msg);
+      alert(msg);
     } finally {
       setSubmitting(false);
     }
@@ -227,7 +198,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
     input: React.ReactNode
   ) => (
     <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {input}
@@ -237,12 +208,12 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-100 rounded-xl flex items-center justify-center">
-              <UserPlusIcon className="w-4 h-4 text-primary-600" />
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <UserPlusIcon className="w-4 h-4 text-blue-600" />
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-900">Tạo quy trình onboarding</h2>
@@ -256,7 +227,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4">
-          <div className="bg-primary-50 border border-primary-200 rounded-xl p-3 text-xs text-primary-700">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
             <p className="font-medium mb-1">📋 Quy trình 2 bước:</p>
             <ol className="list-decimal list-inside space-y-0.5">
               <li>HR điền thông tin cơ bản bên dưới → Tạo quy trình</li>
@@ -268,7 +239,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
             <input
               type="text"
               maxLength={50}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.candidate_name ? 'border-red-400' : 'border-gray-200'}`}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.candidate_name ? 'border-red-400' : 'border-gray-300'}`}
               placeholder="Nguyễn Văn A"
               value={form.candidate_name}
               onChange={(e) => {
@@ -298,7 +269,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
             <input
               type="email"
               maxLength={100}
-              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.candidate_email ? 'border-red-400' : 'border-gray-200'}`}
+              className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.candidate_email ? 'border-red-400' : 'border-gray-300'}`}
               placeholder="example@email.com"
               value={form.candidate_email}
               onChange={(e) => {
@@ -307,20 +278,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
                 if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) setErrors(prev => ({ ...prev, candidate_email: 'Email không hợp lệ' }));
                 else setErrors(prev => { const { candidate_email, ...rest } = prev; return rest; });
               }}
-            />
-          )}
-
-          {field('company_unit', 'Đơn vị làm việc', true,
-            <SelectBox
-              label=""
-              value={form.company_unit}
-              options={companyUnits.map((u) => ({
-                value: String(u.id),
-                label: `${u.name} (${u.prefix_code || u.code || 'N/A'})`
-              }))}
-              onChange={(v) => setForm({ ...form, company_unit: v })}
-              searchable
-              placeholder={loadingUnits ? 'Đang tải...' : 'Chọn đơn vị làm việc'}
             />
           )}
 
@@ -337,24 +294,23 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
+        <div className="flex justify-between items-center px-6 py-4 border-t bg-gray-50 rounded-b-lg">
           <button
             onClick={onClose}
             disabled={submitting}
-            className="btn-secondary"
+            className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
           >
             Hủy
           </button>
           {(() => {
             const nameValid = form.candidate_name.trim().length > 0 && /^[a-zA-ZÀ-ỹ\s]+$/.test(form.candidate_name.trim()) && form.candidate_name.trim().length <= 50;
             const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.candidate_email.trim());
-            const unitValid = !!form.company_unit;
-            const isFormValid = nameValid && emailValid && unitValid && Object.keys(errors).length === 0;
+            const isFormValid = nameValid && emailValid && Object.keys(errors).length === 0;
             return (
               <button
                 onClick={handleSubmit}
                 disabled={submitting || !isFormValid}
-                className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
               >
                 {submitting && <ArrowPathIcon className="w-4 h-4 animate-spin" />}
                 {submitting ? 'Đang tạo...' : 'Tạo quy trình'}
@@ -363,13 +319,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
           })()}
         </div>
       </div>
-      <FeedbackDialog
-        open={feedback.open}
-        variant={feedback.variant}
-        title={feedback.title}
-        message={feedback.message}
-        onClose={closeFeedback}
-      />
     </div>
   );
 };
@@ -390,12 +339,8 @@ const Onboarding: React.FC = () => {
   const [onboardings, setOnboardings] = useState<OnboardingItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [syncLoading, setSyncLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [feedback, setFeedback] = useState<{ open: boolean; variant: FeedbackVariant; title: string; message?: string }>({ open: false, variant: 'info', title: '' });
-  const showFeedback = (variant: FeedbackVariant, title: string, message?: string) =>
-    setFeedback({ open: true, variant, title, message });
 
   // Filters
   const [filterStatus, setFilterStatus] = useState<string>('');
@@ -435,7 +380,7 @@ const Onboarding: React.FC = () => {
       );
     } catch (e) {
       console.error(e);
-      showFeedback('error', 'Không thể tải danh sách', 'Vui lòng thử lại.');
+      alert('Không thể tải danh sách. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -449,66 +394,40 @@ const Onboarding: React.FC = () => {
     if (!confirm('Bạn chắc chắn muốn xoá quy trình này?')) return;
     try {
       await onboardingService.delete(id);
-      showFeedback('success', 'Xoá thành công');
+      alert('Xoá thành công');
       await fetchOnboardings();
     } catch (e) {
       console.error(e);
-      showFeedback('error', 'Xoá thất bại', 'Vui lòng thử lại.');
+      alert('Xoá thất bại. Vui lòng thử lại.');
     }
   };
 
   const handleGenerateToken = async (item: OnboardingItem) => {
     setTokenLoading(item.id);
     try {
-      const tokenResult = await onboardingService.generateToken(item.id);
-      const { employee_form_url } = tokenResult.data;
-      setOnboardings(prev =>
-        prev.map(o =>
-          o.id === item.id
-            ? { ...o, token_status: 'active', employee_form_url }
-            : o
-        )
-      );
-      showFeedback('success', 'Tạo link thành công', 'Bạn có thể copy hoặc gửi email cho nhân viên.');
-    } catch (e: any) {
+      await onboardingService.generateToken(item.id);
+      alert('Đã tạo link thành công! Bạn có thể copy hoặc gửi email cho nhân viên.');
+      await fetchOnboardings();
+    } catch (e) {
       console.error(e);
-      const msg = e.response?.data?.message || 'Tạo link thất bại. Vui lòng thử lại.';
-      showFeedback('error', 'Tạo link thất bại', msg);
+      alert('Tạo link thất bại. Vui lòng thử lại.');
     } finally {
       setTokenLoading(null);
     }
   };
 
-  const handleSyncLegacyTasks = async () => {
-    if (!confirm('Bạn có chắc muốn quét & tự động tạo 4 bước Task mặc định cho toàn bộ hồ sơ cũ? Thao tác này sẽ đồng bộ hóa kiến trúc dữ liệu lịch sử ngay lập tức.')) {
-      return;
-    }
-    setSyncLoading(true);
-    try {
-      const res = await onboardingService.syncLegacyTasks();
-      showFeedback('success', 'Đồng bộ thành công', res.message);
-      await fetchOnboardings();
-    } catch (e: any) {
-      console.error(e);
-      const msg = e.response?.data?.message || 'Có lỗi xảy ra khi đồng bộ dữ liệu.';
-      showFeedback('error', 'Lỗi đồng bộ', msg);
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
   const handleSendEmail = async (item: OnboardingItem) => {
     if (!item.candidate_email) {
-      showFeedback('warning', 'Chưa có email', 'Ứng viên chưa có email. Vui lòng cập nhật thông tin trước.');
+      alert('Ứng viên chưa có email. Vui lòng cập nhật thông tin trước.');
       return;
     }
     setTokenLoading(item.id);
     try {
       await onboardingService.sendEmployeeEmail(item.id);
-      showFeedback('success', 'Gửi email thành công', `Đã gửi email đến ${item.candidate_email}`);
+      alert(`Đã gửi email đến ${item.candidate_email}`);
     } catch (e) {
       console.error(e);
-      showFeedback('error', 'Gửi email thất bại', 'Kiểm tra cấu hình email hoặc thử lại.');
+      alert('Gửi email thất bại. Kiểm tra cấu hình email hoặc thử lại.');
     } finally {
       setTokenLoading(null);
     }
@@ -516,17 +435,17 @@ const Onboarding: React.FC = () => {
 
   const handleResendWelcomeEmail = async (item: OnboardingItem) => {
     if (!item.candidate_email) {
-      showFeedback('warning', 'Chưa có email', 'Ứng viên chưa có email. Vui lòng cập nhật thông tin trước.');
+      alert('Ứng viên chưa có email. Vui lòng cập nhật thông tin trước.');
       return;
     }
     if (!confirm(`Gửi lại email chào mừng đến ${item.candidate_email}?`)) return;
     setTokenLoading(item.id);
     try {
       await onboardingService.resendWelcomeEmail(item.id);
-      showFeedback('success', 'Gửi email thành công', `Đã gửi lại email chào mừng đến ${item.candidate_email}`);
+      alert(`✅ Đã gửi lại email chào mừng đến ${item.candidate_email}`);
     } catch (e: any) {
       console.error(e);
-      showFeedback('error', 'Gửi email thất bại', e.message || 'Vui lòng kiểm tra log hoặc thử lại.');
+      alert(e.message || 'Gửi email thất bại. Vui lòng kiểm tra log hoặc thử lại.');
     } finally {
       setTokenLoading(null);
     }
@@ -534,10 +453,10 @@ const Onboarding: React.FC = () => {
 
   const handleCopyLink = async (item: OnboardingItem) => {
     const url = item.employee_form_url;
-    if (!url) { showFeedback('warning', 'Chưa có link', 'Hãy tạo link trước.'); return; }
+    if (!url) { alert('Chưa có link. Hãy tạo link trước.'); return; }
     try {
       await navigator.clipboard.writeText(url);
-      showFeedback('success', 'Đã copy link vào clipboard!');
+      alert('Đã copy link vào clipboard!');
     } catch {
       prompt('Copy link này và gửi cho nhân viên:', url);
     }
@@ -549,7 +468,7 @@ const Onboarding: React.FC = () => {
       <button
         onClick={() => handleResendWelcomeEmail(item)}
         disabled={isLoading}
-        className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg bg-violet-50 text-violet-600 border border-violet-200 hover:bg-violet-100 disabled:opacity-50"
+        className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 disabled:opacity-50"
         title="Gửi lại email chào mừng với thông tin đăng nhập"
       >
         {isLoading ? (
@@ -561,11 +480,11 @@ const Onboarding: React.FC = () => {
       </button>
     ) : null;
 
-    // 1. Đã điền thông tin (task hoàn thành hoặc token đã được dùng)
-    if (item.task1_status === 'COMPLETED' || item.token_status === 'completed') {
+    // 1. Đã điền thông tin
+    if (item.task1_status === 'COMPLETED') {
       return (
         <div className="flex flex-col gap-1.5">
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-600">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
             <CheckCircleIcon className="w-3 h-3" /> Đã điền thông tin
           </span>
           {resendEmailButton}
@@ -577,31 +496,20 @@ const Onboarding: React.FC = () => {
     if (item.token_status === 'active') {
       return (
         <div className="flex flex-col gap-1.5">
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-600">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
             <ClockIcon className="w-3 h-3" /> Chờ nhân viên điền
           </span>
           {resendEmailButton}
           <button
             onClick={() => handleCopyLink(item)}
             disabled={isLoading}
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 disabled:opacity-50"
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 disabled:opacity-50"
           >
             <ClipboardDocumentIcon className="w-3 h-3" /> Copy link
           </button>
         </div>
       );
     }
-
-    const generateButton = (
-      <button
-        onClick={() => handleGenerateToken(item)}
-        disabled={isLoading}
-        className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-lg bg-primary-50 text-primary-600 border border-primary-200 hover:bg-primary-100 disabled:opacity-50"
-      >
-        {isLoading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
-        {item.token_status === 'expired' ? 'Tạo lại link' : 'Tạo link'}
-      </button>
-    );
 
     // 3. Link hết hạn
     if (item.token_status === 'expired') {
@@ -610,7 +518,14 @@ const Onboarding: React.FC = () => {
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
             <ExclamationCircleIcon className="w-3 h-3" /> Link hết hạn
           </span>
-          {generateButton}
+          <button
+            onClick={() => handleGenerateToken(item)}
+            disabled={isLoading}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
+          >
+            {isLoading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
+            Tạo lại link
+          </button>
         </div>
       );
     }
@@ -621,7 +536,14 @@ const Onboarding: React.FC = () => {
         <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
           Chưa gửi link
         </span>
-        {generateButton}
+        <button
+          onClick={() => handleGenerateToken(item)}
+          disabled={isLoading}
+          className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
+        >
+          {isLoading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
+          Tạo link
+        </button>
       </div>
     );
   };
@@ -630,53 +552,51 @@ const Onboarding: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center">
-          <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Onboard nhân sự</h1>
-            <p className="text-sm text-gray-900 mt-0.5">Quản lý quy trình tuyển dụng và onboarding nhân viên mới.</p>
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Onboard nhân sự</h1>
+        <p className="text-gray-600 mt-2">
+          Quản lý quy trình tuyển dụng và onboarding nhân viên mới.
+        </p>
       </div>
 
       {/* Legend */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="flex items-start gap-3 bg-primary-50 border border-primary-100 rounded-2xl p-4">
-          <div className="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center shrink-0">
+        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shrink-0">
             <span className="text-white text-sm font-bold">HR</span>
           </div>
           <div>
-            <p className="font-semibold text-gray-900 text-sm">Luồng HR</p>
-            <p className="text-gray-500 text-xs mt-0.5">
+            <p className="font-semibold text-blue-900 text-sm">Luồng HR</p>
+            <p className="text-blue-700 text-xs mt-0.5">
               Điền thông tin cơ bản → Tạo quy trình → Tạo link → Gửi email cho nhân viên
             </p>
           </div>
         </div>
-        <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
-          <div className="w-8 h-8 bg-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+        <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center shrink-0">
             <span className="text-white text-sm font-bold">NV</span>
           </div>
           <div>
-            <p className="font-semibold text-gray-900 text-sm">Luồng Nhân viên mới</p>
-            <p className="text-gray-500 text-xs mt-0.5">
+            <p className="font-semibold text-green-900 text-sm">Luồng Nhân viên mới</p>
+            <p className="text-green-700 text-xs mt-0.5">
               Nhận link → Không cần đăng nhập → Tự điền đầy đủ thông tin cá nhân
             </p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-lg shadow p-6">
         {/* Table header */}
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h2 className="text-sm font-bold text-gray-900">Quy trình onboarding</h2>
-            <p className="text-xs text-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900">Quy trình onboarding</h2>
+            <p className="text-gray-500 text-sm">
               Tổng: {totalCount} ứng viên đang trong quá trình onboarding
             </p>
           </div>
           {isHR && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="btn-primary flex items-center gap-2"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
             >
               <UserPlusIcon className="w-4 h-4" />
               Tạo quy trình mới
@@ -731,7 +651,7 @@ const Onboarding: React.FC = () => {
                 value={filterSearch}
                 onChange={(e) => { setFilterSearch(e.target.value); }}
                 placeholder="Tìm tên hoặc mã NV..."
-                className="input-field pl-8 w-52"
+                className="border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
               />
               <svg className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -742,28 +662,16 @@ const Onboarding: React.FC = () => {
           {(filterStatus !== '' || filterMonth > 0 || filterSearch !== '') && (
             <button
               onClick={() => { setFilterStatus(''); setFilterMonth(0); setFilterSearch(''); setCurrentPage(1); }}
-              className="btn-secondary"
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600"
             >
               Xóa bộ lọc
-            </button>
-          )}
-
-          {isHR && (
-            <button
-              onClick={handleSyncLegacyTasks}
-              disabled={syncLoading}
-              className="ml-auto px-3 py-2 text-sm bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 rounded-xl flex items-center gap-1.5 disabled:opacity-50 font-medium transition-all active:scale-95"
-              title="Tự động bổ sung 4 task mặc định cho người cũ và khóa Task 1 nếu đã duyệt."
-            >
-              <ArrowPathIcon className={`w-4 h-4 ${syncLoading ? 'animate-spin' : ''}`} />
-              {syncLoading ? 'Đang xử lý...' : 'Đồng bộ người cũ'}
             </button>
           )}
 
           <button
             onClick={() => fetchOnboardings()}
             disabled={loading}
-            className={`${isHR ? 'ml-0' : 'ml-auto'} btn-secondary flex items-center gap-1.5 disabled:opacity-50`}
+            className="ml-auto px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600 flex items-center gap-1.5 disabled:opacity-50"
           >
             <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Làm mới
@@ -771,13 +679,13 @@ const Onboarding: React.FC = () => {
         </div>
 
         {/* Table */}
-        <div className="border border-gray-100 rounded-2xl overflow-x-auto w-full">
+        <div className="border rounded-lg overflow-x-auto w-full">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 {/* ✅ Đổi "Mã onboarding" → "Mã NV" */}
                 {['Mã NV', 'Ứng viên', 'Vị trí', 'Phòng ban', 'Ngày bắt đầu', 'Trạng thái', 'Tiến độ', 'Link nhân viên', 'Thao tác'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -786,12 +694,7 @@ const Onboarding: React.FC = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center">
-                    <div className="flex flex-col items-center justify-center gap-3">
-                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600" />
-                      <p className="text-sm text-gray-500">Đang tải danh sách onboarding...</p>
-                    </div>
-                  </td>
+                  <td colSpan={9} className="px-4 py-10 text-center text-gray-500">Đang tải...</td>
                 </tr>
               ) : onboardings.length === 0 ? (
                 <tr>
@@ -813,7 +716,7 @@ const Onboarding: React.FC = () => {
                       <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">
                         <div className="font-medium">{item.full_name || item.candidate_name}</div>
                         {item.candidate_email && (
-                          <div className="text-xs text-gray-600">{item.candidate_email}</div>
+                          <div className="text-xs text-gray-400">{item.candidate_email}</div>
                         )}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">
@@ -832,7 +735,7 @@ const Onboarding: React.FC = () => {
                         <div className="flex items-center gap-2 min-w-[80px]">
                           <div className="flex-1 bg-gray-200 rounded-full h-2">
                             <div
-                              className="bg-primary-500 h-2 rounded-full transition-all"
+                              className="bg-blue-600 h-2 rounded-full transition-all"
                               style={{ width: `${progress}%` }}
                             />
                           </div>
@@ -846,7 +749,7 @@ const Onboarding: React.FC = () => {
                         <div className="flex gap-2">
                           <button
                             onClick={() => navigate(`/dashboard/onboarding/${item.id}`)}
-                            className="px-2.5 py-1 text-xs font-medium text-primary-600 bg-white border border-primary-200 rounded-lg hover:bg-primary-50"
+                            className="px-2.5 py-1 text-xs font-medium text-indigo-700 bg-white border border-indigo-300 rounded hover:bg-indigo-50"
                           >
                             Xem chi tiết
                           </button>
@@ -873,8 +776,8 @@ const Onboarding: React.FC = () => {
         </div>
 
         {/* Onboarding steps info */}
-        <div className="bg-gray-50 p-5 rounded-2xl">
-          <h3 className="text-sm font-bold text-gray-900 mb-4">Các bước onboarding tiêu chuẩn</h3>
+        <div className="bg-gray-50 p-6 rounded-lg">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Các bước onboarding tiêu chuẩn</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { num: 1, title: 'Đào tạo', desc: 'Đào tạo nội quy, hội nhập nhân sự' },
@@ -882,27 +785,19 @@ const Onboarding: React.FC = () => {
               { num: 3, title: 'Tiếp nhận hồ sơ', desc: 'Kiểm tra và xác nhận hồ sơ ứng viên' },
               { num: 4, title: 'Bàn giao công việc', desc: 'Bàn giao thiết bị và công việc chính thức' },
             ].map((step) => (
-              <div key={step.num} className="bg-white p-4 rounded-2xl border border-gray-100">
+              <div key={step.num} className="bg-white p-4 rounded-lg border">
                 <div className="flex items-center mb-2">
-                  <div className="w-8 h-8 bg-primary-100 rounded-xl flex items-center justify-center mr-3">
-                    <span className="text-primary-600 font-bold text-sm">{step.num}</span>
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                    <span className="text-blue-600 font-bold text-sm">{step.num}</span>
                   </div>
                   <h4 className="font-medium text-gray-900 text-sm">{step.title}</h4>
                 </div>
-                <p className="text-gray-400 text-xs">{step.desc}</p>
+                <p className="text-gray-600 text-xs">{step.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
-
-      <FeedbackDialog
-        open={feedback.open}
-        variant={feedback.variant}
-        title={feedback.title}
-        message={feedback.message}
-        onClose={() => setFeedback(f => ({ ...f, open: false }))}
-      />
 
       {/* Modal tạo quy trình mới */}
       {showCreateModal && (

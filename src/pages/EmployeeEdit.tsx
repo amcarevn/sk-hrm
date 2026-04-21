@@ -3,25 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   employeesAPI,
   departmentsAPI,
-  sectionsAPI,
   positionsAPI,
-  companyUnitsAPI,
+  EmployeeUpdateData,
 } from '../utils/api';
 import { SelectBox } from '@/components/LandingLayout/SelectBox';
 import { WORK_LOCATION_OPTIONS } from '../constants/onboarding';
 import onboardingService from '../services/onboarding.service';
-import { toDisplayDate, toApiDate } from '../utils/dateUtils';
-import {
-  UserIcon,
-  BriefcaseIcon,
-  IdentificationIcon,
-  BanknotesIcon,
-  DocumentTextIcon,
-  DocumentCheckIcon,
-  PhoneIcon,
-  PaperClipIcon,
-  ArrowLeftIcon,
-} from '@heroicons/react/24/outline';
 
 // ============================================
 // CONSTANTS
@@ -76,11 +63,17 @@ const CONTRACT_TYPE_OPTIONS = [
 ];
 
 const PROBATION_RATE_OPTIONS = [
-  { label: 'Tháng đầu 85%, tháng sau 85%', value: 'OPTION_1' },
-  { label: 'Tháng đầu 85%, tháng sau 100%', value: 'OPTION_2' },
-  { label: 'Tháng đầu 100%, tháng sau 100%', value: 'OPTION_3' },
+  { label: 'Tháng đầu 85%, tháng sau 100%', value: 'OPTION_1' },
+  { label: 'Tháng đầu 100%, tháng sau 100%', value: 'OPTION_2' },
 ];
 
+const PROBATION_SALARY_PERCENTAGE_OPTIONS = [
+  { label: 'Không thử việc', value: '0' },
+  { label: '85%', value: '85' },
+  { label: '90%', value: '90' },
+  { label: '95%', value: '95' },
+  { label: '100%', value: '100' },
+];
 
 const CCCD_ISSUE_PLACE_OPTIONS = [
   { label: 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội', value: 'POLICE_ADMIN' },
@@ -94,19 +87,6 @@ const FILE_STATUS_OPTIONS = [
   { label: 'Chờ rà soát', value: 'PENDING_REVIEW' },
 ];
 
-const RANK_OPTIONS = [
-  { label: 'Chủ tịch', value: 'CHAIRMAN' },
-  { label: 'Giám đốc', value: 'DIRECTOR' },
-  { label: 'Phó Giám đốc', value: 'DEPUTY_DIRECTOR' },
-  { label: 'Leader', value: 'LEADER' },
-  { label: 'Quản lý', value: 'SUPERVISOR' },
-  { label: 'Trưởng phòng', value: 'MANAGER' },
-  { label: 'Trưởng phòng tập sự', value: 'MANAGER_TRAINEE' },
-  { label: 'Phó phòng', value: 'DEPUTY_MANAGER' },
-  { label: 'Nhân viên', value: 'STAFF' },
-  { label: 'Thực tập sinh', value: 'INTERN' },
-];
-
 const EDUCATION_LEVEL_OPTIONS = [
   { label: 'Trung học phổ thông', value: 'HIGH_SCHOOL' },
   { label: 'Cao đẳng', value: 'ASSOCIATE' },
@@ -117,19 +97,14 @@ const EDUCATION_LEVEL_OPTIONS = [
 ];
 
 // ============================================
-// ============================================
 // HELPER COMPONENTS
 // ============================================
 
-const SectionTitle: React.FC<{ icon: React.ReactNode; iconBg?: string; title: string }> = ({
-  icon, iconBg = 'bg-primary-100 text-primary-600', title,
-}) => (
-  <div className="flex items-center gap-2 mb-4">
-    <div className={`h-9 w-9 ${iconBg} rounded-xl flex items-center justify-center flex-shrink-0`}>
-      {icon}
-    </div>
-    <h3 className="text-sm font-bold text-gray-900">{title}</h3>
-  </div>
+const SectionTitle: React.FC<{ icon: string; title: string }> = ({ icon, title }) => (
+  <h2 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+    <span>{icon}</span>
+    {title}
+  </h2>
 );
 
 interface FieldProps {
@@ -147,8 +122,8 @@ const Field: React.FC<FieldProps> = ({ label, required, children }) => (
   </div>
 );
 
-const inputClass = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all";
-const textareaClass = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none";
+const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+const textareaClass = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none";
 
 // ============================================
 // MAIN COMPONENT
@@ -167,10 +142,8 @@ const EmployeeEdit: React.FC = () => {
   const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
   const [citizenIdCurrentUrl, setCitizenIdCurrentUrl] = useState<string | null>(null);
   const [departments, setDepartments] = useState<any[]>([]);
-  const [sections, setSections] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
-  const [companyUnits, setCompanyUnits] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -198,15 +171,12 @@ const EmployeeEdit: React.FC = () => {
     section: '',
     doctor_team: '',
     work_form: '',
-    official_start_date: '',
+    work_type: '',
     work_location: '',
     region: '',
     block: '',
-    company_unit_id: undefined,
     is_hr: false,
     education_level: '',
-    termination_reason: '',
-    employment_status_notes: '',
 
     // Giấy tờ tùy thân
     cccd_number: '',
@@ -216,15 +186,12 @@ const EmployeeEdit: React.FC = () => {
     birth_place: '',
     social_insurance_number: '',
     tax_code: '',
-    household_code: '',
-    link_cccd: '',
     permanent_residence: '',
     current_address: '',
 
     // Ngân hàng
     bank_name: '',
     bank_account: '',
-    bank_account_holder: '',
     bank_branch: '',
 
     // Lương & Hợp đồng
@@ -234,13 +201,11 @@ const EmployeeEdit: React.FC = () => {
     probation_months: '',
     probation_end_date: '',
     probation_rate: '',
-    contract_start_date: '',
-    contract_end_date: '',
-    revenue_percentage: '',
-    profit_percentage: '',
+    probation_salary_percentage: '',
 
     // Hồ sơ
     file_status: '',
+    file_submission_deadline: '',
     file_review_notes: '',
 
     // Người liên hệ khẩn cấp
@@ -250,22 +215,14 @@ const EmployeeEdit: React.FC = () => {
     emergency_contact_dob: '',
     emergency_contact_occupation: '',
     emergency_contact_address: '',
-
-    // Checklist hồ sơ
-    doc_resume: false,
-    doc_cccd: false,
-    doc_degree: false,
-    doc_health: false,
   });
 
   useEffect(() => {
     if (id) {
       loadEmployee(parseInt(id));
       loadDepartments();
-      loadSections();
       loadPositions();
       loadEmployees();
-      loadCompanyUnits();
     }
   }, [id]);
 
@@ -287,7 +244,7 @@ const EmployeeEdit: React.FC = () => {
         employee_id: e.employee_id || '',
         full_name: e.full_name || '',
         gender: e.gender || 'M',
-        date_of_birth: toDisplayDate(e.date_of_birth || ''),
+        date_of_birth: e.date_of_birth || '',
         phone_number: e.phone_number || '',
         personal_email: e.personal_email || '',
         ethnicity: e.ethnicity || '',
@@ -296,8 +253,8 @@ const EmployeeEdit: React.FC = () => {
         facebook_link: e.facebook_link || ei.facebook_link || '',
 
         employment_status: e.employment_status || 'ACTIVE',
-        start_date: toDisplayDate(e.start_date || ''),
-        end_date: toDisplayDate(e.end_date || ''),
+        start_date: e.start_date || '',
+        end_date: e.end_date || '',
         position_id: e.position?.id,
         department_id: e.department?.id,
         manager_id: typeof e.manager === 'number' ? e.manager : e.manager?.id,
@@ -305,56 +262,43 @@ const EmployeeEdit: React.FC = () => {
         section: e.section || '',
         doctor_team: e.doctor_team || '',
         work_form: e.work_form || '',
-        official_start_date: toDisplayDate(e.official_start_date || ''),
+        work_type: ei.work_type || '',
         work_location: e.work_location || '',
         region: e.region || '',
         block: e.block || '',
-        company_unit_id: e.company_unit?.id ?? undefined,
         is_hr: e.is_hr || false,
         education_level: e.education_level || '',
-        termination_reason: e.termination_reason || '',
-        employment_status_notes: e.employment_status_notes || '',
 
         cccd_number: e.cccd_number || '',
-        cccd_issue_date: toDisplayDate(e.cccd_issue_date || ''),
+        cccd_issue_date: e.cccd_issue_date || '',
         cccd_issue_place: e.cccd_issue_place || '',
         old_id_number: e.old_id_number || ei.old_id_number || '',
         birth_place: e.birth_place || '',
         social_insurance_number: e.social_insurance_number || '',
         tax_code: e.tax_code || '',
-        household_code: e.household_code || '',
-        link_cccd: e.link_cccd || '',
         permanent_residence: e.permanent_residence || '',
         current_address: e.current_address || '',
 
         bank_name: e.bank_name || '',
         bank_account: e.bank_account || '',
-        bank_account_holder: e.bank_account_holder || '',
         bank_branch: e.bank_branch || '',
 
         basic_salary: e.basic_salary ?? '',
         allowance: e.allowance ?? '',
         contract_type: e.contract_type || '',
         probation_months: e.probation_months ?? '',
-        probation_end_date: toDisplayDate(e.probation_end_date || ''),
+        probation_end_date: e.probation_end_date || '',
         probation_rate: e.probation_rate || '',
-        contract_start_date: toDisplayDate(e.contract_start_date || ''),
-        contract_end_date: toDisplayDate(e.contract_end_date || ''),
-        revenue_percentage: e.revenue_percentage || '',
-        profit_percentage: e.profit_percentage || '',
+        probation_salary_percentage: e.probation_salary_percentage != null ? String(e.probation_salary_percentage) : '',
 
         file_status: e.file_status || '',
+        file_submission_deadline: e.file_submission_deadline || '',
         file_review_notes: e.file_review_notes || '',
-
-        doc_resume: e.doc_resume || false,
-        doc_cccd: e.doc_cccd || false,
-        doc_degree: e.doc_degree || false,
-        doc_health: e.doc_health || false,
 
         emergency_contact_name: e.emergency_contact_name || '',
         emergency_contact_relationship: e.emergency_contact_relationship || '',
         emergency_contact_phone: e.emergency_contact_phone || '',
-        emergency_contact_dob: toDisplayDate(e.emergency_contact_dob || ''),
+        emergency_contact_dob: e.emergency_contact_dob || '',
         emergency_contact_occupation: e.emergency_contact_occupation || '',
         emergency_contact_address: e.emergency_contact_address || '',
       });
@@ -378,13 +322,6 @@ const EmployeeEdit: React.FC = () => {
       setDepartments(response.results);
     } catch (err) { console.error('Failed to load departments:', err); }
   };
-  
-  const loadSections = async () => {
-    try {
-      const response = await sectionsAPI.list();
-      setSections(response.results);
-    } catch (err) { console.error('Failed to load sections:', err); }
-  };
 
   const loadPositions = async () => {
     try {
@@ -398,13 +335,6 @@ const EmployeeEdit: React.FC = () => {
       const response = await employeesAPI.list({ page_size: 1000 });
       setEmployees(response.results);
     } catch (err) { console.error('Failed to load employees:', err); }
-  };
-
-  const loadCompanyUnits = async () => {
-    try {
-      const response = await companyUnitsAPI.list({ page_size: 100, active_only: true });
-      setCompanyUnits(Array.isArray(response) ? response : (response.results || []));
-    } catch (err) { console.error('Failed to load company units:', err); }
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -434,16 +364,12 @@ const EmployeeEdit: React.FC = () => {
         is_hr: formData.is_hr,
       };
 
-      // Helper cho text/string fields (blank=True): gửi '' khi rỗng, không gửi null
+      // Helper: only add if not empty
       const add = (key: string, val: any) => {
-        if (val !== undefined) payload[key] = val;
-      };
-      // Helper cho date fields (null=True, blank=True): gửi null khi rỗng để BE có thể clear
-      const addDate = (key: string, displayDate: string) => {
-        payload[key] = toApiDate(displayDate) || null;
+        if (val !== '' && val !== null && val !== undefined) payload[key] = val;
       };
 
-      addDate('date_of_birth', formData.date_of_birth);
+      add('date_of_birth', formData.date_of_birth);
       add('phone_number', formData.phone_number?.trim());
       add('personal_email', formData.personal_email?.trim());
       add('ethnicity', formData.ethnicity?.trim());
@@ -451,8 +377,8 @@ const EmployeeEdit: React.FC = () => {
       add('marital_status', formData.marital_status);
       add('facebook_link', formData.facebook_link?.trim());
 
-      addDate('start_date', formData.start_date);
-      addDate('end_date', formData.end_date);
+      add('start_date', formData.start_date);
+      add('end_date', formData.end_date);
       add('position_id', formData.position_id);
       add('department_id', formData.department_id);
       if (formData.manager_id !== undefined) payload['manager_id'] = formData.manager_id;
@@ -463,62 +389,49 @@ const EmployeeEdit: React.FC = () => {
       add('work_location', formData.work_location);
       add('region', formData.region);
       add('block', formData.block);
-      add('company_unit_id', formData.company_unit_id);
 
       // Merge extra_info — lưu work_type, đồng thời xóa facebook_link (đã PATCH trực tiếp)
       // để tránh lệch giữa direct field và extra_info
       {
         const nextExtra = {
           ...originalExtraInfo,
+          work_type: formData.work_type?.trim() || undefined,
           facebook_link: undefined,
         };
         payload['extra_info'] = JSON.stringify(nextExtra);
       }
-      addDate('official_start_date', formData.official_start_date);
       add('education_level', formData.education_level);
 
-      add('termination_reason', formData.termination_reason?.trim());
-      add('employment_status_notes', formData.employment_status_notes?.trim());
-
       add('cccd_number', formData.cccd_number?.trim());
-      addDate('cccd_issue_date', formData.cccd_issue_date);
+      add('cccd_issue_date', formData.cccd_issue_date);
       add('cccd_issue_place', formData.cccd_issue_place);
       add('old_id_number', formData.old_id_number?.trim());
       add('birth_place', formData.birth_place?.trim());
       add('social_insurance_number', formData.social_insurance_number?.trim());
       add('tax_code', formData.tax_code?.trim());
-      add('household_code', formData.household_code?.trim());
-      add('link_cccd', formData.link_cccd?.trim());
       add('permanent_residence', formData.permanent_residence?.trim());
       add('current_address', formData.current_address?.trim());
 
       add('bank_name', formData.bank_name?.trim());
       add('bank_account', formData.bank_account?.trim());
-      add('bank_account_holder', formData.bank_account_holder?.trim());
       add('bank_branch', formData.bank_branch?.trim());
 
-      payload['basic_salary'] = formData.basic_salary !== '' ? Number(formData.basic_salary) : null;
-      payload['allowance'] = formData.allowance !== '' ? Number(formData.allowance) : null;
+      if (formData.basic_salary !== '') payload['basic_salary'] = Number(formData.basic_salary);
+      if (formData.allowance !== '') payload['allowance'] = Number(formData.allowance);
       add('contract_type', formData.contract_type);
-      payload['probation_months'] = formData.probation_months !== '' ? Number(formData.probation_months) : null;
-      addDate('probation_end_date', formData.probation_end_date);
+      if (formData.probation_months !== '') payload['probation_months'] = Number(formData.probation_months);
+      add('probation_end_date', formData.probation_end_date);
       add('probation_rate', formData.probation_rate);
-      addDate('contract_start_date', formData.contract_start_date);
-      addDate('contract_end_date', formData.contract_end_date);
-      add('revenue_percentage', formData.revenue_percentage);
-      add('profit_percentage', formData.profit_percentage);
+      if (formData.probation_salary_percentage !== '') payload['probation_salary_percentage'] = Number(formData.probation_salary_percentage);
 
       add('file_status', formData.file_status);
+      add('file_submission_deadline', formData.file_submission_deadline);
       add('file_review_notes', formData.file_review_notes?.trim());
-      add('doc_resume', formData.doc_resume);
-      add('doc_cccd', formData.doc_cccd);
-      add('doc_degree', formData.doc_degree);
-      add('doc_health', formData.doc_health);
 
       add('emergency_contact_name', formData.emergency_contact_name?.trim());
       add('emergency_contact_relationship', formData.emergency_contact_relationship?.trim());
       add('emergency_contact_phone', formData.emergency_contact_phone?.trim());
-      addDate('emergency_contact_dob', formData.emergency_contact_dob);
+      add('emergency_contact_dob', formData.emergency_contact_dob);
       add('emergency_contact_occupation', formData.emergency_contact_occupation?.trim());
       add('emergency_contact_address', formData.emergency_contact_address?.trim());
 
@@ -552,7 +465,7 @@ const EmployeeEdit: React.FC = () => {
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <p className="mt-4 text-gray-600">Đang tải thông tin nhân viên...</p>
         </div>
       </div>
@@ -560,35 +473,35 @@ const EmployeeEdit: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-6">
         <button
           onClick={() => navigate(`/dashboard/employees/${id}`)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+          className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 mb-4"
         >
-          <ArrowLeftIcon className="h-4 w-4" /> Quay lại chi tiết
+          ← Quay lại chi tiết
         </button>
-        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Chỉnh sửa nhân viên</h1>
-        <p className="text-sm text-gray-600 mt-1">Cập nhật thông tin nhân viên</p>
+        <h1 className="text-2xl font-bold text-gray-900">Chỉnh sửa nhân viên</h1>
+        <p className="text-gray-600 mt-1">Cập nhật thông tin nhân viên</p>
       </div>
 
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-2xl p-4">
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-700 text-sm">{error}</p>
         </div>
       )}
       {success && (
-        <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-          <p className="text-emerald-700 text-sm">{success}</p>
+        <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
+          <p className="text-green-700 text-sm">{success}</p>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
 
         {/* ── Thông tin cá nhân ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <SectionTitle icon={<UserIcon className="h-5 w-5" />} title="Thông tin cá nhân" />
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="👤" title="Thông tin cá nhân" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <Field label="Mã nhân viên" required>
               <input type="text" name="employee_id" value={formData.employee_id}
@@ -609,8 +522,8 @@ const EmployeeEdit: React.FC = () => {
             />
 
             <Field label="Ngày sinh">
-              <input type="text" name="date_of_birth" value={formData.date_of_birth}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="date" name="date_of_birth" value={formData.date_of_birth}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <Field label="Số điện thoại">
@@ -657,8 +570,8 @@ const EmployeeEdit: React.FC = () => {
         </div>
 
         {/* ── Thông tin công việc ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <SectionTitle icon={<BriefcaseIcon className="h-5 w-5" />} title="Thông tin công việc" />
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="💼" title="Thông tin công việc" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <SelectBox
               label="Trạng thái làm việc"
@@ -669,25 +582,19 @@ const EmployeeEdit: React.FC = () => {
             />
 
             <Field label="Ngày bắt đầu">
-              <input type="text" name="start_date" value={formData.start_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="date" name="start_date" value={formData.start_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <Field label="Ngày nghỉ việc">
-              <input type="text" name="end_date" value={formData.end_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
-            </Field>
-
-            <Field label="Ngày lên chính thức">
-              <input type="text" name="official_start_date" value={formData.official_start_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="date" name="end_date" value={formData.end_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <SelectBox
               label="Phòng ban"
               value={formData.department_id}
               placeholder="Chọn phòng ban"
-              searchable={true}
               options={departments.map((d) => ({ label: d.name, value: d.id }))}
               onChange={(v) => handleSelect('department_id', v)}
             />
@@ -696,7 +603,6 @@ const EmployeeEdit: React.FC = () => {
               label="Chức vụ"
               value={formData.position_id}
               placeholder="Chọn chức vụ"
-              searchable={true}
               options={positions.map((p) => ({ label: p.title, value: p.id }))}
               onChange={(v) => handleSelect('position_id', v)}
             />
@@ -705,7 +611,6 @@ const EmployeeEdit: React.FC = () => {
               label="Quản lý trực tiếp"
               value={formData.manager_id}
               placeholder="Chọn quản lý"
-              searchable={true}
               options={[
                 { label: 'Không có quản lý', value: null },
                 ...employees
@@ -718,28 +623,15 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('manager_id', v ?? undefined)}
             />
 
-            <SelectBox
-              label="Cấp bậc"
-              value={formData.rank}
-              placeholder="Chọn cấp bậc"
-              options={[
-                { value: '', label: 'Không có' },
-                ...RANK_OPTIONS,
-                ...(formData.rank && !RANK_OPTIONS.some(o => o.value === formData.rank)
-                  ? [{ value: formData.rank, label: formData.rank }]
-                  : []),
-              ]}
-              onChange={(v) => handleSelect('rank', v)}
-            />
+            <Field label="Cấp bậc">
+              <input type="text" name="rank" value={formData.rank}
+                onChange={handleInput} placeholder="Nhân viên, Trưởng phòng..." className={inputClass} />
+            </Field>
 
-            <SelectBox
-              label="Bộ phận"
-              value={formData.section}
-              placeholder="Chọn bộ phận"
-              searchable={true}
-              options={sections.map((s) => ({ label: s.name, value: s.name }))}
-              onChange={(v) => handleSelect('section', v)}
-            />
+            <Field label="Bộ phận (Section)">
+              <input type="text" name="section" value={formData.section}
+                onChange={handleInput} placeholder="Da liễu, Phẫu thuật..." className={inputClass} />
+            </Field>
 
             <Field label="Team Bác sĩ">
               <input type="text" name="doctor_team" value={formData.doctor_team}
@@ -754,6 +646,10 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('work_form', v)}
             />
 
+            <Field label="Loại hình làm việc">
+              <input type="text" name="work_type" value={formData.work_type}
+                onChange={handleInput} placeholder="Full-time, Part-time, ..." className={inputClass} />
+            </Field>
 
             <SelectBox
               label="Địa điểm làm việc"
@@ -779,19 +675,8 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('block', v)}
             />
 
-            <SelectBox
-              label="Đơn vị"
-              value={formData.company_unit_id?.toString() ?? ''}
-              placeholder="Chọn đơn vị"
-              options={[
-                { value: '', label: 'Không có' },
-                ...(companyUnits || []).map((u) => ({ value: String(u.id), label: u.name })),
-              ]}
-              onChange={(v) => handleSelect('company_unit_id', v ? Number(v) : undefined)}
-            />
-
             <div className="md:col-span-2">
-              <label className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 cursor-pointer hover:bg-primary-50 transition-colors">
+              <label className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border cursor-pointer">
                 <input
                   type="checkbox"
                   className="mt-0.5"
@@ -804,30 +689,12 @@ const EmployeeEdit: React.FC = () => {
                 </div>
               </label>
             </div>
-
-            <div className="md:col-span-2">
-              <Field label="Lý do nghỉ việc">
-                <textarea name="termination_reason" value={formData.termination_reason}
-                  onChange={handleInput} rows={2}
-                  placeholder="Lý do nghỉ việc..."
-                  className={textareaClass} />
-              </Field>
-            </div>
-
-            <div className="md:col-span-2">
-              <Field label="Ghi chú công việc">
-                <textarea name="employment_status_notes" value={formData.employment_status_notes}
-                  onChange={handleInput} rows={2}
-                  placeholder="Ghi chú về trạng thái công việc..."
-                  className={textareaClass} />
-              </Field>
-            </div>
           </div>
         </div>
 
         {/* ── Giấy tờ tùy thân & địa chỉ ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <SectionTitle icon={<IdentificationIcon className="h-5 w-5" />} iconBg="bg-violet-100 text-violet-600" title="Giấy tờ tùy thân & địa chỉ" />
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="🪪" title="Giấy tờ tùy thân & địa chỉ" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <Field label="Số CCCD">
               <input type="text" name="cccd_number" value={formData.cccd_number}
@@ -835,8 +702,8 @@ const EmployeeEdit: React.FC = () => {
             </Field>
 
             <Field label="Ngày cấp CCCD">
-              <input type="text" name="cccd_issue_date" value={formData.cccd_issue_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="date" name="cccd_issue_date" value={formData.cccd_issue_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <SelectBox
@@ -867,16 +734,6 @@ const EmployeeEdit: React.FC = () => {
                 onChange={handleInput} placeholder="0123456789" className={inputClass} />
             </Field>
 
-            <Field label="Mã hộ gia đình">
-              <input type="text" name="household_code" value={formData.household_code}
-                onChange={handleInput} placeholder="Mã hộ gia đình" className={inputClass} />
-            </Field>
-
-            <Field label="Link CCCD/CMT">
-              <input type="text" name="link_cccd" value={formData.link_cccd}
-                onChange={handleInput} placeholder="https://drive.google.com/..." className={inputClass} />
-            </Field>
-
             <div className="md:col-span-2">
               <Field label="Địa chỉ thường trú">
                 <textarea name="permanent_residence" value={formData.permanent_residence}
@@ -898,8 +755,8 @@ const EmployeeEdit: React.FC = () => {
         </div>
 
         {/* ── Thông tin ngân hàng ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <SectionTitle icon={<BanknotesIcon className="h-5 w-5" />} iconBg="bg-emerald-100 text-emerald-600" title="Thông tin ngân hàng" />
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="💳" title="Thông tin ngân hàng" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <Field label="Tên ngân hàng">
               <input type="text" name="bank_name" value={formData.bank_name}
@@ -908,25 +765,20 @@ const EmployeeEdit: React.FC = () => {
 
             <Field label="Số tài khoản">
               <input type="text" name="bank_account" value={formData.bank_account}
-                onChange={handleInput} placeholder="123456789" className={inputClass} />
-            </Field>
-
-            <Field label="Chủ tài khoản">
-              <input type="text" name="bank_account_holder" value={formData.bank_account_holder}
-                onChange={handleInput} placeholder="NGUYEN VAN A" className={inputClass} />
+                onChange={handleInput} placeholder="1234567890" className={inputClass} />
             </Field>
 
             <Field label="Chi nhánh">
               <input type="text" name="bank_branch" value={formData.bank_branch}
-                onChange={handleInput} placeholder="Hà Nội" className={inputClass} />
+                onChange={handleInput} placeholder="Chi nhánh Hà Nội..." className={inputClass} />
               <p className="text-xs text-gray-400 mt-1">* Trong trường hợp không phải Ngân hàng ACB</p>
             </Field>
           </div>
         </div>
 
         {/* ── Lương & Hợp đồng ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <SectionTitle icon={<DocumentTextIcon className="h-5 w-5" />} iconBg="bg-emerald-100 text-emerald-600" title="Lương & Hợp đồng" />
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="💰" title="Lương & Hợp đồng" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <Field label="Lương cơ bản (VNĐ)">
               <input type="number" name="basic_salary" value={formData.basic_salary}
@@ -952,8 +804,8 @@ const EmployeeEdit: React.FC = () => {
             </Field>
 
             <Field label="Ngày kết thúc thử việc">
-              <input type="text" name="probation_end_date" value={formData.probation_end_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="date" name="probation_end_date" value={formData.probation_end_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <SelectBox
@@ -964,32 +816,19 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('probation_rate', v)}
             />
 
-            <Field label="Ngày bắt đầu hợp đồng">
-              <input type="text" name="contract_start_date" value={formData.contract_start_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
-            </Field>
-
-            <Field label="Ngày kết thúc hợp đồng">
-              <input type="text" name="contract_end_date" value={formData.contract_end_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
-            </Field>
-
-            <Field label="Tỷ lệ % doanh số hưởng">
-              <input type="text" name="revenue_percentage" value={formData.revenue_percentage}
-                onChange={handleInput} placeholder="Ví dụ: 5%" className={inputClass} />
-            </Field>
-
-            <Field label="Tỷ lệ % lợi nhuận hưởng">
-              <input type="text" name="profit_percentage" value={formData.profit_percentage}
-                onChange={handleInput} placeholder="Ví dụ: 10%" className={inputClass} />
-            </Field>
-
+            <SelectBox
+              label="% lương thử việc"
+              value={formData.probation_salary_percentage}
+              placeholder="Chọn %"
+              options={PROBATION_SALARY_PERCENTAGE_OPTIONS}
+              onChange={(v) => handleSelect('probation_salary_percentage', v)}
+            />
           </div>
         </div>
 
         {/* ── Trạng thái hồ sơ ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <SectionTitle icon={<DocumentCheckIcon className="h-5 w-5" />} title="Trạng thái hồ sơ" />
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="📋" title="Trạng thái hồ sơ" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <SelectBox
               label="Trạng thái hồ sơ"
@@ -999,6 +838,11 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('file_status', v)}
             />
 
+            <Field label="Hạn nộp hồ sơ">
+              <input type="date" name="file_submission_deadline" value={formData.file_submission_deadline}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
             <div className="md:col-span-2">
               <Field label="Ghi chú hồ sơ">
                 <textarea name="file_review_notes" value={formData.file_review_notes}
@@ -1007,31 +851,12 @@ const EmployeeEdit: React.FC = () => {
                   className={textareaClass} />
               </Field>
             </div>
-
-            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-primary-50 transition-colors">
-                <input type="checkbox" className="w-4 h-4 text-primary-600 rounded accent-primary-600" checked={formData.doc_resume} onChange={(e) => handleSelect('doc_resume', e.target.checked)} />
-                <span className="text-sm font-medium text-gray-700">Sơ yếu lý lịch</span>
-              </label>
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-primary-50 transition-colors">
-                <input type="checkbox" className="w-4 h-4 text-primary-600 rounded accent-primary-600" checked={formData.doc_cccd} onChange={(e) => handleSelect('doc_cccd', e.target.checked)} />
-                <span className="text-sm font-medium text-gray-700">CCCD</span>
-              </label>
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-primary-50 transition-colors">
-                <input type="checkbox" className="w-4 h-4 text-primary-600 rounded accent-primary-600" checked={formData.doc_degree} onChange={(e) => handleSelect('doc_degree', e.target.checked)} />
-                <span className="text-sm font-medium text-gray-700">Bằng cấp</span>
-              </label>
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-primary-50 transition-colors">
-                <input type="checkbox" className="w-4 h-4 text-primary-600 rounded accent-primary-600" checked={formData.doc_health} onChange={(e) => handleSelect('doc_health', e.target.checked)} />
-                <span className="text-sm font-medium text-gray-700">Giấy khám sức khỏe</span>
-              </label>
-            </div>
           </div>
         </div>
 
         {/* ── Người liên hệ khẩn cấp ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <SectionTitle icon={<PhoneIcon className="h-5 w-5" />} iconBg="bg-red-100 text-red-600" title="Người liên hệ khẩn cấp" />
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="🆘" title="Người liên hệ khẩn cấp" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <Field label="Họ và tên">
               <input type="text" name="emergency_contact_name" value={formData.emergency_contact_name}
@@ -1049,8 +874,8 @@ const EmployeeEdit: React.FC = () => {
             </Field>
 
             <Field label="Ngày sinh">
-              <input type="text" name="emergency_contact_dob" value={formData.emergency_contact_dob}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="date" name="emergency_contact_dob" value={formData.emergency_contact_dob}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <Field label="Nghề nghiệp">
@@ -1070,8 +895,8 @@ const EmployeeEdit: React.FC = () => {
         </div>
 
         {/* ── Hồ sơ đính kèm ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <SectionTitle icon={<PaperClipIcon className="h-5 w-5" />} title="Hồ sơ đính kèm" />
+        <div className="bg-white rounded-lg border p-6">
+          <SectionTitle icon="📎" title="Hồ sơ đính kèm" />
           <p className="text-xs text-gray-500 mb-3">
             Chọn file mới để thay thế. Bỏ trống ô nào thì giữ nguyên.
           </p>
@@ -1086,11 +911,11 @@ const EmployeeEdit: React.FC = () => {
                 accept: string;
               }[] = [
                 { label: 'Bằng cấp', file: diplomaFile, setFile: setDiplomaFile, currentUrl: diplomaCurrentUrl, accept: 'image/*,application/pdf' },
-                { label: 'CCCD/CMT', file: citizenIdFile, setFile: setCitizenIdFile, currentUrl: citizenIdCurrentUrl, accept: 'image/*,application/pdf' },
-                { label: 'Ảnh chụp VNeID', file: vneidFile, setFile: setVneidFile, currentUrl: vneidCurrentUrl, accept: 'image/*,application/pdf' },
+                { label: 'File CMND/CCCD', file: citizenIdFile, setFile: setCitizenIdFile, currentUrl: citizenIdCurrentUrl, accept: 'image/*,application/pdf' },
+                { label: 'Ảnh chụp VNeID', file: vneidFile, setFile: setVneidFile, currentUrl: vneidCurrentUrl, accept: 'image/*' },
               ];
               return rows.map(r => (
-                <div key={r.label} className="border border-gray-100 rounded-2xl p-3 space-y-2">
+                <div key={r.label} className="border rounded-lg p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium text-gray-700">{r.label}</label>
                     {r.currentUrl && !r.file && (
@@ -1098,7 +923,7 @@ const EmployeeEdit: React.FC = () => {
                         href={r.currentUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-primary-600 hover:underline"
+                        className="text-xs text-blue-600 hover:underline"
                       >
                         Xem file hiện tại
                       </a>
@@ -1117,7 +942,7 @@ const EmployeeEdit: React.FC = () => {
                     type="file"
                     accept={r.accept}
                     onChange={(e) => r.setFile(e.target.files?.[0] || null)}
-                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                   />
                   {r.file && (
                     <div className="flex items-center justify-between text-xs text-gray-600">
@@ -1142,14 +967,14 @@ const EmployeeEdit: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(`/dashboard/employees/${id}`)}
-            className="btn-secondary px-5 py-2"
+            className="px-5 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
           >
             Hủy
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary px-5 py-2 disabled:opacity-50"
+            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Đang cập nhật...' : 'Lưu thay đổi'}
           </button>
