@@ -59,17 +59,19 @@ const Home: React.FC = () => {
     employee_id: number;
     full_name: string;
     date_of_birth: string;
+    avatar_url?: string | null;
     department: { id: number; name: string; code: string } | null;
   }>>([]);
   const [tomorrowBirthdayEmployees, setTomorrowBirthdayEmployees] = useState<Array<{
     employee_id: number;
     full_name: string;
     date_of_birth: string;
+    avatar_url?: string | null;
     department: { id: number; name: string; code: string } | null;
   }>>([]);
   const [wishModal, setWishModal] = useState<{
     open: boolean;
-    employee: { employee_id: number; full_name: string } | null;
+    employee: { employee_id: number; full_name: string; avatar_url?: string | null } | null;
   }>({ open: false, employee: null });
   const [wishMessage, setWishMessage] = useState('');
   const [wishSent, setWishSent] = useState<Set<number>>(new Set());
@@ -83,7 +85,7 @@ const Home: React.FC = () => {
   const [wishError, setWishError] = useState<string | null>(null);
   const [wishListModal, setWishListModal] = useState<{
     open: boolean;
-    employee: { employee_id: number; full_name: string } | null;
+    employee: { employee_id: number; full_name: string; avatar_url?: string | null } | null;
     wishes: BirthdayWish[];
     loading: boolean;
   }>({ open: false, employee: null, wishes: [], loading: false });
@@ -165,7 +167,7 @@ const Home: React.FC = () => {
     }
   };
 
-  const openWishModal = (emp: { employee_id: number; full_name: string }) => {
+  const openWishModal = (emp: { employee_id: number; full_name: string; avatar_url?: string | null }) => {
     setWishMessage(`Chúc mừng sinh nhật ${emp.full_name}! 🎂🎉 Chúc bạn luôn vui vẻ, mạnh khỏe và thành công!`);
     setWishError(null);
     setWishModal({ open: true, employee: emp });
@@ -205,7 +207,7 @@ const Home: React.FC = () => {
     }
   };
 
-  const openWishListModal = async (emp: { employee_id: number; full_name: string }) => {
+  const openWishListModal = async (emp: { employee_id: number; full_name: string; avatar_url?: string | null }) => {
     setWishListModal({ open: true, employee: emp, wishes: [], loading: true });
     try {
       const wishes = await birthdayWishesAPI.list({ recipient: emp.employee_id, year: new Date().getFullYear() });
@@ -407,8 +409,14 @@ const Home: React.FC = () => {
             {birthdayEmployees.map((emp) => (
               <div key={emp.employee_id} className="flex flex-col p-4 bg-pink-50 border border-pink-200 rounded-xl">
                 <div className="flex items-center space-x-4">
-                  <div className="h-12 w-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">🎉</span>
+                  <div className="h-12 w-12 rounded-full flex-shrink-0 overflow-hidden bg-pink-100">
+                    {emp.avatar_url ? (
+                      <img src={emp.avatar_url} alt={emp.full_name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: stringToColor(emp.full_name) }}>
+                        <span className="text-white text-sm font-bold">{getInitials(emp.full_name)}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900">{emp.full_name}</p>
@@ -459,8 +467,14 @@ const Home: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {tomorrowBirthdayEmployees.map((emp) => (
                 <div key={emp.employee_id} className="flex items-center space-x-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                  <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">🎂</span>
+                  <div className="h-12 w-12 rounded-full flex-shrink-0 overflow-hidden bg-gray-100">
+                    {emp.avatar_url ? (
+                      <img src={emp.avatar_url} alt={emp.full_name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: stringToColor(emp.full_name) }}>
+                        <span className="text-white text-sm font-bold">{getInitials(emp.full_name)}</span>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <p className="font-semibold text-gray-500">{emp.full_name}</p>
@@ -840,9 +854,20 @@ const Home: React.FC = () => {
                   {wishListModal.wishes.map((wish) => (
                     <li key={wish.id} className="p-3 bg-pink-50 rounded-xl text-sm text-gray-700">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-pink-700 mb-1">{wish.sender.full_name}</p>
-                          <p className="whitespace-pre-wrap">{wish.message}</p>
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                          <div className="h-8 w-8 rounded-full flex-shrink-0 overflow-hidden bg-pink-200">
+                            {wish.sender.avatar_url ? (
+                              <img src={wish.sender.avatar_url} alt={wish.sender.full_name} className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: stringToColor(wish.sender.full_name) }}>
+                                <span className="text-white text-xs font-bold">{getInitials(wish.sender.full_name)}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-pink-700 mb-1">{wish.sender.full_name}</p>
+                            <p className="whitespace-pre-wrap">{wish.message}</p>
+                          </div>
                         </div>
                         {wish.is_liked && (
                           <div

@@ -922,8 +922,8 @@ export interface AttendanceRuleEngineResponse {
 
 export interface BirthdayWish {
   id: number;
-  recipient: { id: number; employee_id: number; full_name: string };
-  sender: { id: number; employee_id: number; full_name: string };
+  recipient: { id: number; employee_id: number; full_name: string; avatar_url?: string | null };
+  sender: { id: number; employee_id: number; full_name: string; avatar_url?: string | null };
   message: string;
   year: number;
   is_liked?: boolean;
