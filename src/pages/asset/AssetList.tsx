@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { assetsAPI } from '../../utils/api';
+import { assetsAPI, positionsAPI } from '../../utils/api';
 import {
   PlusIcon,
   PencilIcon,
@@ -94,6 +94,8 @@ export default function AssetList() {
   const [conditionFilter, setConditionFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [positions, setPositions] = useState<SelectOption<string>[]>([]);
+  const [locationFilter, setLocationFilter] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -116,6 +118,11 @@ export default function AssetList() {
   useEffect(() => {
     fetchAssets();
     fetchStats();
+    positionsAPI.list({ page_size: 100 }).then((data) => {
+      setPositions(
+        (data.results || []).map((pos) => ({ value: String(pos.id), label: pos.title }))
+      );
+    }).catch(() => {});
   }, []);
 
   const fetchAssets = async () => {
@@ -179,8 +186,9 @@ export default function AssetList() {
     const assetDate = asset.created_at ? asset.created_at.slice(0, 10) : '';
     const matchesDateFrom = !dateFrom || assetDate >= dateFrom;
     const matchesDateTo = !dateTo || assetDate <= dateTo;
+    const matchesLocation = !locationFilter || String((asset.specifications as any)?.position_id ?? '') === locationFilter;
 
-    return matchesSearch && matchesStatus && matchesType && matchesCondition && matchesDateFrom && matchesDateTo;
+    return matchesSearch && matchesStatus && matchesType && matchesCondition && matchesDateFrom && matchesDateTo && matchesLocation;
   }).sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
 
   const formatCurrency = (amount: number) => {
@@ -525,7 +533,7 @@ export default function AssetList() {
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label htmlFor="search" className="block text-sm font-medium text-gray-700">
               Tìm kiếm
@@ -564,9 +572,18 @@ export default function AssetList() {
             onChange={(val) => setTypeFilter(val)}
             allLabel="Tất cả loại"
           />
+
+          <SelectBox
+            label="Vị trí"
+            value={locationFilter}
+            options={[{ value: '', label: 'Tất cả vị trí' }, ...positions]}
+            onChange={setLocationFilter}
+            placeholder="Chọn vị trí"
+            searchable={true}
+          />
         </div>
 
-        {/* Hàng 2: lọc ngày tạo */}
+        {/* Hàng 3: lọc ngày tạo */}
         <div className="flex flex-wrap items-end gap-3 pt-3 border-t border-gray-100">
           <div>
             <label className="block text-sm font-medium text-gray-700">Ngày tạo từ</label>
@@ -955,19 +972,18 @@ export default function AssetList() {
                                     <span className="hidden xl:inline">Thu hồi</span>
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => confirmDelete(asset.id)}
+                                  className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all font-semibold text-xs whitespace-nowrap"
+                                  title="Xóa tài sản"
+                                >
+                                  <TrashIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                                  <span className="hidden xl:inline">Xóa</span>
+                                </button>
                               </>
                             );
                           })()}
                         </div>
-                        {/* Row 3: Xóa full width */}
-                        <button
-                          onClick={() => confirmDelete(asset.id)}
-                          className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all font-semibold text-xs whitespace-nowrap"
-                          title="Xóa tài sản"
-                        >
-                          <TrashIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                          <span className="hidden xl:inline">Xóa</span>
-                        </button>
                       </div>
                     </td>
                   </tr>
