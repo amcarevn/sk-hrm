@@ -29,6 +29,7 @@ import {
   TrophyIcon,
   GiftIcon,
   MagnifyingGlassIcon,
+  MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -246,6 +247,14 @@ const navigationItems: NavigationItem[] = [
         roles: ['ADMIN', 'HR'],
       },
     ],
+  },
+
+  // --- Thông báo ---
+  {
+    name: 'Bảng thông báo',
+    href: '/dashboard/announcements',
+    icon: MegaphoneIcon,
+    roles: ['ADMIN', 'HR'],
   },
 
   // --- Cấu hình ---
