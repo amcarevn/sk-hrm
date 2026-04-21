@@ -194,6 +194,7 @@ export const employeesAPI = {
     employee_id: number;
     full_name: string;
     date_of_birth: string;
+    avatar_url?: string | null;
     department: {
       id: number;
       name: string;
