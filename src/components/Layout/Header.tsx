@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BellIcon,
@@ -9,12 +9,117 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import ChangePasswordModal from '@/components/Layout/ChangePasswordModal';
+import NotificationDrawer from '@/components/Layout/NotificationDrawer';
+import { hrmAPI } from '@/utils/api';
+
+const PRIORITY_BORDER: Record<string, string> = {
+  URGENT: 'border-red-500',
+  HIGH: 'border-orange-400',
+  MEDIUM: 'border-blue-400',
+  LOW: 'border-gray-300',
+};
+
+const PRIORITY_BADGE: Record<string, string> = {
+  URGENT: 'bg-red-100 text-red-700',
+  HIGH: 'bg-orange-100 text-orange-700',
+  MEDIUM: 'bg-blue-100 text-blue-700',
+  LOW: 'bg-gray-100 text-gray-600',
+};
+
+const TYPE_BADGE: Record<string, string> = {
+  ANNOUNCEMENT: 'bg-indigo-100 text-indigo-700',
+  DECISION: 'bg-purple-100 text-purple-700',
+  NOTICE: 'bg-teal-100 text-teal-700',
+  CIRCULAR: 'bg-cyan-100 text-cyan-700',
+  DIRECTIVE: 'bg-amber-100 text-amber-700',
+  OTHER: 'bg-gray-100 text-gray-600',
+};
 
 export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
-  const [changePasswordModalKey, setChangePasswordModalKey] = useState(0);  // ✅ Đã có rồi
+  const [changePasswordModalKey, setChangePasswordModalKey] = useState(0);
+  const [bellOpen, setBellOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerInitialItem, setDrawerInitialItem] = useState<any | null>(null);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [unreadIds, setUnreadIds] = useState<Set<number>>(new Set());
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+  const bellListRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
+
+  const fetchPage = useCallback(async (pageNum: number, replace: boolean) => {
+    try {
+      if (!replace) setLoadingMore(true);
+      const res = await hrmAPI.getCompanyAnnouncements({ is_current: true, page: pageNum, page_size: 20 });
+      const results = res.results || [];
+      if (replace) setAnnouncements(results);
+      else setAnnouncements(prev => [...prev, ...results]);
+      setHasMore(!!res.next);
+    } catch {
+      // silent
+    } finally {
+      setLoadingMore(false);
+    }
+  }, []);
+
+  // Load lần đầu
+  useEffect(() => { fetchPage(1, true); }, [fetchPage]);
+
+  // Fetch unread IDs riêng cho badge + highlight
+  useEffect(() => {
+    hrmAPI.getCompanyAnnouncements({ is_current: true, unread_only: true, page_size: 100 })
+      .then((res) => setUnreadIds(new Set((res.results || []).map((a: any) => a.id))))
+      .catch(() => {});
+  }, []);
+
+  // Load more khi page tăng
+  useEffect(() => {
+    if (page === 1) return;
+    fetchPage(page, false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  // IntersectionObserver trong dropdown list
+  useEffect(() => {
+    if (!bellOpen) return;
+    const sentinel = sentinelRef.current;
+    const container = bellListRef.current;
+    if (!sentinel || !container) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasMore && !loadingMore) {
+          setPage(prev => prev + 1);
+        }
+      },
+      { root: container, threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [bellOpen, hasMore, loadingMore]);
+
+  const markRead = (id: number) => {
+    if (!unreadIds.has(id)) return;
+    // Optimistic update
+    setUnreadIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    // Gọi API background — không block UI
+    hrmAPI.recordAnnouncementView(id).catch(() => {});
+  };
+
+  // Đóng dropdown khi click ngoài
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setBellOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -61,13 +166,88 @@ export default function Header() {
             />
           </form>
           <div className="flex items-center gap-x-4 lg:gap-x-6">
-            <button
-              type="button"
-              className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500"
-            >
-              <span className="sr-only">Xem thông báo</span>
-              <BellIcon className="h-6 w-6" aria-hidden="true" />
-            </button>
+            {/* Bell + Notification Dropdown */}
+            <div className="relative" ref={bellRef}>
+              <button
+                type="button"
+                onClick={() => setBellOpen((o) => !o)}
+                className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 relative"
+              >
+                <span className="sr-only">Xem thông báo</span>
+                <BellIcon className="h-6 w-6" aria-hidden="true" />
+                {unreadIds.size > 0 && (
+                  <span className="absolute top-1.5 right-1.5 h-4 w-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold ring-2 ring-white">
+                    {unreadIds.size > 9 ? '9+' : unreadIds.size}
+                  </span>
+                )}
+              </button>
+
+              {bellOpen && (
+                <div className="absolute right-0 z-30 mt-2 w-80 origin-top-right rounded-xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden">
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
+                    <span className="text-sm font-semibold text-gray-900">Thông báo</span>
+                    {unreadIds.size > 0 && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-600">
+                        {unreadIds.size} mới
+                      </span>
+                    )}
+                  </div>
+
+                  {/* List */}
+                  <div ref={bellListRef} className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+                    {announcements.length === 0 ? (
+                      <p className="px-4 py-6 text-sm text-gray-400 text-center">Không có thông báo nào.</p>
+                    ) : (
+                      announcements.map((ann) => {
+                        const isUnread = unreadIds.has(ann.id);
+                        return (
+                          <div
+                            key={ann.id}
+                            onClick={() => { markRead(ann.id); setBellOpen(false); setDrawerInitialItem(ann); setDrawerOpen(true); }}
+                            className={`flex gap-2 px-4 py-3 cursor-pointer transition-colors border-l-4 ${PRIORITY_BORDER[ann.priority] || 'border-gray-200'} ${isUnread ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
+                          >
+                            {isUnread && (
+                              <span className="mt-1.5 flex-shrink-0 h-2 w-2 rounded-full bg-blue-500" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 flex-wrap mb-0.5">
+                                <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-medium ${TYPE_BADGE[ann.announcement_type] || 'bg-gray-100 text-gray-600'}`}>
+                                  {ann.announcement_type_display || ann.announcement_type}
+                                </span>
+                                <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-medium ${PRIORITY_BADGE[ann.priority] || 'bg-gray-100 text-gray-600'}`}>
+                                  {ann.priority_display || ann.priority}
+                                </span>
+                              </div>
+                              <p className={`text-sm truncate ${isUnread ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>{ann.title}</p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {ann.effective_from ? new Date(ann.effective_from).toLocaleDateString('vi-VN') : ''}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                    {/* Infinite scroll sentinel */}
+                    <div ref={sentinelRef} className="py-2 flex justify-center">
+                      {loadingMore && (
+                        <div className="animate-spin h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="border-t border-gray-100">
+                    <button
+                      onClick={() => { setBellOpen(false); setDrawerInitialItem(null); setDrawerOpen(true); }}
+                      className="w-full px-4 py-2.5 text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors text-center"
+                    >
+                      Xem tất cả thông báo →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Separator */}
             <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />
@@ -140,6 +320,9 @@ export default function Header() {
           </div>
         </div>
       </header>
+
+      {/* Notification Drawer */}
+      <NotificationDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setDrawerInitialItem(null); }} initialItem={drawerInitialItem} unreadIds={unreadIds} onMarkRead={markRead} />
 
       {/* Change Password Modal */}
       {showChangePasswordModal && (

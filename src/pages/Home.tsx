@@ -7,7 +7,6 @@ import {
   BuildingOfficeIcon,
   UserGroupIcon,
   CalendarIcon,
-  BellAlertIcon,
   DocumentTextIcon,
   ScaleIcon,
   ArrowRightIcon,
@@ -271,7 +270,6 @@ const Home: React.FC = () => {
   const userStats = [
     { label: 'Ngày làm việc', value: employee ? calculateWorkingDays().toString() : '0', change: '', icon: CalendarIcon, color: 'bg-blue-100 text-blue-600' },
     { label: 'Điểm danh', value: '0%', change: '', icon: ClockIcon, color: 'bg-green-100 text-green-600' },
-    { label: 'Thông báo', value: '0', change: '', icon: BellAlertIcon, color: 'bg-yellow-100 text-yellow-600' },
   ];
 
   const quickActions = [
@@ -381,10 +379,7 @@ const Home: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                <div className="flex items-baseline mt-2">
-                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                  <span className="ml-2 text-sm font-medium text-green-600">{stat.change}</span>
-                </div>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
               </div>
               <div className={`h-12 w-12 ${stat.color} rounded-lg flex items-center justify-center`}>
                 <stat.icon className="h-6 w-6" />
@@ -697,34 +692,6 @@ const Home: React.FC = () => {
 
         <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Company Announcements */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-4">Thông báo mới nhất</h3>
-              <div className="space-y-3">
-                <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Thông báo về chính sách mới</p>
-                    <p className="text-xs text-gray-500 mt-1">Đăng ngày: 05/01/2026</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3 p-3 bg-yellow-50 rounded-lg">
-                  <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg className="h-4 w-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Lịch đào tạo tháng 1</p>
-                    <p className="text-xs text-gray-500 mt-1">Đăng ngày: 03/01/2026</p>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Quick Links */}
             <div>
