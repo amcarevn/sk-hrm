@@ -59,6 +59,12 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN', 'USER', 'CUSTOMER'],
   },
   {
+    name: 'Bảng thông báo',
+    href: '/dashboard/announcements',
+    icon: MegaphoneIcon,
+    roles: ['ADMIN','HR'],
+  },
+  {
     name: 'Me',
     href: '/dashboard/me',
     icon: UserCircleIcon,
@@ -289,14 +295,6 @@ const navigationItems: NavigationItem[] = [
         roles: ['ADMIN', 'HR'],
       },
     ],
-  },
-
-  // --- Thông báo ---
-  {
-    name: 'Bảng thông báo',
-    href: '/dashboard/announcements',
-    icon: MegaphoneIcon,
-    roles: ['ADMIN', 'HR'],
   },
 
   // --- Cấu hình ---

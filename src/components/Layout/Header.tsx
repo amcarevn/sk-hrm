@@ -9,8 +9,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import ChangePasswordModal from '@/components/Layout/ChangePasswordModal';
-import NotificationDrawer from '@/components/Layout/NotificationDrawer';
 import { hrmAPI } from '@/utils/api';
+import { useNotificationDrawer } from '@/contexts/NotificationDrawerContext';
 
 const PRIORITY_BORDER: Record<string, string> = {
   URGENT: 'border-red-500',
@@ -40,10 +40,7 @@ export default function Header() {
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [changePasswordModalKey, setChangePasswordModalKey] = useState(0);
   const [bellOpen, setBellOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerInitialItem, setDrawerInitialItem] = useState<any | null>(null);
   const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [unreadIds, setUnreadIds] = useState<Set<number>>(new Set());
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -51,6 +48,7 @@ export default function Header() {
   const bellListRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
+  const { unreadIds, markRead, openDrawer } = useNotificationDrawer();
 
   const fetchPage = useCallback(async (pageNum: number, replace: boolean) => {
     try {
@@ -67,17 +65,8 @@ export default function Header() {
     }
   }, []);
 
-  // Load lần đầu
   useEffect(() => { fetchPage(1, true); }, [fetchPage]);
 
-  // Fetch unread IDs riêng cho badge + highlight
-  useEffect(() => {
-    hrmAPI.getCompanyAnnouncements({ is_current: true, unread_only: true, page_size: 100 })
-      .then((res) => setUnreadIds(new Set((res.results || []).map((a: any) => a.id))))
-      .catch(() => {});
-  }, []);
-
-  // Load more khi page tăng
   useEffect(() => {
     if (page === 1) return;
     fetchPage(page, false);
@@ -102,14 +91,6 @@ export default function Header() {
     return () => observer.disconnect();
   }, [bellOpen, hasMore, loadingMore]);
 
-  const markRead = (id: number) => {
-    if (!unreadIds.has(id)) return;
-    // Optimistic update
-    setUnreadIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-    // Gọi API background — không block UI
-    hrmAPI.recordAnnouncementView(id).catch(() => {});
-  };
-
   // Đóng dropdown khi click ngoài
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -124,14 +105,12 @@ export default function Header() {
   const handleLogout = () => {
     logout();
     setUserMenuOpen(false);
-    // ✅ THÊM: Reset modal key khi logout
     setChangePasswordModalKey(0);
   };
 
-  // ✅ SỬA: Tăng key để force re-mount modal
   const handleOpenChangePassword = () => {
     setUserMenuOpen(false);
-    setChangePasswordModalKey(prev => prev + 1);  // ← THÊM dòng này
+    setChangePasswordModalKey(prev => prev + 1);
     setShowChangePasswordModal(true);
   };
 
@@ -204,7 +183,7 @@ export default function Header() {
                         return (
                           <div
                             key={ann.id}
-                            onClick={() => { markRead(ann.id); setBellOpen(false); setDrawerInitialItem(ann); setDrawerOpen(true); }}
+                            onClick={() => { markRead(ann.id); setBellOpen(false); openDrawer(ann); }}
                             className={`flex gap-2 px-4 py-3 cursor-pointer transition-colors border-l-4 ${PRIORITY_BORDER[ann.priority] || 'border-gray-200'} ${isUnread ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
                           >
                             {isUnread && (
@@ -239,7 +218,7 @@ export default function Header() {
                   {/* Footer */}
                   <div className="border-t border-gray-100">
                     <button
-                      onClick={() => { setBellOpen(false); setDrawerInitialItem(null); setDrawerOpen(true); }}
+                      onClick={() => { setBellOpen(false); openDrawer(); }}
                       className="w-full px-4 py-2.5 text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors text-center"
                     >
                       Xem tất cả thông báo →
@@ -276,26 +255,18 @@ export default function Header() {
 
               {userMenuOpen && (
                 <>
-                  {/* Backdrop */}
                   <div
                     className="fixed inset-0 z-10"
                     onClick={() => setUserMenuOpen(false)}
                   />
-                  
-                  {/* Dropdown */}
                   <div className="absolute right-0 z-20 mt-2.5 w-56 origin-top-right rounded-lg bg-white py-1 shadow-lg ring-1 ring-gray-900/5">
-                    
-                    {/* User Info */}
                     <div className="px-4 py-3 border-b border-gray-100">
                       <div className="font-medium text-sm text-gray-900">
                         {user?.firstName} {user?.lastName}
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">{user?.email}</div>
                     </div>
-
-                    {/* Menu Items */}
                     <div className="py-1">
-                      {/* Change Password */}
                       <button
                         onClick={handleOpenChangePassword}
                         className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -303,8 +274,6 @@ export default function Header() {
                         <KeyIcon className="h-4 w-4 mr-3 text-gray-400" />
                         Đổi mật khẩu
                       </button>
-
-                      {/* Logout */}
                       <button
                         onClick={handleLogout}
                         className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -321,19 +290,12 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Notification Drawer */}
-      <NotificationDrawer open={drawerOpen} onClose={() => { setDrawerOpen(false); setDrawerInitialItem(null); }} initialItem={drawerInitialItem} unreadIds={unreadIds} onMarkRead={markRead} />
-
       {/* Change Password Modal */}
       {showChangePasswordModal && (
         <ChangePasswordModal
           key={changePasswordModalKey}
           onClose={() => setShowChangePasswordModal(false)}
-          onSuccess={() => {
-            setShowChangePasswordModal(false);
-            // Optionally logout after password change
-            // logout();
-          }}
+          onSuccess={() => { setShowChangePasswordModal(false); }}
         />
       )}
     </>
