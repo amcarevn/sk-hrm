@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FeedbackDialog from '../components/FeedbackDialog';
+import FilePreviewModal from '../components/Common/FilePreviewModal';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -12,9 +13,6 @@ const TYPE_OPTIONS = [
   { value: '', label: 'Tất cả loại' },
   { value: 'ANNOUNCEMENT', label: 'Thông báo' },
   { value: 'DECISION', label: 'Quyết định' },
-  { value: 'NOTICE', label: 'Thông tri' },
-  { value: 'CIRCULAR', label: 'Thông tư' },
-  { value: 'DIRECTIVE', label: 'Chỉ thị' },
   { value: 'OTHER', label: 'Khác' },
 ];
 
@@ -106,13 +104,16 @@ const AnnouncementList: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [formData, setFormData] = useState({ ...EMPTY_FORM });
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
-  const [attachmentUrl, setAttachmentUrl] = useState('');
-  const [attachmentCleared, setAttachmentCleared] = useState(false);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<{ id: number; file_name: string; file_url: string }[]>([]);
+  const [removedAttachmentIds, setRemovedAttachmentIds] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   // ── Detail modal ──
   const [detailItem, setDetailItem] = useState<any | null>(null);
+
+  // ── Attachment preview dialog ──
+  const [attachmentPreview, setAttachmentPreview] = useState<{ file_name: string; file_url: string } | null>(null);
 
   // ── Dialogs ──
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
@@ -190,9 +191,9 @@ const AnnouncementList: React.FC = () => {
   const openCreate = () => {
     setEditingItem(null);
     setFormData({ ...EMPTY_FORM });
-    setAttachmentFile(null);
-    setAttachmentUrl('');
-    setAttachmentCleared(false);
+    setAttachmentFiles([]);
+    setExistingAttachments([]);
+    setRemovedAttachmentIds([]);
     setShowModal(true);
   };
 
@@ -207,30 +208,33 @@ const AnnouncementList: React.FC = () => {
       effective_to: item.effective_to ? item.effective_to.slice(0, 10) : '',
       is_active: item.is_active ? 'true' : 'false',
     });
-    setAttachmentFile(null);
-    setAttachmentUrl(item.attachment || '');
-    setAttachmentCleared(false);
+    setAttachmentFiles([]);
+    setExistingAttachments(item.attachments || []);
+    setRemovedAttachmentIds([]);
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditingItem(null);
-    setAttachmentFile(null);
-    setAttachmentUrl('');
-    setAttachmentCleared(false);
+    setAttachmentFiles([]);
+    setExistingAttachments([]);
+    setRemovedAttachmentIds([]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    setAttachmentFile(file);
+    const selected = Array.from(e.target.files || []);
+    setAttachmentFiles(prev => [...prev, ...selected]);
+    e.target.value = '';
   };
 
-  const removeFile = () => {
-    if (attachmentUrl) setAttachmentCleared(true);
-    setAttachmentFile(null);
-    setAttachmentUrl('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const removeNewFile = (index: number) => {
+    setAttachmentFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingAttachment = (id: number) => {
+    setExistingAttachments(prev => prev.filter(a => a.id !== id));
+    setRemovedAttachmentIds(prev => [...prev, id]);
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────────
@@ -249,8 +253,8 @@ const AnnouncementList: React.FC = () => {
       fd.append('effective_from', formData.effective_from);
       if (formData.effective_to) fd.append('effective_to', formData.effective_to);
       fd.append('is_active', formData.is_active);
-      if (attachmentFile) fd.append('attachment', attachmentFile);
-      else if (editingItem && attachmentCleared) fd.append('clear_attachment', '1');
+      attachmentFiles.forEach(f => fd.append('attachments', f));
+      removedAttachmentIds.forEach(id => fd.append('remove_attachment_ids', String(id)));
 
       if (editingItem) {
         await hrmAPI.updateAnnouncement(editingItem.id, fd);
@@ -304,13 +308,6 @@ const AnnouncementList: React.FC = () => {
   const formatDate = (d: string | null) => {
     if (!d) return '';
     return new Date(d).toLocaleDateString('vi-VN');
-  };
-
-  const getFileName = (url: string) => {
-    const path = url.split('?')[0];
-    const segment = path.split('/').pop() || 'file';
-    const cleaned = segment.replace(/^\d{8}_\d{6}_[a-f0-9-]+-/, '');
-    return decodeURIComponent(cleaned) || 'file';
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -472,18 +469,22 @@ const AnnouncementList: React.FC = () => {
                     <span>📅 Hiệu lực: {formatDate(item.effective_from)}{item.effective_to ? ` – ${formatDate(item.effective_to)}` : ''}</span>
                     {item.created_by_name && <span>👤 {item.created_by_name}</span>}
                   </div>
-                  {item.attachment && (
-                    <a
-                      href={item.attachment}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:underline"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                      {getFileName(item.attachment)}
-                    </a>
+                  {item.attachments && item.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {item.attachments.map((att: any) => (
+                        <button
+                          key={att.id}
+                          type="button"
+                          onClick={() => setAttachmentPreview(att)}
+                          className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:underline"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                          {att.file_name}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
@@ -601,21 +602,25 @@ const AnnouncementList: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Attachment */}
-                {detailItem.attachment && (
+                {/* Attachments */}
+                {detailItem.attachments && detailItem.attachments.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">File đính kèm</p>
-                    <a
-                      href={detailItem.attachment}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-sm hover:bg-blue-100 transition-colors"
-                    >
-                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                      {getFileName(detailItem.attachment)}
-                    </a>
+                    <p className="text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">File đính kèm ({detailItem.attachments.length})</p>
+                    <div className="flex flex-wrap gap-2">
+                      {detailItem.attachments.map((att: any) => (
+                        <button
+                          key={att.id}
+                          type="button"
+                          onClick={() => setAttachmentPreview(att)}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-sm hover:bg-blue-100 transition-colors"
+                        >
+                          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                          {att.file_name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -741,55 +746,72 @@ const AnnouncementList: React.FC = () => {
 
                 {/* File attachment */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Đính kèm file</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">Đính kèm file</label>
+                    {(existingAttachments.length + attachmentFiles.length) > 0 && (
+                      <span className="text-xs text-gray-400">{existingAttachments.length + attachmentFiles.length} file</span>
+                    )}
+                  </div>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                    multiple
                     onChange={handleFileChange}
                     className="hidden"
                   />
-                  {attachmentFile ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm">
-                      <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                      <span className="flex-1 truncate text-blue-700">{attachmentFile.name}</span>
-                      <button type="button" onClick={removeFile} className="text-gray-400 hover:text-red-500">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+
+                  {/* Existing attachments (from server) */}
+                  {existingAttachments.length > 0 && (
+                    <div className="space-y-1 mb-2">
+                      {existingAttachments.map(att => (
+                        <div key={att.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                          <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                          <a href={att.file_url} target="_blank" rel="noopener noreferrer" className="flex-1 truncate text-primary-600 hover:underline">
+                            {att.file_name}
+                          </a>
+                          <button type="button" onClick={() => removeExistingAttachment(att.id)} className="text-gray-400 hover:text-red-500" title="Xóa file">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ) : attachmentUrl ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
-                      <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                      <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex-1 truncate text-primary-600 hover:underline">
-                        {getFileName(attachmentUrl)}
-                      </a>
-                      <button type="button" onClick={removeFile} className="text-gray-400 hover:text-red-500" title="Xóa file">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                  )}
+
+                  {/* New files selected */}
+                  {attachmentFiles.length > 0 && (
+                    <div className="space-y-1 mb-2">
+                      {attachmentFiles.map((f, i) => (
+                        <div key={i} className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm">
+                          <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                          <span className="flex-1 truncate text-blue-700">{f.name}</span>
+                          <button type="button" onClick={() => removeNewFile(i)} className="text-gray-400 hover:text-red-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-md text-sm text-gray-500 hover:border-primary-400 hover:text-primary-600 transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                      Chọn file đính kèm (PDF, Word, Excel, ảnh)
-                    </button>
                   )}
-                  {!attachmentFile && !attachmentUrl && (
-                    <p className="text-xs text-gray-400 mt-1">Tối đa 10MB · PDF, DOC, DOCX, XLS, XLSX, PNG, JPG</p>
-                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-md text-sm text-gray-500 hover:border-primary-400 hover:text-primary-600 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Thêm file đính kèm
+                  </button>
+                  <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX, XLS, XLSX, PNG, JPG · Tối đa 10MB/file</p>
                 </div>
 
                 {/* Actions */}
@@ -814,6 +836,14 @@ const AnnouncementList: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ── Attachment Preview ── */}
+      <FilePreviewModal
+        open={!!attachmentPreview}
+        file_name={attachmentPreview?.file_name ?? ''}
+        file_url={attachmentPreview?.file_url ?? ''}
+        onClose={() => setAttachmentPreview(null)}
+      />
 
       {/* ── Confirm Delete ── */}
       <ConfirmDialog

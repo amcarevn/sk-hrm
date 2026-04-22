@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { XMarkIcon, ArrowLeftIcon, PaperClipIcon, CalendarDaysIcon, UserIcon } from '@heroicons/react/24/outline';
 import { hrmAPI } from '@/utils/api';
 import { SelectBox } from '@/components/LandingLayout/SelectBox';
+import FilePreviewModal from '@/components/Common/FilePreviewModal';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ export default function NotificationDrawer({ open, onClose, initialItem, unreadI
   const [filterType, setFilterType] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [detailItem, setDetailItem] = useState<any | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<{ file_name: string; file_url: string } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -144,12 +146,7 @@ export default function NotificationDrawer({ open, onClose, initialItem, unreadI
     return new Date(d).toLocaleDateString('vi-VN');
   };
 
-  const getFileName = (url: string) => {
-    const path = url.split('?')[0];
-    const segment = path.split('/').pop() || 'file';
-    const cleaned = segment.replace(/^\d{8}_\d{6}_[a-f0-9-]+-/, '');
-    return decodeURIComponent(cleaned) || 'file';
-  };
+
 
   return (
     <>
@@ -161,7 +158,7 @@ export default function NotificationDrawer({ open, onClose, initialItem, unreadI
 
       {/* Drawer panel */}
       <div
-        className={`fixed top-0 right-0 z-50 h-full w-[420px] max-w-full bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 z-50 h-full w-[750px] max-w-full bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
@@ -243,18 +240,20 @@ export default function NotificationDrawer({ open, onClose, initialItem, unreadI
               <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{detailItem.content}</p>
             </div>
 
-            {/* Attachment */}
-            {detailItem.attachment && (
-              <div className="px-5 pb-5 pt-4 border-t border-gray-100">
-                <a
-                  href={detailItem.attachment}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-sm hover:bg-gray-100 transition-colors"
-                >
-                  <PaperClipIcon className="w-4 h-4 flex-shrink-0 text-gray-400" />
-                  {getFileName(detailItem.attachment)}
-                </a>
+            {/* Attachments */}
+            {detailItem.attachments && detailItem.attachments.length > 0 && (
+              <div className="px-5 pb-5 pt-4 border-t border-gray-100 flex flex-wrap gap-2">
+                {detailItem.attachments.map((att: any) => (
+                  <button
+                    key={att.id}
+                    type="button"
+                    onClick={() => setAttachmentPreview(att)}
+                    className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-sm hover:bg-gray-100 transition-colors"
+                  >
+                    <PaperClipIcon className="w-4 h-4 flex-shrink-0 text-gray-400" />
+                    {att.file_name}
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -324,7 +323,7 @@ export default function NotificationDrawer({ open, onClose, initialItem, unreadI
                             <p className={`text-sm line-clamp-2 ${isUnread ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>{ann.title}</p>
                             <div className="flex items-center justify-between mt-1">
                               <p className="text-xs text-gray-400">{formatDate(ann.effective_from)}</p>
-                              {ann.attachment && <PaperClipIcon className="h-3.5 w-3.5 text-gray-400" />}
+                              {ann.attachments?.length > 0 && <PaperClipIcon className="h-3.5 w-3.5 text-gray-400" />}
                             </div>
                           </div>
                         </div>
@@ -346,6 +345,13 @@ export default function NotificationDrawer({ open, onClose, initialItem, unreadI
           </>
         )}
       </div>
+
+      <FilePreviewModal
+        open={!!attachmentPreview}
+        file_name={attachmentPreview?.file_name ?? ''}
+        file_url={attachmentPreview?.file_url ?? ''}
+        onClose={() => setAttachmentPreview(null)}
+      />
     </>
   );
 }

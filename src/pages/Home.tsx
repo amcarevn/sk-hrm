@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useNotificationDrawer } from '../contexts/NotificationDrawerContext';
+import { hrmAPI } from '../utils/api';
 import { employeesAPI, departmentsAPI, birthdayWishesAPI, BirthdayWish } from '../utils/api';
 import {
   BuildingOfficeIcon,
@@ -19,6 +21,7 @@ import {
   EyeIcon,
   CheckCircleIcon,
   TrophyIcon,
+  MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import onboardingService from '../services/onboarding.service';
@@ -97,11 +100,21 @@ const Home: React.FC = () => {
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
 
+  // Unread announcements for highlight section
+  const { unreadIds, markRead, openDrawer } = useNotificationDrawer();
+  const [unreadAnnouncements, setUnreadAnnouncements] = useState<any[]>([]);
+
   useEffect(() => {
     fetchEmployeeData();
     fetchBirthdaysToday();
     fetchBirthdaysTomorrow();
     fetchAttendanceRanking();
+  }, []);
+
+  useEffect(() => {
+    hrmAPI.getCompanyAnnouncements({ is_current: true, unread_only: true, page_size: 5 })
+      .then((res) => setUnreadAnnouncements(res.results || []))
+      .catch(() => {});
   }, []);
 
   // Lock body scroll khi modal tài liệu mở
@@ -311,6 +324,55 @@ const Home: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Thông báo chưa đọc — highlight để kéo sự chú ý */}
+      {unreadAnnouncements.filter(ann => unreadIds.has(ann.id)).length > 0 && (
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border-2 border-amber-200 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="relative w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/30">
+                <MegaphoneIcon className="w-6 h-6 text-white" />
+                <span className="absolute -top-1.5 -right-1.5 h-5 w-5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold ring-2 ring-white">
+                  {unreadAnnouncements.filter(ann => unreadIds.has(ann.id)).length}
+                </span>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Thông báo chưa đọc</h2>
+                <p className="text-sm text-gray-600">Bấm vào để đọc ngay</p>
+              </div>
+            </div>
+            <button
+              onClick={() => openDrawer()}
+              className="text-sm font-medium text-amber-700 hover:text-amber-900 flex items-center gap-1"
+            >
+              Xem tất cả <ArrowRightIcon className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {unreadAnnouncements.filter(ann => unreadIds.has(ann.id)).map((ann) => (
+              <button
+                key={ann.id}
+                onClick={() => { markRead(ann.id); setUnreadAnnouncements(prev => prev.filter(a => a.id !== ann.id)); openDrawer(ann); }}
+                className="w-full text-left flex items-start gap-3 bg-white hover:bg-amber-50 border border-amber-100 hover:border-amber-300 rounded-xl px-4 py-3 transition-all group"
+              >
+                <span className="mt-1.5 h-2 w-2 rounded-full bg-amber-500 flex-shrink-0 group-hover:bg-amber-600" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{ann.title}</p>
+                  {ann.content && (
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{ann.content}</p>
+                  )}
+                  <p className="text-xs text-amber-600 mt-1">
+                    {ann.effective_from ? new Date(ann.effective_from).toLocaleDateString('vi-VN') : ''}
+                    {ann.announcement_type_display ? ` · ${ann.announcement_type_display}` : ''}
+                  </p>
+                </div>
+                <ArrowRightIcon className="h-4 w-4 text-gray-300 group-hover:text-amber-500 flex-shrink-0 mt-1 transition-colors" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tài liệu onboarding cần đọc */}
       {(() => {
