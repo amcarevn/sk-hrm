@@ -62,7 +62,7 @@ const navigationItems: NavigationItem[] = [
     name: 'Bảng thông báo',
     href: '/dashboard/announcements',
     icon: MegaphoneIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+    roles: ['ADMIN','HR'],
   },
   {
     name: 'Me',
