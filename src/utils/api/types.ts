@@ -606,8 +606,10 @@ export interface Asset {
   department_name?: string;
   managed_by?: number;
   managed_by_name?: string;
+  managed_by_employee_id?: string;
   assigned_to?: number;
   assigned_to_name?: string;
+  assigned_to_employee_id?: string;
   assigned_to_department_name?: string;
   assigned_date?: string;
   purchase_date?: string;
@@ -643,6 +645,7 @@ export interface Asset {
   holders?: Array<{
     history_id: number;
     employee_id: number;
+    employee_code?: string;
     name: string;
     department_name?: string;
     assigned_quantity: number;
@@ -674,6 +677,7 @@ export interface AssetAssignmentHistory {
   asset_specifications?: Record<string, any> | null;
   assigned_to: number;
   assigned_to_name: string;
+  assigned_to_employee_id?: string;
   assigned_date: string;
   returned_date?: string | null;
   status: AssetAssignmentStatus;
@@ -687,6 +691,7 @@ export interface AssetAssignmentHistory {
   assignment_notes?: string | null;
   assigned_by?: number | null;
   assigned_by_name?: string | null;
+  assigned_by_employee_id?: string;
   created_at: string;
   duration_days?: number | null;
   assigned_quantity?: number;
