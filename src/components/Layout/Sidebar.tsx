@@ -489,13 +489,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4">
-            <Link to="/" className="flex items-center">
-              <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-                <img src="/bot-logo.png" alt="Logo" className="h-full w-full" />
+            <Link to="/" className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-blue-900 flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-black text-xs tracking-tight">TAG</span>
               </div>
-              <span className="ml-2 text-xl font-bold text-gray-900">
-                AI HRM
-              </span>
+              <span className="text-sm font-bold text-gray-900">Trung Anh Group</span>
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -556,17 +554,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
           <div className={`flex h-16 items-center ${isCollapsed ? 'justify-center px-0' : 'px-4 justify-between'}`}>
             {!isCollapsed && (
-              <Link to="/" className="flex items-center">
-                <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-                  <img
-                    src="/bot-logo.png"
-                    alt="Logo"
-                    className="h-full w-full"
-                  />
+              <Link to="/" className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-blue-900 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-black text-xs tracking-tight">TAG</span>
                 </div>
-                <span className="ml-2 text-xl font-bold text-gray-900">
-                  AI HRM
-                </span>
+                <span className="text-sm font-bold text-gray-900">Trung Anh Group</span>
               </Link>
             )}
             <button
@@ -649,13 +641,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           <Bars3Icon className="h-6 w-6" />
         </button>
         <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-          <Link to="/" className="flex items-center">
-            <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-              <img src="/bot-logo.png" alt="Logo" className="h-full w-full" />
+          <Link to="/" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-blue-900 flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-black text-xs tracking-tight">TAG</span>
             </div>
-            <span className="ml-2 text-lg font-semibold text-gray-900">
-              AI HRM
-            </span>
+            <span className="text-sm font-bold text-gray-900">Trung Anh Group</span>
           </Link>
         </div>
       </div>
