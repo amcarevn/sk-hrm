@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   employeesAPI,
   departmentsAPI,
+  sectionsAPI,
   positionsAPI,
   EmployeeUpdateData,
 } from '../utils/api';
@@ -63,17 +64,11 @@ const CONTRACT_TYPE_OPTIONS = [
 ];
 
 const PROBATION_RATE_OPTIONS = [
-  { label: 'Tháng đầu 85%, tháng sau 100%', value: 'OPTION_1' },
-  { label: 'Tháng đầu 100%, tháng sau 100%', value: 'OPTION_2' },
+  { label: 'Tháng đầu 85%, tháng sau 85%', value: 'OPTION_1' },
+  { label: 'Tháng đầu 85%, tháng sau 100%', value: 'OPTION_2' },
+  { label: 'Tháng đầu 100%, tháng sau 100%', value: 'OPTION_3' },
 ];
 
-const PROBATION_SALARY_PERCENTAGE_OPTIONS = [
-  { label: 'Không thử việc', value: '0' },
-  { label: '85%', value: '85' },
-  { label: '90%', value: '90' },
-  { label: '95%', value: '95' },
-  { label: '100%', value: '100' },
-];
 
 const CCCD_ISSUE_PLACE_OPTIONS = [
   { label: 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội', value: 'POLICE_ADMIN' },
@@ -142,6 +137,7 @@ const EmployeeEdit: React.FC = () => {
   const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
   const [citizenIdCurrentUrl, setCitizenIdCurrentUrl] = useState<string | null>(null);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -171,7 +167,7 @@ const EmployeeEdit: React.FC = () => {
     section: '',
     doctor_team: '',
     work_form: '',
-    work_type: '',
+    official_start_date: '',
     work_location: '',
     region: '',
     block: '',
@@ -192,6 +188,7 @@ const EmployeeEdit: React.FC = () => {
     // Ngân hàng
     bank_name: '',
     bank_account: '',
+    bank_account_holder: '',
     bank_branch: '',
 
     // Lương & Hợp đồng
@@ -201,7 +198,10 @@ const EmployeeEdit: React.FC = () => {
     probation_months: '',
     probation_end_date: '',
     probation_rate: '',
-    probation_salary_percentage: '',
+    contract_start_date: '',
+    contract_end_date: '',
+    revenue_percentage: '',
+    profit_percentage: '',
 
     // Hồ sơ
     file_status: '',
@@ -215,12 +215,19 @@ const EmployeeEdit: React.FC = () => {
     emergency_contact_dob: '',
     emergency_contact_occupation: '',
     emergency_contact_address: '',
+
+    // Checklist hồ sơ
+    doc_resume: false,
+    doc_cccd: false,
+    doc_degree: false,
+    doc_health: false,
   });
 
   useEffect(() => {
     if (id) {
       loadEmployee(parseInt(id));
       loadDepartments();
+      loadSections();
       loadPositions();
       loadEmployees();
     }
@@ -262,7 +269,7 @@ const EmployeeEdit: React.FC = () => {
         section: e.section || '',
         doctor_team: e.doctor_team || '',
         work_form: e.work_form || '',
-        work_type: ei.work_type || '',
+        official_start_date: e.official_start_date || '',
         work_location: e.work_location || '',
         region: e.region || '',
         block: e.block || '',
@@ -281,6 +288,7 @@ const EmployeeEdit: React.FC = () => {
 
         bank_name: e.bank_name || '',
         bank_account: e.bank_account || '',
+        bank_account_holder: e.bank_account_holder || '',
         bank_branch: e.bank_branch || '',
 
         basic_salary: e.basic_salary ?? '',
@@ -289,11 +297,19 @@ const EmployeeEdit: React.FC = () => {
         probation_months: e.probation_months ?? '',
         probation_end_date: e.probation_end_date || '',
         probation_rate: e.probation_rate || '',
-        probation_salary_percentage: e.probation_salary_percentage != null ? String(e.probation_salary_percentage) : '',
+        contract_start_date: e.contract_start_date || '',
+        contract_end_date: e.contract_end_date || '',
+        revenue_percentage: e.revenue_percentage || '',
+        profit_percentage: e.profit_percentage || '',
 
         file_status: e.file_status || '',
         file_submission_deadline: e.file_submission_deadline || '',
         file_review_notes: e.file_review_notes || '',
+
+        doc_resume: e.doc_resume || false,
+        doc_cccd: e.doc_cccd || false,
+        doc_degree: e.doc_degree || false,
+        doc_health: e.doc_health || false,
 
         emergency_contact_name: e.emergency_contact_name || '',
         emergency_contact_relationship: e.emergency_contact_relationship || '',
@@ -321,6 +337,13 @@ const EmployeeEdit: React.FC = () => {
       const response = await departmentsAPI.list();
       setDepartments(response.results);
     } catch (err) { console.error('Failed to load departments:', err); }
+  };
+  
+  const loadSections = async () => {
+    try {
+      const response = await sectionsAPI.list();
+      setSections(response.results);
+    } catch (err) { console.error('Failed to load sections:', err); }
   };
 
   const loadPositions = async () => {
@@ -395,11 +418,11 @@ const EmployeeEdit: React.FC = () => {
       {
         const nextExtra = {
           ...originalExtraInfo,
-          work_type: formData.work_type?.trim() || undefined,
           facebook_link: undefined,
         };
         payload['extra_info'] = JSON.stringify(nextExtra);
       }
+      add('official_start_date', formData.official_start_date);
       add('education_level', formData.education_level);
 
       add('cccd_number', formData.cccd_number?.trim());
@@ -414,6 +437,7 @@ const EmployeeEdit: React.FC = () => {
 
       add('bank_name', formData.bank_name?.trim());
       add('bank_account', formData.bank_account?.trim());
+      add('bank_account_holder', formData.bank_account_holder?.trim());
       add('bank_branch', formData.bank_branch?.trim());
 
       if (formData.basic_salary !== '') payload['basic_salary'] = Number(formData.basic_salary);
@@ -422,11 +446,18 @@ const EmployeeEdit: React.FC = () => {
       if (formData.probation_months !== '') payload['probation_months'] = Number(formData.probation_months);
       add('probation_end_date', formData.probation_end_date);
       add('probation_rate', formData.probation_rate);
-      if (formData.probation_salary_percentage !== '') payload['probation_salary_percentage'] = Number(formData.probation_salary_percentage);
+      add('contract_start_date', formData.contract_start_date);
+      add('contract_end_date', formData.contract_end_date);
+      add('revenue_percentage', formData.revenue_percentage);
+      add('profit_percentage', formData.profit_percentage);
 
       add('file_status', formData.file_status);
       add('file_submission_deadline', formData.file_submission_deadline);
       add('file_review_notes', formData.file_review_notes?.trim());
+      add('doc_resume', formData.doc_resume);
+      add('doc_cccd', formData.doc_cccd);
+      add('doc_degree', formData.doc_degree);
+      add('doc_health', formData.doc_health);
 
       add('emergency_contact_name', formData.emergency_contact_name?.trim());
       add('emergency_contact_relationship', formData.emergency_contact_relationship?.trim());
@@ -473,7 +504,7 @@ const EmployeeEdit: React.FC = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="space-y-6">
       {/* Header */}
       <div className="mb-6">
         <button
@@ -591,10 +622,16 @@ const EmployeeEdit: React.FC = () => {
                 onChange={handleInput} className={inputClass} />
             </Field>
 
+            <Field label="Ngày lên chính thức">
+              <input type="date" name="official_start_date" value={formData.official_start_date}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
             <SelectBox
               label="Phòng ban"
               value={formData.department_id}
               placeholder="Chọn phòng ban"
+              searchable={true}
               options={departments.map((d) => ({ label: d.name, value: d.id }))}
               onChange={(v) => handleSelect('department_id', v)}
             />
@@ -603,6 +640,7 @@ const EmployeeEdit: React.FC = () => {
               label="Chức vụ"
               value={formData.position_id}
               placeholder="Chọn chức vụ"
+              searchable={true}
               options={positions.map((p) => ({ label: p.title, value: p.id }))}
               onChange={(v) => handleSelect('position_id', v)}
             />
@@ -611,6 +649,7 @@ const EmployeeEdit: React.FC = () => {
               label="Quản lý trực tiếp"
               value={formData.manager_id}
               placeholder="Chọn quản lý"
+              searchable={true}
               options={[
                 { label: 'Không có quản lý', value: null },
                 ...employees
@@ -628,10 +667,14 @@ const EmployeeEdit: React.FC = () => {
                 onChange={handleInput} placeholder="Nhân viên, Trưởng phòng..." className={inputClass} />
             </Field>
 
-            <Field label="Bộ phận (Section)">
-              <input type="text" name="section" value={formData.section}
-                onChange={handleInput} placeholder="Da liễu, Phẫu thuật..." className={inputClass} />
-            </Field>
+            <SelectBox
+              label="Bộ phận"
+              value={formData.section}
+              placeholder="Chọn bộ phận"
+              searchable={true}
+              options={sections.map((s) => ({ label: s.name, value: s.name }))}
+              onChange={(v) => handleSelect('section', v)}
+            />
 
             <Field label="Team Bác sĩ">
               <input type="text" name="doctor_team" value={formData.doctor_team}
@@ -646,10 +689,6 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('work_form', v)}
             />
 
-            <Field label="Loại hình làm việc">
-              <input type="text" name="work_type" value={formData.work_type}
-                onChange={handleInput} placeholder="Full-time, Part-time, ..." className={inputClass} />
-            </Field>
 
             <SelectBox
               label="Địa điểm làm việc"
@@ -765,12 +804,17 @@ const EmployeeEdit: React.FC = () => {
 
             <Field label="Số tài khoản">
               <input type="text" name="bank_account" value={formData.bank_account}
-                onChange={handleInput} placeholder="1234567890" className={inputClass} />
+                onChange={handleInput} placeholder="123456789" className={inputClass} />
+            </Field>
+
+            <Field label="Chủ tài khoản">
+              <input type="text" name="bank_account_holder" value={formData.bank_account_holder}
+                onChange={handleInput} placeholder="NGUYEN VAN A" className={inputClass} />
             </Field>
 
             <Field label="Chi nhánh">
               <input type="text" name="bank_branch" value={formData.bank_branch}
-                onChange={handleInput} placeholder="Chi nhánh Hà Nội..." className={inputClass} />
+                onChange={handleInput} placeholder="Hà Nội" className={inputClass} />
               <p className="text-xs text-gray-400 mt-1">* Trong trường hợp không phải Ngân hàng ACB</p>
             </Field>
           </div>
@@ -816,13 +860,26 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('probation_rate', v)}
             />
 
-            <SelectBox
-              label="% lương thử việc"
-              value={formData.probation_salary_percentage}
-              placeholder="Chọn %"
-              options={PROBATION_SALARY_PERCENTAGE_OPTIONS}
-              onChange={(v) => handleSelect('probation_salary_percentage', v)}
-            />
+            <Field label="Ngày bắt đầu hợp đồng">
+              <input type="date" name="contract_start_date" value={formData.contract_start_date}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <Field label="Ngày kết thúc hợp đồng">
+              <input type="date" name="contract_end_date" value={formData.contract_end_date}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <Field label="Tỷ lệ % doanh số hưởng">
+              <input type="text" name="revenue_percentage" value={formData.revenue_percentage}
+                onChange={handleInput} placeholder="Ví dụ: 5%" className={inputClass} />
+            </Field>
+
+            <Field label="Tỷ lệ % lợi nhuận hưởng">
+              <input type="text" name="profit_percentage" value={formData.profit_percentage}
+                onChange={handleInput} placeholder="Ví dụ: 10%" className={inputClass} />
+            </Field>
+
           </div>
         </div>
 
@@ -850,6 +907,25 @@ const EmployeeEdit: React.FC = () => {
                   placeholder="Ghi chú về tình trạng hồ sơ..."
                   className={textareaClass} />
               </Field>
+            </div>
+
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border cursor-pointer hover:bg-gray-100 transition-colors">
+                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" checked={formData.doc_resume} onChange={(e) => handleSelect('doc_resume', e.target.checked)} />
+                <span className="text-sm font-medium text-gray-700">Sơ yếu lý lịch</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border cursor-pointer hover:bg-gray-100 transition-colors">
+                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" checked={formData.doc_cccd} onChange={(e) => handleSelect('doc_cccd', e.target.checked)} />
+                <span className="text-sm font-medium text-gray-700">CCCD</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border cursor-pointer hover:bg-gray-100 transition-colors">
+                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" checked={formData.doc_degree} onChange={(e) => handleSelect('doc_degree', e.target.checked)} />
+                <span className="text-sm font-medium text-gray-700">Bằng cấp</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border cursor-pointer hover:bg-gray-100 transition-colors">
+                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" checked={formData.doc_health} onChange={(e) => handleSelect('doc_health', e.target.checked)} />
+                <span className="text-sm font-medium text-gray-700">Giấy khám sức khỏe</span>
+              </label>
             </div>
           </div>
         </div>

@@ -395,6 +395,7 @@ export interface Employee {
   allowance?: number;
   contract_type?: string;
   contract_type_display?: string;
+  contract_end_date?: string;
   probation_end_date?: string;
   official_start_date?: string;
   probation_months?: number;
