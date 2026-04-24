@@ -100,11 +100,7 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={
-              <LandingLayout>
-                <LandingPage />
-              </LandingLayout>
-            }
+            element={<LandingPage />}
           />
           <Route
             path="/terms-of-service"

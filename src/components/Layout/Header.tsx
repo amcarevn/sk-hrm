@@ -119,13 +119,11 @@ export default function Header() {
       <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6">
         <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
           <div className="flex items-center">
-            <Link to="/" className="flex items-center">
-              <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-                <img src="/bot-logo.png" alt="Logo" className="h-full w-full" />
+            <Link to="/" className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-blue-900 flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-black text-xs tracking-tight">TAG</span>
               </div>
-              <span className="ml-2 text-lg font-bold text-gray-900">
-                AI HRM
-              </span>
+              <span className="text-sm font-bold text-gray-900">Trung Anh Group</span>
             </Link>
           </div>
           <form className="relative flex flex-1" action="#" method="GET">
