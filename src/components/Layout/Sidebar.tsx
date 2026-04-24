@@ -27,7 +27,6 @@ import {
   ClipboardDocumentListIcon,
   CurrencyDollarIcon,
   TrophyIcon,
-  GiftIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 
@@ -66,57 +65,73 @@ const navigationItems: NavigationItem[] = [
 
   // --- Nhân sự ---
   {
-    name: 'Quản lý nhân viên',
+    name: 'Nhân sự',
     href: '/dashboard/employees',
     icon: UserIcon,
-    roles: ['ADMIN', 'USER'],
-  },
-  {
-    name: 'Onboard nhân sự',
-    href: '/dashboard/onboarding',
-    icon: UserPlusIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Offboard nhân sự',
-    href: '/dashboard/offboarding',
-    icon: UserMinusIcon,
-    roles: ['ADMIN'],
-  },
-  {
-    name: 'Quản lý phân quyền',
-    href: '/dashboard/roles',
-    icon: ShieldCheckIcon,
-    roles: ['ADMIN'],
-  },
-  {
-    name: 'Reset mật khẩu',
-    href: '/dashboard/password-reset',
-    icon: KeyIcon,
-    roles: ['ADMIN', 'HR'],
+    roles: ['ADMIN', 'USER', 'HR'],
+    children: [
+      {
+        name: 'Quản lý nhân viên',
+        href: '/dashboard/employees',
+        icon: UserIcon,
+        roles: ['ADMIN', 'USER'],
+      },
+      {
+        name: 'Onboard nhân sự',
+        href: '/dashboard/onboarding',
+        icon: UserPlusIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Offboard nhân sự',
+        href: '/dashboard/offboarding',
+        icon: UserMinusIcon,
+        roles: ['ADMIN'],
+      },
+      {
+        name: 'Quản lý phân quyền',
+        href: '/dashboard/roles',
+        icon: ShieldCheckIcon,
+        roles: ['ADMIN'],
+      },
+      {
+        name: 'Reset mật khẩu',
+        href: '/dashboard/password-reset',
+        icon: KeyIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+    ],
   },
 
   // --- Cơ cấu tổ chức ---
   {
-    name: 'Quản lý phòng ban',
+    name: 'Cơ cấu tổ chức',
     href: '/dashboard/departments',
     icon: BuildingOfficeIcon,
     roles: ['ADMIN'],
-    employeePermission: 'can_manage_departments',
-  },
-  {
-    name: 'Quản lý bộ phận',
-    href: '/dashboard/sections',
-    icon: BuildingOfficeIcon,
-    roles: ['ADMIN'],
-    employeePermission: 'can_manage_departments',
-  },
-  {
-    name: 'Quản lý vị trí',
-    href: '/dashboard/positions',
-    icon: BriefcaseIcon,
-    roles: ['ADMIN'],
-    employeePermission: 'can_manage_positions',
+    children: [
+      {
+        name: 'Quản lý phòng ban',
+        href: '/dashboard/departments',
+        icon: BuildingOfficeIcon,
+        roles: ['ADMIN'],
+        employeePermission: 'can_manage_departments',
+      },
+      {
+        name: 'Quản lý bộ phận',
+        href: '/dashboard/sections',
+        icon: BuildingOfficeIcon,
+        roles: ['ADMIN'],
+        employeePermission: 'can_manage_departments',
+      },
+      {
+        name: 'Quản lý vị trí',
+        href: '/dashboard/positions',
+        icon: BriefcaseIcon,
+        roles: ['ADMIN'],
+        employeePermission: 'can_manage_positions',
+      },
+    ],
   },
 
   // --- Chấm công ---
@@ -125,38 +140,38 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard/attendance',
     icon: ClockIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
-  },
-  {
-    name: 'Quản lý chấm công',
-    href: '/dashboard/attendance/upload',
-    icon: CloudArrowUpIcon,
-    roles: ['ADMIN', 'HR'],
-    departments: ['HCNS'],
-  },
-  {
-    name: 'Cấu hình ca làm',
-    href: '/dashboard/shift-configuration',
-    icon: ClockIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Chốt công',
-    href: '/dashboard/work-finalization',
-    icon: TableCellsIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Phê duyệt chốt công',
-    href: '/dashboard/work-finalization/approvals',
-    icon: CheckCircleIcon,
-    roles: ['ADMIN'],
-  },
-  {
-    name: 'Khen thưởng & Kỷ luật',
-    href: '/dashboard/rewards',
-    icon: GiftIcon,
-    roles: ['ADMIN'],
     children: [
+      {
+        name: 'Chấm công',
+        href: '/dashboard/attendance',
+        icon: ClockIcon,
+        roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+      },
+      {
+        name: 'Quản lý chấm công',
+        href: '/dashboard/attendance/upload',
+        icon: CloudArrowUpIcon,
+        roles: ['ADMIN', 'HR'],
+        departments: ['HCNS'],
+      },
+      {
+        name: 'Cấu hình ca làm',
+        href: '/dashboard/shift-configuration',
+        icon: ClockIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Chốt công',
+        href: '/dashboard/work-finalization',
+        icon: TableCellsIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Phê duyệt chốt công',
+        href: '/dashboard/work-finalization/approvals',
+        icon: CheckCircleIcon,
+        roles: ['ADMIN'],
+      },
       {
         name: 'Xếp hạng chấm công',
         href: '/dashboard/attendance/ranking',
@@ -168,56 +183,80 @@ const navigationItems: NavigationItem[] = [
 
   // --- Lương ---
   {
-    name: 'Quản lý tính lương',
+    name: 'Lương',
     href: '/dashboard/salary-management',
     icon: CurrencyDollarIcon,
     roles: ['ADMIN'],
+    children: [
+      {
+        name: 'Quản lý tính lương',
+        href: '/dashboard/salary-management',
+        icon: CurrencyDollarIcon,
+        roles: ['ADMIN'],
+      },
+    ],
   },
 
   // --- Tài sản ---
   {
-    name: 'Tài sản được bàn giao',
+    name: 'Tài sản',
     href: '/dashboard/assigned-assets',
     icon: ComputerDesktopIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
-  },
-  {
-    name: 'Quản lý tài sản',
-    href: '/dashboard/assets',
-    icon: ComputerDesktopIcon,
-    roles: ['ADMIN', 'HR'],
+    children: [
+      {
+        name: 'Tài sản được bàn giao',
+        href: '/dashboard/assigned-assets',
+        icon: ComputerDesktopIcon,
+        roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+      },
+      {
+        name: 'Quản lý tài sản',
+        href: '/dashboard/assets',
+        icon: ComputerDesktopIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+    ],
   },
 
   // --- Đơn từ & Phê duyệt ---
   {
-    name: 'Yêu cầu & Đơn từ',
+    name: 'Đơn từ & Phê duyệt',
     href: '/dashboard/my-requests',
     icon: ClipboardDocumentListIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
-  },
-  {
-    name: 'Phê duyệt',
-    href: '/dashboard/approvals',
-    icon: CheckCircleIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
-  },
-  {
-    name: 'Template đơn từ',
-    href: '/dashboard/request-templates',
-    icon: DocumentTextIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Template hợp đồng',
-    href: '/dashboard/contract-templates',
-    icon: DocumentTextIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Template tài liệu',
-    href: '/dashboard/document-templates',
-    icon: DocumentTextIcon,
-    roles: ['ADMIN', 'HR'],
+    children: [
+      {
+        name: 'Yêu cầu & Đơn từ',
+        href: '/dashboard/my-requests',
+        icon: ClipboardDocumentListIcon,
+        roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+      },
+      {
+        name: 'Phê duyệt',
+        href: '/dashboard/approvals',
+        icon: CheckCircleIcon,
+        roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+      },
+      {
+        name: 'Template đơn từ',
+        href: '/dashboard/request-templates',
+        icon: DocumentTextIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Template hợp đồng',
+        href: '/dashboard/contract-templates',
+        icon: DocumentTextIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Template tài liệu',
+        href: '/dashboard/document-templates',
+        icon: DocumentTextIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+    ],
   },
 
   // --- Tuyển dụng ---
@@ -330,10 +369,18 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     return item.roles.some(role => role.toUpperCase() === userRole);
   };
 
+  // For group items, show the parent if at least one child is accessible
+  const canAccessGroupOrItem = (item: NavigationItem): boolean => {
+    if (item.children && item.children.length > 0) {
+      return item.children.some(canAccessItem);
+    }
+    return canAccessItem(item);
+  };
+
   // Unified filtering logic
   const navigation = isSuperAdmin
     ? navigationItems
-    : navigationItems.filter(canAccessItem);
+    : navigationItems.filter(canAccessGroupOrItem);
 
   const toggleGroup = (name: string) => {
     setExpandedGroups(prev => {
