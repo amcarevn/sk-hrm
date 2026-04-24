@@ -378,6 +378,11 @@ export interface Employee {
     employee_id: string;
     full_name: string;
   };
+  company_unit?: {
+    id: number;
+    name: string;
+    code: string;
+  } | null;
   user?: {
     id: number;
     username: string;
@@ -414,6 +419,7 @@ export interface Employee {
   old_id_number?: string;
   cccd_issue_date?: string;
   cccd_issue_place?: string;
+  link_cccd?: string;
   birth_place?: string;
   permanent_residence?: string;
   current_address?: string;

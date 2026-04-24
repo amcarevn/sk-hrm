@@ -373,6 +373,7 @@ const EmployeeList: React.FC = () => {
         { header: 'Số CMND cũ', key: 'old_id_number', width: 14 },
         { header: 'Ngày cấp CCCD', key: 'cccd_issue_date', width: 16 },
         { header: 'Nơi cấp CCCD', key: 'cccd_issue_place', width: 20 },
+        { header: 'Link CCCD/CMT', key: 'link_cccd', width: 28 },
         { header: 'Quê quán', key: 'birth_place', width: 20 },
         { header: 'Hộ khẩu thường trú', key: 'permanent_residence', width: 30 },
         { header: 'Địa chỉ hiện tại', key: 'current_address', width: 30 },
@@ -468,6 +469,7 @@ const EmployeeList: React.FC = () => {
           birth_place: emp.birth_place || '',
           permanent_residence: emp.permanent_residence || '',
           current_address: emp.current_address || '',
+          link_cccd: (emp as any).link_cccd || '',
           marital_status: emp.marital_status || '',
           ethnicity: emp.ethnicity || '',
           nationality: emp.nationality || '',
@@ -679,10 +681,14 @@ const EmployeeList: React.FC = () => {
       { header: 'Link facebook', key: 'facebook_link', width: 28 },
       { header: 'Mã số BHXH', key: 'social_insurance_number', width: 16 },
       { header: 'Mã số TNCN', key: 'tax_code', width: 16 },
+      { header: 'Mã hộ gia đình', key: 'household_code', width: 18 },
       { header: 'Số CCCD', key: 'cccd_number', width: 16 },
       { header: 'Ngày cấp CCCD', key: 'cccd_issue_date', width: 16 },
       { header: 'Nơi cấp CCCD', key: 'cccd_issue_place', width: 22 },
       { header: 'Nơi đăng ký khai sinh', key: 'birth_place', width: 24 },
+      { header: 'Dân tộc', key: 'ethnicity', width: 14 },
+      { header: 'Quốc tịch', key: 'nationality', width: 14 },
+      { header: 'Địa chỉ thường trú', key: 'permanent_residence', width: 32 },
       { header: 'Địa chỉ hiện tại', key: 'current_address', width: 32 },
       { header: 'Link CCCD/CMT', key: 'link_cccd', width: 28 },
       { header: 'Tình trạng hôn nhân', key: 'marital_status', width: 20 },
@@ -695,12 +701,12 @@ const EmployeeList: React.FC = () => {
       { header: 'Ngày nghỉ việc', key: 'end_date', width: 16 },
       { header: 'Lý do nghỉ việc', key: 'termination_reason', width: 28 },
       { header: 'Lương', key: 'basic_salary', width: 16 },
-      { header: 'PHỤ CẤP', key: 'allowance', width: 14 },
+      { header: 'Phụ cấp', key: 'allowance', width: 14 },
       { header: 'Tỷ lệ % doanh số hưởng', key: 'revenue_percentage', width: 24 },
       { header: 'Tỷ lệ % lợi nhuận hưởng', key: 'profit_percentage', width: 24 },
       { header: 'Tỉ lệ hưởng thử việc', key: 'probation_rate', width: 30 },
       { header: 'Thời gian thử việc(tháng)', key: 'probation_months', width: 24 },
-      { header: 'Ghi chú lương/cơ chế', key: 'salary_notes', width: 28 },
+      { header: 'Ghi chú công việc', key: 'employment_status_notes', width: 28 },
       { header: 'Ngày kết thúc thử việc', key: 'probation_end_date', width: 22 },
       { header: 'Ngày chính thức', key: 'official_start_date', width: 18 },
       { header: 'Đơn vị', key: 'company_unit', width: 20 },
@@ -722,6 +728,38 @@ const EmployeeList: React.FC = () => {
     });
     headerRow.height = 30;
 
+    // Ép kiểu text để giữ số 0 đầu và ký tự đặc biệt (%, dấu phẩy...)
+    const TEXT_FORMAT_COLS = [
+      'phone_number', 'cccd_number', 'social_insurance_number',
+      'tax_code', 'bank_account', 'revenue_percentage', 'profit_percentage',
+    ];
+    TEXT_FORMAT_COLS.forEach(key => {
+      const col = sheet.getColumn(key);
+      if (col?.number) col.numFmt = '@';
+    });
+
+    // Sheet ẩn chứa các options có dấu phẩy (tránh bị Excel parse sai)
+    const dropdownSheet = workbook.addWorksheet('_Dropdowns');
+    dropdownSheet.state = 'veryHidden';
+    const probationRateOptions = [
+      'Tháng đầu 85%, tháng sau 85%',
+      'Tháng đầu 85%, tháng sau 100%',
+      'Tháng đầu 100%, tháng sau 100%',
+    ];
+    probationRateOptions.forEach((v, i) => { dropdownSheet.getCell(i + 1, 1).value = v; });
+
+    const workLocationOptions = [
+      '789/C9 Lê Hồng Phong, Phường 12, Quận 10, Thành phố Hồ Chí Minh',
+      '16 Nguyễn Như Đổ, Văn Miếu, Đống Đa, Hà Nội',
+      '61 Vũ Thạnh, Ô Chợ Dừa, Đống Đa, Hà Nội',
+      '9 Sư Vạn Hạnh, Phường 9, Quận 5, Thành phố Hồ Chí Minh',
+      '355 An Dương Vương',
+      'Số 1E Trường Trinh, Hà Nội',
+      'Số 50 Trung Phụng, Hà Nội',
+      'Số 219 Trung Kính, Cầu Giấy, Hà Nội',
+    ];
+    workLocationOptions.forEach((v, i) => { dropdownSheet.getCell(i + 1, 2).value = v; });
+
     // Helper: áp dropdown validation cho 1 cột (rows 2→1001)
     const applyDropdown = (colKey: string, values: string[]) => {
       const colNumber = sheet.getColumn(colKey).number;
@@ -740,17 +778,39 @@ const EmployeeList: React.FC = () => {
       }
     };
 
+    // Helper: dùng cell range thay vì inline list (cho options có dấu phẩy)
+    const applyDropdownRange = (colKey: string, formula: string, values: string[]) => {
+      const colNumber = sheet.getColumn(colKey).number;
+      if (!colNumber) return;
+      for (let r = 2; r <= 1001; r++) {
+        sheet.getCell(r, colNumber).dataValidation = {
+          type: 'list',
+          allowBlank: true,
+          showErrorMessage: true,
+          errorStyle: 'warning',
+          errorTitle: 'Giá trị không hợp lệ',
+          error: `Vui lòng chọn: ${values.join(' / ')}`,
+          formulae: [formula],
+        };
+      }
+    };
+
     applyDropdown('employment_status', ['Đang làm việc', 'Tạm dừng', 'Đã nghỉ']);
     applyDropdown('rank', ['Chủ tịch', 'Giám đốc', 'Phó Giám đốc', 'Leader', 'Trưởng phòng', 'Trưởng phòng tập sự', 'Phó phòng', 'Nhân viên', 'Thực tập sinh']);
     applyDropdown('work_form', ['Toàn thời gian', 'Bán thời gian', 'Hợp đồng', 'Thực tập', 'Cộng tác viên']);
     applyDropdown('education_level', ['Trung học phổ thông', 'Cao đẳng', 'Đại học', 'Thạc sĩ', 'Tiến sĩ', 'Khác']);
     applyDropdown('gender', ['Nam', 'Nữ', 'Khác']);
     applyDropdown('marital_status', ['Độc thân', 'Đã kết hôn', 'Ly hôn', 'Góa']);
-    applyDropdown('probation_rate', [
-      'Tháng đầu 85%, tháng sau 85%',
-      'Tháng đầu 85%, tháng sau 100%',
-      'Tháng đầu 100%, tháng sau 100%',
-    ]);
+    applyDropdownRange(
+      'probation_rate',
+      "'_Dropdowns'!$A$1:$A$3",
+      ['Tháng đầu 85%, tháng sau 85%', 'Tháng đầu 85%, tháng sau 100%', 'Tháng đầu 100%, tháng sau 100%'],
+    );
+    applyDropdownRange(
+      'work_location',
+      "'_Dropdowns'!$B$1:$B$8",
+      workLocationOptions,
+    );
     applyDropdown('contract_type', [
       'Hợp đồng thử việc',
       'Hợp đồng thực tập sinh',
@@ -762,6 +822,10 @@ const EmployeeList: React.FC = () => {
       'Thoả thuận bảo mật',
       'Cam kết đọc hiểu nội quy công ty',
       'Cam kết của CBNV Điều dưỡng',
+    ]);
+    applyDropdown('cccd_issue_place', [
+      'Cục cảnh sát Quản lý hành chính về Trật tự xã hội',
+      'Bộ Công An',
     ]);
     applyDropdown('doc_cccd', ['x', '']);
     applyDropdown('doc_resume', ['x', '']);
@@ -801,6 +865,9 @@ const EmployeeList: React.FC = () => {
       cccd_issue_date: '',
       cccd_issue_place: '',
       birth_place: '',
+      ethnicity: '',
+      nationality: '',
+      permanent_residence: '',
       current_address: '',
       link_cccd: '',
       marital_status: 'Độc thân',
@@ -818,7 +885,7 @@ const EmployeeList: React.FC = () => {
       profit_percentage: '',
       probation_rate: '',
       probation_months: '',
-      salary_notes: '',
+      employment_status_notes: '',
       probation_end_date: '',
       official_start_date: '',
       company_unit: '',
