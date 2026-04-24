@@ -15,8 +15,9 @@ import {
 // ============================================
 
 const PROBATION_RATE_LABELS: Record<string, string> = {
-  OPTION_1: 'Tháng đầu 85%, tháng sau 100%',
-  OPTION_2: 'Tháng đầu 100%, tháng sau 100%',
+  OPTION_1: 'Tháng đầu 85%, tháng sau 85%',
+  OPTION_2: 'Tháng đầu 85%, tháng sau 100%',
+  OPTION_3: 'Tháng đầu 100%, tháng sau 100%',
 };
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
@@ -187,7 +188,7 @@ const EmployeeShow: React.FC = () => {
   const genderLabel = employee.gender === 'M' ? 'Nam' : employee.gender === 'F' ? 'Nữ' : employee.gender === 'O' ? 'Khác' : null;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="space-y-6">
 
       {/* Header */}
       <div className="mb-6">
@@ -236,6 +237,7 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Tình trạng hôn nhân" value={emp.marital_status ? (MARITAL_STATUS_LABELS[emp.marital_status] || emp.marital_status) : null} />
             <InfoField label="Ngày bắt đầu làm việc" value={emp.start_date ? formatDate(emp.start_date) : null} />
             <InfoField label="Ngày nghỉ việc" value={emp.end_date ? formatDate(emp.end_date) : null} />
+            <InfoField label="Ngày lên chính thức" value={emp.official_start_date ? formatDate(emp.official_start_date) : null} />
           </div>
         </div>
 
@@ -253,7 +255,6 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Quản lý trực tiếp" value={employee.manager_name} />
             <InfoField label="Team Bác sĩ" value={emp.doctor_team} />
             <InfoField label="Hình thức làm việc" value={emp.work_form ? (WORK_FORM_LABELS[emp.work_form] || emp.work_form) : null} />
-            <InfoField label="Loại hình làm việc" value={extraInfo.work_type} />
             <InfoField label="Địa điểm làm việc" value={emp.work_location_display || emp.work_location} />
             <InfoField label="Vùng/Miền" value={emp.region} />
             <InfoField label="Khối" value={emp.block} />
@@ -309,7 +310,7 @@ const EmployeeShow: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <InfoField label="Ngân hàng" value={employee.bank_name} />
             <InfoField label="Số tài khoản" value={employee.bank_account} />
-            <InfoField label="Chủ tài khoản" value={extraInfo.bank_account_holder} />
+            <InfoField label="Chủ tài khoản" value={emp.bank_account_holder} />
             <InfoField label="Chi nhánh" value={emp.bank_branch} />
           </div>
         </div>
@@ -327,7 +328,10 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Thời gian thử việc" value={emp.probation_months != null ? `${emp.probation_months} tháng` : null} />
             <InfoField label="Ngày kết thúc thử việc" value={emp.probation_end_date ? formatDate(emp.probation_end_date) : null} />
             <InfoField label="Tỉ lệ thử việc" value={emp.probation_rate ? (PROBATION_RATE_LABELS[emp.probation_rate] || emp.probation_rate) : null} />
-            <InfoField label="% lương thử việc" value={emp.probation_salary_percentage != null ? (emp.probation_salary_percentage_display || `${emp.probation_salary_percentage}%`) : null} />
+            <InfoField label="Ngày bắt đầu hợp đồng" value={emp.contract_start_date ? formatDate(emp.contract_start_date) : null} />
+            <InfoField label="Ngày kết thúc hợp đồng" value={emp.contract_end_date ? formatDate(emp.contract_end_date) : null} />
+            <InfoField label="Tỷ lệ % doanh số hưởng" value={emp.revenue_percentage} />
+            <InfoField label="Tỷ lệ % lợi nhuận hưởng" value={emp.profit_percentage} />
           </div>
         </div>
 
@@ -341,10 +345,10 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Trạng thái hồ sơ" value={emp.file_status_display || (emp.file_status ? FILE_STATUS_LABELS[emp.file_status] || emp.file_status : null)} />
             <InfoField label="Hạn nộp hồ sơ" value={emp.file_submission_deadline ? formatDate(emp.file_submission_deadline) : null} />
             <InfoField label="Ngày nộp hồ sơ" value={emp.file_submission_date ? formatDate(emp.file_submission_date) : null} />
-            <InfoField label="Sơ yếu lý lịch" value={emp.doc_resume ? '✓ Có' : 'Chưa có'} />
-            <InfoField label="Căn cước công dân" value={emp.doc_cccd ? '✓ Có' : 'Chưa có'} />
-            <InfoField label="Bằng cấp" value={emp.doc_degree ? '✓ Có' : 'Chưa có'} />
-            <InfoField label="Giấy khám sức khỏe" value={emp.doc_health ? '✓ Có' : 'Chưa có'} />
+            <InfoField label="Sơ yếu lý lịch" value={emp.doc_resume === true ? 'Đã có' : (emp.doc_resume === false ? 'Chưa có' : null)} />
+            <InfoField label="Căn cước công dân" value={emp.doc_cccd === true ? 'Đã có' : (emp.doc_cccd === false ? 'Chưa có' : null)} />
+            <InfoField label="Bằng cấp" value={emp.doc_degree === true ? 'Đã có' : (emp.doc_degree === false ? 'Chưa có' : null)} />
+            <InfoField label="Giấy khám sức khỏe" value={emp.doc_health === true ? 'Đã có' : (emp.doc_health === false ? 'Chưa có' : null)} />
             <InfoField label="Ghi chú hồ sơ" value={emp.file_review_notes} full />
             <InfoField label="Đã xem bài thuyết trình đào tạo" value={emp.training_presentation_viewed == null ? null : (emp.training_presentation_viewed ? '✓ Đã xem' : 'Chưa xem')} />
           </div>
