@@ -95,11 +95,11 @@ const getStatusBadge = (status: string) => {
 
 const formatDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return 'Chưa có dữ liệu';
-  return new Date(dateStr).toLocaleDateString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 const safeDisplay = (value: any, fallback = 'Chưa có dữ liệu'): string => {
@@ -135,6 +135,7 @@ const EmployeeShow: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewPdf, setPreviewPdf] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) loadEmployee(Number(id));
@@ -424,15 +425,13 @@ const EmployeeShow: React.FC = () => {
                 <div key={f.key} className="border rounded-lg overflow-hidden">
                   {f.url ? (
                     isPdf(f.url) ? (
-                      <a
-                        href={f.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="h-40 bg-red-50 flex flex-col items-center justify-center hover:bg-red-100 transition-colors"
+                      <button
+                        onClick={() => setPreviewPdf(f.url)}
+                        className="h-40 bg-red-50 flex flex-col items-center justify-center hover:bg-red-100 transition-colors w-full"
                       >
                         <span className="text-3xl mb-1">📄</span>
                         <span className="text-xs text-red-600 font-medium">PDF</span>
-                      </a>
+                      </button>
                     ) : (
                       <div
                         className="h-40 bg-gray-100 flex items-center justify-center cursor-pointer hover:opacity-90"
@@ -459,13 +458,22 @@ const EmployeeShow: React.FC = () => {
                   )}
                   <div className="p-2 bg-white flex items-center justify-between">
                     <label className="text-xs text-gray-600 font-medium truncate">{f.label}</label>
-                    {(f.url || f.linkUrl) && (
+                    {f.url && (
+                      <button
+                        onClick={() => isPdf(f.url!) ? setPreviewPdf(f.url) : setPreviewImage(f.url)}
+                        className="p-1 rounded text-gray-500 hover:bg-gray-100"
+                        title="Xem file"
+                      >
+                        <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                      </button>
+                    )}
+                    {!f.url && f.linkUrl && (
                       <a
-                        href={f.url || f.linkUrl!}
+                        href={f.linkUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-1 rounded text-gray-500 hover:bg-gray-100"
-                        title="Mở tab mới"
+                        title="Mở link"
                       >
                         <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                       </a>
@@ -526,6 +534,27 @@ const EmployeeShow: React.FC = () => {
         </div>
 
       </div>
+
+      {/* PDF preview dialog */}
+      {previewPdf && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setPreviewPdf(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl h-[90vh] bg-white rounded-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <iframe src={previewPdf} className="w-full h-full" title="PDF Preview" />
+            <button
+              onClick={() => setPreviewPdf(null)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-white/90 hover:bg-white text-gray-800"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Image preview */}
       {previewImage && (

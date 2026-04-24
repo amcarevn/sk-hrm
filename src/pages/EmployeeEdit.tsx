@@ -1068,7 +1068,7 @@ const EmployeeEdit: React.FC = () => {
               }[] = [
                 { label: 'Bằng cấp', file: diplomaFile, setFile: setDiplomaFile, currentUrl: diplomaCurrentUrl, accept: 'image/*,application/pdf' },
                 { label: 'CCCD/CMT', file: citizenIdFile, setFile: setCitizenIdFile, currentUrl: citizenIdCurrentUrl, accept: 'image/*,application/pdf' },
-                { label: 'Ảnh chụp VNeID', file: vneidFile, setFile: setVneidFile, currentUrl: vneidCurrentUrl, accept: 'image/*' },
+                { label: 'Ảnh chụp VNeID', file: vneidFile, setFile: setVneidFile, currentUrl: vneidCurrentUrl, accept: 'image/*,application/pdf' },
               ];
               return rows.map(r => (
                 <div key={r.label} className="border rounded-lg p-3 space-y-2">
