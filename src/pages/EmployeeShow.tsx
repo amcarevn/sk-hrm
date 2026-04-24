@@ -61,6 +61,18 @@ const FILE_STATUS_LABELS: Record<string, string> = {
   PENDING_REVIEW: 'Chờ rà soát',
 };
 
+const RANK_LABELS: Record<string, string> = {
+  CHAIRMAN: 'Chủ tịch',
+  DIRECTOR: 'Giám đốc',
+  DEPUTY_DIRECTOR: 'Phó Giám đốc',
+  LEADER: 'Leader',
+  MANAGER: 'Trưởng phòng',
+  MANAGER_TRAINEE: 'Trưởng phòng tập sự',
+  DEPUTY_MANAGER: 'Phó phòng',
+  STAFF: 'Nhân viên',
+  INTERN: 'Thực tập sinh',
+};
+
 const CCCD_ISSUE_PLACE_LABELS: Record<string, string> = {
   POLICE_ADMIN: 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội',
   MINISTRY_PUBLIC_SECURITY: 'Bộ Công An',
@@ -238,6 +250,7 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Ngày bắt đầu làm việc" value={emp.start_date ? formatDate(emp.start_date) : null} />
             <InfoField label="Ngày nghỉ việc" value={emp.end_date ? formatDate(emp.end_date) : null} />
             <InfoField label="Ngày lên chính thức" value={emp.official_start_date ? formatDate(emp.official_start_date) : null} />
+            <InfoField label="Lý do nghỉ việc" value={emp.termination_reason} full />
           </div>
         </div>
 
@@ -250,7 +263,7 @@ const EmployeeShow: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <InfoField label="Phòng ban" value={employee.department?.name} />
             <InfoField label="Vị trí" value={employee.position?.title} />
-            <InfoField label="Cấp bậc" value={emp.rank} />
+            <InfoField label="Cấp bậc" value={emp.rank ? (RANK_LABELS[emp.rank] ?? emp.rank) : undefined} />
             <InfoField label="Bộ phận" value={emp.section} />
             <InfoField label="Quản lý trực tiếp" value={employee.manager_name} />
             <InfoField label="Team Bác sĩ" value={emp.doctor_team} />
@@ -258,6 +271,7 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Địa điểm làm việc" value={emp.work_location_display || emp.work_location} />
             <InfoField label="Vùng/Miền" value={emp.region} />
             <InfoField label="Khối" value={emp.block} />
+            <InfoField label="Đơn vị" value={emp.company_unit?.name} />
             <InfoField label="Trạng thái" value={
               emp.employment_status === 'PAUSED' ? 'Tạm dừng' :
               emp.employment_status === 'INACTIVE' ? 'Đã nghỉ' :
@@ -295,9 +309,6 @@ const EmployeeShow: React.FC = () => {
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <InfoField label="Trình độ" value={emp.education_level ? (EDUCATION_LEVEL_LABELS[emp.education_level] || emp.education_level) : null} />
-            <InfoField label="Năm tốt nghiệp" value={extraInfo.graduation_year} />
-            <InfoField label="Trường" value={extraInfo.university} full />
-            <InfoField label="Chuyên ngành" value={extraInfo.major} full />
           </div>
         </div>
 
@@ -324,14 +335,14 @@ const EmployeeShow: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <InfoField label="Lương cơ bản" value={emp.basic_salary != null ? `${Number(emp.basic_salary).toLocaleString('vi-VN')} đ` : null} highlight />
             <InfoField label="Phụ cấp" value={emp.allowance != null ? `${Number(emp.allowance).toLocaleString('vi-VN')} đ` : null} />
-            <InfoField label="Loại hợp đồng" value={emp.contract_type ? (emp.contract_type_display || CONTRACT_TYPE_LABELS[emp.contract_type] || emp.contract_type) : null} />
-            <InfoField label="Thời gian thử việc" value={emp.probation_months != null ? `${emp.probation_months} tháng` : null} />
-            <InfoField label="Ngày kết thúc thử việc" value={emp.probation_end_date ? formatDate(emp.probation_end_date) : null} />
-            <InfoField label="Tỉ lệ thử việc" value={emp.probation_rate ? (PROBATION_RATE_LABELS[emp.probation_rate] || emp.probation_rate) : null} />
-            <InfoField label="Ngày bắt đầu hợp đồng" value={emp.contract_start_date ? formatDate(emp.contract_start_date) : null} />
-            <InfoField label="Ngày kết thúc hợp đồng" value={emp.contract_end_date ? formatDate(emp.contract_end_date) : null} />
             <InfoField label="Tỷ lệ % doanh số hưởng" value={emp.revenue_percentage} />
             <InfoField label="Tỷ lệ % lợi nhuận hưởng" value={emp.profit_percentage} />
+            <InfoField label="Loại hợp đồng" value={emp.contract_type ? (emp.contract_type_display || CONTRACT_TYPE_LABELS[emp.contract_type] || emp.contract_type) : null} full />
+            <InfoField label="Ngày bắt đầu hợp đồng" value={emp.contract_start_date ? formatDate(emp.contract_start_date) : null} />
+            <InfoField label="Ngày kết thúc hợp đồng" value={emp.contract_end_date ? formatDate(emp.contract_end_date) : null} />
+            <InfoField label="Thời gian thử việc" value={emp.probation_months != null ? `${emp.probation_months} tháng` : null} />
+            <InfoField label="Tỉ lệ thử việc" value={emp.probation_rate ? (PROBATION_RATE_LABELS[emp.probation_rate] || emp.probation_rate) : null} />
+            <InfoField label="Ngày kết thúc thử việc" value={emp.probation_end_date ? formatDate(emp.probation_end_date) : null} />
           </div>
         </div>
 
@@ -350,7 +361,6 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Bằng cấp" value={emp.doc_degree === true ? 'Đã có' : (emp.doc_degree === false ? 'Chưa có' : null)} />
             <InfoField label="Giấy khám sức khỏe" value={emp.doc_health === true ? 'Đã có' : (emp.doc_health === false ? 'Chưa có' : null)} />
             <InfoField label="Ghi chú hồ sơ" value={emp.file_review_notes} full />
-            <InfoField label="Đã xem bài thuyết trình đào tạo" value={emp.training_presentation_viewed == null ? null : (emp.training_presentation_viewed ? '✓ Đã xem' : 'Chưa xem')} />
           </div>
         </div>
 
@@ -403,9 +413,11 @@ const EmployeeShow: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             {(() => {
               const isPdf = (url: string) => /\.pdf(\?|$)/i.test(url);
-              const fileCards: { key: string; label: string; url: string | null }[] = [
+              const cccdUrl = emp.citizen_id_file_url || null;
+              const cccdLink = emp.link_cccd || null;
+              const fileCards: { key: string; label: string; url: string | null; linkUrl?: string | null }[] = [
                 { key: 'diploma_file', label: 'Bằng cấp', url: emp.diploma_file_url || null },
-                { key: 'citizen_id_file', label: 'File CMND/CCCD', url: emp.citizen_id_file_url || null },
+                { key: 'citizen_id_file', label: 'CCCD/CMT', url: cccdUrl, linkUrl: cccdLink },
                 { key: 'vneid_screenshot', label: 'Ảnh chụp VNeID', url: emp.vneid_screenshot_url || (emp.vneid_screenshot ? String(emp.vneid_screenshot) : null) },
               ];
               return fileCards.map(f => (
@@ -429,6 +441,16 @@ const EmployeeShow: React.FC = () => {
                         <img src={f.url} alt={f.label} className="object-cover w-full h-full" />
                       </div>
                     )
+                  ) : f.linkUrl ? (
+                    <a
+                      href={f.linkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-40 bg-gray-50 flex flex-col items-center justify-center gap-2 text-indigo-600 hover:text-indigo-800 transition-colors"
+                    >
+                      <span className="text-3xl">🔗</span>
+                      <span className="text-xs font-medium">Mở link</span>
+                    </a>
                   ) : (
                     <div className="h-40 bg-gray-50 flex flex-col items-center justify-center">
                       <span className="text-3xl mb-1">🖼️</span>
@@ -437,9 +459,9 @@ const EmployeeShow: React.FC = () => {
                   )}
                   <div className="p-2 bg-white flex items-center justify-between">
                     <label className="text-xs text-gray-600 font-medium truncate">{f.label}</label>
-                    {f.url && (
+                    {(f.url || f.linkUrl) && (
                       <a
-                        href={f.url}
+                        href={f.url || f.linkUrl!}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-1 rounded text-gray-500 hover:bg-gray-100"
@@ -480,6 +502,7 @@ const EmployeeShow: React.FC = () => {
                 )}
               </div>
             </div>
+
           </div>
         </div>
 
