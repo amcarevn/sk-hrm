@@ -263,7 +263,7 @@ const HRStats: React.FC = () => {
             {/* Recent Activities */}
             <div className="mb-6">
               <h4 className="text-sm font-medium text-gray-900 mb-3">Hoạt động gần đây (7 ngày)</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center">
                     <UserPlusIcon className="h-5 w-5 text-green-600 mr-2" />
@@ -298,10 +298,10 @@ const HRStats: React.FC = () => {
             {stats.department_stats.length > 0 && (
               <div className="mb-6">
                 <h4 className="text-sm font-medium text-gray-900 mb-4">Phân bổ theo phòng ban</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                  {/* Donut Chart */}
-                  <div className="relative">
-                    <ResponsiveContainer width="100%" height={220}>
+                <div className="flex flex-col md:flex-row gap-4 xl:gap-8 items-start">
+                  {/* Donut Chart — fixed width, không bị kéo dãn trên desktop */}
+                  <div className="relative mx-auto md:mx-0 w-full md:w-[260px] xl:w-[280px] flex-shrink-0">
+                    <ResponsiveContainer width="100%" height={240}>
                       <PieChart>
                         <Pie
                           data={donutData}
@@ -331,8 +331,8 @@ const HRStats: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Ranked List */}
-                  <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                  {/* Ranked List — flex-1 chiếm toàn bộ space còn lại, bỏ max-h cứng trên xl */}
+                  <div className="flex-1 min-w-0 max-h-[240px] xl:max-h-none overflow-y-auto space-y-2 pr-1">
                     {sortedDepts.map((dept, index) => {
                       const color = index < 8 ? DEPT_COLORS[index] : OTHER_COLOR;
                       const pct = stats.employee_stats.active > 0
@@ -368,7 +368,7 @@ const HRStats: React.FC = () => {
             {/* Trends */}
             <div className="pt-6 border-t border-gray-200">
               <h4 className="text-sm font-medium text-gray-900 mb-3">Xu hướng</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg">
                   <div className="flex items-center">
                     <ArrowTrendingUpIcon className="h-5 w-5 text-blue-600 mr-2" />
@@ -645,7 +645,7 @@ const HRStats: React.FC = () => {
             {/* Recent Activities */}
             <div className="pt-6 border-t border-gray-200">
               <h4 className="text-sm font-medium text-gray-900 mb-3">Hoạt động gần đây (7 ngày)</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center">
                     <UserPlusIcon className="h-5 w-5 text-green-600 mr-2" />

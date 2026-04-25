@@ -93,20 +93,15 @@ export default function Login() {
 
       {/* Logo + branding */}
       <motion.div initial="hidden" animate="visible" className="relative z-10 flex flex-col items-center mb-8">
-        <motion.div
-          custom={0} variants={fadeUp}
-          className="h-16 w-16 rounded-2xl bg-white flex items-center justify-center mb-5 shadow-xl"
-        >
-          <span className="text-blue-900 font-black text-xl tracking-tight">TAG</span>
+        <motion.div custom={0} variants={fadeUp} className="mb-5">
+          <img
+            src="/logo-trung-anh.png"
+            alt="Trung Anh Group"
+            className="h-16 w-auto max-w-[220px] rounded-xl shadow-xl object-contain"
+          />
         </motion.div>
-        <motion.h1
-          custom={1} variants={fadeUp}
-          className="text-3xl font-extrabold text-white leading-tight tracking-tight"
-        >
-          Trung Anh Group
-        </motion.h1>
         <motion.p
-          custom={2} variants={fadeUp}
+          custom={1} variants={fadeUp}
           className="text-blue-300 text-base mt-1.5"
         >
           Hệ thống Quản lý Nhân sự
@@ -115,7 +110,7 @@ export default function Login() {
 
       {/* Card — glassmorphism */}
       <motion.div
-        custom={3} variants={fadeUp} initial="hidden" animate="visible"
+        custom={2} variants={fadeUp} initial="hidden" animate="visible"
         className="relative z-10 w-full max-w-sm bg-white/[0.08] backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl p-8"
       >
         <form onSubmit={handleSubmit} noValidate className="space-y-5">

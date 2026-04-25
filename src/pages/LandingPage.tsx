@@ -96,13 +96,12 @@ export default function LandingPage() {
       <header className="fixed top-0 inset-x-0 z-50 bg-blue-900/95 backdrop-blur border-b border-blue-800">
         <div className="mx-auto max-w-7xl px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center flex-shrink-0">
-              <span className="text-blue-900 font-black text-sm tracking-tight">TAG</span>
-            </div>
-            <div>
-              <div className="text-white font-bold text-sm leading-tight">Trung Anh Group</div>
-              <div className="text-blue-300 text-xs">Hệ thống Quản lý Nhân sự</div>
-            </div>
+            <img
+              src="/logo-trung-anh.png"
+              alt="Trung Anh Group"
+              className="h-10 w-auto max-w-[160px] rounded-lg object-contain"
+            />
+            <span className="text-blue-300 text-xs hidden sm:block">Hệ thống Quản lý Nhân sự</span>
           </div>
           <a
             href="/login"
@@ -373,10 +372,11 @@ export default function LandingPage() {
         <div className="border-t border-blue-800">
           <div className="mx-auto max-w-7xl px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="h-7 w-7 rounded-md bg-white flex items-center justify-center flex-shrink-0">
-                <span className="text-blue-900 font-black text-[10px]">TAG</span>
-              </div>
-              <span className="text-blue-300 text-sm font-medium">Trung Anh Group</span>
+              <img
+                src="/logo-trung-anh.png"
+                alt="Trung Anh Group"
+                className="h-8 w-auto max-w-[130px] rounded-lg object-contain"
+              />
               <span className="text-blue-600 text-xs hidden sm:block">Hệ thống Quản lý Nhân sự</span>
             </div>
             <span className="text-blue-500 text-xs">© 2026 Trung Anh Group. All rights reserved.</span>
