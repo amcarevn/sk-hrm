@@ -295,11 +295,11 @@ const Home: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-8 text-white">
+      <div className="rounded-2xl p-8 text-white" style={{ background: 'linear-gradient(135deg, #2d5a1a 0%, #3F7F25 40%, #4E9A2E 100%)' }}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold">Chào mừng trở lại, {user?.username || 'Nhân viên'}!</h1>
-            <p className="mt-2 text-primary-100">
+            <p className="mt-2 text-white/70">
               Hôm nay là {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
             <div className="mt-4 flex items-center space-x-4">
@@ -316,7 +316,7 @@ const Home: React.FC = () => {
           <div className="mt-6 md:mt-0">
             <button
               onClick={() => navigate('/dashboard/me')}
-              className="inline-flex items-center px-6 py-3 border-2 border-white text-sm font-medium rounded-lg text-white hover:bg-white hover:text-primary-700 transition-colors"
+              className="inline-flex items-center px-6 py-3 border-2 border-white text-sm font-medium rounded-lg text-white hover:bg-white hover:text-sk-green-dark transition-colors"
             >
               <UserIcon className="h-5 w-5 mr-2" />
               Xem hồ sơ cá nhân

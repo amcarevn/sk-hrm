@@ -25,7 +25,7 @@ export default function Login() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-blue-900">
+      <div className="min-h-screen flex items-center justify-center bg-sk-green">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
       </div>
     );
@@ -76,8 +76,11 @@ export default function Login() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center bg-blue-900 px-4 overflow-hidden">
-      {/* Gradient mesh background — same as LandingPage hero */}
+    <div
+      className="relative min-h-screen flex flex-col items-center justify-center px-4 overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #0a1a06 0%, #162b0e 45%, #254d18 100%)' }}
+    >
+      {/* Background mesh — nhất quán với LandingPage hero */}
       <div className="absolute inset-0 pointer-events-none">
         <div
           className="absolute inset-0 opacity-[0.07]"
@@ -86,37 +89,38 @@ export default function Login() {
             backgroundSize: '36px 36px',
           }}
         />
-        <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-blue-500 opacity-20 blur-3xl" />
-        <div className="absolute top-1/2 right-1/3 w-72 h-72 rounded-full bg-indigo-500 opacity-15 blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 w-96 h-96 rounded-full bg-blue-700 opacity-25 blur-3xl" />
+        <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-sk-green-light opacity-30 blur-3xl" />
+        <div className="absolute top-1/2 right-1/3 w-72 h-72 rounded-full bg-sk-green-light opacity-20 blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-96 h-96 rounded-full bg-white opacity-10 blur-3xl" />
       </div>
 
       {/* Logo + branding */}
       <motion.div initial="hidden" animate="visible" className="relative z-10 flex flex-col items-center mb-8">
         <motion.div custom={0} variants={fadeUp} className="mb-5">
           <img
-            src="/logo-trung-anh.png"
-            alt="Trung Anh Group"
+            src="/logo-sk.png"
+            alt="SK Dental Clinic"
             className="h-16 w-auto max-w-[220px] rounded-xl shadow-xl object-contain"
           />
         </motion.div>
         <motion.p
           custom={1} variants={fadeUp}
-          className="text-blue-300 text-base mt-1.5"
+          className="text-sk-green-light text-base mt-1.5 font-medium"
         >
           Hệ thống Quản lý Nhân sự
         </motion.p>
       </motion.div>
 
-      {/* Card — glassmorphism */}
+      {/* Card — dark glass, nhất quán với hero card */}
       <motion.div
         custom={2} variants={fadeUp} initial="hidden" animate="visible"
-        className="relative z-10 w-full max-w-sm bg-white/[0.08] backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl p-8"
+        className="relative z-10 w-full max-w-sm bg-sk-green-dark/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8"
       >
         <form onSubmit={handleSubmit} noValidate className="space-y-5">
+
           {/* Username */}
           <div>
-            <label className="block text-sm font-medium text-blue-200 mb-1.5">
+            <label className="block text-sm font-medium text-white/80 mb-1.5">
               Tên đăng nhập
             </label>
             <input
@@ -126,7 +130,7 @@ export default function Login() {
               className={`block w-full px-3.5 py-2.5 bg-white/90 border rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition ${
                 fieldErrors.username
                   ? 'border-red-400 focus:ring-red-400'
-                  : 'border-white/30 focus:ring-blue-400'
+                  : 'border-white/30 focus:ring-sk-green'
               }`}
               value={formData.username}
               onChange={(e) => handleChange('username', e.target.value)}
@@ -138,7 +142,7 @@ export default function Login() {
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-blue-200 mb-1.5">
+            <label className="block text-sm font-medium text-white/80 mb-1.5">
               Mật khẩu
             </label>
             <div className="relative">
@@ -149,7 +153,7 @@ export default function Login() {
                 className={`block w-full px-3.5 py-2.5 pr-10 bg-white/90 border rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent transition ${
                   fieldErrors.password
                     ? 'border-red-400 focus:ring-red-400'
-                    : 'border-white/30 focus:ring-blue-400'
+                    : 'border-white/30 focus:ring-sk-green'
                 }`}
                 value={formData.password}
                 onChange={(e) => handleChange('password', e.target.value)}
@@ -160,8 +164,8 @@ export default function Login() {
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword
-                  ? <EyeSlashIcon className="h-4 w-4 text-blue-400" />
-                  : <EyeIcon className="h-4 w-4 text-blue-400" />
+                  ? <EyeSlashIcon className="h-4 w-4 text-sk-green-light" />
+                  : <EyeIcon className="h-4 w-4 text-sk-green-light" />
                 }
               </button>
             </div>
@@ -180,13 +184,20 @@ export default function Login() {
           <button
             type="submit"
             disabled={isLoggingIn}
-            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-60 text-white text-base font-bold rounded-xl transition-colors mt-1 shadow-lg shadow-blue-900/40"
+            className="w-full py-3 px-4 bg-white text-sk-green text-base font-bold rounded-xl hover:bg-sk-bg-section active:bg-sk-border disabled:opacity-60 transition-colors mt-1 shadow-lg"
           >
             {isLoggingIn ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
       </motion.div>
 
+      {/* Footer note */}
+      <motion.p
+        custom={3} variants={fadeUp} initial="hidden" animate="visible"
+        className="relative z-10 mt-6 text-white/40 text-xs text-center"
+      >
+        © 2026 SK Dental Clinic. Dành cho nhân viên nội bộ.
+      </motion.p>
     </div>
   );
 }
