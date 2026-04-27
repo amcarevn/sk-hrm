@@ -355,8 +355,6 @@ const EmployeeShow: React.FC = () => {
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <InfoField label="Trạng thái hồ sơ" value={emp.file_status_display || (emp.file_status ? FILE_STATUS_LABELS[emp.file_status] || emp.file_status : null)} />
-            <InfoField label="Hạn nộp hồ sơ" value={emp.file_submission_deadline ? formatDate(emp.file_submission_deadline) : null} />
-            <InfoField label="Ngày nộp hồ sơ" value={emp.file_submission_date ? formatDate(emp.file_submission_date) : null} />
             <InfoField label="Sơ yếu lý lịch" value={emp.doc_resume === true ? 'Đã có' : (emp.doc_resume === false ? 'Chưa có' : null)} />
             <InfoField label="Căn cước công dân" value={emp.doc_cccd === true ? 'Đã có' : (emp.doc_cccd === false ? 'Chưa có' : null)} />
             <InfoField label="Bằng cấp" value={emp.doc_degree === true ? 'Đã có' : (emp.doc_degree === false ? 'Chưa có' : null)} />

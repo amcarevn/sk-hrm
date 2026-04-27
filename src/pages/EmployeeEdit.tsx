@@ -224,7 +224,6 @@ const EmployeeEdit: React.FC = () => {
 
     // Hồ sơ
     file_status: '',
-    file_submission_deadline: '',
     file_review_notes: '',
 
     // Người liên hệ khẩn cấp
@@ -328,7 +327,6 @@ const EmployeeEdit: React.FC = () => {
         profit_percentage: e.profit_percentage || '',
 
         file_status: e.file_status || '',
-        file_submission_deadline: e.file_submission_deadline || '',
         file_review_notes: e.file_review_notes || '',
 
         doc_resume: e.doc_resume || false,
@@ -490,7 +488,6 @@ const EmployeeEdit: React.FC = () => {
       add('profit_percentage', formData.profit_percentage);
 
       add('file_status', formData.file_status);
-      add('file_submission_deadline', formData.file_submission_deadline);
       add('file_review_notes', formData.file_review_notes?.trim());
       add('doc_resume', formData.doc_resume);
       add('doc_cccd', formData.doc_cccd);
@@ -974,11 +971,6 @@ const EmployeeEdit: React.FC = () => {
               options={FILE_STATUS_OPTIONS}
               onChange={(v) => handleSelect('file_status', v)}
             />
-
-            <Field label="Hạn nộp hồ sơ">
-              <input type="date" name="file_submission_deadline" value={formData.file_submission_deadline}
-                onChange={handleInput} className={inputClass} />
-            </Field>
 
             <div className="md:col-span-2">
               <Field label="Ghi chú hồ sơ">
