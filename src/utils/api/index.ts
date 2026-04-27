@@ -60,7 +60,7 @@ export {
   botPermissionsAPI,
 } from './chatbots.api';
 export { usersAPI, permissionsAPI, rolesAPI, apiKeysAPI } from './users.api';
-export { healthAPI, facebookAPI, dashboardAPI } from './system.api';
+export { healthAPI, facebookAPI, dashboardAPI, publicStatsAPI } from './system.api';
 export {
   employeesAPI,
   departmentsAPI,

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useNotificationDrawer } from '../contexts/NotificationDrawerContext';
+import { hrmAPI } from '../utils/api';
 import { employeesAPI, departmentsAPI, birthdayWishesAPI, BirthdayWish } from '../utils/api';
 import {
   BuildingOfficeIcon,
   UserGroupIcon,
   CalendarIcon,
-  BellAlertIcon,
   DocumentTextIcon,
   ScaleIcon,
   ArrowRightIcon,
@@ -20,6 +21,7 @@ import {
   EyeIcon,
   CheckCircleIcon,
   TrophyIcon,
+  MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import onboardingService from '../services/onboarding.service';
@@ -59,17 +61,19 @@ const Home: React.FC = () => {
     employee_id: number;
     full_name: string;
     date_of_birth: string;
+    avatar_url?: string | null;
     department: { id: number; name: string; code: string } | null;
   }>>([]);
   const [tomorrowBirthdayEmployees, setTomorrowBirthdayEmployees] = useState<Array<{
     employee_id: number;
     full_name: string;
     date_of_birth: string;
+    avatar_url?: string | null;
     department: { id: number; name: string; code: string } | null;
   }>>([]);
   const [wishModal, setWishModal] = useState<{
     open: boolean;
-    employee: { employee_id: number; full_name: string } | null;
+    employee: { employee_id: number; full_name: string; avatar_url?: string | null } | null;
   }>({ open: false, employee: null });
   const [wishMessage, setWishMessage] = useState('');
   const [wishSent, setWishSent] = useState<Set<number>>(new Set());
@@ -83,7 +87,7 @@ const Home: React.FC = () => {
   const [wishError, setWishError] = useState<string | null>(null);
   const [wishListModal, setWishListModal] = useState<{
     open: boolean;
-    employee: { employee_id: number; full_name: string } | null;
+    employee: { employee_id: number; full_name: string; avatar_url?: string | null } | null;
     wishes: BirthdayWish[];
     loading: boolean;
   }>({ open: false, employee: null, wishes: [], loading: false });
@@ -96,11 +100,21 @@ const Home: React.FC = () => {
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
 
+  // Unread announcements for highlight section
+  const { unreadIds, markRead, openDrawer } = useNotificationDrawer();
+  const [unreadAnnouncements, setUnreadAnnouncements] = useState<any[]>([]);
+
   useEffect(() => {
     fetchEmployeeData();
     fetchBirthdaysToday();
     fetchBirthdaysTomorrow();
     fetchAttendanceRanking();
+  }, []);
+
+  useEffect(() => {
+    hrmAPI.getCompanyAnnouncements({ is_current: true, unread_only: true, page_size: 5 })
+      .then((res) => setUnreadAnnouncements(res.results || []))
+      .catch(() => {});
   }, []);
 
   // Lock body scroll khi modal tài liệu mở
@@ -165,7 +179,7 @@ const Home: React.FC = () => {
     }
   };
 
-  const openWishModal = (emp: { employee_id: number; full_name: string }) => {
+  const openWishModal = (emp: { employee_id: number; full_name: string; avatar_url?: string | null }) => {
     setWishMessage(`Chúc mừng sinh nhật ${emp.full_name}! 🎂🎉 Chúc bạn luôn vui vẻ, mạnh khỏe và thành công!`);
     setWishError(null);
     setWishModal({ open: true, employee: emp });
@@ -205,7 +219,7 @@ const Home: React.FC = () => {
     }
   };
 
-  const openWishListModal = async (emp: { employee_id: number; full_name: string }) => {
+  const openWishListModal = async (emp: { employee_id: number; full_name: string; avatar_url?: string | null }) => {
     setWishListModal({ open: true, employee: emp, wishes: [], loading: true });
     try {
       const wishes = await birthdayWishesAPI.list({ recipient: emp.employee_id, year: new Date().getFullYear() });
@@ -269,7 +283,6 @@ const Home: React.FC = () => {
   const userStats = [
     { label: 'Ngày làm việc', value: employee ? calculateWorkingDays().toString() : '0', change: '', icon: CalendarIcon, color: 'bg-blue-100 text-blue-600' },
     { label: 'Điểm danh', value: '0%', change: '', icon: ClockIcon, color: 'bg-green-100 text-green-600' },
-    { label: 'Thông báo', value: '0', change: '', icon: BellAlertIcon, color: 'bg-yellow-100 text-yellow-600' },
   ];
 
   const quickActions = [
@@ -311,6 +324,55 @@ const Home: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Thông báo chưa đọc — highlight để kéo sự chú ý */}
+      {unreadAnnouncements.filter(ann => unreadIds.has(ann.id)).length > 0 && (
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border-2 border-amber-200 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="relative w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/30">
+                <MegaphoneIcon className="w-6 h-6 text-white" />
+                <span className="absolute -top-1.5 -right-1.5 h-5 w-5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold ring-2 ring-white">
+                  {unreadAnnouncements.filter(ann => unreadIds.has(ann.id)).length}
+                </span>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Thông báo chưa đọc</h2>
+                <p className="text-sm text-gray-600">Bấm vào để đọc ngay</p>
+              </div>
+            </div>
+            <button
+              onClick={() => openDrawer()}
+              className="text-sm font-medium text-amber-700 hover:text-amber-900 flex items-center gap-1"
+            >
+              Xem tất cả <ArrowRightIcon className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {unreadAnnouncements.filter(ann => unreadIds.has(ann.id)).map((ann) => (
+              <button
+                key={ann.id}
+                onClick={() => { markRead(ann.id); setUnreadAnnouncements(prev => prev.filter(a => a.id !== ann.id)); openDrawer(ann); }}
+                className="w-full text-left flex items-start gap-3 bg-white hover:bg-amber-50 border border-amber-100 hover:border-amber-300 rounded-xl px-4 py-3 transition-all group"
+              >
+                <span className="mt-1.5 h-2 w-2 rounded-full bg-amber-500 flex-shrink-0 group-hover:bg-amber-600" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">{ann.title}</p>
+                  {ann.content && (
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{ann.content}</p>
+                  )}
+                  <p className="text-xs text-amber-600 mt-1">
+                    {ann.effective_from ? new Date(ann.effective_from).toLocaleDateString('vi-VN') : ''}
+                    {ann.announcement_type_display ? ` · ${ann.announcement_type_display}` : ''}
+                  </p>
+                </div>
+                <ArrowRightIcon className="h-4 w-4 text-gray-300 group-hover:text-amber-500 flex-shrink-0 mt-1 transition-colors" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tài liệu onboarding cần đọc */}
       {(() => {
@@ -379,10 +441,7 @@ const Home: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">{stat.label}</p>
-                <div className="flex items-baseline mt-2">
-                  <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                  <span className="ml-2 text-sm font-medium text-green-600">{stat.change}</span>
-                </div>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</p>
               </div>
               <div className={`h-12 w-12 ${stat.color} rounded-lg flex items-center justify-center`}>
                 <stat.icon className="h-6 w-6" />
@@ -407,8 +466,14 @@ const Home: React.FC = () => {
             {birthdayEmployees.map((emp) => (
               <div key={emp.employee_id} className="flex flex-col p-4 bg-pink-50 border border-pink-200 rounded-xl">
                 <div className="flex items-center space-x-4">
-                  <div className="h-12 w-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">🎉</span>
+                  <div className="h-12 w-12 rounded-full flex-shrink-0 overflow-hidden bg-pink-100">
+                    {emp.avatar_url ? (
+                      <img src={emp.avatar_url} alt={emp.full_name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: stringToColor(emp.full_name) }}>
+                        <span className="text-white text-sm font-bold">{getInitials(emp.full_name)}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900">{emp.full_name}</p>
@@ -459,8 +524,14 @@ const Home: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {tomorrowBirthdayEmployees.map((emp) => (
                 <div key={emp.employee_id} className="flex items-center space-x-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                  <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">🎂</span>
+                  <div className="h-12 w-12 rounded-full flex-shrink-0 overflow-hidden bg-gray-100">
+                    {emp.avatar_url ? (
+                      <img src={emp.avatar_url} alt={emp.full_name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: stringToColor(emp.full_name) }}>
+                        <span className="text-white text-sm font-bold">{getInitials(emp.full_name)}</span>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <p className="font-semibold text-gray-500">{emp.full_name}</p>
@@ -683,34 +754,6 @@ const Home: React.FC = () => {
 
         <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Company Announcements */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-4">Thông báo mới nhất</h3>
-              <div className="space-y-3">
-                <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Thông báo về chính sách mới</p>
-                    <p className="text-xs text-gray-500 mt-1">Đăng ngày: 05/01/2026</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3 p-3 bg-yellow-50 rounded-lg">
-                  <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg className="h-4 w-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Lịch đào tạo tháng 1</p>
-                    <p className="text-xs text-gray-500 mt-1">Đăng ngày: 03/01/2026</p>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Quick Links */}
             <div>
@@ -739,6 +782,20 @@ const Home: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Music Order Floating Bubble */}
+      <a
+        href="https://music-player.thammytrunganh.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+        title="Order nhạc ở đây"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+        </svg>
+        <span className="text-sm font-medium whitespace-nowrap">Order nhạc ở đây</span>
+      </a>
 
       {/* Birthday Wish Modal */}
       {wishModal.open && wishModal.employee && (
@@ -826,9 +883,20 @@ const Home: React.FC = () => {
                   {wishListModal.wishes.map((wish) => (
                     <li key={wish.id} className="p-3 bg-pink-50 rounded-xl text-sm text-gray-700">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-pink-700 mb-1">{wish.sender.full_name}</p>
-                          <p className="whitespace-pre-wrap">{wish.message}</p>
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                          <div className="h-8 w-8 rounded-full flex-shrink-0 overflow-hidden bg-pink-200">
+                            {wish.sender.avatar_url ? (
+                              <img src={wish.sender.avatar_url} alt={wish.sender.full_name} className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center" style={{ backgroundColor: stringToColor(wish.sender.full_name) }}>
+                                <span className="text-white text-xs font-bold">{getInitials(wish.sender.full_name)}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-pink-700 mb-1">{wish.sender.full_name}</p>
+                            <p className="whitespace-pre-wrap">{wish.message}</p>
+                          </div>
                         </div>
                         {wish.is_liked && (
                           <div

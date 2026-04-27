@@ -5,9 +5,6 @@ import {
   UserPlusIcon,
   UserMinusIcon,
   ClockIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
-  CalendarIcon,
   ChartBarIcon,
   BuildingOfficeIcon,
   CurrencyDollarIcon,
@@ -16,6 +13,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface HRStatsData {
   employee_stats: {
@@ -144,6 +142,21 @@ const HRStats: React.FC = () => {
   const employeeGrowthRate = calculateEmployeeGrowthRate();
   const assetUtilizationRate = calculateAssetUtilizationRate();
 
+  const DEPT_COLORS = [
+    '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+    '#8b5cf6', '#06b6d4', '#f97316', '#84cc16',
+  ];
+  const OTHER_COLOR = '#6b7280';
+
+  const sortedDepts = [...stats.department_stats].sort((a, b) => b.employee_count - a.employee_count);
+  const top8Depts = sortedDepts.slice(0, 8);
+  const otherDepts = sortedDepts.slice(8);
+  const othersCount = otherDepts.reduce((sum, d) => sum + d.employee_count, 0);
+  const donutData = [
+    ...top8Depts.map((d, i) => ({ name: d.name, value: d.employee_count, color: DEPT_COLORS[i] })),
+    ...(othersCount > 0 ? [{ name: 'Khác', value: othersCount, color: OTHER_COLOR }] : []),
+  ];
+
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-6">
@@ -250,7 +263,7 @@ const HRStats: React.FC = () => {
             {/* Recent Activities */}
             <div className="mb-6">
               <h4 className="text-sm font-medium text-gray-900 mb-3">Hoạt động gần đây (7 ngày)</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center">
                     <UserPlusIcon className="h-5 w-5 text-green-600 mr-2" />
@@ -284,27 +297,62 @@ const HRStats: React.FC = () => {
             {/* Department Distribution */}
             {stats.department_stats.length > 0 && (
               <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">Phân bổ theo phòng ban</h4>
-                <div className="space-y-2">
-                  {stats.department_stats.map((dept) => (
-                    <div key={dept.id} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <BuildingOfficeIcon className="h-4 w-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-700">{dept.name}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="text-sm font-medium text-gray-900 mr-2">{dept.employee_count}</span>
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full"
-                            style={{
-                              width: `${(dept.employee_count / stats.employee_stats.total) * 100}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
+                <h4 className="text-sm font-medium text-gray-900 mb-4">Phân bổ theo phòng ban</h4>
+                <div className="flex flex-col lg:flex-row gap-6 items-start">
+                  {/* Donut Chart */}
+                  <div className="relative mx-auto lg:mx-0 w-[220px] flex-shrink-0">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <PieChart>
+                        <Pie
+                          data={donutData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={95}
+                          dataKey="value"
+                          strokeWidth={2}
+                          stroke="#fff"
+                        >
+                          {donutData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number, name: string) => [
+                            `${value} người (${((value / stats.employee_stats.active) * 100).toFixed(1)}%)`,
+                            name,
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-2xl font-bold text-gray-900">{stats.employee_stats.active}</span>
+                      <span className="text-xs text-gray-500">đang làm việc</span>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* 2-column grid on xl */}
+                  <div className="flex-1 min-w-0">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+                      {sortedDepts.map((dept, index) => {
+                        const color = index < 8 ? DEPT_COLORS[index] : OTHER_COLOR;
+                        const pct = stats.employee_stats.active > 0
+                          ? (dept.employee_count / stats.employee_stats.active) * 100
+                          : 0;
+                        return (
+                          <div key={dept.id} className="flex items-center gap-2 py-0.5">
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                            <span className="text-sm text-gray-700 flex-1 truncate min-w-0">{dept.name}</span>
+                            <span className="text-sm font-semibold text-gray-900 flex-shrink-0 w-8 text-right">{dept.employee_count}</span>
+                            <span className="text-xs text-gray-400 flex-shrink-0 w-11 text-right">{pct.toFixed(1)}%</span>
+                            <div className="w-14 bg-gray-100 rounded-full h-1.5 flex-shrink-0">
+                              <div className="h-1.5 rounded-full" style={{ width: `${Math.min(pct * 3, 100)}%`, backgroundColor: color }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -312,7 +360,7 @@ const HRStats: React.FC = () => {
             {/* Trends */}
             <div className="pt-6 border-t border-gray-200">
               <h4 className="text-sm font-medium text-gray-900 mb-3">Xu hướng</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg">
                   <div className="flex items-center">
                     <ArrowTrendingUpIcon className="h-5 w-5 text-blue-600 mr-2" />
@@ -440,24 +488,33 @@ const HRStats: React.FC = () => {
             {stats.department_stats.length > 0 && (
               <div className="mb-6">
                 <h4 className="text-sm font-medium text-gray-900 mb-3">Phân bổ theo phòng ban</h4>
-                <div className="space-y-3">
-                  {stats.department_stats.map((dept) => (
-                    <div key={dept.id} className="bg-gray-50 p-3 rounded-lg">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center">
-                          <BuildingOfficeIcon className="h-4 w-4 text-gray-400 mr-2" />
-                          <span className="text-sm font-medium text-gray-700">{dept.name}</span>
-                          <span className="text-xs text-gray-500 ml-2">({dept.code})</span>
-                        </div>
-                        <div className="flex items-center">
-                          <span className="text-sm font-bold text-gray-900 mr-2">{dept.employee_count}</span>
-                          <span className="text-xs text-gray-500">
-                            {formatPercentage((dept.employee_count / stats.employee_stats.total) * 100)}
-                          </span>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-2">
+                  {sortedDepts.map((dept, index) => {
+                    const color = index < 8 ? DEPT_COLORS[index] : OTHER_COLOR;
+                    const pct = stats.employee_stats.active > 0
+                      ? (dept.employee_count / stats.employee_stats.active) * 100
+                      : 0;
+                    return (
+                      <div key={dept.id} className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-sm font-medium text-gray-700 truncate">
+                              {dept.name}
+                              <span className="text-xs text-gray-400 ml-1">({dept.code})</span>
+                            </span>
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                              <span className="text-sm font-bold text-gray-900">{dept.employee_count}</span>
+                              <span className="text-xs text-gray-400 w-10 text-right">{pct.toFixed(1)}%</span>
+                            </div>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-1.5">
+                            <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -574,7 +631,7 @@ const HRStats: React.FC = () => {
             {/* Recent Activities */}
             <div className="pt-6 border-t border-gray-200">
               <h4 className="text-sm font-medium text-gray-900 mb-3">Hoạt động gần đây (7 ngày)</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center">
                     <UserPlusIcon className="h-5 w-5 text-green-600 mr-2" />

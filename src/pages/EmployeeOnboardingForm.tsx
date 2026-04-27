@@ -759,10 +759,10 @@ export const EmployeeOnboardingForm: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   {vneidScreenshotFile
                     ? <p className="text-sm text-green-700 font-medium truncate">{vneidScreenshotFile.name}</p>
-                    : <p className="text-sm text-gray-500">Nhấn để chọn ảnh (JPG, PNG...)</p>
+                    : <p className="text-sm text-gray-500">Nhấn để chọn ảnh hoặc PDF (JPG, PNG, PDF...)</p>
                   }
                 </div>
-                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,.heic,.heif" onChange={handleVneidScreenshotChange} className="hidden" />
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,.heic,.heif,application/pdf" onChange={handleVneidScreenshotChange} className="hidden" />
               </label>
             </div>
           </div>

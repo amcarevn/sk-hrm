@@ -1,65 +1,48 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, XMarkIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="bg-white shadow-sm">
+    <header className="bg-blue-900">
       <nav
-        className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8"
+        className="mx-auto flex max-w-7xl items-center justify-between px-6 lg:px-8 h-16"
         aria-label="Global"
       >
-        <div className="flex lg:flex-1">
-          <Link to="/" className="-m-1.5 p-1.5">
-            <span className="sr-only">AI HRM</span>
-            <div className="flex items-center">
-              <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-                <img src="/bot-logo.png" alt="Logo" className="h-full w-full" />
-              </div>
-              <span className="ml-2 text-xl font-bold text-gray-900">
-                AI HRM
-              </span>
-            </div>
-          </Link>
-        </div>
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-3">
+          <span className="sr-only">Trung Anh Group</span>
+          <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center flex-shrink-0">
+            <span className="text-blue-900 font-black text-sm tracking-tight">TAG</span>
+          </div>
+          <div>
+            <div className="text-white font-bold text-sm leading-tight">Trung Anh Group</div>
+            <div className="text-blue-300 text-xs">Hệ thống Quản lý Nhân sự</div>
+          </div>
+        </Link>
+
+        {/* Mobile hamburger */}
         <div className="flex lg:hidden">
           <button
             type="button"
-            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700"
+            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-white"
             onClick={() => setMobileMenuOpen(true)}
           >
-            <span className="sr-only">Mở menu chính</span>
+            <span className="sr-only">Mở menu</span>
             <Bars3Icon className="h-6 w-6" aria-hidden="true" />
           </button>
         </div>
-        <div className="hidden lg:flex lg:gap-x-12">
-          <a
-            href="#features"
-            className="text-sm font-semibold leading-6 text-gray-900 hover:text-blue-600 transition-colors"
-          >
-            Tính năng
-          </a>
-          <a
-            href="#about"
-            className="text-sm font-semibold leading-6 text-gray-900 hover:text-blue-600 transition-colors"
-          >
-            Về chúng tôi
-          </a>
-          <a
-            href="#contact"
-            className="text-sm font-semibold leading-6 text-gray-900 hover:text-blue-600 transition-colors"
-          >
-            Liên hệ
-          </a>
-        </div>
-        <div className="hidden lg:flex lg:flex-1 lg:justify-end">
+
+        {/* Desktop: Đăng nhập */}
+        <div className="hidden lg:flex">
           <Link
             to="/login"
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2 bg-white text-blue-900 text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors"
           >
             Đăng nhập
+            <ArrowRightIcon className="h-4 w-4" />
           </Link>
         </div>
       </nav>
@@ -67,81 +50,33 @@ export default function Header() {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden">
-          <div className="fixed inset-0 z-50" />
-          <div className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
+          <div className="fixed inset-0 z-50" onClick={() => setMobileMenuOpen(false)} />
+          <div className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-blue-900 px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-blue-800">
             <div className="flex items-center justify-between">
-              <Link to="/" className="-m-1.5 p-1.5">
-                <span className="sr-only">AI HRM</span>
-                <div className="flex items-center">
-                  <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="h-5 w-5 text-white"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <span className="ml-2 text-xl font-bold text-gray-900">
-                    AI HRM
-                  </span>
+              <Link to="/" className="flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>
+                <span className="sr-only">Trung Anh Group</span>
+                <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center flex-shrink-0">
+                  <span className="text-blue-900 font-black text-sm tracking-tight">TAG</span>
                 </div>
+                <div className="text-white font-bold text-sm">Trung Anh Group</div>
               </Link>
               <button
                 type="button"
-                className="-m-2.5 rounded-md p-2.5 text-gray-700"
+                className="-m-2.5 rounded-md p-2.5 text-white"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <span className="sr-only">Đóng menu</span>
                 <XMarkIcon className="h-6 w-6" aria-hidden="true" />
               </button>
             </div>
-            <div className="mt-6 flow-root">
-              <div className="-my-6 divide-y divide-gray-500/10">
-                <div className="space-y-2 py-6">
-                  <a
-                    href="#features"
-                    className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Tính năng
-                  </a>
-                  <a
-                    href="#pricing"
-                    className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Giá cả
-                  </a>
-                  <a
-                    href="#about"
-                    className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Về chúng tôi
-                  </a>
-                  <a
-                    href="#contact"
-                    className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Liên hệ
-                  </a>
-                </div>
-                <div className="py-6">
-                  <Link
-                    to="/login"
-                    className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Đăng nhập
-                  </Link>
-                </div>
-              </div>
+            <div className="mt-8">
+              <Link
+                to="/login"
+                className="block w-full text-center px-5 py-3 bg-white text-blue-900 text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Đăng nhập vào hệ thống
+              </Link>
             </div>
           </div>
         </div>

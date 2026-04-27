@@ -247,6 +247,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                                         <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">
                                           {h.assigned_quantity}                                        </span>
                                       </div>
+                                      {h.employee_code && (
+                                        <p className="text-xs text-emerald-600 font-mono">{h.employee_code}</p>
+                                      )}
                                       {h.department_name && (
                                         <p className="text-xs text-emerald-700 truncate">{h.department_name}</p>
                                       )}
@@ -286,6 +289,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                             <div>
                               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">Đơn vị quản lý kho</p>
                               <p className="text-base font-bold text-gray-900">{asset.managed_by_name || 'Hệ thống tự động'}</p>
+                              {asset.managed_by_employee_id && (
+                                <p className="text-xs text-slate-500 font-mono">{asset.managed_by_employee_id}</p>
+                              )}
                               <p className="text-sm text-slate-600">{asset.department_name || 'Bộ phận: Chưa xác định'}</p>
                             </div>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(asset.status)} uppercase tracking-tight`}>
@@ -325,6 +331,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                                 {asset.assigned_to_name ? (
                                   <>
                                     <p className="text-base font-bold text-gray-900">{asset.assigned_to_name}</p>
+                                    {asset.assigned_to_employee_id && (
+                                      <p className="text-xs text-emerald-600 font-mono">{asset.assigned_to_employee_id}</p>
+                                    )}
                                     <p className="text-sm text-emerald-700">{asset.assigned_to_department_name || 'Phòng ban: -'}</p>
                                     <div className="mt-2 flex items-center text-xs text-emerald-600 font-medium">
                                       <CalendarIcon className="h-3 w-3 mr-1" />
@@ -359,6 +368,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                             <div className="flex-1">
                               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Đơn vị quản lý kho</p>
                               <p className="text-base font-bold text-gray-900">{asset.managed_by_name || 'Hệ thống tự động'}</p>
+                              {asset.managed_by_employee_id && (
+                                <p className="text-xs text-slate-500 font-mono">{asset.managed_by_employee_id}</p>
+                              )}
                               <p className="text-sm text-slate-600">{asset.department_name || 'Bộ phận: Chưa xác định'}</p>
                               <div className="mt-2 flex items-center">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusColor(asset.status)} uppercase tracking-tight`}>
@@ -376,6 +388,9 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                               <div className="flex-1">
                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Đơn vị quản lý kho</p>
                                 <p className="text-base font-bold text-gray-900">{asset.managed_by_name || 'Hệ thống'}</p>
+                                {asset.managed_by_employee_id && (
+                                  <p className="text-xs text-slate-500 font-mono">{asset.managed_by_employee_id}</p>
+                                )}
                                 <p className="text-sm text-slate-600">{asset.department_name || 'Bộ phận: Chưa xác định'}</p>
                               </div>
                             </div>
@@ -744,11 +759,14 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                                 </span>
                                 <div className={`p-3 rounded-xl border ${panelBg}`}>
                                   <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       <UserIcon className={`h-4 w-4 ${iconColor}`} />
                                       <span className="text-sm font-bold text-gray-900">
                                         {h.assigned_to_name || `NV #${h.assigned_to}`}
                                       </span>
+                                      {h.assigned_to_employee_id && (
+                                        <span className="text-xs font-mono text-gray-500">({h.assigned_to_employee_id})</span>
+                                      )}
                                     </div>
                                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${badge}`}>
                                       {label}

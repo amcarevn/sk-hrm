@@ -155,6 +155,12 @@ export default function AssignedAssetList() {
     checkRecentReturns();
   }, []);
 
+  useEffect(() => {
+    const anyOpen = showBulkRejectDialog || !!rejectingHistory || returnNotices.length > 0;
+    document.body.style.overflow = anyOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [showBulkRejectDialog, rejectingHistory, returnNotices.length]);
+
   const checkRecentReturns = async () => {
     try {
       const data = await assetsAPI.recentReturns(7);

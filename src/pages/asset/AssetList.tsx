@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { assetsAPI } from '../../utils/api';
+import { assetsAPI, positionsAPI } from '../../utils/api';
 import {
   PlusIcon,
   PencilIcon,
@@ -94,6 +94,8 @@ export default function AssetList() {
   const [conditionFilter, setConditionFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [positions, setPositions] = useState<SelectOption<string>[]>([]);
+  const [locationFilter, setLocationFilter] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -111,11 +113,24 @@ export default function AssetList() {
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(new Set());
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
   const [isBulkReturnModalOpen, setIsBulkReturnModalOpen] = useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
+
+  useEffect(() => {
+    const anyOpen = isDeleteDialogOpen || isBulkDeleteDialogOpen;
+    document.body.style.overflow = anyOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isDeleteDialogOpen, isBulkDeleteDialogOpen]);
 
   useEffect(() => {
     fetchAssets();
     fetchStats();
+    positionsAPI.list({ page_size: 100 }).then((data) => {
+      setPositions(
+        (data.results || []).map((pos) => ({ value: String(pos.id), label: pos.title }))
+      );
+    }).catch(() => {});
   }, []);
 
   const fetchAssets = async () => {
@@ -139,6 +154,42 @@ export default function AssetList() {
     } catch (err: any) {
       console.error('Error fetching asset stats:', err);
     }
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    const selectedAssets = filteredAssets.filter((a) => selectedAssetIds.has(a.id));
+    const assignedAssets = selectedAssets.filter((a) => !!a.assigned_to_name);
+    const today = new Date().toISOString().slice(0, 10);
+    // Giai đoạn 1: thu hồi các tài sản đang bàn giao
+    if (assignedAssets.length > 0) {
+      await Promise.allSettled(
+        assignedAssets.map((a) =>
+          assetsAPI.returnAsset(a.id, {
+            return_date: today,
+            condition: a.condition,
+            notes: 'Tự động thu hồi trước khi xóa',
+          })
+        )
+      );
+    }
+    // Giai đoạn 2: xóa tất cả
+    const ids = selectedAssets.map((a) => a.id);
+    const settled = await Promise.allSettled(ids.map((id) => assetsAPI.delete(id)));
+    setAssets((prev) => prev.filter((a) => !ids.includes(a.id) || settled[ids.indexOf(a.id)]?.status === 'rejected'));
+    fetchStats();
+    setIsBulkDeleting(false);
+    setIsBulkDeleteDialogOpen(false);
+    setSelectedAssetIds(new Set());
+    const successCount = settled.filter((r) => r.status === 'fulfilled').length;
+    const failCount = settled.length - successCount;
+    setFeedback({
+      variant: failCount === 0 ? 'success' : 'warning',
+      title: failCount === 0 ? 'Đã xóa thành công' : `${successCount} thành công, ${failCount} thất bại`,
+      message: assignedAssets.length > 0
+        ? `Đã thu hồi ${assignedAssets.length} tài sản, sau đó xóa ${successCount} tài sản.`
+        : `Đã xóa ${successCount} tài sản.`,
+    });
   };
 
   const confirmDelete = (id: number) => {
@@ -179,8 +230,9 @@ export default function AssetList() {
     const assetDate = asset.created_at ? asset.created_at.slice(0, 10) : '';
     const matchesDateFrom = !dateFrom || assetDate >= dateFrom;
     const matchesDateTo = !dateTo || assetDate <= dateTo;
+    const matchesLocation = !locationFilter || String((asset.specifications as any)?.position_id ?? '') === locationFilter;
 
-    return matchesSearch && matchesStatus && matchesType && matchesCondition && matchesDateFrom && matchesDateTo;
+    return matchesSearch && matchesStatus && matchesType && matchesCondition && matchesDateFrom && matchesDateTo && matchesLocation;
   }).sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
 
   const formatCurrency = (amount: number) => {
@@ -525,7 +577,7 @@ export default function AssetList() {
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label htmlFor="search" className="block text-sm font-medium text-gray-700">
               Tìm kiếm
@@ -564,9 +616,18 @@ export default function AssetList() {
             onChange={(val) => setTypeFilter(val)}
             allLabel="Tất cả loại"
           />
+
+          <SelectBox
+            label="Vị trí"
+            value={locationFilter}
+            options={[{ value: '', label: 'Tất cả vị trí' }, ...positions]}
+            onChange={setLocationFilter}
+            placeholder="Chọn vị trí"
+            searchable={true}
+          />
         </div>
 
-        {/* Hàng 2: lọc ngày tạo */}
+        {/* Hàng 3: lọc ngày tạo */}
         <div className="flex flex-wrap items-end gap-3 pt-3 border-t border-gray-100">
           <div>
             <label className="block text-sm font-medium text-gray-700">Ngày tạo từ</label>
@@ -661,6 +722,13 @@ export default function AssetList() {
           >
             <ArrowPathRoundedSquareIcon className="h-3.5 w-3.5" />
             Thu hồi nhiều
+          </button>
+          <button
+            onClick={() => setIsBulkDeleteDialogOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-all"
+          >
+            <TrashIcon className="h-3.5 w-3.5" />
+            Xóa nhanh ({selectedAssetIds.size})
           </button>
           <button
             onClick={() => setSelectedAssetIds(new Set())}
@@ -955,19 +1023,18 @@ export default function AssetList() {
                                     <span className="hidden xl:inline">Thu hồi</span>
                                   </button>
                                 )}
+                                <button
+                                  onClick={() => confirmDelete(asset.id)}
+                                  className="flex-1 inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all font-semibold text-xs whitespace-nowrap"
+                                  title="Xóa tài sản"
+                                >
+                                  <TrashIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                                  <span className="hidden xl:inline">Xóa</span>
+                                </button>
                               </>
                             );
                           })()}
                         </div>
-                        {/* Row 3: Xóa full width */}
-                        <button
-                          onClick={() => confirmDelete(asset.id)}
-                          className="w-full inline-flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all font-semibold text-xs whitespace-nowrap"
-                          title="Xóa tài sản"
-                        >
-                          <TrashIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                          <span className="hidden xl:inline">Xóa</span>
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1072,6 +1139,90 @@ export default function AssetList() {
         }}
         assets={filteredAssets.filter((a) => selectedAssetIds.has(a.id))}
       />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      {isBulkDeleteDialogOpen && (() => {
+        const selectedAssets = filteredAssets.filter((a) => selectedAssetIds.has(a.id));
+        const assignedAssets = selectedAssets.filter((a) => !!a.assigned_to_name);
+        return (
+          <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsBulkDeleteDialogOpen(false)} />
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <TrashIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
+                    </div>
+                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900">
+                        Xóa {selectedAssets.length} tài sản đã chọn?
+                      </h3>
+
+                      {assignedAssets.length > 0 && (
+                        <div className="mt-3 space-y-3">
+                          <div className="rounded-md bg-amber-50 border border-amber-200 p-3">
+                            <p className="text-sm font-semibold text-amber-800">
+                              Bước 1 — Thu hồi {assignedAssets.length} tài sản đang bàn giao
+                            </p>
+                            <p className="text-xs text-amber-700 mt-0.5">Hệ thống sẽ tự động thu hồi trước khi xóa.</p>
+                            <div className="mt-2 max-h-28 overflow-y-auto space-y-1">
+                              {assignedAssets.map((a) => (
+                                <div key={a.id} className="flex items-center gap-1.5 text-xs text-amber-900">
+                                  <span className="font-mono font-semibold">[{a.asset_code}]</span>
+                                  <span className="truncate">{a.name}</span>
+                                  <span className="ml-auto flex-shrink-0 text-amber-600">→ {a.assigned_to_name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="rounded-md bg-red-50 border border-red-200 p-3">
+                            <p className="text-sm font-semibold text-red-800">
+                              Bước 2 — Xóa tất cả {selectedAssets.length} tài sản
+                            </p>
+                            <p className="text-xs text-red-700 mt-0.5">Hành động này không thể hoàn tác.</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {assignedAssets.length === 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-500">
+                            Hành động này không thể hoàn tác. Tất cả dữ liệu liên quan sẽ bị xóa vĩnh viễn.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <button
+                    type="button"
+                    disabled={isBulkDeleting}
+                    onClick={handleBulkDelete}
+                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 disabled:bg-red-300 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    {isBulkDeleting
+                      ? 'Đang xử lý...'
+                      : assignedAssets.length > 0
+                        ? `Thu hồi & Xóa (${selectedAssets.length} tài sản)`
+                        : `Xóa ${selectedAssets.length} tài sản`
+                    }
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsBulkDeleteDialogOpen(false)}
+                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Delete Confirmation Dialog */}
       {isDeleteDialogOpen && (

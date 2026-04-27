@@ -1,41 +1,20 @@
 import { useEffect, useState } from 'react';
 import {
-  UserGroupIcon,
-  BuildingOfficeIcon,
   CurrencyDollarIcon,
-  WrenchScrewdriverIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  XCircleIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   UserPlusIcon,
-  UserMinusIcon,
-  ChartBarIcon,
   UsersIcon,
-  BriefcaseIcon,
   ComputerDesktopIcon,
-  DevicePhoneMobileIcon,
-  PrinterIcon,
-  ServerIcon,
-  TruckIcon,
-  HomeModernIcon,
 } from '@heroicons/react/24/outline';
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
-  AreaChart,
-  Area,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  Label,
 } from 'recharts';
 import { dashboardAPI } from '@/utils/api';
 import HRStats from '../components/HRStats';
@@ -84,6 +63,8 @@ interface HRMDashboardStats {
     asset_growth: number;
   };
 }
+
+const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
 const Dashboard = () => {
   const [stats, setStats] = useState<HRMDashboardStats | null>(null);
@@ -174,7 +155,7 @@ const Dashboard = () => {
   // Department stats for chart
   const departmentChartData = stats.department_stats
     .sort((a, b) => b.employee_count - a.employee_count)
-    .slice(0, 8)
+    .slice(0, 6)
     .map(dept => ({
       name: dept.name,
       employees: dept.employee_count,
@@ -203,12 +184,29 @@ const Dashboard = () => {
     { name: 'Bảo trì', value: stats.recent_activities.maintenance, color: '#3b82f6' },
   ];
 
+  const totalActivities = activityData.reduce((sum, d) => sum + d.value, 0);
+
   // Asset status data
   const assetStatusData = [
     { name: 'Đang sử dụng', value: stats.asset_stats.in_use, color: '#10b981' },
     { name: 'Không sử dụng', value: stats.asset_stats.idle, color: '#6b7280' },
     { name: 'Đang bảo trì', value: stats.asset_stats.under_maintenance, color: '#f59e0b' },
   ];
+
+  // Department summary donut data: top 5 + "Khác"
+  const sortedDepts = [...stats.department_stats].sort((a, b) => b.employee_count - a.employee_count);
+  const deptSummaryData = [
+    ...sortedDepts.slice(0, 5).map(d => ({ name: d.name, value: d.employee_count })),
+    ...(sortedDepts.length > 5
+      ? [{ name: 'Khác', value: sortedDepts.slice(5).reduce((s, d) => s + d.employee_count, 0) }]
+      : []),
+  ];
+
+  // Asset type details donut data
+  const assetTypeDetailsData = stats.asset_stats.type_distribution.map(type => ({
+    name: type.display_name,
+    value: type.count,
+  }));
 
   return (
     <div className="space-y-6">
@@ -270,16 +268,26 @@ const Dashboard = () => {
         {/* Department Distribution */}
         <div className="card p-6 shadow-none">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Phân bố nhân sự theo phòng ban (Top 8)
+            Phân bố nhân sự theo phòng ban (Top 6)
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={departmentChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="employees" fill="#3b82f6" />
-            </BarChart>
+            <PieChart>
+              <Pie
+                data={departmentChartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={70}
+                outerRadius={110}
+                dataKey="employees"
+                nameKey="name"
+              >
+                {departmentChartData.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value: number) => [value, 'Nhân viên']} />
+              <Legend />
+            </PieChart>
           </ResponsiveContainer>
         </div>
 
@@ -289,13 +297,23 @@ const Dashboard = () => {
             Phân bố loại tài sản (Top 6)
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={assetTypeChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#10b981" />
-            </BarChart>
+            <PieChart>
+              <Pie
+                data={assetTypeChartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={70}
+                outerRadius={110}
+                dataKey="count"
+                nameKey="name"
+              >
+                {assetTypeChartData.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value: number) => [value, 'Tài sản']} />
+              <Legend />
+            </PieChart>
           </ResponsiveContainer>
         </div>
 
@@ -310,17 +328,17 @@ const Dashboard = () => {
                 data={genderData}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={80}
-                fill="#3b82f6"
+                innerRadius={70}
+                outerRadius={110}
                 dataKey="value"
+                nameKey="name"
               >
                 {genderData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip formatter={(value: number) => [value, 'Người']} />
+              <Legend />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -330,15 +348,47 @@ const Dashboard = () => {
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             Hoạt động gần đây (7 ngày)
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={activityData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value" fill="#8b5cf6" />
-            </BarChart>
-          </ResponsiveContainer>
+          {totalActivities === 0 ? (
+            <div className="flex items-center justify-center h-[300px] text-gray-400 text-sm">
+              Không có hoạt động trong 7 ngày qua
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={activityData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={70}
+                  outerRadius={110}
+                  dataKey="value"
+                  nameKey="name"
+                >
+                  {activityData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                  <Label
+                    content={({ viewBox }) => {
+                      const { cx, cy } = viewBox as { cx: number; cy: number };
+                      return (
+                        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+                          <tspan x={cx} dy="-0.6em" fontSize="28" fontWeight="bold" fill="#111827">
+                            {totalActivities}
+                          </tspan>
+                          <tspan x={cx} dy="1.6em" fontSize="12" fill="#6b7280">
+                            Hoạt động
+                          </tspan>
+                        </text>
+                      );
+                    }}
+                    position="center"
+                  />
+                </Pie>
+                <Tooltip formatter={(value: number) => [value, 'Hoạt động']} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
@@ -349,29 +399,46 @@ const Dashboard = () => {
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             Trạng thái tài sản
           </h3>
-          <div className="space-y-4">
-            {assetStatusData.map((status) => (
-              <div key={status.name} className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div
-                    className="w-3 h-3 rounded-full mr-3"
-                    style={{ backgroundColor: status.color }}
-                  />
-                  <span className="text-sm font-medium text-gray-700">
-                    {status.name}
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <span className="text-lg font-bold text-gray-900 mr-2">
-                    {status.value}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    ({((status.value / stats.asset_stats.total) * 100).toFixed(1)}%)
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={assetStatusData}
+                cx="50%"
+                cy="50%"
+                innerRadius={70}
+                outerRadius={110}
+                dataKey="value"
+                nameKey="name"
+              >
+                {assetStatusData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+                <Label
+                  content={({ viewBox }) => {
+                    const { cx, cy } = viewBox as { cx: number; cy: number };
+                    return (
+                      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+                        <tspan x={cx} dy="-0.6em" fontSize="28" fontWeight="bold" fill="#111827">
+                          {stats.asset_stats.total}
+                        </tspan>
+                        <tspan x={cx} dy="1.6em" fontSize="12" fill="#6b7280">
+                          Tổng tài sản
+                        </tspan>
+                      </text>
+                    );
+                  }}
+                  position="center"
+                />
+              </Pie>
+              <Tooltip
+                formatter={(value: number, name: string) => [
+                  `${value} (${((value / stats.asset_stats.total) * 100).toFixed(1)}%)`,
+                  name,
+                ]}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Department Summary */}
@@ -379,32 +446,41 @@ const Dashboard = () => {
           <h3 className="text-lg font-medium text-gray-900 mb-4">
             Tóm tắt phòng ban
           </h3>
-          <div className="space-y-3">
-            {stats.department_stats
-              .sort((a, b) => b.employee_count - a.employee_count)
-              .slice(0, 5)
-              .map((dept) => (
-                <div key={dept.id} className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <BuildingOfficeIcon className="h-5 w-5 text-gray-400 mr-3" />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {dept.name}
-                      </div>
-                      <div className="text-xs text-gray-500">{dept.code}</div>
-                    </div>
-                  </div>
-                  <div className="text-lg font-bold text-gray-900">
-                    {dept.employee_count}
-                  </div>
-                </div>
-              ))}
-          </div>
-          {stats.department_stats.length > 5 && (
-            <div className="mt-4 text-sm text-gray-500 text-center">
-              +{stats.department_stats.length - 5} phòng ban khác
-            </div>
-          )}
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={deptSummaryData}
+                cx="50%"
+                cy="50%"
+                innerRadius={70}
+                outerRadius={110}
+                dataKey="value"
+                nameKey="name"
+              >
+                {deptSummaryData.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                ))}
+                <Label
+                  content={({ viewBox }) => {
+                    const { cx, cy } = viewBox as { cx: number; cy: number };
+                    return (
+                      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+                        <tspan x={cx} dy="-0.6em" fontSize="28" fontWeight="bold" fill="#111827">
+                          {stats.employee_stats.active}
+                        </tspan>
+                        <tspan x={cx} dy="1.6em" fontSize="12" fill="#6b7280">
+                          Đang làm việc
+                        </tspan>
+                      </text>
+                    );
+                  }}
+                  position="center"
+                />
+              </Pie>
+              <Tooltip formatter={(value: number) => [value, 'Nhân viên']} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -413,51 +489,46 @@ const Dashboard = () => {
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Chi tiết loại tài sản
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {stats.asset_stats.type_distribution.map((type) => {
-            // Map asset types to icons
-            const getIcon = (typeName: string) => {
-              switch (typeName) {
-                case 'LAPTOP':
-                  return ComputerDesktopIcon;
-                case 'DESKTOP':
-                  return ComputerDesktopIcon;
-                case 'PHONE':
-                  return DevicePhoneMobileIcon;
-                case 'PRINTER':
-                  return PrinterIcon;
-                case 'SERVER':
-                  return ServerIcon;
-                case 'VEHICLE':
-                  return TruckIcon;
-                case 'FURNITURE':
-                  return HomeModernIcon;
-                default:
-                  return BriefcaseIcon;
-              }
-            };
-
-            const Icon = getIcon(type.type);
-            const percentage = (type.count / stats.asset_stats.total) * 100;
-
-            return (
-              <div key={type.type} className="text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-2">
-                  <Icon className="h-6 w-6" />
-                </div>
-                <div className="text-sm font-medium text-gray-900">
-                  {type.display_name}
-                </div>
-                <div className="text-lg font-bold text-gray-900">
-                  {type.count}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {percentage.toFixed(1)}%
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={assetTypeDetailsData}
+              cx="50%"
+              cy="50%"
+              innerRadius={70}
+              outerRadius={110}
+              dataKey="value"
+              nameKey="name"
+            >
+              {assetTypeDetailsData.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+              ))}
+              <Label
+                content={({ viewBox }) => {
+                  const { cx, cy } = viewBox as { cx: number; cy: number };
+                  return (
+                    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+                      <tspan x={cx} dy="-0.6em" fontSize="28" fontWeight="bold" fill="#111827">
+                        {stats.asset_stats.total}
+                      </tspan>
+                      <tspan x={cx} dy="1.6em" fontSize="12" fill="#6b7280">
+                        Tổng TS
+                      </tspan>
+                    </text>
+                  );
+                }}
+                position="center"
+              />
+            </Pie>
+            <Tooltip
+              formatter={(value: number, name: string) => [
+                `${value} (${((value / stats.asset_stats.total) * 100).toFixed(1)}%)`,
+                name,
+              ]}
+            />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );

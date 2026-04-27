@@ -378,6 +378,11 @@ export interface Employee {
     employee_id: string;
     full_name: string;
   };
+  company_unit?: {
+    id: number;
+    name: string;
+    code: string;
+  } | null;
   user?: {
     id: number;
     username: string;
@@ -395,6 +400,7 @@ export interface Employee {
   allowance?: number;
   contract_type?: string;
   contract_type_display?: string;
+  contract_end_date?: string;
   probation_end_date?: string;
   official_start_date?: string;
   probation_months?: number;
@@ -413,6 +419,7 @@ export interface Employee {
   old_id_number?: string;
   cccd_issue_date?: string;
   cccd_issue_place?: string;
+  link_cccd?: string;
   birth_place?: string;
   permanent_residence?: string;
   current_address?: string;
@@ -606,8 +613,10 @@ export interface Asset {
   department_name?: string;
   managed_by?: number;
   managed_by_name?: string;
+  managed_by_employee_id?: string;
   assigned_to?: number;
   assigned_to_name?: string;
+  assigned_to_employee_id?: string;
   assigned_to_department_name?: string;
   assigned_date?: string;
   purchase_date?: string;
@@ -643,6 +652,7 @@ export interface Asset {
   holders?: Array<{
     history_id: number;
     employee_id: number;
+    employee_code?: string;
     name: string;
     department_name?: string;
     assigned_quantity: number;
@@ -674,6 +684,7 @@ export interface AssetAssignmentHistory {
   asset_specifications?: Record<string, any> | null;
   assigned_to: number;
   assigned_to_name: string;
+  assigned_to_employee_id?: string;
   assigned_date: string;
   returned_date?: string | null;
   status: AssetAssignmentStatus;
@@ -687,6 +698,7 @@ export interface AssetAssignmentHistory {
   assignment_notes?: string | null;
   assigned_by?: number | null;
   assigned_by_name?: string | null;
+  assigned_by_employee_id?: string;
   created_at: string;
   duration_days?: number | null;
   assigned_quantity?: number;
@@ -922,8 +934,8 @@ export interface AttendanceRuleEngineResponse {
 
 export interface BirthdayWish {
   id: number;
-  recipient: { id: number; employee_id: number; full_name: string };
-  sender: { id: number; employee_id: number; full_name: string };
+  recipient: { id: number; employee_id: number; full_name: string; avatar_url?: string | null };
+  sender: { id: number; employee_id: number; full_name: string; avatar_url?: string | null };
   message: string;
   year: number;
   is_liked?: boolean;
