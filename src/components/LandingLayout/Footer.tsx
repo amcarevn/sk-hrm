@@ -1,46 +1,51 @@
 export default function Footer() {
   return (
-    <footer className="bg-gray-900">
+    <footer className="bg-blue-900">
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
         <div className="xl:grid xl:grid-cols-3 xl:gap-8">
-          <div className="space-y-8">
-            <div className="flex items-center">
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center">
-                <img src="/bot-logo.png" alt="Logo" className="h-full w-full" />
+          {/* Brand */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-white flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-900 font-black text-sm tracking-tight">TAG</span>
               </div>
-              <span className="ml-3 text-2xl font-bold text-white">
-                AI HRM
-              </span>
+              <div>
+                <div className="text-white font-bold text-sm leading-tight">Trung Anh Group</div>
+                <div className="text-blue-300 text-xs">Hệ thống Quản lý Nhân sự</div>
+              </div>
             </div>
-            <p className="text-sm leading-6 text-gray-300">
-              Giải pháp chatbot AI hàng đầu cho doanh nghiệp Việt Nam. Tự động
-              hóa dịch vụ khách hàng, tăng hiệu quả kinh doanh.
+            <p className="text-sm leading-6 text-blue-300">
+              Hệ thống Quản lý Hành chính Nhân sự nội bộ của Trung Anh Group —
+              quản lý nhân sự, chấm công, tính lương và tài sản tập trung.
             </p>
           </div>
+
+          {/* Links */}
           <div className="mt-16 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
             <div className="md:grid md:grid-cols-2 md:gap-8">
               <div>
+                <h3 className="text-sm font-semibold leading-6 text-white">Hệ thống</h3>
                 <ul role="list" className="mt-6 space-y-4">
                   <li>
                     <a
-                      href="#features"
-                      className="text-sm leading-6 text-gray-300 hover:text-white transition-colors"
+                      href="#"
+                      className="text-sm leading-6 text-blue-300 hover:text-white transition-colors"
                     >
-                      Tính năng
+                      Các phân hệ
                     </a>
                   </li>
                   <li>
                     <a
                       href="#demo"
-                      className="text-sm leading-6 text-gray-300 hover:text-white transition-colors"
+                      className="text-sm leading-6 text-blue-300 hover:text-white transition-colors"
                     >
-                      Demo
+                      Demo giao diện
                     </a>
                   </li>
                   <li>
                     <a
                       href="/login"
-                      className="text-sm leading-6 text-gray-300 hover:text-white transition-colors"
+                      className="text-sm leading-6 text-blue-300 hover:text-white transition-colors"
                     >
                       Đăng nhập
                     </a>
@@ -48,32 +53,30 @@ export default function Footer() {
                 </ul>
               </div>
               <div className="mt-10 md:mt-0">
-                <h3 className="text-sm font-semibold leading-6 text-white">
-                  Hỗ trợ
-                </h3>
+                <h3 className="text-sm font-semibold leading-6 text-white">Hỗ trợ</h3>
                 <ul role="list" className="mt-6 space-y-4">
                   <li>
                     <a
-                      href="/terms-of-service"
-                      className="text-sm leading-6 text-gray-300 hover:text-white transition-colors"
+                      href="#"
+                      className="text-sm leading-6 text-blue-300 hover:text-white transition-colors"
                     >
-                      Điều khoản sử dụng
+                      Hướng dẫn sử dụng
                     </a>
                   </li>
                   <li>
                     <a
-                      href="/privacy-policy"
-                      className="text-sm leading-6 text-gray-300 hover:text-white transition-colors"
+                      href="mailto:it@trunganhgroup.vn"
+                      className="text-sm leading-6 text-blue-300 hover:text-white transition-colors"
                     >
-                      Chính sách quyền riêng tư
+                      Liên hệ phòng IT
                     </a>
                   </li>
                   <li>
                     <a
-                      href="#contact"
-                      className="text-sm leading-6 text-gray-300 hover:text-white transition-colors"
+                      href="/login"
+                      className="text-sm leading-6 text-blue-300 hover:text-white transition-colors"
                     >
-                      Liên hệ
+                      Quên mật khẩu
                     </a>
                   </li>
                 </ul>
@@ -81,9 +84,10 @@ export default function Footer() {
             </div>
           </div>
         </div>
-        <div className="mt-16 border-t border-white/10 pt-8 sm:mt-20 lg:mt-24">
-          <p className="text-xs leading-5 text-gray-400 text-center">
-            &copy; 2024 AI HRM. All rights reserved.
+
+        <div className="mt-16 border-t border-blue-800 pt-8 sm:mt-20 lg:mt-24">
+          <p className="text-xs leading-5 text-blue-400 text-center">
+            &copy; 2026 Trung Anh Group. All rights reserved.
           </p>
         </div>
       </div>

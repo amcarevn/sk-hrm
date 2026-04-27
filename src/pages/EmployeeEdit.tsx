@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   employeesAPI,
   departmentsAPI,
+  sectionsAPI,
   positionsAPI,
+  companyUnitsAPI,
   EmployeeUpdateData,
 } from '../utils/api';
 import { SelectBox } from '@/components/LandingLayout/SelectBox';
@@ -63,17 +65,11 @@ const CONTRACT_TYPE_OPTIONS = [
 ];
 
 const PROBATION_RATE_OPTIONS = [
-  { label: 'Tháng đầu 85%, tháng sau 100%', value: 'OPTION_1' },
-  { label: 'Tháng đầu 100%, tháng sau 100%', value: 'OPTION_2' },
+  { label: 'Tháng đầu 85%, tháng sau 85%', value: 'OPTION_1' },
+  { label: 'Tháng đầu 85%, tháng sau 100%', value: 'OPTION_2' },
+  { label: 'Tháng đầu 100%, tháng sau 100%', value: 'OPTION_3' },
 ];
 
-const PROBATION_SALARY_PERCENTAGE_OPTIONS = [
-  { label: 'Không thử việc', value: '0' },
-  { label: '85%', value: '85' },
-  { label: '90%', value: '90' },
-  { label: '95%', value: '95' },
-  { label: '100%', value: '100' },
-];
 
 const CCCD_ISSUE_PLACE_OPTIONS = [
   { label: 'Cục cảnh sát Quản lý hành chính về Trật tự xã hội', value: 'POLICE_ADMIN' },
@@ -85,6 +81,18 @@ const FILE_STATUS_OPTIONS = [
   { label: 'Cần bổ sung hồ sơ', value: 'NEED_SUPPLEMENT' },
   { label: 'Chưa nộp', value: 'NOT_SUBMITTED' },
   { label: 'Chờ rà soát', value: 'PENDING_REVIEW' },
+];
+
+const RANK_OPTIONS = [
+  { label: 'Chủ tịch', value: 'CHAIRMAN' },
+  { label: 'Giám đốc', value: 'DIRECTOR' },
+  { label: 'Phó Giám đốc', value: 'DEPUTY_DIRECTOR' },
+  { label: 'Leader', value: 'LEADER' },
+  { label: 'Trưởng phòng', value: 'MANAGER' },
+  { label: 'Trưởng phòng tập sự', value: 'MANAGER_TRAINEE' },
+  { label: 'Phó phòng', value: 'DEPUTY_MANAGER' },
+  { label: 'Nhân viên', value: 'STAFF' },
+  { label: 'Thực tập sinh', value: 'INTERN' },
 ];
 
 const EDUCATION_LEVEL_OPTIONS = [
@@ -142,8 +150,10 @@ const EmployeeEdit: React.FC = () => {
   const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
   const [citizenIdCurrentUrl, setCitizenIdCurrentUrl] = useState<string | null>(null);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [companyUnits, setCompanyUnits] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -171,12 +181,15 @@ const EmployeeEdit: React.FC = () => {
     section: '',
     doctor_team: '',
     work_form: '',
-    work_type: '',
+    official_start_date: '',
     work_location: '',
     region: '',
     block: '',
+    company_unit_id: undefined,
     is_hr: false,
     education_level: '',
+    termination_reason: '',
+    employment_status_notes: '',
 
     // Giấy tờ tùy thân
     cccd_number: '',
@@ -186,12 +199,15 @@ const EmployeeEdit: React.FC = () => {
     birth_place: '',
     social_insurance_number: '',
     tax_code: '',
+    household_code: '',
+    link_cccd: '',
     permanent_residence: '',
     current_address: '',
 
     // Ngân hàng
     bank_name: '',
     bank_account: '',
+    bank_account_holder: '',
     bank_branch: '',
 
     // Lương & Hợp đồng
@@ -201,11 +217,13 @@ const EmployeeEdit: React.FC = () => {
     probation_months: '',
     probation_end_date: '',
     probation_rate: '',
-    probation_salary_percentage: '',
+    contract_start_date: '',
+    contract_end_date: '',
+    revenue_percentage: '',
+    profit_percentage: '',
 
     // Hồ sơ
     file_status: '',
-    file_submission_deadline: '',
     file_review_notes: '',
 
     // Người liên hệ khẩn cấp
@@ -215,14 +233,22 @@ const EmployeeEdit: React.FC = () => {
     emergency_contact_dob: '',
     emergency_contact_occupation: '',
     emergency_contact_address: '',
+
+    // Checklist hồ sơ
+    doc_resume: false,
+    doc_cccd: false,
+    doc_degree: false,
+    doc_health: false,
   });
 
   useEffect(() => {
     if (id) {
       loadEmployee(parseInt(id));
       loadDepartments();
+      loadSections();
       loadPositions();
       loadEmployees();
+      loadCompanyUnits();
     }
   }, [id]);
 
@@ -262,12 +288,15 @@ const EmployeeEdit: React.FC = () => {
         section: e.section || '',
         doctor_team: e.doctor_team || '',
         work_form: e.work_form || '',
-        work_type: ei.work_type || '',
+        official_start_date: e.official_start_date || '',
         work_location: e.work_location || '',
         region: e.region || '',
         block: e.block || '',
+        company_unit_id: e.company_unit?.id ?? undefined,
         is_hr: e.is_hr || false,
         education_level: e.education_level || '',
+        termination_reason: e.termination_reason || '',
+        employment_status_notes: e.employment_status_notes || '',
 
         cccd_number: e.cccd_number || '',
         cccd_issue_date: e.cccd_issue_date || '',
@@ -276,11 +305,14 @@ const EmployeeEdit: React.FC = () => {
         birth_place: e.birth_place || '',
         social_insurance_number: e.social_insurance_number || '',
         tax_code: e.tax_code || '',
+        household_code: e.household_code || '',
+        link_cccd: e.link_cccd || '',
         permanent_residence: e.permanent_residence || '',
         current_address: e.current_address || '',
 
         bank_name: e.bank_name || '',
         bank_account: e.bank_account || '',
+        bank_account_holder: e.bank_account_holder || '',
         bank_branch: e.bank_branch || '',
 
         basic_salary: e.basic_salary ?? '',
@@ -289,11 +321,18 @@ const EmployeeEdit: React.FC = () => {
         probation_months: e.probation_months ?? '',
         probation_end_date: e.probation_end_date || '',
         probation_rate: e.probation_rate || '',
-        probation_salary_percentage: e.probation_salary_percentage != null ? String(e.probation_salary_percentage) : '',
+        contract_start_date: e.contract_start_date || '',
+        contract_end_date: e.contract_end_date || '',
+        revenue_percentage: e.revenue_percentage || '',
+        profit_percentage: e.profit_percentage || '',
 
         file_status: e.file_status || '',
-        file_submission_deadline: e.file_submission_deadline || '',
         file_review_notes: e.file_review_notes || '',
+
+        doc_resume: e.doc_resume || false,
+        doc_cccd: e.doc_cccd || false,
+        doc_degree: e.doc_degree || false,
+        doc_health: e.doc_health || false,
 
         emergency_contact_name: e.emergency_contact_name || '',
         emergency_contact_relationship: e.emergency_contact_relationship || '',
@@ -322,6 +361,13 @@ const EmployeeEdit: React.FC = () => {
       setDepartments(response.results);
     } catch (err) { console.error('Failed to load departments:', err); }
   };
+  
+  const loadSections = async () => {
+    try {
+      const response = await sectionsAPI.list();
+      setSections(response.results);
+    } catch (err) { console.error('Failed to load sections:', err); }
+  };
 
   const loadPositions = async () => {
     try {
@@ -335,6 +381,13 @@ const EmployeeEdit: React.FC = () => {
       const response = await employeesAPI.list({ page_size: 1000 });
       setEmployees(response.results);
     } catch (err) { console.error('Failed to load employees:', err); }
+  };
+
+  const loadCompanyUnits = async () => {
+    try {
+      const response = await companyUnitsAPI.list({ page_size: 100 });
+      setCompanyUnits(Array.isArray(response) ? response : (response.results || []));
+    } catch (err) { console.error('Failed to load company units:', err); }
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -389,18 +442,22 @@ const EmployeeEdit: React.FC = () => {
       add('work_location', formData.work_location);
       add('region', formData.region);
       add('block', formData.block);
+      add('company_unit_id', formData.company_unit_id);
 
       // Merge extra_info — lưu work_type, đồng thời xóa facebook_link (đã PATCH trực tiếp)
       // để tránh lệch giữa direct field và extra_info
       {
         const nextExtra = {
           ...originalExtraInfo,
-          work_type: formData.work_type?.trim() || undefined,
           facebook_link: undefined,
         };
         payload['extra_info'] = JSON.stringify(nextExtra);
       }
+      add('official_start_date', formData.official_start_date);
       add('education_level', formData.education_level);
+
+      add('termination_reason', formData.termination_reason?.trim());
+      add('employment_status_notes', formData.employment_status_notes?.trim());
 
       add('cccd_number', formData.cccd_number?.trim());
       add('cccd_issue_date', formData.cccd_issue_date);
@@ -409,11 +466,14 @@ const EmployeeEdit: React.FC = () => {
       add('birth_place', formData.birth_place?.trim());
       add('social_insurance_number', formData.social_insurance_number?.trim());
       add('tax_code', formData.tax_code?.trim());
+      add('household_code', formData.household_code?.trim());
+      add('link_cccd', formData.link_cccd?.trim());
       add('permanent_residence', formData.permanent_residence?.trim());
       add('current_address', formData.current_address?.trim());
 
       add('bank_name', formData.bank_name?.trim());
       add('bank_account', formData.bank_account?.trim());
+      add('bank_account_holder', formData.bank_account_holder?.trim());
       add('bank_branch', formData.bank_branch?.trim());
 
       if (formData.basic_salary !== '') payload['basic_salary'] = Number(formData.basic_salary);
@@ -422,11 +482,17 @@ const EmployeeEdit: React.FC = () => {
       if (formData.probation_months !== '') payload['probation_months'] = Number(formData.probation_months);
       add('probation_end_date', formData.probation_end_date);
       add('probation_rate', formData.probation_rate);
-      if (formData.probation_salary_percentage !== '') payload['probation_salary_percentage'] = Number(formData.probation_salary_percentage);
+      add('contract_start_date', formData.contract_start_date);
+      add('contract_end_date', formData.contract_end_date);
+      add('revenue_percentage', formData.revenue_percentage);
+      add('profit_percentage', formData.profit_percentage);
 
       add('file_status', formData.file_status);
-      add('file_submission_deadline', formData.file_submission_deadline);
       add('file_review_notes', formData.file_review_notes?.trim());
+      add('doc_resume', formData.doc_resume);
+      add('doc_cccd', formData.doc_cccd);
+      add('doc_degree', formData.doc_degree);
+      add('doc_health', formData.doc_health);
 
       add('emergency_contact_name', formData.emergency_contact_name?.trim());
       add('emergency_contact_relationship', formData.emergency_contact_relationship?.trim());
@@ -473,7 +539,7 @@ const EmployeeEdit: React.FC = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="space-y-6">
       {/* Header */}
       <div className="mb-6">
         <button
@@ -591,10 +657,16 @@ const EmployeeEdit: React.FC = () => {
                 onChange={handleInput} className={inputClass} />
             </Field>
 
+            <Field label="Ngày lên chính thức">
+              <input type="date" name="official_start_date" value={formData.official_start_date}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
             <SelectBox
               label="Phòng ban"
               value={formData.department_id}
               placeholder="Chọn phòng ban"
+              searchable={true}
               options={departments.map((d) => ({ label: d.name, value: d.id }))}
               onChange={(v) => handleSelect('department_id', v)}
             />
@@ -603,6 +675,7 @@ const EmployeeEdit: React.FC = () => {
               label="Chức vụ"
               value={formData.position_id}
               placeholder="Chọn chức vụ"
+              searchable={true}
               options={positions.map((p) => ({ label: p.title, value: p.id }))}
               onChange={(v) => handleSelect('position_id', v)}
             />
@@ -611,6 +684,7 @@ const EmployeeEdit: React.FC = () => {
               label="Quản lý trực tiếp"
               value={formData.manager_id}
               placeholder="Chọn quản lý"
+              searchable={true}
               options={[
                 { label: 'Không có quản lý', value: null },
                 ...employees
@@ -623,15 +697,22 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('manager_id', v ?? undefined)}
             />
 
-            <Field label="Cấp bậc">
-              <input type="text" name="rank" value={formData.rank}
-                onChange={handleInput} placeholder="Nhân viên, Trưởng phòng..." className={inputClass} />
-            </Field>
+            <SelectBox
+              label="Cấp bậc"
+              value={formData.rank}
+              placeholder="Chọn cấp bậc"
+              options={[{ value: '', label: 'Không có' }, ...RANK_OPTIONS]}
+              onChange={(v) => handleSelect('rank', v)}
+            />
 
-            <Field label="Bộ phận (Section)">
-              <input type="text" name="section" value={formData.section}
-                onChange={handleInput} placeholder="Da liễu, Phẫu thuật..." className={inputClass} />
-            </Field>
+            <SelectBox
+              label="Bộ phận"
+              value={formData.section}
+              placeholder="Chọn bộ phận"
+              searchable={true}
+              options={sections.map((s) => ({ label: s.name, value: s.name }))}
+              onChange={(v) => handleSelect('section', v)}
+            />
 
             <Field label="Team Bác sĩ">
               <input type="text" name="doctor_team" value={formData.doctor_team}
@@ -646,10 +727,6 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('work_form', v)}
             />
 
-            <Field label="Loại hình làm việc">
-              <input type="text" name="work_type" value={formData.work_type}
-                onChange={handleInput} placeholder="Full-time, Part-time, ..." className={inputClass} />
-            </Field>
 
             <SelectBox
               label="Địa điểm làm việc"
@@ -675,6 +752,17 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('block', v)}
             />
 
+            <SelectBox
+              label="Đơn vị"
+              value={formData.company_unit_id?.toString() ?? ''}
+              placeholder="Chọn đơn vị"
+              options={[
+                { value: '', label: 'Không có' },
+                ...(companyUnits || []).map((u) => ({ value: String(u.id), label: u.name })),
+              ]}
+              onChange={(v) => handleSelect('company_unit_id', v ? Number(v) : undefined)}
+            />
+
             <div className="md:col-span-2">
               <label className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border cursor-pointer">
                 <input
@@ -688,6 +776,24 @@ const EmployeeEdit: React.FC = () => {
                   <p className="text-xs text-gray-500 mt-0.5">Có quyền duyệt đơn và truy cập các chức năng quản lý nhân sự</p>
                 </div>
               </label>
+            </div>
+
+            <div className="md:col-span-2">
+              <Field label="Lý do nghỉ việc">
+                <textarea name="termination_reason" value={formData.termination_reason}
+                  onChange={handleInput} rows={2}
+                  placeholder="Lý do nghỉ việc..."
+                  className={textareaClass} />
+              </Field>
+            </div>
+
+            <div className="md:col-span-2">
+              <Field label="Ghi chú công việc">
+                <textarea name="employment_status_notes" value={formData.employment_status_notes}
+                  onChange={handleInput} rows={2}
+                  placeholder="Ghi chú về trạng thái công việc..."
+                  className={textareaClass} />
+              </Field>
             </div>
           </div>
         </div>
@@ -734,6 +840,16 @@ const EmployeeEdit: React.FC = () => {
                 onChange={handleInput} placeholder="0123456789" className={inputClass} />
             </Field>
 
+            <Field label="Mã hộ gia đình">
+              <input type="text" name="household_code" value={formData.household_code}
+                onChange={handleInput} placeholder="Mã hộ gia đình" className={inputClass} />
+            </Field>
+
+            <Field label="Link CCCD/CMT">
+              <input type="text" name="link_cccd" value={formData.link_cccd}
+                onChange={handleInput} placeholder="https://drive.google.com/..." className={inputClass} />
+            </Field>
+
             <div className="md:col-span-2">
               <Field label="Địa chỉ thường trú">
                 <textarea name="permanent_residence" value={formData.permanent_residence}
@@ -765,12 +881,17 @@ const EmployeeEdit: React.FC = () => {
 
             <Field label="Số tài khoản">
               <input type="text" name="bank_account" value={formData.bank_account}
-                onChange={handleInput} placeholder="1234567890" className={inputClass} />
+                onChange={handleInput} placeholder="123456789" className={inputClass} />
+            </Field>
+
+            <Field label="Chủ tài khoản">
+              <input type="text" name="bank_account_holder" value={formData.bank_account_holder}
+                onChange={handleInput} placeholder="NGUYEN VAN A" className={inputClass} />
             </Field>
 
             <Field label="Chi nhánh">
               <input type="text" name="bank_branch" value={formData.bank_branch}
-                onChange={handleInput} placeholder="Chi nhánh Hà Nội..." className={inputClass} />
+                onChange={handleInput} placeholder="Hà Nội" className={inputClass} />
               <p className="text-xs text-gray-400 mt-1">* Trong trường hợp không phải Ngân hàng ACB</p>
             </Field>
           </div>
@@ -816,13 +937,26 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('probation_rate', v)}
             />
 
-            <SelectBox
-              label="% lương thử việc"
-              value={formData.probation_salary_percentage}
-              placeholder="Chọn %"
-              options={PROBATION_SALARY_PERCENTAGE_OPTIONS}
-              onChange={(v) => handleSelect('probation_salary_percentage', v)}
-            />
+            <Field label="Ngày bắt đầu hợp đồng">
+              <input type="date" name="contract_start_date" value={formData.contract_start_date}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <Field label="Ngày kết thúc hợp đồng">
+              <input type="date" name="contract_end_date" value={formData.contract_end_date}
+                onChange={handleInput} className={inputClass} />
+            </Field>
+
+            <Field label="Tỷ lệ % doanh số hưởng">
+              <input type="text" name="revenue_percentage" value={formData.revenue_percentage}
+                onChange={handleInput} placeholder="Ví dụ: 5%" className={inputClass} />
+            </Field>
+
+            <Field label="Tỷ lệ % lợi nhuận hưởng">
+              <input type="text" name="profit_percentage" value={formData.profit_percentage}
+                onChange={handleInput} placeholder="Ví dụ: 10%" className={inputClass} />
+            </Field>
+
           </div>
         </div>
 
@@ -838,11 +972,6 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('file_status', v)}
             />
 
-            <Field label="Hạn nộp hồ sơ">
-              <input type="date" name="file_submission_deadline" value={formData.file_submission_deadline}
-                onChange={handleInput} className={inputClass} />
-            </Field>
-
             <div className="md:col-span-2">
               <Field label="Ghi chú hồ sơ">
                 <textarea name="file_review_notes" value={formData.file_review_notes}
@@ -850,6 +979,25 @@ const EmployeeEdit: React.FC = () => {
                   placeholder="Ghi chú về tình trạng hồ sơ..."
                   className={textareaClass} />
               </Field>
+            </div>
+
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border cursor-pointer hover:bg-gray-100 transition-colors">
+                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" checked={formData.doc_resume} onChange={(e) => handleSelect('doc_resume', e.target.checked)} />
+                <span className="text-sm font-medium text-gray-700">Sơ yếu lý lịch</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border cursor-pointer hover:bg-gray-100 transition-colors">
+                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" checked={formData.doc_cccd} onChange={(e) => handleSelect('doc_cccd', e.target.checked)} />
+                <span className="text-sm font-medium text-gray-700">CCCD</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border cursor-pointer hover:bg-gray-100 transition-colors">
+                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" checked={formData.doc_degree} onChange={(e) => handleSelect('doc_degree', e.target.checked)} />
+                <span className="text-sm font-medium text-gray-700">Bằng cấp</span>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border cursor-pointer hover:bg-gray-100 transition-colors">
+                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" checked={formData.doc_health} onChange={(e) => handleSelect('doc_health', e.target.checked)} />
+                <span className="text-sm font-medium text-gray-700">Giấy khám sức khỏe</span>
+              </label>
             </div>
           </div>
         </div>
@@ -911,8 +1059,8 @@ const EmployeeEdit: React.FC = () => {
                 accept: string;
               }[] = [
                 { label: 'Bằng cấp', file: diplomaFile, setFile: setDiplomaFile, currentUrl: diplomaCurrentUrl, accept: 'image/*,application/pdf' },
-                { label: 'File CMND/CCCD', file: citizenIdFile, setFile: setCitizenIdFile, currentUrl: citizenIdCurrentUrl, accept: 'image/*,application/pdf' },
-                { label: 'Ảnh chụp VNeID', file: vneidFile, setFile: setVneidFile, currentUrl: vneidCurrentUrl, accept: 'image/*' },
+                { label: 'CCCD/CMT', file: citizenIdFile, setFile: setCitizenIdFile, currentUrl: citizenIdCurrentUrl, accept: 'image/*,application/pdf' },
+                { label: 'Ảnh chụp VNeID', file: vneidFile, setFile: setVneidFile, currentUrl: vneidCurrentUrl, accept: 'image/*,application/pdf' },
               ];
               return rows.map(r => (
                 <div key={r.label} className="border rounded-lg p-3 space-y-2">

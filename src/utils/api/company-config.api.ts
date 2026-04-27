@@ -321,6 +321,7 @@ export const hrmAPI = {
     priority?: string;
     is_active?: boolean;
     is_current?: boolean;
+    unread_only?: boolean;
     search?: string;
   }): Promise<{
     count: number;
@@ -344,6 +345,28 @@ export const hrmAPI = {
 
   acknowledgeAnnouncement: async (announcementId: number): Promise<void> => {
     await managementApi.post(`/api-hrm/company-announcements/${announcementId}/acknowledge/`);
+  },
+
+  recordAnnouncementView: async (id: number): Promise<void> => {
+    await managementApi.post(`/api-hrm/company-announcements/${id}/record_view/`);
+  },
+
+  createAnnouncement: async (formData: FormData): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.post('/api-hrm/company-announcements/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  updateAnnouncement: async (id: number, formData: FormData): Promise<any> => {
+    const response: AxiosResponse<any> = await managementApi.patch(`/api-hrm/company-announcements/${id}/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteAnnouncement: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/company-announcements/${id}/`);
   },
 
   // Company Policies

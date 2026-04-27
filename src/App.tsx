@@ -91,6 +91,7 @@ import AttendanceRanking from './pages/AttendanceRanking';
 import RecruitmentNeeds from './pages/recruitment/RecruitmentNeeds';
 import RecruitmentJobs from './pages/recruitment/RecruitmentJobs';
 import RecruitmentCandidates from './pages/recruitment/RecruitmentCandidates';
+import AnnouncementList from './pages/AnnouncementList';
 
 function App() {
   return (
@@ -99,11 +100,7 @@ function App() {
         <Routes>
           <Route
             path="/"
-            element={
-              <LandingLayout>
-                <LandingPage />
-              </LandingLayout>
-            }
+            element={<LandingPage />}
           />
           <Route
             path="/terms-of-service"
@@ -984,6 +981,18 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <RecruitmentCandidates />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Announcements Route */}
+          <Route
+            path="/dashboard/announcements"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AnnouncementList />
                 </Layout>
               </ProtectedRoute>
             }

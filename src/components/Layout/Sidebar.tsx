@@ -29,6 +29,7 @@ import {
   TrophyIcon,
   GiftIcon,
   MagnifyingGlassIcon,
+  MegaphoneIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -58,6 +59,12 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN', 'USER', 'CUSTOMER'],
   },
   {
+    name: 'Bảng thông báo',
+    href: '/dashboard/announcements',
+    icon: MegaphoneIcon,
+    roles: ['ADMIN','HR'],
+  },
+  {
     name: 'Me',
     href: '/dashboard/me',
     icon: UserCircleIcon,
@@ -66,57 +73,73 @@ const navigationItems: NavigationItem[] = [
 
   // --- Nhân sự ---
   {
-    name: 'Quản lý nhân viên',
+    name: 'Nhân sự',
     href: '/dashboard/employees',
     icon: UserIcon,
-    roles: ['ADMIN', 'USER'],
-  },
-  {
-    name: 'Onboard nhân sự',
-    href: '/dashboard/onboarding',
-    icon: UserPlusIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Offboard nhân sự',
-    href: '/dashboard/offboarding',
-    icon: UserMinusIcon,
-    roles: ['ADMIN'],
-  },
-  {
-    name: 'Quản lý phân quyền',
-    href: '/dashboard/roles',
-    icon: ShieldCheckIcon,
-    roles: ['ADMIN'],
-  },
-  {
-    name: 'Reset mật khẩu',
-    href: '/dashboard/password-reset',
-    icon: KeyIcon,
-    roles: ['ADMIN', 'HR'],
+    roles: ['ADMIN', 'USER', 'HR'],
+    children: [
+      {
+        name: 'Quản lý nhân viên',
+        href: '/dashboard/employees',
+        icon: UserIcon,
+        roles: ['ADMIN', 'USER'],
+      },
+      {
+        name: 'Onboard nhân sự',
+        href: '/dashboard/onboarding',
+        icon: UserPlusIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Offboard nhân sự',
+        href: '/dashboard/offboarding',
+        icon: UserMinusIcon,
+        roles: ['ADMIN'],
+      },
+      {
+        name: 'Quản lý phân quyền',
+        href: '/dashboard/roles',
+        icon: ShieldCheckIcon,
+        roles: ['ADMIN'],
+      },
+      {
+        name: 'Reset mật khẩu',
+        href: '/dashboard/password-reset',
+        icon: KeyIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+    ],
   },
 
   // --- Cơ cấu tổ chức ---
   {
-    name: 'Quản lý phòng ban',
+    name: 'Cơ cấu tổ chức',
     href: '/dashboard/departments',
     icon: BuildingOfficeIcon,
     roles: ['ADMIN'],
-    employeePermission: 'can_manage_departments',
-  },
-  {
-    name: 'Quản lý bộ phận',
-    href: '/dashboard/sections',
-    icon: BuildingOfficeIcon,
-    roles: ['ADMIN'],
-    employeePermission: 'can_manage_departments',
-  },
-  {
-    name: 'Quản lý vị trí',
-    href: '/dashboard/positions',
-    icon: BriefcaseIcon,
-    roles: ['ADMIN'],
-    employeePermission: 'can_manage_positions',
+    children: [
+      {
+        name: 'Quản lý phòng ban',
+        href: '/dashboard/departments',
+        icon: BuildingOfficeIcon,
+        roles: ['ADMIN'],
+        employeePermission: 'can_manage_departments',
+      },
+      {
+        name: 'Quản lý bộ phận',
+        href: '/dashboard/sections',
+        icon: BuildingOfficeIcon,
+        roles: ['ADMIN'],
+        employeePermission: 'can_manage_departments',
+      },
+      {
+        name: 'Quản lý vị trí',
+        href: '/dashboard/positions',
+        icon: BriefcaseIcon,
+        roles: ['ADMIN'],
+        employeePermission: 'can_manage_positions',
+      },
+    ],
   },
 
   // --- Chấm công ---
@@ -125,32 +148,42 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard/attendance',
     icon: ClockIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+    children: [
+      {
+        name: 'Chấm công',
+        href: '/dashboard/attendance',
+        icon: ClockIcon,
+        roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+      },
+      {
+        name: 'Quản lý chấm công',
+        href: '/dashboard/attendance/upload',
+        icon: CloudArrowUpIcon,
+        roles: ['ADMIN', 'HR'],
+        departments: ['HCNS'],
+      },
+      {
+        name: 'Cấu hình ca làm',
+        href: '/dashboard/shift-configuration',
+        icon: ClockIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Chốt công',
+        href: '/dashboard/work-finalization',
+        icon: TableCellsIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Phê duyệt chốt công',
+        href: '/dashboard/work-finalization/approvals',
+        icon: CheckCircleIcon,
+        roles: ['ADMIN'],
+      },
+    ],
   },
-  {
-    name: 'Quản lý chấm công',
-    href: '/dashboard/attendance/upload',
-    icon: CloudArrowUpIcon,
-    roles: ['ADMIN', 'HR'],
-    departments: ['HCNS'],
-  },
-  {
-    name: 'Cấu hình ca làm',
-    href: '/dashboard/shift-configuration',
-    icon: ClockIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Chốt công',
-    href: '/dashboard/work-finalization',
-    icon: TableCellsIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Phê duyệt chốt công',
-    href: '/dashboard/work-finalization/approvals',
-    icon: CheckCircleIcon,
-    roles: ['ADMIN'],
-  },
+
+  // --- Khen thưởng & Kỷ luật ---
   {
     name: 'Khen thưởng & Kỷ luật',
     href: '/dashboard/rewards',
@@ -176,48 +209,64 @@ const navigationItems: NavigationItem[] = [
 
   // --- Tài sản ---
   {
-    name: 'Tài sản được bàn giao',
+    name: 'Tài sản',
     href: '/dashboard/assigned-assets',
     icon: ComputerDesktopIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
-  },
-  {
-    name: 'Quản lý tài sản',
-    href: '/dashboard/assets',
-    icon: ComputerDesktopIcon,
-    roles: ['ADMIN', 'HR'],
+    children: [
+      {
+        name: 'Tài sản được bàn giao',
+        href: '/dashboard/assigned-assets',
+        icon: ComputerDesktopIcon,
+        roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+      },
+      {
+        name: 'Quản lý tài sản',
+        href: '/dashboard/assets',
+        icon: ComputerDesktopIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+    ],
   },
 
   // --- Đơn từ & Phê duyệt ---
   {
-    name: 'Yêu cầu & Đơn từ',
+    name: 'Đơn từ & Phê duyệt',
     href: '/dashboard/my-requests',
     icon: ClipboardDocumentListIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
-  },
-  {
-    name: 'Phê duyệt',
-    href: '/dashboard/approvals',
-    icon: CheckCircleIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
-  },
-  {
-    name: 'Template đơn từ',
-    href: '/dashboard/request-templates',
-    icon: DocumentTextIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Template hợp đồng',
-    href: '/dashboard/contract-templates',
-    icon: DocumentTextIcon,
-    roles: ['ADMIN', 'HR'],
-  },
-  {
-    name: 'Template tài liệu',
-    href: '/dashboard/document-templates',
-    icon: DocumentTextIcon,
-    roles: ['ADMIN', 'HR'],
+    children: [
+      {
+        name: 'Yêu cầu & Đơn từ',
+        href: '/dashboard/my-requests',
+        icon: ClipboardDocumentListIcon,
+        roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+      },
+      {
+        name: 'Phê duyệt',
+        href: '/dashboard/approvals',
+        icon: CheckCircleIcon,
+        roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+      },
+      {
+        name: 'Template đơn từ',
+        href: '/dashboard/request-templates',
+        icon: DocumentTextIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Template hợp đồng',
+        href: '/dashboard/contract-templates',
+        icon: DocumentTextIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Template tài liệu',
+        href: '/dashboard/document-templates',
+        icon: DocumentTextIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+    ],
   },
 
   // --- Tuyển dụng ---
@@ -273,6 +322,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [collapsedByUser, setCollapsedByUser] = useState<Set<string>>(new Set());
   const location = useLocation();
   const { user, loading } = useAuth();
 
@@ -335,16 +385,14 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     ? navigationItems
     : navigationItems.filter(canAccessItem);
 
-  const toggleGroup = (name: string) => {
-    setExpandedGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
-      }
-      return next;
-    });
+  const toggleGroup = (name: string, currentlyExpanded: boolean) => {
+    if (currentlyExpanded) {
+      setExpandedGroups(prev => { const next = new Set(prev); next.delete(name); return next; });
+      setCollapsedByUser(prev => new Set(prev).add(name));
+    } else {
+      setExpandedGroups(prev => new Set(prev).add(name));
+      setCollapsedByUser(prev => { const next = new Set(prev); next.delete(name); return next; });
+    }
   };
 
   // Check if any child of a group is currently active (auto-expand)
@@ -363,11 +411,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
       const visibleChildren = isSuperAdmin ? item.children : item.children.filter(canAccessItem);
       if (visibleChildren.length === 0) return null;
       const active = isGroupActive(item);
-      const expanded = expandedGroups.has(item.name) || active;
+      const expanded = collapsedByUser.has(item.name) ? false : (expandedGroups.has(item.name) || active);
       return (
         <div key={item.name}>
           <button
-            onClick={collapsed ? undefined : () => toggleGroup(item.name)}
+            onClick={collapsed ? undefined : () => toggleGroup(item.name, expanded)}
             className={`w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
               active ? 'bg-primary-100 text-primary-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
             } ${collapsed ? 'justify-center' : 'justify-between'}`}
@@ -441,13 +489,8 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
           <div className="flex h-16 items-center justify-between px-4">
-            <Link to="/" className="flex items-center">
-              <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-                <img src="/bot-logo.png" alt="Logo" className="h-full w-full" />
-              </div>
-              <span className="ml-2 text-xl font-bold text-gray-900">
-                AI HRM
-              </span>
+            <Link to="/" className="flex items-center gap-2">
+              <img src="/logo-trung-anh.png" alt="Trung Anh Group" className="h-8 w-auto max-w-[130px] object-contain" />
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -506,30 +549,21 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col transition-all duration-300 ${isCollapsed ? 'lg:w-16' : 'lg:w-64'}`}
       >
         <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
-          <div className={`flex h-16 items-center ${isCollapsed ? 'justify-center px-0' : 'px-4 justify-between'}`}>
+          <div className="relative flex h-16 items-center justify-center">
             {!isCollapsed && (
-              <Link to="/" className="flex items-center">
-                <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-                  <img
-                    src="/bot-logo.png"
-                    alt="Logo"
-                    className="h-full w-full"
-                  />
-                </div>
-                <span className="ml-2 text-xl font-bold text-gray-900">
-                  AI HRM
-                </span>
+              <Link to="/" className="flex items-center justify-center">
+                <img src="/logo-trung-anh.png" alt="Trung Anh Group" className="h-10 w-auto object-contain" />
               </Link>
             )}
             <button
               onClick={handleCollapseToggle}
-              className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              className="absolute right-2 p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {isCollapsed ? (
-                <ChevronRightIcon className="h-5 w-5" />
+                <ChevronRightIcon className="h-4 w-4" />
               ) : (
-                <ChevronLeftIcon className="h-5 w-5" />
+                <ChevronLeftIcon className="h-4 w-4" />
               )}
             </button>
           </div>
@@ -601,13 +635,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           <Bars3Icon className="h-6 w-6" />
         </button>
         <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-          <Link to="/" className="flex items-center">
-            <div className="h-8 w-8 rounded-lg flex items-center justify-center">
-              <img src="/bot-logo.png" alt="Logo" className="h-full w-full" />
+          <Link to="/" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-blue-900 flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-black text-xs tracking-tight">TAG</span>
             </div>
-            <span className="ml-2 text-lg font-semibold text-gray-900">
-              AI HRM
-            </span>
+            <span className="text-sm font-bold text-gray-900">Trung Anh Group</span>
           </Link>
         </div>
       </div>
