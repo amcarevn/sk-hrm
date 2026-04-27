@@ -549,21 +549,21 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col transition-all duration-300 ${isCollapsed ? 'lg:w-16' : 'lg:w-64'}`}
       >
         <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
-          <div className={`flex h-16 items-center ${isCollapsed ? 'justify-center px-0' : 'px-4 justify-between'}`}>
+          <div className="relative flex h-16 items-center justify-center">
             {!isCollapsed && (
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/logo-trung-anh.png" alt="Trung Anh Group" className="h-8 w-auto max-w-[130px] object-contain" />
+              <Link to="/" className="flex items-center justify-center">
+                <img src="/logo-trung-anh.png" alt="Trung Anh Group" className="h-10 w-auto object-contain" />
               </Link>
             )}
             <button
               onClick={handleCollapseToggle}
-              className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              className="absolute right-2 p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {isCollapsed ? (
-                <ChevronRightIcon className="h-5 w-5" />
+                <ChevronRightIcon className="h-4 w-4" />
               ) : (
-                <ChevronLeftIcon className="h-5 w-5" />
+                <ChevronLeftIcon className="h-4 w-4" />
               )}
             </button>
           </div>

@@ -298,17 +298,17 @@ const HRStats: React.FC = () => {
             {stats.department_stats.length > 0 && (
               <div className="mb-6">
                 <h4 className="text-sm font-medium text-gray-900 mb-4">Phân bổ theo phòng ban</h4>
-                <div className="flex flex-col md:flex-row gap-4 xl:gap-8 items-start">
-                  {/* Donut Chart — fixed width, không bị kéo dãn trên desktop */}
-                  <div className="relative mx-auto md:mx-0 w-full md:w-[260px] xl:w-[280px] flex-shrink-0">
-                    <ResponsiveContainer width="100%" height={240}>
+                <div className="flex flex-col lg:flex-row gap-6 items-start">
+                  {/* Donut Chart */}
+                  <div className="relative mx-auto lg:mx-0 w-[220px] flex-shrink-0">
+                    <ResponsiveContainer width="100%" height={220}>
                       <PieChart>
                         <Pie
                           data={donutData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={65}
-                          outerRadius={100}
+                          innerRadius={60}
+                          outerRadius={95}
                           dataKey="value"
                           strokeWidth={2}
                           stroke="#fff"
@@ -331,35 +331,27 @@ const HRStats: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Ranked List — flex-1 chiếm toàn bộ space còn lại, bỏ max-h cứng trên xl */}
-                  <div className="flex-1 min-w-0 max-h-[240px] xl:max-h-none overflow-y-auto space-y-2 pr-1">
-                    {sortedDepts.map((dept, index) => {
-                      const color = index < 8 ? DEPT_COLORS[index] : OTHER_COLOR;
-                      const pct = stats.employee_stats.active > 0
-                        ? (dept.employee_count / stats.employee_stats.active) * 100
-                        : 0;
-                      return (
-                        <div key={dept.id} className="flex items-center gap-2">
-                          <div
-                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: color }}
-                          />
-                          <span className="text-sm text-gray-700 flex-1 truncate">{dept.name}</span>
-                          <span className="text-sm font-bold text-gray-900 w-7 text-right flex-shrink-0">
-                            {dept.employee_count}
-                          </span>
-                          <span className="text-xs text-gray-400 w-12 text-right flex-shrink-0">
-                            {pct.toFixed(1)}%
-                          </span>
-                          <div className="w-16 bg-gray-100 rounded-full h-1.5 flex-shrink-0">
-                            <div
-                              className="h-1.5 rounded-full"
-                              style={{ width: `${pct}%`, backgroundColor: color }}
-                            />
+                  {/* 2-column grid on xl */}
+                  <div className="flex-1 min-w-0">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+                      {sortedDepts.map((dept, index) => {
+                        const color = index < 8 ? DEPT_COLORS[index] : OTHER_COLOR;
+                        const pct = stats.employee_stats.active > 0
+                          ? (dept.employee_count / stats.employee_stats.active) * 100
+                          : 0;
+                        return (
+                          <div key={dept.id} className="flex items-center gap-2 py-0.5">
+                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                            <span className="text-sm text-gray-700 flex-1 truncate min-w-0">{dept.name}</span>
+                            <span className="text-sm font-semibold text-gray-900 flex-shrink-0 w-8 text-right">{dept.employee_count}</span>
+                            <span className="text-xs text-gray-400 flex-shrink-0 w-11 text-right">{pct.toFixed(1)}%</span>
+                            <div className="w-14 bg-gray-100 rounded-full h-1.5 flex-shrink-0">
+                              <div className="h-1.5 rounded-full" style={{ width: `${Math.min(pct * 3, 100)}%`, backgroundColor: color }} />
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -496,18 +488,15 @@ const HRStats: React.FC = () => {
             {stats.department_stats.length > 0 && (
               <div className="mb-6">
                 <h4 className="text-sm font-medium text-gray-900 mb-3">Phân bổ theo phòng ban</h4>
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-8 gap-y-2">
                   {sortedDepts.map((dept, index) => {
                     const color = index < 8 ? DEPT_COLORS[index] : OTHER_COLOR;
                     const pct = stats.employee_stats.active > 0
                       ? (dept.employee_count / stats.employee_stats.active) * 100
                       : 0;
                     return (
-                      <div key={dept.id} className="flex items-center gap-3">
-                        <div
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: color }}
-                        />
+                      <div key={dept.id} className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-0.5">
                             <span className="text-sm font-medium text-gray-700 truncate">
@@ -520,10 +509,7 @@ const HRStats: React.FC = () => {
                             </div>
                           </div>
                           <div className="w-full bg-gray-100 rounded-full h-1.5">
-                            <div
-                              className="h-1.5 rounded-full"
-                              style={{ width: `${pct}%`, backgroundColor: color }}
-                            />
+                            <div className="h-1.5 rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
                           </div>
                         </div>
                       </div>
