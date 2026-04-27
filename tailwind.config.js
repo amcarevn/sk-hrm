@@ -16,6 +16,16 @@ module.exports = {
           800: '#1e40af',
           900: '#1e3a8a',
         },
+        // SK Dental Clinic brand colors
+        sk: {
+          green:       '#4E9A2E', // primary brand, buttons, logo
+          'green-dark':'#3F7F25', // hover, active
+          'green-light':'#6FBF4A', // highlight, light background
+          border:      '#E0E0E0', // divider, border
+          'bg-section':'#F5F5F5', // section background
+          text:        '#222222', // main text
+          'text-sub':  '#666666', // subtitle, description
+        },
       },
       animation: {
         fadeIn: 'fadeIn 0.3s ease-out forwards',

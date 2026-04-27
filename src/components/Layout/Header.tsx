@@ -120,7 +120,7 @@ export default function Header() {
         <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
           <div className="flex items-center">
             <Link to="/" className="flex items-center gap-2">
-              <img src="/logo-trung-anh.png" alt="Trung Anh Group" className="h-8 w-auto max-w-[130px] object-contain" />
+              <img src="/logo-sk.png" alt="SK Dental Clinic" className="h-8 w-auto max-w-[130px] object-contain" />
             </Link>
           </div>
           <form className="relative flex flex-1" action="#" method="GET">
@@ -179,10 +179,10 @@ export default function Header() {
                           <div
                             key={ann.id}
                             onClick={() => { markRead(ann.id); setBellOpen(false); openDrawer(ann); }}
-                            className={`flex gap-2 px-4 py-3 cursor-pointer transition-colors border-l-4 ${PRIORITY_BORDER[ann.priority] || 'border-gray-200'} ${isUnread ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
+                            className={`flex gap-2 px-4 py-3 cursor-pointer transition-colors border-l-4 ${PRIORITY_BORDER[ann.priority] || 'border-gray-200'} ${isUnread ? 'bg-sk-green/5 hover:bg-sk-green/10' : 'hover:bg-gray-50'}`}
                           >
                             {isUnread && (
-                              <span className="mt-1.5 flex-shrink-0 h-2 w-2 rounded-full bg-blue-500" />
+                              <span className="mt-1.5 flex-shrink-0 h-2 w-2 rounded-full bg-sk-green" />
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1 flex-wrap mb-0.5">
@@ -205,7 +205,7 @@ export default function Header() {
                     {/* Infinite scroll sentinel */}
                     <div ref={sentinelRef} className="py-2 flex justify-center">
                       {loadingMore && (
-                        <div className="animate-spin h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full" />
+                        <div className="animate-spin h-4 w-4 border-2 border-sk-green border-t-transparent rounded-full" />
                       )}
                     </div>
                   </div>
@@ -214,7 +214,7 @@ export default function Header() {
                   <div className="border-t border-gray-100">
                     <button
                       onClick={() => { setBellOpen(false); openDrawer(); }}
-                      className="w-full px-4 py-2.5 text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors text-center"
+                      className="w-full px-4 py-2.5 text-sm font-medium text-sk-green hover:bg-sk-green/5 transition-colors text-center"
                     >
                       Xem tất cả thông báo →
                     </button>
