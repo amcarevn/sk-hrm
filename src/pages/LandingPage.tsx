@@ -83,7 +83,7 @@ export default function LandingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-blue-900">
+      <div className="min-h-screen flex items-center justify-center bg-sk-green">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
       </div>
     );
@@ -93,19 +93,19 @@ export default function LandingPage() {
     <div className="bg-white">
 
       {/* ── NAVBAR ── */}
-      <header className="fixed top-0 inset-x-0 z-50 bg-blue-900/95 backdrop-blur border-b border-blue-800">
+      <header className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur border-b border-sk-border shadow-sm">
         <div className="mx-auto max-w-7xl px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src="/logo-trung-anh.png"
-              alt="Trung Anh Group"
+              src="/logo-sk.png"
+              alt="SK Dental Clinic"
               className="h-10 w-auto max-w-[160px] rounded-lg object-contain"
             />
-            <span className="text-blue-300 text-xs hidden sm:block">Hệ thống Quản lý Nhân sự</span>
+            <span className="text-sk-text-sub text-xs hidden sm:block">Hệ thống Quản lý Nhân sự</span>
           </div>
           <a
             href="/login"
-            className="inline-flex items-center gap-2 px-5 py-2 bg-white text-blue-900 text-sm font-semibold rounded-lg hover:bg-blue-50 transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2 bg-sk-green text-white text-sm font-semibold rounded-lg hover:bg-sk-green-dark transition-colors"
           >
             Đăng nhập
             <ArrowRightIcon className="h-4 w-4" />
@@ -114,7 +114,7 @@ export default function LandingPage() {
       </header>
 
       {/* ── HERO ── */}
-      <section className="relative bg-blue-900 pt-16 overflow-hidden">
+      <section className="relative pt-16 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0a1a06 0%, #162b0e 45%, #254d18 100%)' }}>
         {/* Gradient mesh background */}
         <div className="absolute inset-0">
           <div
@@ -124,9 +124,9 @@ export default function LandingPage() {
               backgroundSize: '36px 36px',
             }}
           />
-          <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-blue-500 opacity-20 blur-3xl" />
-          <div className="absolute top-1/2 right-1/3 w-72 h-72 rounded-full bg-indigo-500 opacity-15 blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 w-96 h-96 rounded-full bg-blue-700 opacity-25 blur-3xl" />
+          <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-sk-green-light opacity-30 blur-3xl" />
+          <div className="absolute top-1/2 right-1/3 w-72 h-72 rounded-full bg-sk-green-light opacity-20 blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-96 h-96 rounded-full bg-white opacity-10 blur-3xl" />
         </div>
 
         <div className="relative mx-auto max-w-7xl px-6 lg:px-8 py-20 lg:py-28">
@@ -136,30 +136,31 @@ export default function LandingPage() {
             <div>
               <motion.div
                 custom={0} variants={fadeUp} initial="hidden" animate="visible"
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-800/80 border border-blue-700 mb-7"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 border border-white/30 mb-7"
               >
-                <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-blue-200 text-xs font-medium">Hệ thống đang hoạt động bình thường</span>
+                <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                <span className="text-white/80 text-xs font-medium">Hệ thống đang hoạt động bình thường</span>
               </motion.div>
 
               <motion.h1
                 custom={1} variants={fadeUp} initial="hidden" animate="visible"
-                className="text-4xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight"
+                className="text-6xl lg:text-8xl font-black text-white leading-[0.8] uppercase"
               >
-                Trung Anh Group
+                SK <br />
+                <span className="block mt-[-5px] lg:mt-[-10px] text-3xl lg:text-5xl font-bold opacity-50 tracking-normal normal-case">Dental Clinic</span>
               </motion.h1>
               <motion.p
                 custom={2} variants={fadeUp} initial="hidden" animate="visible"
-                className="mt-3 text-xl lg:text-2xl font-medium text-blue-300"
+                className="mt-3 text-xl lg:text-2xl font-medium text-white/90"
               >
                 Hệ thống Quản lý Hành chính Nhân sự
               </motion.p>
               <motion.p
                 custom={3} variants={fadeUp} initial="hidden" animate="visible"
-                className="mt-5 text-base lg:text-lg text-blue-200 leading-relaxed max-w-xl"
+                className="mt-5 text-base lg:text-lg text-white/75 leading-relaxed max-w-xl"
               >
                 Nền tảng quản lý nhân sự, chấm công, tính lương và tài sản tập trung —
-                vận hành toàn bộ hoạt động nhân sự của Trung Anh Group trên một hệ thống duy nhất.
+                vận hành toàn bộ hoạt động nhân sự của SK Dental Clinic trên một hệ thống duy nhất.
               </motion.p>
 
               <motion.div
@@ -168,14 +169,14 @@ export default function LandingPage() {
               >
                 <a
                   href="/login"
-                  className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-blue-900 text-base font-bold rounded-xl hover:bg-blue-50 transition-colors shadow-lg"
+                  className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-sk-green text-base font-bold rounded-xl hover:bg-sk-bg-section transition-colors shadow-lg"
                 >
                   Đăng nhập hệ thống
                   <ArrowRightIcon className="h-5 w-5" />
                 </a>
                 <button
                   onClick={() => document.getElementById('modules')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="inline-flex items-center gap-2 px-7 py-3.5 border border-blue-600 text-white text-base font-semibold rounded-xl hover:bg-blue-800/60 transition-colors"
+                  className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/10 border border-white/60 text-white text-base font-semibold rounded-xl hover:bg-white/20 transition-colors"
                 >
                   Xem các phân hệ
                 </button>
@@ -196,7 +197,7 @@ export default function LandingPage() {
                     <div className="text-2xl font-extrabold text-white">
                       <CountUp to={to} suffix={suffix} duration={duration} />
                     </div>
-                    <div className="text-xs text-blue-400 mt-0.5">{label}</div>
+                    <div className="text-xs text-white/60 mt-0.5">{label}</div>
                   </div>
                 ))}
               </motion.div>
@@ -210,39 +211,38 @@ export default function LandingPage() {
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl p-6 shadow-2xl"
+                className="relative bg-sk-green-dark/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl"
               >
                 {/* Card header */}
                 <div className="flex items-center justify-between mb-5">
                   <div>
                     <p className="text-white font-semibold text-sm">Tổng quan Nhân sự</p>
-                    <p className="text-blue-400 text-xs mt-0.5">Trung Anh Group · 2026</p>
+                    <p className="text-sk-green-light text-xs mt-0.5">SK Dental Clinic · 2026</p>
                   </div>
-                  <span className="flex items-center gap-1.5 text-xs text-green-400 bg-green-400/10 border border-green-400/20 px-2.5 py-1 rounded-full">
-                    <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+                  <span className="flex items-center gap-1.5 text-xs text-sk-green-light bg-sk-green-light/15 border border-sk-green-light/25 px-2.5 py-1 rounded-full font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-sk-green-light animate-pulse" />
                     Live
                   </span>
                 </div>
 
                 {/* Stats row */}
                 <div className="grid grid-cols-2 gap-3 mb-5">
-                  <div className="bg-white/5 border border-white/5 rounded-xl p-4 text-center">
-                    <div className="text-4xl font-extrabold text-green-400 mb-1">
+                  <div className="bg-white/8 border border-white/10 rounded-xl p-4 text-center">
+                    <div className="text-4xl font-extrabold text-sk-green-light mb-1">
                       <CountUp to={cardStats.active} duration={2.8} />
                     </div>
-                    <div className="text-blue-300 text-xs">Đang đi làm</div>
+                    <div className="text-white/60 text-xs">Đang đi làm</div>
                   </div>
-                  <div className="bg-white/5 border border-white/5 rounded-xl p-4 text-center">
+                  <div className="bg-white/8 border border-white/10 rounded-xl p-4 text-center">
                     <div className="text-4xl font-extrabold text-yellow-400 mb-1">
                       <CountUp to={cardStats.monthlyLeave} duration={2.5} />
                     </div>
-                    <div className="text-blue-300 text-xs">Nghỉ phép tháng</div>
+                    <div className="text-white/60 text-xs">Nghỉ phép tháng</div>
                   </div>
                 </div>
 
-
                 {/* Module status list */}
-                <div className="space-y-0 divide-y divide-white/5">
+                <div className="space-y-0 divide-y divide-white/10">
                   {[
                     { name: 'Quản lý Nhân sự', status: 'Hoạt động' },
                     { name: 'Chấm công', status: 'Hoạt động' },
@@ -257,18 +257,14 @@ export default function LandingPage() {
                       animate="visible"
                       className="flex items-center justify-between py-2.5"
                     >
-                      <span className="text-blue-200 text-xs">{name}</span>
-                      <span className="flex items-center gap-1.5 text-xs text-green-400">
-                        <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                      <span className="text-white/75 text-xs">{name}</span>
+                      <span className="flex items-center gap-1.5 text-xs text-sk-green-light font-medium">
+                        <span className="h-1.5 w-1.5 rounded-full bg-sk-green-light" />
                         {status}
                       </span>
                     </motion.div>
                   ))}
                 </div>
-
-                {/* Decorative corner glow */}
-                <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-blue-400 opacity-10 blur-2xl pointer-events-none" />
-                <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full bg-indigo-400 opacity-10 blur-2xl pointer-events-none" />
               </motion.div>
             </motion.div>
 
@@ -277,19 +273,19 @@ export default function LandingPage() {
       </section>
 
       {/* ── MODULES ── */}
-      <section id="modules" className="py-20 bg-gray-50">
+      <section id="modules" className="py-20 bg-sk-bg-section">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sk-green/10 text-sk-green-dark text-xs font-semibold mb-4">
               <BuildingOfficeIcon className="h-3.5 w-3.5" />
               Các phân hệ
             </div>
-            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900">
+            <h2 className="text-3xl lg:text-4xl font-bold text-sk-text">
               Toàn bộ nghiệp vụ nhân sự
-              <span className="block text-blue-700 mt-1">trong một hệ thống</span>
+              <span className="block text-sk-green mt-1">trong một hệ thống</span>
             </h2>
-            <p className="mt-4 text-gray-500 max-w-xl">
-              Hệ thống HRM Trung Anh Group bao gồm đầy đủ các phân hệ — từ quản lý hồ sơ đến tính lương và báo cáo, được xây dựng theo đúng quy trình nội bộ.
+            <p className="mt-4 text-sk-text-sub max-w-xl">
+              Hệ thống HRM SK Dental Clinic bao gồm đầy đủ các phân hệ — từ quản lý hồ sơ đến tính lương và báo cáo, được xây dựng theo đúng quy trình nội bộ.
             </p>
           </div>
 
@@ -297,52 +293,52 @@ export default function LandingPage() {
             {[
               {
                 icon: UserGroupIcon,
-                color: 'bg-blue-600',
+                color: 'bg-sk-green',
                 title: 'Quản lý Nhân sự',
                 desc: 'Hồ sơ nhân viên, hợp đồng, chức vụ, phòng ban và lịch sử công tác.',
               },
               {
                 icon: ClockIcon,
-                color: 'bg-blue-700',
+                color: 'bg-sk-green-dark',
                 title: 'Chấm công',
                 desc: 'Theo dõi giờ vào — ra, ca làm việc, tăng ca và tính toán công thực tế.',
               },
               {
                 icon: CurrencyDollarIcon,
-                color: 'bg-blue-800',
+                color: 'bg-sk-green',
                 title: 'Tính lương',
                 desc: 'Tự động tính lương, phụ cấp, bảo hiểm, thuế TNCN và phiếu lương điện tử.',
               },
               {
                 icon: CalendarIcon,
-                color: 'bg-blue-600',
+                color: 'bg-sk-green-dark',
                 title: 'Nghỉ phép',
                 desc: 'Quản lý đơn nghỉ phép, phê duyệt theo cấp và theo dõi số ngày phép còn lại.',
               },
               {
                 icon: ComputerDesktopIcon,
-                color: 'bg-blue-700',
+                color: 'bg-sk-green',
                 title: 'Quản lý Tài sản',
                 desc: 'Cấp phát, thu hồi và theo dõi bảo trì tài sản, thiết bị toàn công ty.',
               },
               {
                 icon: ChartBarIcon,
-                color: 'bg-blue-800',
+                color: 'bg-sk-green-dark',
                 title: 'Báo cáo & Thống kê',
                 desc: 'Dashboard tổng quan, báo cáo nhân sự chi tiết và phân tích theo phòng ban.',
               },
             ].map(({ icon: Icon, color, title, desc }) => (
               <div
                 key={title}
-                className="bg-white border border-gray-200 rounded-2xl p-6 hover:border-blue-300 hover:shadow-md transition-all duration-200 group"
+                className="bg-white border border-sk-border rounded-2xl p-6 hover:border-sk-green hover:shadow-md transition-all duration-200 group"
               >
                 <div className={`inline-flex h-11 w-11 items-center justify-center rounded-xl ${color} mb-4`}>
                   <Icon className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="text-base font-bold text-gray-900 mb-2 group-hover:text-blue-800 transition-colors">
+                <h3 className="text-base font-bold text-sk-text mb-2 group-hover:text-sk-green-dark transition-colors">
                   {title}
                 </h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
+                <p className="text-sm text-sk-text-sub leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
@@ -350,36 +346,36 @@ export default function LandingPage() {
       </section>
 
       {/* ── FOOTER CTA ── */}
-      <section className="bg-blue-900">
+      <section style={{ background: 'linear-gradient(135deg, #0a1a06 0%, #162b0e 50%, #1e3d12 100%)' }}>
         <div className="mx-auto max-w-7xl px-6 lg:px-8 py-16 flex flex-col lg:flex-row items-center justify-between gap-8">
           <div>
             <h2 className="text-2xl lg:text-3xl font-bold text-white">
               Sẵn sàng đăng nhập vào hệ thống?
             </h2>
-            <p className="mt-2 text-blue-300 text-sm">
-              Dành cho cán bộ nhân viên Trung Anh Group. Liên hệ phòng IT nếu cần hỗ trợ tài khoản.
+            <p className="mt-2 text-white/60 text-sm">
+              Dành cho cán bộ nhân viên SK Dental Clinic. Liên hệ phòng IT nếu cần hỗ trợ tài khoản.
             </p>
           </div>
           <a
             href="/login"
-            className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-blue-900 font-bold rounded-xl hover:bg-blue-50 transition-colors shadow-lg flex-shrink-0"
+            className="inline-flex items-center gap-2 px-7 py-3.5 bg-sk-green text-white font-bold rounded-xl hover:bg-sk-green-dark transition-colors shadow-lg flex-shrink-0"
           >
             Đăng nhập ngay
             <ArrowRightIcon className="h-5 w-5" />
           </a>
         </div>
 
-        <div className="border-t border-blue-800">
+        <div className="border-t border-white/10">
           <div className="mx-auto max-w-7xl px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <img
-                src="/logo-trung-anh.png"
-                alt="Trung Anh Group"
+                src="/logo-sk.png"
+                alt="SK Dental Clinic"
                 className="h-8 w-auto max-w-[130px] rounded-lg object-contain"
               />
-              <span className="text-blue-600 text-xs hidden sm:block">Hệ thống Quản lý Nhân sự</span>
+              <span className="text-white/40 text-xs hidden sm:block">Hệ thống Quản lý Nhân sự</span>
             </div>
-            <span className="text-blue-500 text-xs">© 2026 Trung Anh Group. All rights reserved.</span>
+            <span className="text-white/30 text-xs">© 2026 SK Dental Clinic. All rights reserved.</span>
           </div>
         </div>
       </section>
