@@ -3110,7 +3110,7 @@ const AttendanceManagement: React.FC = () => {
                                   const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
                                   if (reason.id === 'late_minutes') return !isIncomplete && (detail?.late_minutes || 0) > 0;
                                   if (reason.id === 'early_leave_minutes') return !isIncomplete && (detail?.early_leave_minutes || 0) > 0;
-                                  if (reason.id === 'incomplete_attendance') return isIncomplete;
+                                  if (reason.id === 'incomplete_attendance') return isIncomplete || detail?.status === 'ABSENT';
                                   if (reason.id === 'first_day') return !detail || detail.status === 'ABSENT';
                                   if (reason.id === 'business_trip') {
                                     return !detail || detail.status === 'ABSENT' || (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || detail?.status === 'INCOMPLETE_ATTENDANCE';
