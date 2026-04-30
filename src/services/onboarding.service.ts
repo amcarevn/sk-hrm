@@ -103,6 +103,7 @@ export interface OnboardingTask {
   name: string;
   description: string;
   task_type: 'DOCUMENT' | 'CONTRACT' | 'TRAINING' | 'IT_SETUP' | 'ORIENTATION' | 'EVALUATION' | 'OTHER';
+  task_code?: 'FILL_INFO' | 'SIGN_CONTRACT' | 'READ_REGULATION' | 'SUBMIT_DOCS' | null;
   order: number;
   deadline?: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';
