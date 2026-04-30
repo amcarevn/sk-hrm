@@ -330,7 +330,7 @@ const TasksSection: React.FC<TasksSectionProps> = ({ tasks, onboardingId, onUpda
                 </div>
               )}
 
-              {renderChecklist(task)}
+              {task.task_type !== 'DOCUMENT' && renderChecklist(task)}
 
               {task.completion_note && (
                 <div className="mt-4 p-3 bg-green-50 rounded-md">

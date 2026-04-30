@@ -424,8 +424,8 @@ export const onboardingService = {
    */
   generateToken: async (
     id: number
-  ): Promise<{ token: string; expires_at: string }> => {
-    const response: AxiosResponse<{ token: string; expires_at: string }> =
+  ): Promise<{ success: boolean; message: string; data: { token: string; expires_at: string; employee_form_url: string } }> => {
+    const response: AxiosResponse<{ success: boolean; message: string; data: { token: string; expires_at: string; employee_form_url: string } }> =
       await managementApi.post(`/api-hrm/onboardings/${id}/generate_employee_token/`);
     return response.data;
   },

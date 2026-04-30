@@ -434,9 +434,9 @@ const OnboardingDetail: React.FC = () => {
       onConfirm: async () => {
         setConfirmDialog(null);
         try {
-          const task4 = onboarding.tasks?.find(t => t.order === 4);
-          if (!task4) return;
-          await onboardingService.completeTask(task4.id, 'Quản lý trực tiếp đã xác nhận thông tin nhân viên');
+          const task1 = onboarding.tasks?.find(t => t.order === 1);
+          if (!task1) return;
+          await onboardingService.completeTask(task1.id, 'Admin đã xác nhận thông tin nhân viên điền');
           showSuccess('Đã duyệt thông tin nhân viên');
           await fetchOnboardingDetail();
         } catch (error: any) {
@@ -755,11 +755,44 @@ const OnboardingDetail: React.FC = () => {
       else if (editSection === 'emp_file_status') {
         const employeeData: Record<string, any> = {};
 
-        if ('file_status' in editData) employeeData.file_status = editData.file_status;
+        const FILE_STATUS_LABEL: Record<string, string> = {
+          NOT_SUBMITTED: 'Chưa nộp',
+          NEED_SUPPLEMENT: 'Cần bổ sung hồ sơ',
+          PENDING_REVIEW: 'Chờ rà soát',
+          COMPLETE: 'Nộp đủ',
+        };
+        if ('file_status' in editData) {
+          employeeData.file_status = editData.file_status;
+          employeeData.file_status_display = FILE_STATUS_LABEL[editData.file_status] ?? editData.file_status;
+        }
         if ('file_review_notes' in editData) employeeData.file_review_notes = editData.file_review_notes;
+
+        // Khi admin set COMPLETE → tự động đánh dấu đủ 3 hồ sơ bắt buộc
+        if (editData.file_status === 'COMPLETE') {
+          employeeData.doc_resume = true;
+          employeeData.doc_cccd = true;
+          employeeData.doc_health = true;
+        }
 
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
+          setEmployeeProfile(prev => prev ? { ...prev, ...employeeData } as any : prev);
+
+          // Auto-complete task4 nếu vừa COMPLETE
+          if (editData.file_status === 'COMPLETE') {
+            const task4 = onboarding?.tasks?.find(t => t.order === 4);
+            if (task4 && task4.status !== 'COMPLETED') {
+              try {
+                await onboardingService.completeTask(task4.id, 'Tự động hoàn thành khi đủ hồ sơ bắt buộc');
+                setOnboarding(prev => prev ? {
+                  ...prev,
+                  tasks: prev.tasks?.map(t =>
+                    t.id === task4.id ? { ...t, status: 'COMPLETED' as const } : t
+                  ),
+                } : prev);
+              } catch { /* ignore */ }
+            }
+          }
         }
       }
 
@@ -1186,10 +1219,10 @@ const OnboardingDetail: React.FC = () => {
           </>
         )}
 
-        {/* Chờ duyệt */}
-        {(() => {
-          const task4 = onboarding.tasks?.find(t => t.order === 4);
-          if (!task4 || task4.status !== 'IN_PROGRESS') return null;
+        {/* Chờ duyệt — chỉ ADMIN thấy, hiện khi nhân viên đã submit form và task1 chưa được duyệt */}
+        {userRole === 'ADMIN' && onboarding.employee_info_completed && (() => {
+          const task1 = onboarding.tasks?.find(t => t.order === 1);
+          if (task1?.status === 'COMPLETED') return null;
           return (
             <div className="bg-amber-50 rounded-xl border border-amber-200 p-5">
               <h3 className="text-sm font-bold uppercase tracking-wide text-amber-700 mb-2">Chờ duyệt thông tin nhân viên</h3>
@@ -1753,24 +1786,50 @@ const OnboardingDetail: React.FC = () => {
                       onChange={async (e) => {
                         const empId = employeeProfile?.employee_id;
                         if (!empId) return;
-                        try {
-                          // Tính trạng thái mới sau khi toggle
-                          const newDocs = {
-                            doc_resume: (employeeProfile as any).doc_resume || false,
-                            doc_cccd: (employeeProfile as any).doc_cccd || false,
-                            doc_health: (employeeProfile as any).doc_health || false,
-                            [field]: e.target.checked,
-                          };
-                          // 3 trường bắt buộc: doc_resume, doc_cccd, doc_health
-                          const hasAny = newDocs.doc_resume || newDocs.doc_cccd || newDocs.doc_health;
-                          const hasAll = newDocs.doc_resume && newDocs.doc_cccd && newDocs.doc_health;
-                          const fileStatus = hasAll ? 'COMPLETE' : hasAny ? 'NEED_SUPPLEMENT' : 'NOT_SUBMITTED';
+                        const newChecked = e.target.checked;
+                        const newDocs = {
+                          doc_resume: (employeeProfile as any).doc_resume || false,
+                          doc_cccd: (employeeProfile as any).doc_cccd || false,
+                          doc_health: (employeeProfile as any).doc_health || false,
+                          [field]: newChecked,
+                        };
+                        const hasAny = newDocs.doc_resume || newDocs.doc_cccd || newDocs.doc_health;
+                        const hasAll = newDocs.doc_resume && newDocs.doc_cccd && newDocs.doc_health;
+                        const fileStatus = hasAll ? 'COMPLETE' : hasAny ? 'NEED_SUPPLEMENT' : 'NOT_SUBMITTED';
+                        const fileStatusDisplay = hasAll ? 'Nộp đủ' : hasAny ? 'Cần bổ sung hồ sơ' : 'Chưa nộp';
 
+                        // Optimistic update — hiện ngay, revert nếu lỗi
+                        const prev = employeeProfile;
+                        setEmployeeProfile(p => p ? {
+                          ...p,
+                          [field]: newChecked,
+                          file_status: fileStatus,
+                          file_status_display: fileStatusDisplay,
+                        } as any : p);
+                        try {
                           await employeesAPI.partialUpdateByEmployeeId(empId, {
-                            [field]: e.target.checked,
+                            [field]: newChecked,
                             file_status: fileStatus,
                           } as any);
-                        } catch { /* ignore */ }
+
+                          // Auto-complete task4 khi đủ 3 hồ sơ bắt buộc
+                          if (hasAll) {
+                            const task4 = onboarding?.tasks?.find(t => t.order === 4);
+                            if (task4 && task4.status !== 'COMPLETED') {
+                              try {
+                                await onboardingService.completeTask(task4.id, 'Tự động hoàn thành khi đủ hồ sơ bắt buộc');
+                                setOnboarding(p => p ? {
+                                  ...p,
+                                  tasks: p.tasks?.map(t =>
+                                    t.id === task4.id ? { ...t, status: 'COMPLETED' as const } : t
+                                  ),
+                                } : p);
+                              } catch { /* ignore */ }
+                            }
+                          }
+                        } catch {
+                          setEmployeeProfile(prev);
+                        }
                       }}
                       className="w-4 h-4 rounded text-green-600 border-gray-300 focus:ring-green-500"
                     />
