@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import  API_BASE_URL from '../utils/api';
+import API_BASE_URL, { managementApi } from '../utils/api';
 import ContractSection from './ContractSection';
 import {
   CheckCircleIcon,
@@ -173,13 +173,6 @@ const WORK_FORM_LABELS: Record<string, string> = {
   PART_TIME: 'Part-time',
 };
 
-const CONTRACT_TYPE_LABELS: Record<string, string> = {
-  PROBATION: 'Thử việc',
-  DEFINITE: 'Có thời hạn',
-  INDEFINITE: 'Vô thời hạn',
-  SEASONAL: 'Theo mùa vụ',
-  PART_TIME: 'Bán thời gian',
-};
 
 const getStatusBadge = (status: string) => {
   const statusConfig = {
@@ -352,6 +345,13 @@ const OnboardingDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingDetail | null>(null);
   const [employeeProfile, setEmployeeProfile] = useState<SuperAdminEmployee | null>(null);
+  const [firstContract, setFirstContract] = useState<{
+    contract_type: string | null;
+    contract_type_display: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    status: string | null;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'tasks' | 'documents' | 'contracts'>('info');
   const [previewFile, setPreviewFile] = useState<{ url: string; label: string; type: 'image' | 'pdf' } | null>(null);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
@@ -416,6 +416,15 @@ const OnboardingDetail: React.FC = () => {
         } catch (profileErr) {
           console.warn('Could not load employee profile:', profileErr);
           setEmployeeProfile(null);
+        }
+        try {
+          const { data } = await managementApi.get('/api-hrm/employee-contracts/', {
+            params: { onboarding_id: parseInt(id) }
+          });
+          const list = Array.isArray(data) ? data : data.results || [];
+          setFirstContract(list.length > 0 ? list[0] : null);
+        } catch {
+          setFirstContract(null);
         }
       }
     } catch (error: any) {
@@ -1181,12 +1190,15 @@ const OnboardingDetail: React.FC = () => {
                   probation_rate: (employeeProfile as any).probation_rate ?? '',
                 })} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
-                  <InfoField label="Lương cơ bản" value={employeeProfile.basic_salary != null ? `${Number(employeeProfile.basic_salary).toLocaleString('vi-VN')} đ` : null} highlight />
-                  <InfoField label="Phụ cấp" value={employeeProfile.allowance != null ? `${Number(employeeProfile.allowance).toLocaleString('vi-VN')} đ` : null} />
-                  <InfoField label="Loại hợp đồng" value={employeeProfile.contract_type ? (employeeProfile.contract_type_display || CONTRACT_TYPE_LABELS[employeeProfile.contract_type] || employeeProfile.contract_type) : null} />
-                  <InfoField label="Thử việc" value={employeeProfile.probation_months != null ? `${employeeProfile.probation_months} tháng` : null} />
-                  <InfoField label="Kết thúc thử việc" value={employeeProfile.probation_end_date ? formatDate(employeeProfile.probation_end_date) : null} />
-                  <InfoField label="Tỉ lệ thử việc" value={(employeeProfile as any).probation_rate ? (PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate) : null} />
+                  <InfoField label="Lương cơ bản" value={employeeProfile.basic_salary != null ? `${Number(employeeProfile.basic_salary).toLocaleString('vi-VN')} đ` : 'Chưa có dữ liệu'} highlight />
+                  <InfoField label="Phụ cấp" value={employeeProfile.allowance != null ? `${Number(employeeProfile.allowance).toLocaleString('vi-VN')} đ` : 'Chưa có dữ liệu'} />
+                  <div className="hidden lg:block" />
+                  <InfoField label="Thử việc" value={employeeProfile.probation_months != null ? `${employeeProfile.probation_months} tháng` : 'Chưa có dữ liệu'} />
+                  <InfoField label="Kết thúc thử việc" value={employeeProfile.probation_end_date ? formatDate(employeeProfile.probation_end_date) : 'Chưa có dữ liệu'} />
+                  <InfoField label="Tỉ lệ thử việc" value={(employeeProfile as any).probation_rate ? (PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate) : 'Chưa có dữ liệu'} />
+                  <InfoField label="Ngày bắt đầu HĐ" value={firstContract?.status === 'SIGNED' && firstContract.start_date ? formatDate(firstContract.start_date) : 'Chưa có dữ liệu'} />
+                  <InfoField label="Ngày kết thúc HĐ" value={firstContract?.status === 'SIGNED' && firstContract.end_date ? formatDate(firstContract.end_date) : 'Chưa có dữ liệu'} />
+                  <InfoField label="Loại hợp đồng" value={firstContract?.status === 'SIGNED' ? (firstContract.contract_type_display || 'Chưa có dữ liệu') : 'Chưa có dữ liệu'} />
                 </div>
               </div>
             )}

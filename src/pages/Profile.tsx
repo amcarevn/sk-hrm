@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   employeesAPI,
   departmentsAPI,
+  managementApi,
   Employee,
   Department,
 } from '../utils/api';
@@ -33,6 +34,8 @@ import {
   TrashIcon,
   EyeIcon,
   CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 
@@ -44,6 +47,50 @@ interface TeamMember {
   phone_number?: string;
   personal_email?: string;
 }
+
+interface MyContract {
+  id: number;
+  contract_type: string;
+  contract_type_display: string;
+  status: string;
+  status_display: string;
+  start_date: string | null;
+  end_date: string | null;
+  contract_number: string | null;
+  template_name: string | null;
+  company_unit_name: string | null;
+  generated_file: string | null;
+  created_at: string;
+}
+
+const getDaysUntilExpiry = (endDate: string | null | undefined): number | null => {
+  if (!endDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  return Math.floor((end.getTime() - today.getTime()) / 86400000);
+};
+
+const getContractDisplayStatus = (contract: MyContract): { label: string; className: string } => {
+  if (contract.status === 'SIGNED') {
+    const days = getDaysUntilExpiry(contract.end_date);
+    if (days !== null && days < 0) {
+      return { label: 'Đã hết hạn', className: 'bg-red-100 text-red-700' };
+    }
+    if (days !== null && days <= 5) {
+      return { label: `Sắp hết hạn (${days} ngày)`, className: 'bg-orange-100 text-orange-700' };
+    }
+    return { label: 'Đang hiệu lực', className: 'bg-green-100 text-green-700' };
+  }
+  const map: Record<string, { label: string; className: string }> = {
+    DRAFT: { label: 'Nháp', className: 'bg-gray-100 text-gray-600' },
+    PENDING_SIGN: { label: 'Chờ ký', className: 'bg-blue-100 text-blue-700' },
+    EXPIRED: { label: 'Đã hết hạn', className: 'bg-red-100 text-red-700' },
+    CANCELLED: { label: 'Đã huỷ', className: 'bg-gray-100 text-gray-500' },
+  };
+  return map[contract.status] || { label: contract.status_display, className: 'bg-gray-100 text-gray-600' };
+};
 
 const Profile: React.FC = () => {
   const { user, updateUser } = useAuth();
@@ -81,6 +128,12 @@ const Profile: React.FC = () => {
   const [docReadable, setDocReadable] = useState(false);
   const [markingReadId, setMarkingReadId] = useState<number | null>(null);
 
+  // My contracts state
+  const [myContracts, setMyContracts] = useState<MyContract[]>([]);
+  const [contractsLoading, setContractsLoading] = useState(false);
+  // null = not yet fetched, false = fetched (no 403), true = no employee profile (admin)
+  const [isAdminNoProfile, setIsAdminNoProfile] = useState<boolean | null>(null);
+
   useEffect(() => {
     fetchProfileData();
   }, []);
@@ -108,6 +161,22 @@ const Profile: React.FC = () => {
         setOnboarding(myOb);
       } catch (err) {
         console.warn('No onboarding for current user:', err);
+      }
+
+      // Fetch danh sách hợp đồng của chính nhân viên
+      setContractsLoading(true);
+      try {
+        const res = await managementApi.get('/api-hrm/employee-contracts/my-contracts/');
+        setMyContracts(res.data);
+        setIsAdminNoProfile(false);
+      } catch (err: any) {
+        if (err?.response?.status === 403) {
+          setIsAdminNoProfile(true);
+        } else {
+          setIsAdminNoProfile(false);
+        }
+      } finally {
+        setContractsLoading(false);
       }
 
       // Set initial form values
@@ -1151,6 +1220,127 @@ const Profile: React.FC = () => {
           </div>
         );
       })()}
+
+      {/* Contract Section */}
+      {isAdminNoProfile === false && (
+        <div className="bg-white rounded-xl shadow p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <DocumentTextIcon className="h-5 w-5 text-indigo-600" />
+              <h2 className="text-lg font-medium text-gray-900">Hợp đồng lao động</h2>
+            </div>
+            {contractsLoading && (
+              <ArrowPathIcon className="h-4 w-4 animate-spin text-gray-400" />
+            )}
+          </div>
+
+          {!contractsLoading && myContracts.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <DocumentTextIcon className="mx-auto h-10 w-10 text-gray-300 mb-2" />
+              <p className="text-sm">Chưa có hợp đồng nào</p>
+            </div>
+          )}
+
+          {myContracts.length > 0 && (() => {
+            const active = myContracts.find(
+              (c) => c.status === 'SIGNED' && (getDaysUntilExpiry(c.end_date) === null || getDaysUntilExpiry(c.end_date)! >= 0)
+            );
+            const history = myContracts.filter((c) => c !== active);
+            const { label, className } = active
+              ? getContractDisplayStatus(active)
+              : { label: '', className: '' };
+
+            return (
+              <div className="space-y-5">
+                {/* Active contract */}
+                {active ? (
+                  <div className={`rounded-xl border-2 p-5 ${
+                    getDaysUntilExpiry(active.end_date) !== null && getDaysUntilExpiry(active.end_date)! <= 5
+                      ? 'border-orange-300 bg-orange-50'
+                      : 'border-green-300 bg-green-50'
+                  }`}>
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Hợp đồng hiện tại</p>
+                        <p className="font-semibold text-gray-900 text-base">
+                          {active.template_name || active.contract_type_display}
+                        </p>
+                        {active.contract_number && (
+                          <p className="text-xs text-gray-500 mt-0.5">Số HĐ: {active.contract_number}</p>
+                        )}
+                      </div>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${className}`}>
+                        {label}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">Ngày bắt đầu</span>
+                        <p className="font-medium text-gray-800">{active.start_date ? formatDate(active.start_date) : '—'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Ngày kết thúc</span>
+                        <p className="font-medium text-gray-800">{active.end_date ? formatDate(active.end_date) : 'Không xác định'}</p>
+                      </div>
+                      {active.company_unit_name && (
+                        <div className="col-span-2">
+                          <span className="text-gray-500">Đơn vị ký kết</span>
+                          <p className="font-medium text-gray-800">{active.company_unit_name}</p>
+                        </div>
+                      )}
+                    </div>
+                    {getDaysUntilExpiry(active.end_date) !== null && getDaysUntilExpiry(active.end_date)! <= 5 && getDaysUntilExpiry(active.end_date)! >= 0 && (
+                      <div className="mt-3 flex items-center gap-2 text-orange-700 bg-orange-100 rounded-lg px-3 py-2 text-sm">
+                        <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0" />
+                        Hợp đồng sắp hết hạn trong {getDaysUntilExpiry(active.end_date)} ngày. Vui lòng liên hệ phòng HCNS để gia hạn nhằm tiếp tục sử dụng dịch vụ.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border-2 border-red-300 bg-red-50 p-5">
+                    <div className="flex items-center gap-3">
+                      <ExclamationTriangleIcon className="h-6 w-6 text-red-500 flex-shrink-0" />
+                      <div>
+                        <p className="font-semibold text-red-800">Không có hợp đồng hiệu lực</p>
+                        <p className="text-sm text-red-600 mt-0.5">Vui lòng liên hệ phòng HCNS để được ký hợp đồng mới nhằm tiếp tục sử dụng dịch vụ.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* History */}
+                {history.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Lịch sử hợp đồng</p>
+                    <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
+                      {history.map((c) => {
+                        const { label: hLabel, className: hClass } = getContractDisplayStatus(c);
+                        return (
+                          <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 gap-3 flex-wrap">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">
+                                {c.template_name || c.contract_type_display}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {c.start_date ? formatDate(c.start_date) : '—'}
+                                {c.end_date ? ` → ${formatDate(c.end_date)}` : ''}
+                                {c.contract_number ? ` · ${c.contract_number}` : ''}
+                              </p>
+                            </div>
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${hClass}`}>
+                              {hLabel}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Training and Personal Information Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

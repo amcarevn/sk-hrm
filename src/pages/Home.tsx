@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationDrawer } from '../contexts/NotificationDrawerContext';
-import { hrmAPI } from '../utils/api';
+import { hrmAPI, managementApi } from '../utils/api';
 import { employeesAPI, departmentsAPI, birthdayWishesAPI, BirthdayWish } from '../utils/api';
 import {
   BuildingOfficeIcon,
@@ -23,6 +24,7 @@ import {
   TrophyIcon,
   MegaphoneIcon,
   ExclamationTriangleIcon,
+  BellAlertIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon } from '@heroicons/react/24/solid';
 import onboardingService from '../services/onboarding.service';
@@ -102,6 +104,26 @@ const Home: React.FC = () => {
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
   });
 
+  // Contract expiry alert (ADMIN/HR only)
+  type ExpiringContract = {
+    id: number;
+    employee_name: string;
+    end_date: string | null;
+    contract_type_display: string;
+    contract_number: string | null;
+    days: number;
+  };
+  const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
+  const [showContractAlert, setShowContractAlert] = useState(false);
+
+  // Employee's own contract — non-dismissable alert if no active contract
+  type MyContract = { id: number; status: string; contract_type: string; end_date: string | null };
+  // Các loại hợp đồng lao động thực sự — cam kết/thoả thuận (CONFIDENTIALITY, COMPANY_RULES, NURSING_COMMITMENT) không tính
+  const LABOR_CONTRACT_TYPES = ['PROBATION', 'INTERN', 'COLLABORATOR', 'ONE_YEAR', 'TWO_YEAR', 'INDEFINITE', 'SERVICE'];
+  const [myContracts, setMyContracts] = useState<MyContract[] | null>(null); // null = not yet fetched or admin
+  const [contractCheckLoading, setContractCheckLoading] = useState(false);
+  const [contractCheckFailed, setContractCheckFailed] = useState(false);
+
   // Unread announcements for highlight section
   const { unreadIds, markRead, openDrawer } = useNotificationDrawer();
   const [unreadAnnouncements, setUnreadAnnouncements] = useState<any[]>([]);
@@ -111,7 +133,69 @@ const Home: React.FC = () => {
     fetchBirthdaysToday();
     fetchBirthdaysTomorrow();
     fetchAttendanceRanking();
+    fetchExpiringContracts();
+    fetchMyContracts();
   }, []);
+
+  const fetchExpiringContracts = async () => {
+    try {
+      const res = await managementApi.get('/api-hrm/employee-contracts/expiring-alert/');
+      const { dismissed_today, contracts } = res.data;
+      if (!contracts?.length) return;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const expiring: ExpiringContract[] = contracts.map((c: any) => {
+        const expiry = new Date(c.end_date);
+        expiry.setHours(0, 0, 0, 0);
+        const days = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return { id: c.id, employee_name: c.employee_name, end_date: c.end_date, contract_type_display: c.contract_type_display, contract_number: c.contract_number, days };
+      });
+
+      setExpiringContracts(expiring);
+      if (!dismissed_today) setShowContractAlert(true);
+    } catch {
+      // Không có quyền (nhân viên thường) → bỏ qua
+    }
+  };
+
+  const dismissContractAlert = async () => {
+    setShowContractAlert(false);
+    try {
+      await managementApi.post('/api-hrm/employee-contracts/expiring-alert/');
+    } catch {}
+  };
+
+  const fetchMyContracts = async (isManualCheck = false) => {
+    if (isManualCheck) {
+      setContractCheckLoading(true);
+      setContractCheckFailed(false);
+    }
+    try {
+      const res = await managementApi.get('/api-hrm/employee-contracts/my-contracts/');
+      setMyContracts(res.data);
+      if (isManualCheck) setContractCheckFailed(false);
+    } catch (err: any) {
+      // 403 = ADMIN without employee profile → no dialog needed
+      setMyContracts(null);
+      if (isManualCheck) setContractCheckFailed(true);
+    } finally {
+      if (isManualCheck) setContractCheckLoading(false);
+    }
+  };
+
+  const hasActiveContract =
+    myContracts !== null &&
+    myContracts.some((c) => {
+      if (c.status !== 'SIGNED') return false;
+      if (!LABOR_CONTRACT_TYPES.includes(c.contract_type)) return false;
+      if (!c.end_date) return true;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const end = new Date(c.end_date);
+      end.setHours(0, 0, 0, 0);
+      return end.getTime() >= today.getTime();
+    });
 
   useEffect(() => {
     hrmAPI.getCompanyAnnouncements({ is_current: true, unread_only: true, page_size: 5 })
@@ -128,15 +212,8 @@ const Home: React.FC = () => {
     if (unread.length === 0) setShowDocGate(false);
   }, [onboarding]);
 
-  // Lock body scroll khi modal tài liệu mở hoặc gate đang hiện
-  useEffect(() => {
-    if (viewingDoc || showDocGate) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [viewingDoc, showDocGate]);
+  const noActiveContractDialog = myContracts !== null && myContracts.length > 0 && !hasActiveContract;
+  useLockBodyScroll(!!viewingDoc || showDocGate || showContractAlert || noActiveContractDialog);
 
   const fetchBirthdaysToday = async () => {
     try {
@@ -1006,6 +1083,138 @@ const Home: React.FC = () => {
           </div>
         );
       })(), document.body)}
+
+      {/* Non-dismissable dialog: employee has fetched contracts but none are active */}
+      {noActiveContractDialog && createPortal(
+        <div className="fixed inset-0 z-[9997] flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-gradient-to-r from-red-500 to-rose-600 px-6 py-5 flex items-center gap-3">
+              <ExclamationTriangleIcon className="h-8 w-8 text-white flex-shrink-0" />
+              <div>
+                <h3 className="text-lg font-bold text-white">Hợp đồng đã hết hạn</h3>
+                <p className="text-red-100 text-sm mt-0.5">Cần ký hợp đồng mới để tiếp tục sử dụng dịch vụ</p>
+              </div>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-gray-700 leading-relaxed">
+                Hợp đồng lao động của bạn hiện <strong>không còn hiệu lực</strong>.
+                Vui lòng liên hệ phòng HCNS để được ký hợp đồng mới hoặc gia hạn.
+              </p>
+              <p className="text-xs text-gray-400">
+                Thông báo sẽ tự đóng sau khi hợp đồng được cập nhật.
+              </p>
+              {contractCheckFailed && (
+                <p className="text-xs text-center text-red-500">
+                  Vẫn chưa có hợp đồng hiệu lực. Hãy liên hệ HCNS và thử lại sau.
+                </p>
+              )}
+            </div>
+            <div className="px-6 pb-5">
+              <button
+                onClick={() => fetchMyContracts(true)}
+                disabled={contractCheckLoading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {contractCheckLoading ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin text-gray-500" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                    </svg>
+                    Đang kiểm tra...
+                  </>
+                ) : (
+                  <>
+                    Tôi đã liên hệ HCNS — Kiểm tra lại
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Contract expiry alert dialog */}
+      {showContractAlert && expiringContracts.length > 0 && createPortal(
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/60">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-t-2xl px-6 py-5 flex items-start gap-4">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                <BellAlertIcon className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-white">Cảnh báo hợp đồng sắp hết hạn</h3>
+                <p className="text-sm text-white/80 mt-0.5">
+                  {expiringContracts.filter(c => c.days <= 0).length > 0
+                    ? `${expiringContracts.filter(c => c.days <= 0).length} hợp đồng đã hết hạn · ${expiringContracts.filter(c => c.days > 0).length} sắp hết hạn`
+                    : `${expiringContracts.length} hợp đồng sắp hết hạn trong 5 ngày tới`
+                  }
+                </p>
+              </div>
+              <button
+                onClick={dismissContractAlert}
+                className="p-1.5 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Contract list */}
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-2">
+              {expiringContracts.map((c) => (
+                <div
+                  key={c.id}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
+                    c.days <= 0
+                      ? 'bg-red-50 border-red-200'
+                      : 'bg-orange-50 border-orange-200'
+                  }`}
+                >
+                  <ExclamationTriangleIcon className={`w-5 h-5 flex-shrink-0 ${c.days <= 0 ? 'text-red-500' : 'text-orange-500'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{c.employee_name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {c.contract_type_display}
+                      {c.contract_number ? ` · ${c.contract_number}` : ''}
+                      {c.end_date ? ` · HH: ${new Date(c.end_date).toLocaleDateString('vi-VN')}` : ''}
+                    </p>
+                  </div>
+                  <span className={`text-xs font-bold whitespace-nowrap px-2.5 py-1 rounded-full ${
+                    c.days <= 0
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-orange-100 text-orange-700'
+                  }`}>
+                    {c.days <= 0 ? 'Đã hết hạn' : `Còn ${c.days} ngày`}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer actions */}
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3">
+              <button
+                onClick={dismissContractAlert}
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                Không nhắc lại hôm nay
+              </button>
+              <button
+                onClick={() => {
+                  dismissContractAlert();
+                  navigate('/dashboard/bulk-contracts');
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors"
+              >
+                Xử lý ngay
+                <ArrowRightIcon className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Modal xem tài liệu onboarding — dùng Portal để thoát Layout stacking context */}
       {viewingDoc && createPortal(
