@@ -37,6 +37,7 @@ type OnboardingTask = {
   name: string;
   description: string;
   task_type: string;
+  task_code: string | null;
   order: number;
   deadline: string | null;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';
@@ -1928,13 +1929,19 @@ const OnboardingDetail: React.FC = () => {
                 onUpdate={fetchOnboardingDetail}
                 canCompleteTask={(task) => {
                   const docs = onboarding.documents || [];
-                  const taskName = (task.name || '').toLowerCase();
 
-                  // Task "Đọc nội quy" → check documents REGULATION required đã đọc
-                  if (taskName.includes('nội quy công ty')) {
-                    const unread = docs.filter(
-                      (d) => d.document_type === 'REGULATION' && d.is_required && !d.is_read
+                  // Dùng task_code thay vì name/order — stable, rename-safe
+                  if (task.task_code === 'READ_REGULATION') {
+                    const required = docs.filter(
+                      (d) => d.document_type === 'REGULATION' && d.is_required
                     );
+                    if (required.length === 0) {
+                      return {
+                        allowed: false,
+                        reason: 'Chưa có tài liệu nội quy nào được gán cho onboarding này',
+                      };
+                    }
+                    const unread = required.filter((d) => !d.is_read);
                     if (unread.length > 0) {
                       return {
                         allowed: false,
