@@ -103,6 +103,7 @@ export interface OnboardingTask {
   name: string;
   description: string;
   task_type: 'DOCUMENT' | 'CONTRACT' | 'TRAINING' | 'IT_SETUP' | 'ORIENTATION' | 'EVALUATION' | 'OTHER';
+  task_code?: 'FILL_INFO' | 'SIGN_CONTRACT' | 'READ_REGULATION' | 'SUBMIT_DOCS' | null;
   order: number;
   deadline?: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';
@@ -424,8 +425,8 @@ export const onboardingService = {
    */
   generateToken: async (
     id: number
-  ): Promise<{ token: string; expires_at: string }> => {
-    const response: AxiosResponse<{ token: string; expires_at: string }> =
+  ): Promise<{ success: boolean; message: string; data: { token: string; expires_at: string; employee_form_url: string } }> => {
+    const response: AxiosResponse<{ success: boolean; message: string; data: { token: string; expires_at: string; employee_form_url: string } }> =
       await managementApi.post(`/api-hrm/onboardings/${id}/generate_employee_token/`);
     return response.data;
   },

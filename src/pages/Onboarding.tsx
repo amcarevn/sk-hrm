@@ -17,6 +17,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Pagination from '../components/Pagination';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import { useDebounce } from '../hooks/useDebounce';
+import FeedbackDialog, { FeedbackVariant } from '../components/FeedbackDialog';
 
 // ============================================
 // TYPES
@@ -99,6 +100,14 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
   const [submitting, setSubmitting] = useState(false);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
+  const [feedback, setFeedback] = useState<{ open: boolean; variant: FeedbackVariant; title: string; message?: string; onCloseCb?: () => void }>({ open: false, variant: 'info', title: '' });
+  const showFeedback = (variant: FeedbackVariant, title: string, message?: string, onCloseCb?: () => void) =>
+    setFeedback({ open: true, variant, title, message, onCloseCb });
+  const closeFeedback = () => {
+    const cb = feedback.onCloseCb;
+    setFeedback(f => ({ ...f, open: false, onCloseCb: undefined }));
+    cb?.();
+  };
 
   const [form, setForm] = useState<CreateOnboardingForm>({
     candidate_name: '',
@@ -170,8 +179,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
         payload.direct_manager_id = parseInt(form.direct_manager_id);
       }
       await onboardingService.create(payload);
-      alert(`✅ Tạo quy trình thành công!\n`);
-      onSuccess();
+      showFeedback('success', 'Tạo quy trình thành công', undefined, onSuccess);
     } catch (e: any) {
       console.error(e);
       const errData = e.response?.data || {};
@@ -185,7 +193,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
       } else if (errData.detail) {
         msg = errData.detail;
       }
-      alert(msg);
+      showFeedback('error', 'Tạo quy trình thất bại', msg);
     } finally {
       setSubmitting(false);
     }
@@ -319,6 +327,13 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
           })()}
         </div>
       </div>
+      <FeedbackDialog
+        open={feedback.open}
+        variant={feedback.variant}
+        title={feedback.title}
+        message={feedback.message}
+        onClose={closeFeedback}
+      />
     </div>
   );
 };
@@ -341,6 +356,9 @@ const Onboarding: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [feedback, setFeedback] = useState<{ open: boolean; variant: FeedbackVariant; title: string; message?: string }>({ open: false, variant: 'info', title: '' });
+  const showFeedback = (variant: FeedbackVariant, title: string, message?: string) =>
+    setFeedback({ open: true, variant, title, message });
 
   // Filters
   const [filterStatus, setFilterStatus] = useState<string>('');
@@ -380,7 +398,7 @@ const Onboarding: React.FC = () => {
       );
     } catch (e) {
       console.error(e);
-      alert('Không thể tải danh sách. Vui lòng thử lại.');
+      showFeedback('error', 'Không thể tải danh sách', 'Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
@@ -394,23 +412,31 @@ const Onboarding: React.FC = () => {
     if (!confirm('Bạn chắc chắn muốn xoá quy trình này?')) return;
     try {
       await onboardingService.delete(id);
-      alert('Xoá thành công');
+      showFeedback('success', 'Xoá thành công');
       await fetchOnboardings();
     } catch (e) {
       console.error(e);
-      alert('Xoá thất bại. Vui lòng thử lại.');
+      showFeedback('error', 'Xoá thất bại', 'Vui lòng thử lại.');
     }
   };
 
   const handleGenerateToken = async (item: OnboardingItem) => {
     setTokenLoading(item.id);
     try {
-      await onboardingService.generateToken(item.id);
-      alert('Đã tạo link thành công! Bạn có thể copy hoặc gửi email cho nhân viên.');
-      await fetchOnboardings();
-    } catch (e) {
+      const tokenResult = await onboardingService.generateToken(item.id);
+      const { employee_form_url } = tokenResult.data;
+      setOnboardings(prev =>
+        prev.map(o =>
+          o.id === item.id
+            ? { ...o, token_status: 'active', employee_form_url }
+            : o
+        )
+      );
+      showFeedback('success', 'Tạo link thành công', 'Bạn có thể copy hoặc gửi email cho nhân viên.');
+    } catch (e: any) {
       console.error(e);
-      alert('Tạo link thất bại. Vui lòng thử lại.');
+      const msg = e.response?.data?.message || 'Tạo link thất bại. Vui lòng thử lại.';
+      showFeedback('error', 'Tạo link thất bại', msg);
     } finally {
       setTokenLoading(null);
     }
@@ -418,16 +444,16 @@ const Onboarding: React.FC = () => {
 
   const handleSendEmail = async (item: OnboardingItem) => {
     if (!item.candidate_email) {
-      alert('Ứng viên chưa có email. Vui lòng cập nhật thông tin trước.');
+      showFeedback('warning', 'Chưa có email', 'Ứng viên chưa có email. Vui lòng cập nhật thông tin trước.');
       return;
     }
     setTokenLoading(item.id);
     try {
       await onboardingService.sendEmployeeEmail(item.id);
-      alert(`Đã gửi email đến ${item.candidate_email}`);
+      showFeedback('success', 'Gửi email thành công', `Đã gửi email đến ${item.candidate_email}`);
     } catch (e) {
       console.error(e);
-      alert('Gửi email thất bại. Kiểm tra cấu hình email hoặc thử lại.');
+      showFeedback('error', 'Gửi email thất bại', 'Kiểm tra cấu hình email hoặc thử lại.');
     } finally {
       setTokenLoading(null);
     }
@@ -435,17 +461,17 @@ const Onboarding: React.FC = () => {
 
   const handleResendWelcomeEmail = async (item: OnboardingItem) => {
     if (!item.candidate_email) {
-      alert('Ứng viên chưa có email. Vui lòng cập nhật thông tin trước.');
+      showFeedback('warning', 'Chưa có email', 'Ứng viên chưa có email. Vui lòng cập nhật thông tin trước.');
       return;
     }
     if (!confirm(`Gửi lại email chào mừng đến ${item.candidate_email}?`)) return;
     setTokenLoading(item.id);
     try {
       await onboardingService.resendWelcomeEmail(item.id);
-      alert(`✅ Đã gửi lại email chào mừng đến ${item.candidate_email}`);
+      showFeedback('success', 'Gửi email thành công', `Đã gửi lại email chào mừng đến ${item.candidate_email}`);
     } catch (e: any) {
       console.error(e);
-      alert(e.message || 'Gửi email thất bại. Vui lòng kiểm tra log hoặc thử lại.');
+      showFeedback('error', 'Gửi email thất bại', e.message || 'Vui lòng kiểm tra log hoặc thử lại.');
     } finally {
       setTokenLoading(null);
     }
@@ -453,10 +479,10 @@ const Onboarding: React.FC = () => {
 
   const handleCopyLink = async (item: OnboardingItem) => {
     const url = item.employee_form_url;
-    if (!url) { alert('Chưa có link. Hãy tạo link trước.'); return; }
+    if (!url) { showFeedback('warning', 'Chưa có link', 'Hãy tạo link trước.'); return; }
     try {
       await navigator.clipboard.writeText(url);
-      alert('Đã copy link vào clipboard!');
+      showFeedback('success', 'Đã copy link vào clipboard!');
     } catch {
       prompt('Copy link này và gửi cho nhân viên:', url);
     }
@@ -480,8 +506,8 @@ const Onboarding: React.FC = () => {
       </button>
     ) : null;
 
-    // 1. Đã điền thông tin
-    if (item.task1_status === 'COMPLETED') {
+    // 1. Đã điền thông tin (task hoàn thành hoặc token đã được dùng)
+    if (item.task1_status === 'COMPLETED' || item.token_status === 'completed') {
       return (
         <div className="flex flex-col gap-1.5">
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
@@ -511,6 +537,17 @@ const Onboarding: React.FC = () => {
       );
     }
 
+    const generateButton = (
+      <button
+        onClick={() => handleGenerateToken(item)}
+        disabled={isLoading}
+        className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
+      >
+        {isLoading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
+        {item.token_status === 'expired' ? 'Tạo lại link' : 'Tạo link'}
+      </button>
+    );
+
     // 3. Link hết hạn
     if (item.token_status === 'expired') {
       return (
@@ -518,14 +555,7 @@ const Onboarding: React.FC = () => {
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
             <ExclamationCircleIcon className="w-3 h-3" /> Link hết hạn
           </span>
-          <button
-            onClick={() => handleGenerateToken(item)}
-            disabled={isLoading}
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
-          >
-            {isLoading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
-            Tạo lại link
-          </button>
+          {generateButton}
         </div>
       );
     }
@@ -536,14 +566,7 @@ const Onboarding: React.FC = () => {
         <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
           Chưa gửi link
         </span>
-        <button
-          onClick={() => handleGenerateToken(item)}
-          disabled={isLoading}
-          className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
-        >
-          {isLoading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : <LinkIcon className="w-3 h-3" />}
-          Tạo link
-        </button>
+        {generateButton}
       </div>
     );
   };
@@ -798,6 +821,14 @@ const Onboarding: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <FeedbackDialog
+        open={feedback.open}
+        variant={feedback.variant}
+        title={feedback.title}
+        message={feedback.message}
+        onClose={() => setFeedback(f => ({ ...f, open: false }))}
+      />
 
       {/* Modal tạo quy trình mới */}
       {showCreateModal && (
