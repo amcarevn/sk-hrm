@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../utils/api';
 import { managementApi } from '../utils/api';
+import { companyUnitsAPI } from '../utils/api/hrm.api';
+import type { CompanyUnit } from '../utils/api/types';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
   DocumentTextIcon,
   PlusIcon,
-  TrashIcon,
-  ArrowDownTrayIcon,
   XMarkIcon,
-  CheckCircleIcon,
-  NoSymbolIcon,
 } from '@heroicons/react/24/outline';
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
@@ -33,7 +32,9 @@ type ContractTemplate = {
   status: 'ACTIVE' | 'INACTIVE';
   file: string | null;
   file_url?: string | null;
-  created_by_name: string;
+  company_unit: number | null;
+  company_unit_name: string | null;
+  created_by_name: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -46,12 +47,29 @@ export default function ContractTemplates() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [companyUnits, setCompanyUnits] = useState<CompanyUnit[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+
+  const [detailTemplate, setDetailTemplate] = useState<ContractTemplate | null>(null);
+  const [editTemplate, setEditTemplate] = useState<ContractTemplate | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    contract_type: 'PROBATION',
+    description: '',
+    status: 'ACTIVE',
+    file: null as File | null,
+    company_unit: null as number | null,
+  });
+  const [updating, setUpdating] = useState(false);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState({
     name: '',
     contract_type: 'PROBATION',
     description: '',
     status: 'ACTIVE',
     file: null as File | null,
+    company_unit: null as number | null,
   });
 
   const getAuthHeader = () => {
@@ -74,6 +92,15 @@ export default function ContractTemplates() {
     fetchTemplates();
   }, []);
 
+  useEffect(() => {
+    if (!showAddModal) return;
+    setLoadingUnits(true);
+    companyUnitsAPI.list({ active_only: true, page_size: 200 })
+      .then(res => setCompanyUnits(res.results))
+      .catch(() => {})
+      .finally(() => setLoadingUnits(false));
+  }, [showAddModal]);
+
   const handleSubmit = async () => {
     if (!form.name.trim()) return alert('Vui lòng nhập tên template');
     if (!form.file) return alert('Vui lòng chọn file .docx');
@@ -86,8 +113,8 @@ export default function ContractTemplates() {
       formData.append('description', form.description);
       formData.append('status', form.status);
       formData.append('file', form.file);
+      if (form.company_unit) formData.append('company_unit', String(form.company_unit));
 
-      // ✅ Dùng managementApi thay vì fetch
       await managementApi.post('/api-hrm/contract-templates/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -96,7 +123,7 @@ export default function ContractTemplates() {
 
       await fetchTemplates();
       setShowAddModal(false);
-      setForm({ name: '', contract_type: 'PROBATION', description: '', status: 'ACTIVE', file: null });
+      setForm({ name: '', contract_type: 'PROBATION', description: '', status: 'ACTIVE', file: null, company_unit: null });
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (e: any) {
       alert('Lỗi upload: ' + (e.response?.data?.detail || e.message));
@@ -129,6 +156,51 @@ export default function ContractTemplates() {
       setDeletingId(null);
     }
   };
+
+  const openEdit = (t: ContractTemplate) => {
+    setEditForm({
+      name: t.name,
+      contract_type: t.contract_type,
+      description: t.description,
+      status: t.status,
+      file: null,
+      company_unit: t.company_unit ?? null,
+    });
+    setEditTemplate(t);
+  };
+
+  const handleUpdate = async () => {
+    if (!editTemplate || !editForm.name.trim()) return;
+    setUpdating(true);
+    try {
+      const fd = new FormData();
+      fd.append('name', editForm.name);
+      fd.append('contract_type', editForm.contract_type);
+      fd.append('description', editForm.description);
+      fd.append('status', editForm.status);
+      if (editForm.company_unit) fd.append('company_unit', String(editForm.company_unit));
+      if (editForm.file) fd.append('file', editForm.file);
+      await managementApi.patch(`/api-hrm/contract-templates/${editTemplate.id}/`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      await fetchTemplates();
+      setEditTemplate(null);
+      if (editFileInputRef.current) editFileInputRef.current.value = '';
+    } catch (e: any) {
+      alert('Lỗi: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!editTemplate) return;
+    setLoadingUnits(true);
+    companyUnitsAPI.list({ active_only: true, page_size: 200 })
+      .then(res => setCompanyUnits(res.results))
+      .catch(() => {})
+      .finally(() => setLoadingUnits(false));
+  }, [editTemplate]);
   
   const PLACEHOLDER_DOCS = [
     { key: '{{ho_ten}}', desc: 'Họ và tên nhân viên' },
@@ -188,30 +260,32 @@ export default function ContractTemplates() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên template</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại hợp đồng</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Người tạo</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày tạo</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên template</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại hợp đồng</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Đơn vị</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Người tạo</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày tạo</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {templates.map(t => (
                 <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
                       <DocumentTextIcon className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                      <div>
+                      <div className="text-left">
                         <p className="text-sm font-medium text-gray-900">{t.name}</p>
                         {t.description && <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>}
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center">
                     <span className="text-sm text-gray-700">{t.contract_type_display}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-center text-sm text-gray-500">{t.company_unit_name || '—'}</td>
+                  <td className="px-4 py-3 text-center">
                     <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
                       t.status === 'ACTIVE'
                         ? 'bg-green-100 text-green-700'
@@ -220,50 +294,181 @@ export default function ContractTemplates() {
                       {t.status === 'ACTIVE' ? '● Đang dùng' : '● Không dùng'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{t.created_by_name || '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
+                  <td className="px-4 py-3 text-center text-sm text-gray-500">{t.created_by_name || '—'}</td>
+                  <td className="px-4 py-3 text-center text-sm text-gray-500">
                     {new Date(t.created_at).toLocaleDateString('vi-VN')}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-end">
+                    <div className="flex items-center gap-1 justify-center flex-wrap">
+                      <button
+                        onClick={() => setDetailTemplate(t)}
+                        className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
+                      >Chi tiết</button>
+                      <button
+                        onClick={() => openEdit(t)}
+                        className="px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50 rounded"
+                      >Sửa</button>
                       {t.file && (
                         <a
                           href={t.file_url || t.file}
                           download
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                          title="Tải file"
-                        >
-                          <ArrowDownTrayIcon className="w-4 h-4" />
-                        </a>
+                          className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
+                        >Tải file</a>
                       )}
                       <button
                         onClick={() => handleToggleStatus(t)}
-                        className={`p-1.5 rounded-md transition-colors ${
+                        className={`px-2 py-1 text-xs rounded ${
                           t.status === 'ACTIVE'
-                            ? 'text-gray-400 hover:text-orange-600 hover:bg-orange-50'
-                            : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                            ? 'text-orange-600 hover:bg-orange-50'
+                            : 'text-green-600 hover:bg-green-50'
                         }`}
-                        title={t.status === 'ACTIVE' ? 'Vô hiệu hóa' : 'Kích hoạt'}
                       >
-                        {t.status === 'ACTIVE'
-                          ? <NoSymbolIcon className="w-4 h-4" />
-                          : <CheckCircleIcon className="w-4 h-4" />
-                        }
+                        {t.status === 'ACTIVE' ? 'Vô hiệu' : 'Kích hoạt'}
                       </button>
                       <button
                         onClick={() => handleDelete(t.id)}
                         disabled={deletingId === t.id}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
-                        title="Xóa"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
+                        className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+                      >Xóa</button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detailTemplate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900">Chi tiết template</h3>
+              <button onClick={() => setDetailTemplate(null)}>
+                <XMarkIcon className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              {([
+                ['Tên template', detailTemplate.name],
+                ['Loại hợp đồng', detailTemplate.contract_type_display],
+                ['Đơn vị', detailTemplate.company_unit_name || '—'],
+                ['Mô tả', detailTemplate.description || '—'],
+                ['Trạng thái', detailTemplate.status === 'ACTIVE' ? 'Đang dùng' : 'Không dùng'],
+                ['Người tạo', detailTemplate.created_by_name || '—'],
+                ['Ngày tạo', new Date(detailTemplate.created_at).toLocaleDateString('vi-VN')],
+                ['Cập nhật', new Date(detailTemplate.updated_at).toLocaleDateString('vi-VN')],
+              ] as [string, string][]).map(([label, value]) => (
+                <div key={label} className="flex gap-3 text-sm">
+                  <span className="w-36 flex-shrink-0 text-gray-500">{label}</span>
+                  <span className="text-gray-900 font-medium">{value}</span>
+                </div>
+              ))}
+              {detailTemplate.file && (
+                <div className="flex gap-3 text-sm">
+                  <span className="w-36 flex-shrink-0 text-gray-500">File</span>
+                  <a
+                    href={detailTemplate.file_url || detailTemplate.file}
+                    download
+                    className="text-blue-600 hover:underline font-medium"
+                  >Tải xuống</a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editTemplate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900">Sửa template hợp đồng</h3>
+              <button onClick={() => setEditTemplate(null)}>
+                <XMarkIcon className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tên template <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Loại hợp đồng <span className="text-red-500">*</span></label>
+                <select
+                  value={editForm.contract_type}
+                  onChange={e => setEditForm({ ...editForm, contract_type: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {Object.entries(CONTRACT_TYPE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <SelectBox<number | null>
+                  label="Đơn vị áp dụng"
+                  value={editForm.company_unit}
+                  placeholder="— Tất cả đơn vị —"
+                  searchable
+                  options={companyUnits.map(u => ({ value: u.id as number | null, label: u.name }))}
+                  onChange={v => setEditForm({ ...editForm, company_unit: v })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
+                <input
+                  type="text"
+                  value={editForm.description}
+                  onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+                  placeholder="Mô tả ngắn về template này..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">File Word (.docx)</label>
+                <input
+                  ref={editFileInputRef}
+                  type="file"
+                  accept=".docx"
+                  onChange={e => setEditForm({ ...editForm, file: e.target.files?.[0] || null })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700"
+                />
+                <p className="text-xs text-gray-400 mt-1">Bỏ trống để giữ file hiện tại.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                <select
+                  value={editForm.status}
+                  onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="ACTIVE">Đang dùng</option>
+                  <option value="INACTIVE">Không dùng</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 p-6 border-t border-gray-100">
+              <button
+                onClick={() => setEditTemplate(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+              >Hủy</button>
+              <button
+                onClick={handleUpdate}
+                disabled={updating || !editForm.name.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {updating ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -279,7 +484,7 @@ export default function ContractTemplates() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tên template *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tên template <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={form.name}
@@ -289,7 +494,7 @@ export default function ContractTemplates() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Loại hợp đồng *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Loại hợp đồng <span className="text-red-500">*</span></label>
                 <select
                   value={form.contract_type}
                   onChange={e => setForm({ ...form, contract_type: e.target.value })}
@@ -299,6 +504,16 @@ export default function ContractTemplates() {
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <SelectBox<number | null>
+                  label="Đơn vị áp dụng"
+                  value={form.company_unit}
+                  placeholder="— Tất cả đơn vị —"
+                  searchable
+                  options={companyUnits.map(u => ({ value: u.id as number | null, label: u.name }))}
+                  onChange={v => setForm({ ...form, company_unit: v })}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
@@ -311,7 +526,7 @@ export default function ContractTemplates() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">File Word (.docx) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">File Word (.docx) <span className="text-red-500">*</span></label>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -342,8 +557,8 @@ export default function ContractTemplates() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={uploading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+                disabled={uploading || !form.name.trim() || !form.file}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {uploading ? 'Đang upload...' : 'Lưu template'}
               </button>

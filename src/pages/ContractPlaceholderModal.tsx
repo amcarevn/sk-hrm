@@ -308,8 +308,8 @@ const ContractPlaceholderModal: React.FC<Props> = ({ contractId, onClose, onSucc
               )}
               <button
                 onClick={handlePreview}
-                disabled={previewLoading}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                disabled={previewLoading || emptyCount > 0}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {previewLoading
                   ? <><ArrowPathIcon className="w-4 h-4 animate-spin" />Đang tạo...</>

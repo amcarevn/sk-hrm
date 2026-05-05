@@ -1,4 +1,5 @@
-import React, { useState, memo, useMemo } from "react";
+import React, { useState, memo, useMemo, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Listbox, Combobox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 
@@ -15,6 +16,7 @@ interface SelectBoxProps<T> {
   placeholder?: string;
   searchable?: boolean;
   size?: 'default' | 'lg';
+  portal?: boolean;
 }
 
 function SelectBoxInner<T>({
@@ -25,8 +27,38 @@ function SelectBoxInner<T>({
   placeholder,
   searchable = false,
   size = 'default',
+  portal = false,
 }: SelectBoxProps<T>) {
   const [query, setQuery] = useState("");
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+
+  const updateMenuPosition = useCallback(() => {
+    if (!anchorRef.current) return;
+    const r = anchorRef.current.getBoundingClientRect();
+    setMenuStyle({
+      position: 'fixed',
+      top: r.bottom + 4,
+      left: r.left,
+      minWidth: r.width,
+      zIndex: 9999,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!portal) return;
+    const el = anchorRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(updateMenuPosition);
+    obs.observe(el);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    window.addEventListener('resize', updateMenuPosition);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener('scroll', updateMenuPosition, true);
+      window.removeEventListener('resize', updateMenuPosition);
+    };
+  }, [portal, updateMenuPosition]);
 
   const selected = options.find((o) => o.value === value) || null;
 
@@ -51,65 +83,59 @@ function SelectBoxInner<T>({
     ? "relative w-full cursor-pointer rounded-xl border-2 border-gray-200 hover:border-gray-300 bg-white py-[13px] pl-4 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-base shadow-sm transition-all"
     : "relative w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm shadow-sm";
 
-  // COMBBOX MODE (Searchable)
+  const optionsCls = "max-h-60 min-w-full w-max max-w-[min(32rem,90vw)] overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm";
+
+  // COMBOBOX MODE (Searchable)
   if (searchable) {
+    const optionsContent = (
+      <Combobox.Options className={portal ? optionsCls : `absolute z-50 mt-1 ${optionsCls}`} style={portal ? menuStyle : undefined}>
+        {filteredOptions.length === 0 && query !== "" ? (
+          <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
+            Không tìm thấy kết quả.
+          </div>
+        ) : (
+          filteredOptions.map((option) => (
+            <Combobox.Option
+              key={String(option.value)}
+              className={({ active }) =>
+                `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? "bg-blue-600 text-white" : "text-gray-900"}`
+              }
+              value={option}
+            >
+              {({ selected, active }) => (
+                <>
+                  <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>{option.label}</span>
+                  {selected && (
+                    <span className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? "text-white" : "text-blue-600"}`}>
+                      <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                  )}
+                </>
+              )}
+            </Combobox.Option>
+          ))
+        )}
+      </Combobox.Options>
+    );
+
     return (
       <div className="w-full">
         {label && <label className={labelCls}>{label}</label>}
-        <Combobox
-          value={selected}
-          onChange={(v: SelectOption<T> | null) => {
-            if (v) onChange(v.value);
-          }}
-        >
-          <div className="relative">
+        <Combobox value={selected} onChange={(v: SelectOption<T> | null) => { if (v) onChange(v.value); }}>
+          <div className="relative" ref={anchorRef}>
             <div className={wrapperCls}>
               <Combobox.Input
                 className={inputCls}
                 displayValue={(option: SelectOption<T> | null) => option?.label || ""}
                 onChange={(event) => setQuery(event.target.value)}
+                onFocus={updateMenuPosition}
                 placeholder={placeholder || "Tìm kiếm..."}
               />
-              <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+              <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2" onClick={updateMenuPosition}>
                 <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
               </Combobox.Button>
             </div>
-            <Combobox.Options className="absolute z-50 mt-1 max-h-60 min-w-full w-max max-w-[min(32rem,90vw)] overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-              {filteredOptions.length === 0 && query !== "" ? (
-                <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
-                  Không tìm thấy kết quả.
-                </div>
-              ) : (
-                filteredOptions.map((option) => (
-                  <Combobox.Option
-                    key={String(option.value)}
-                    className={({ active }) =>
-                      `relative cursor-default select-none py-2 pl-10 pr-4 ${
-                        active ? "bg-blue-600 text-white" : "text-gray-900"
-                      }`
-                    }
-                    value={option}
-                  >
-                    {({ selected, active }) => (
-                      <>
-                        <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-                          {option.label}
-                        </span>
-                        {selected ? (
-                          <span
-                            className={`absolute inset-y-0 left-0 flex items-center pl-3 ${
-                              active ? "text-white" : "text-blue-600"
-                            }`}
-                          >
-                            <CheckIcon className="h-5 w-5" aria-hidden="true" />
-                          </span>
-                        ) : null}
-                      </>
-                    )}
-                  </Combobox.Option>
-                ))
-              )}
-            </Combobox.Options>
+            {portal ? createPortal(optionsContent, document.body) : optionsContent}
           </div>
         </Combobox>
       </div>
@@ -119,45 +145,43 @@ function SelectBoxInner<T>({
   // LISTBOX MODE (Standard)
   const fallbackSelected = selected || (placeholder ? { value, label: placeholder } : options[0]);
 
+  const listboxOptions = (
+    <Listbox.Options className={portal ? optionsCls : `absolute z-50 mt-1 ${optionsCls}`} style={portal ? menuStyle : undefined}>
+      {options.map((option) => (
+        <Listbox.Option
+          key={String(option.value)}
+          value={option}
+          className={({ active }) =>
+            `relative cursor-pointer select-none py-2 pl-10 pr-4 ${active ? "bg-blue-100 text-blue-900" : "text-gray-900"}`
+          }
+        >
+          {({ selected }) => (
+            <>
+              <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>{option.label}</span>
+              {selected && (
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
+                  <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                </span>
+              )}
+            </>
+          )}
+        </Listbox.Option>
+      ))}
+    </Listbox.Options>
+  );
+
   return (
     <div className="w-full">
       {label && <label className={labelCls}>{label}</label>}
-
       <Listbox value={fallbackSelected} onChange={(v: any) => onChange(v.value)}>
-        <div className="relative">
-          <Listbox.Button className={buttonCls}>
+        <div className="relative" ref={anchorRef}>
+          <Listbox.Button className={buttonCls} onClick={updateMenuPosition}>
             <span className="block truncate">{fallbackSelected?.label || placeholder || "Chọn"}</span>
             <span className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer">
               <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
             </span>
           </Listbox.Button>
-
-          <Listbox.Options className="absolute z-50 mt-1 max-h-60 min-w-full w-max max-w-[min(32rem,90vw)] overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-            {options.map((option) => (
-              <Listbox.Option
-                key={String(option.value)}
-                value={option}
-                className={({ active }) =>
-                  `relative cursor-pointer select-none py-2 pl-10 pr-4 ${
-                    active ? "bg-blue-100 text-blue-900" : "text-gray-900"
-                  }`
-                }
-              >
-                {({ selected }) => (
-                  <>
-                    <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-                      {option.label}
-                    </span>
-                    {selected && (
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
-                        <CheckIcon className="h-5 w-5" aria-hidden="true" />
-                      </span>
-                    )}
-                  </>
-                )}
-              </Listbox.Option>
-            ))}
-          </Listbox.Options>
+          {portal ? createPortal(listboxOptions, document.body) : listboxOptions}
         </div>
       </Listbox>
     </div>

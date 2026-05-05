@@ -3,13 +3,19 @@ import { managementApi } from '../utils/api';
 import {
   DocumentTextIcon,
   PlusIcon,
-  ArrowDownTrayIcon,
   EyeIcon,
   XMarkIcon,
   TrashIcon,
   CheckBadgeIcon,
 } from '@heroicons/react/24/outline';
 import ContractPlaceholderModal from './ContractPlaceholderModal';
+import PdfPreviewModal from '../components/Common/PdfPreviewModal';
+
+const fmtDate = (d: string | null | undefined) => {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${y}`;
+};
 
 const CONTRACT_TYPE_LABELS: Record<string, string> = {
   PROBATION: 'Hợp đồng thử việc',
@@ -37,6 +43,10 @@ type ContractTemplate = {
   name: string;
   contract_type: string;
   contract_type_display: string;
+  description: string;
+  company_unit: number | null;
+  company_unit_name: string | null;
+  company_unit_code: string | null;
   status?: string;
 };
 
@@ -59,6 +69,8 @@ type EmployeeContract = {
   notes: string;
   is_expiring_soon: boolean;
   created_at: string;
+  company_unit: number | null;
+  company_unit_name: string | null;
 };
 
 type Props = {
@@ -75,14 +87,13 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
   const [deleting, setDeleting] = useState<number | null>(null);
   const [markingSigned, setMarkingSigned] = useState<number | null>(null);
   const [placeholderModal, setPlaceholderModal] = useState<number | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<{ id: number; name: string } | null>(null);
 
   const [newContract, setNewContract] = useState({
-    contract_type: 'PROBATION',
-    template: '',
+    template: null as ContractTemplate | null,
     start_date: '',
     end_date: '',
     notes: '',
-    branch: 'AC',
   });
 
   const fetchContracts = async () => {
@@ -114,20 +125,21 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
 
   const handleAddContract = async () => {
     if (!employeeId) return alert('Chưa có hồ sơ nhân viên');
+    if (!newContract.template) return alert('Vui lòng chọn template hợp đồng');
     try {
       await managementApi.post('/api-hrm/employee-contracts/', {
         onboarding_process: onboardingId,
         employee: employeeId,
-        contract_type: newContract.contract_type,
-        template: newContract.template || null,
+        contract_type: newContract.template.contract_type,
+        template: newContract.template.id,
+        company_unit: newContract.template.company_unit,
         start_date: newContract.start_date || null,
         end_date: newContract.end_date || null,
         notes: newContract.notes,
-        branch: newContract.branch,
       });
       await fetchContracts();
       setShowAddModal(false);
-      setNewContract({ contract_type: 'PROBATION', template: '', start_date: '', end_date: '', notes: '', branch: 'AC' });
+      setNewContract({ template: null, start_date: '', end_date: '', notes: '' });
     } catch (e: any) {
       alert(e.response?.data?.detail || 'Lỗi tạo hợp đồng');
     }
@@ -147,16 +159,13 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
   };
 
   const handleMarkSigned = async (contractId: number) => {
-    if (!confirm('Xác nhận đánh dấu hợp đồng này là đã ký?')) return;
+    if (!confirm('Xác nhận đánh dấu hợp đồng này là đã ký?\nThao tác này sẽ cập nhật thông tin hợp đồng vào hồ sơ nhân viên.')) return;
     setMarkingSigned(contractId);
     try {
-      await managementApi.patch(`/api-hrm/employee-contracts/${contractId}/`, {
-        status: 'SIGNED',
-        hr_signed_at: new Date().toISOString()
-      });
+      await managementApi.post(`/api-hrm/employee-contracts/${contractId}/mark_signed/`);
       await fetchContracts();
     } catch (e: any) {
-      alert(e.response?.data?.detail || 'Cập nhật thất bại');
+      alert(e.response?.data?.message || e.response?.data?.detail || 'Cập nhật thất bại');
     } finally {
       setMarkingSigned(null);
     }
@@ -211,8 +220,8 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
                     <p className="text-sm text-gray-500">Template: {contract.template_name}</p>
                   )}
                   <div className="flex gap-4 mt-1 text-sm text-gray-500">
-                    {contract.start_date && <span>Từ: {contract.start_date}</span>}
-                    {contract.end_date && <span>Đến: {contract.end_date}</span>}
+                    {contract.start_date && <span><span className="text-gray-400">Ngày bắt đầu:</span> <span className="font-medium">{fmtDate(contract.start_date)}</span></span>}
+                    {contract.end_date && <span><span className="text-gray-400">Ngày kết thúc:</span> <span className="font-medium">{fmtDate(contract.end_date)}</span></span>}
                   </div>
                 </div>
 
@@ -231,14 +240,12 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
 
                   {/* Xem file đã tạo */}
                   {contract.generated_file && (
-                    <a
-                      href={contract.generated_file_url || contract.generated_file}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => setPdfPreview({ id: contract.id, name: contract.template_name || 'Hợp đồng' })}
                       className="flex items-center gap-1 px-3 py-1.5 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100 text-sm"
                     >
                       <EyeIcon className="w-4 h-4" /> Xem
-                    </a>
+                    </button>
                   )}
 
                   {/* Tạo lại — cũng mở modal placeholder */}
@@ -251,7 +258,7 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
                     </button>
                   )}
 
-                  {contract.status !== 'SIGNED' && contract.status !== 'CANCELLED' && (
+                  {contract.status === 'PENDING_SIGN' && (
                     <button
                       onClick={() => handleMarkSigned(contract.id)}
                       disabled={markingSigned === contract.id}
@@ -280,52 +287,60 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
       {/* Add Contract Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Thêm hợp đồng mới</h3>
               <button onClick={() => setShowAddModal(false)}>
                 <XMarkIcon className="w-5 h-5 text-gray-500" />
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto space-y-4">
+              {/* Template card list */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Loại hợp đồng *</label>
-                <select
-                  value={newContract.contract_type}
-                  onChange={e => setNewContract({ ...newContract, contract_type: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  {Object.entries(CONTRACT_TYPE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Chi nhánh *</label>
-                <select
-                  value={newContract.branch}
-                  onChange={e => setNewContract({ ...newContract, branch: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="AC">Amcare (AC)</option>
-                  <option value="HM">Homie (HM)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Template hợp đồng</label>
-                <select
-                  value={newContract.template}
-                  onChange={e => setNewContract({ ...newContract, template: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">-- Không dùng template --</option>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Chọn template hợp đồng <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {templates.filter(t => !t.status || t.status === 'ACTIVE').length === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-4">Không có template nào đang hoạt động</p>
+                  )}
                   {templates
                     .filter(t => !t.status || t.status === 'ACTIVE')
                     .map(t => (
-                      <option key={t.id} value={t.id}>{t.name} ({t.contract_type_display})</option>
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setNewContract({ ...newContract, template: t })}
+                        className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-colors ${
+                          newContract.template?.id === t.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <p className="font-medium text-sm text-gray-900">{t.name}</p>
+                        <div className="flex gap-2 mt-1 flex-wrap">
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">
+                            {t.contract_type_display}
+                          </span>
+                          {t.company_unit_name && (
+                            <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">
+                              {t.company_unit_name}
+                            </span>
+                          )}
+                        </div>
+                      </button>
                     ))}
-                </select>
+                </div>
               </div>
+
+              {/* Auto-fill info from selected template */}
+              {newContract.template && (
+                <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600 space-y-1">
+                  <p><span className="font-medium">Loại hợp đồng:</span> {newContract.template.contract_type_display}</p>
+                  <p><span className="font-medium">Đơn vị:</span> {newContract.template.company_unit_name || '—'}</p>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ngày bắt đầu</label>
@@ -365,7 +380,8 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
               </button>
               <button
                 onClick={handleAddContract}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                disabled={!newContract.template}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Tạo hợp đồng
               </button>
@@ -379,13 +395,23 @@ const ContractSection: React.FC<Props> = ({ onboardingId, employeeId, employeePr
         <ContractPlaceholderModal
           contractId={placeholderModal}
           onClose={() => setPlaceholderModal(null)}
-          onSuccess={(fileUrl) => {
-            window.open(fileUrl, '_blank');
+          onSuccess={() => {
             setPlaceholderModal(null);
             fetchContracts();
           }}
         />
       )}
+
+      <PdfPreviewModal
+        open={!!pdfPreview}
+        title={pdfPreview?.name}
+        loader={pdfPreview ? () =>
+          managementApi.get(`/api-hrm/employee-contracts/${pdfPreview.id}/download_file/`, { responseType: 'blob' })
+            .then(r => URL.createObjectURL(r.data))
+        : null}
+        downloadFilename={`${pdfPreview?.name || 'hop-dong'}.pdf`}
+        onClose={() => setPdfPreview(null)}
+      />
 
     </div>
   );

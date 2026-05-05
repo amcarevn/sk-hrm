@@ -261,6 +261,12 @@ const navigationItems: NavigationItem[] = [
         roles: ['ADMIN', 'HR'],
       },
       {
+        name: 'Hợp đồng hàng loạt',
+        href: '/dashboard/bulk-contracts',
+        icon: DocumentTextIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
         name: 'Template tài liệu',
         href: '/dashboard/document-templates',
         icon: DocumentTextIcon,
