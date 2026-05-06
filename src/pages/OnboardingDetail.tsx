@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API_BASE_URL, { managementApi } from '../utils/api';
+import { formatDate } from '../utils/dateUtils';
 import ContractSection from './ContractSection';
 import {
   CheckCircleIcon,
@@ -27,6 +28,19 @@ import {
   PROBATION_RATE_OPTIONS, ETHNICITY_OPTIONS, NATIONALITY_OPTIONS, GENDER_OPTIONS, MARITAL_STATUS_OPTIONS,
   WORK_LOCATION_OPTIONS,
 } from '../constants/onboarding';
+
+const EDUCATION_LEVEL_MAP: Record<string, string> = {
+  MASTER: 'Thạc sĩ',
+  BACHELOR: 'Cử nhân đại học',
+  ASSOCIATE: 'Cử nhân cao đẳng',
+  HIGH_SCHOOL: 'Trung cấp',
+  OTHER: 'Khác',
+};
+
+const displayEducationLevel = (value?: string | null): string => {
+  if (!value) return 'Chưa có dữ liệu';
+  return EDUCATION_LEVEL_MAP[value] ?? value;
+};
 
 // ============================================
 // TYPE DEFINITIONS
@@ -226,14 +240,6 @@ const withCurrentOption = (
   return exists ? options : [{ value: currentValue, label: currentValue }, ...options];
 };
 
-const formatDate = (dateStr: string | null | undefined): string => {
-  if (!dateStr) return 'Chưa có dữ liệu';
-  return new Date(dateStr).toLocaleDateString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-};
 
 /** Hiển thị giá trị hoặc 'Chưa có dữ liệu', lọc cả string "NULL"/"null"/"None" */
 const safeDisplay = (value: any, fallback = 'Chưa có dữ liệu'): string => {
@@ -539,21 +545,6 @@ const OnboardingDetail: React.FC = () => {
         if ('start_date' in editData) employeeData.start_date = editData.start_date;
         if ('work_location' in editData) employeeData.work_location = editData.work_location || null;
 
-        // work_type lưu vào employee.extra_info (JSON)
-        if ('work_type' in editData) {
-          const prevExtra = (() => {
-            try {
-              return typeof employeeProfile?.extra_info === 'string'
-                ? JSON.parse(employeeProfile.extra_info || '{}')
-                : (employeeProfile?.extra_info || {});
-            } catch { return {}; }
-          })();
-          employeeData.extra_info = JSON.stringify({
-            ...prevExtra,
-            work_type: editData.work_type || undefined,
-          });
-        }
-
         // Update onboarding
         if (Object.keys(onboardingData).length > 0) {
           await onboardingService.superAdminPartialUpdate(parseInt(id), onboardingData);
@@ -661,6 +652,7 @@ const OnboardingDetail: React.FC = () => {
         // Fields to update in employee
         if ('bank_name' in editData) employeeData.bank_name = editData.bank_name;
         if ('bank_account' in editData) employeeData.bank_account = editData.bank_account;
+        if ('bank_account_holder' in editData) employeeData.bank_account_holder = editData.bank_account_holder;
         if ('bank_branch' in editData) employeeData.bank_branch = editData.bank_branch;
 
         // Update onboarding
@@ -670,22 +662,7 @@ const OnboardingDetail: React.FC = () => {
 
         // Update employee profile
         if (empId && Object.keys(employeeData).length > 0) {
-          const updateData = { ...employeeData };
-          if ('bank_account_holder' in editData) {
-            updateData.extra_info = JSON.stringify({
-              ...(() => {
-                try {
-                  return typeof employeeProfile?.extra_info === 'string'
-                    ? JSON.parse(employeeProfile.extra_info || '{}')
-                    : (employeeProfile?.extra_info || {});
-                } catch {
-                  return {};
-                }
-              })(),
-              bank_account_holder: editData.bank_account_holder || undefined,
-            });
-          }
-          await employeesAPI.partialUpdateByEmployeeId(empId, updateData);
+          await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
         }
 
         await fetchOnboardingDetail();
@@ -709,17 +686,28 @@ const OnboardingDetail: React.FC = () => {
       // ── Lương & Hợp đồng (emp_salary) ──
       else if (editSection === 'emp_salary') {
         const employeeData: Record<string, any> = {};
+        const onboardingData: Record<string, any> = {};
 
-        if ('basic_salary' in editData) employeeData.basic_salary = editData.basic_salary || null;
+        if ('basic_salary' in editData) {
+          employeeData.basic_salary = editData.basic_salary || null;
+          onboardingData.salary = editData.basic_salary || null;
+        }
         if ('allowance' in editData) employeeData.allowance = editData.allowance || null;
         if ('contract_type' in editData) employeeData.contract_type = editData.contract_type;
         if ('probation_months' in editData) employeeData.probation_months = editData.probation_months || null;
         // probation_end_date do BE tự tính từ start_date + probation_months - 1 ngày, FE không gửi lên
         if ('probation_rate' in editData) employeeData.probation_rate = editData.probation_rate;
+        if ('contract_start_date' in editData) employeeData.contract_start_date = editData.contract_start_date || null;
+        if ('contract_end_date' in editData) employeeData.contract_end_date = editData.contract_end_date || null;
 
+        if (Object.keys(onboardingData).length > 0) {
+          await onboardingService.superAdminPartialUpdate(parseInt(id), onboardingData);
+        }
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
         }
+
+        await fetchOnboardingDetail();
       }
       // ── Hồ sơ đính kèm (attached_files) ──
       else if (editSection === 'attached_files') {
@@ -861,7 +849,7 @@ const OnboardingDetail: React.FC = () => {
     const vneidScreenshotUrl =
       onboarding.vneid_screenshot_url ||
       (employeeProfile as any)?.vneid_screenshot_url ||
-      normalizeFileUrl(employeeProfile?.vneid_screenshot);
+      null;
 
     // Helper: Section header with edit button
     const SectionHeader: React.FC<{ title: string; color: string; onEdit?: () => void }> = ({ title, color, onEdit }) => {
@@ -950,7 +938,6 @@ const OnboardingDetail: React.FC = () => {
             employment_status_notes: (employeeProfile as any)?.employment_status_notes ?? onboarding.employment_status_notes ?? '',
             start_date: employeeProfile?.start_date ?? onboarding.start_date ?? '',
             work_location: (employeeProfile as any)?.work_location ?? '',
-            work_type: extraInfo.work_type ?? '',
           })} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
             <InfoField label="Đơn vị" value={allCompanyUnits.find(cu => cu.code === onboarding.company_unit)?.name || safeDisplay(onboarding.company_unit)} />
@@ -962,8 +949,7 @@ const OnboardingDetail: React.FC = () => {
             <InfoField label="Team bác sĩ" value={safeDisplay(employeeProfile?.doctor_team || onboarding.doctor_team)} />
             <InfoField label="Ngày bắt đầu" value={employeeProfile?.start_date ? formatDate(employeeProfile.start_date) : formatDate(onboarding.start_date)} />
             <InfoField label="Hình thức" value={(employeeProfile?.work_form || onboarding.work_form) ? (WORK_FORM_LABELS[employeeProfile?.work_form || onboarding.work_form!] || employeeProfile?.work_form || onboarding.work_form) : null} />
-            <InfoField label="Loại hình làm việc" value={safeDisplay(extraInfo.work_type)} />
-            <InfoField label="Địa điểm làm việc" value={safeDisplay((employeeProfile as any)?.work_location_display || (employeeProfile as any)?.work_location)} />
+            <InfoField label="Địa điểm làm việc" value={WORK_LOCATION_OPTIONS.find(o => o.value === (employeeProfile as any)?.work_location)?.label || safeDisplay((employeeProfile as any)?.work_location)} />
             <InfoField label="Vùng/Miền" value={safeDisplay(employeeProfile?.region || onboarding.region)} />
             <InfoField label="Khối" value={safeDisplay(employeeProfile?.block || onboarding.block)} />
             <InfoField label="Trạng thái" value={
@@ -1021,7 +1007,7 @@ const OnboardingDetail: React.FC = () => {
                 graduation_year: (extraInfo.graduation_year || onboarding.graduation_year) ?? '',
               })} />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
-                <InfoField label="Trình độ" value={safeDisplay(employeeProfile?.education_level || onboarding.education_level)} />
+                <InfoField label="Trình độ" value={displayEducationLevel(employeeProfile?.education_level || onboarding.education_level)} />
                 <InfoField label="Trường" value={safeDisplay(extraInfo.university || onboarding.university)} />
                 <InfoField label="Chuyên ngành" value={safeDisplay(extraInfo.major || onboarding.major)} />
                 <InfoField label="Năm tốt nghiệp" value={String(extraInfo.graduation_year || onboarding.graduation_year || '') || null} />
@@ -1188,6 +1174,8 @@ const OnboardingDetail: React.FC = () => {
                   probation_months: employeeProfile.probation_months ?? '',
                   probation_end_date: employeeProfile.probation_end_date ?? '',
                   probation_rate: (employeeProfile as any).probation_rate ?? '',
+                  contract_start_date: (employeeProfile as any).contract_start_date ?? '',
+                  contract_end_date: (employeeProfile as any).contract_end_date ?? '',
                 })} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
                   <InfoField label="Lương cơ bản" value={employeeProfile.basic_salary != null ? `${Number(employeeProfile.basic_salary).toLocaleString('vi-VN')} đ` : 'Chưa có dữ liệu'} highlight />
@@ -1196,9 +1184,21 @@ const OnboardingDetail: React.FC = () => {
                   <InfoField label="Thử việc" value={employeeProfile.probation_months != null ? `${employeeProfile.probation_months} tháng` : 'Chưa có dữ liệu'} />
                   <InfoField label="Kết thúc thử việc" value={employeeProfile.probation_end_date ? formatDate(employeeProfile.probation_end_date) : 'Chưa có dữ liệu'} />
                   <InfoField label="Tỉ lệ thử việc" value={(employeeProfile as any).probation_rate ? (PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate) : 'Chưa có dữ liệu'} />
-                  <InfoField label="Ngày bắt đầu HĐ" value={firstContract?.status === 'SIGNED' && firstContract.start_date ? formatDate(firstContract.start_date) : 'Chưa có dữ liệu'} />
-                  <InfoField label="Ngày kết thúc HĐ" value={firstContract?.status === 'SIGNED' && firstContract.end_date ? formatDate(firstContract.end_date) : 'Chưa có dữ liệu'} />
-                  <InfoField label="Loại hợp đồng" value={firstContract?.status === 'SIGNED' ? (firstContract.contract_type_display || 'Chưa có dữ liệu') : 'Chưa có dữ liệu'} />
+                  <InfoField label="Ngày bắt đầu HĐ" value={
+                    (firstContract?.status === 'SIGNED' && firstContract.start_date ? formatDate(firstContract.start_date) : null)
+                    || ((employeeProfile as any).contract_start_date ? formatDate((employeeProfile as any).contract_start_date) : null)
+                    || 'Chưa có dữ liệu'
+                  } />
+                  <InfoField label="Ngày kết thúc HĐ" value={
+                    (firstContract?.status === 'SIGNED' && firstContract.end_date ? formatDate(firstContract.end_date) : null)
+                    || ((employeeProfile as any).contract_end_date ? formatDate((employeeProfile as any).contract_end_date) : null)
+                    || 'Chưa có dữ liệu'
+                  } />
+                  <InfoField label="Loại hợp đồng" value={
+                    (firstContract?.status === 'SIGNED' && firstContract.contract_type_display)
+                    || (employeeProfile.contract_type ? (CONTRACT_OPTIONS.find(o => o.value === employeeProfile.contract_type)?.label || employeeProfile.contract_type) : null)
+                    || 'Chưa có dữ liệu'
+                  } />
                 </div>
               </div>
             )}
@@ -1369,9 +1369,6 @@ const OnboardingDetail: React.FC = () => {
                   { value: 'FULL_TIME', label: 'Full-time' },
                   { value: 'PART_TIME', label: 'Part-time' },
                 ])}
-                {ef('Loại hình làm việc', 'work_type', undefined, undefined, undefined, 'Full-time, Part-time, ...')}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {ef('Địa điểm làm việc', 'work_location', undefined, WORK_LOCATION_OPTIONS)}
                 {ef('Ngày bắt đầu làm việc', 'start_date', 'date')}
               </div>
@@ -1462,7 +1459,7 @@ const OnboardingDetail: React.FC = () => {
 
         // ── Lương & Hợp đồng ──
         // Phải khớp với openEdit('emp_salary'): basic_salary, allowance, contract_type,
-        // probation_months, probation_end_date, probation_rate, bank_name, bank_account
+        // probation_months, probation_end_date, probation_rate, contract_start_date, contract_end_date
         case 'emp_salary':
           return (
             <div className="space-y-4">
@@ -1476,6 +1473,10 @@ const OnboardingDetail: React.FC = () => {
                 {ef('Ngày kết thúc thử việc (tự tính)', 'probation_end_date', 'date', undefined, true)}
               </div>
               {ef('Tỉ lệ thử việc', 'probation_rate', undefined, PROBATION_RATE_OPTIONS)}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Ngày bắt đầu HĐ', 'contract_start_date', 'date')}
+                {ef('Ngày kết thúc HĐ', 'contract_end_date', 'date')}
+              </div>
             </div>
           );
 
@@ -1767,7 +1768,7 @@ const OnboardingDetail: React.FC = () => {
               {([
                 ['SĐT', employeeProfile?.phone_number || onboarding.candidate_phone],
                 ['Email', employeeProfile?.personal_email || onboarding.candidate_email],
-                ['Ngày bắt đầu', onboarding.start_date ? new Date(onboarding.start_date).toLocaleDateString('vi-VN') : null],
+                ['Ngày bắt đầu', onboarding.start_date ? formatDate(onboarding.start_date) : null],
               ] as [string, string | null | undefined][]).map(([label, val]) => {
                 const display = safeDisplay(val);
                 const isEmpty = display === 'Chưa có dữ liệu';
