@@ -163,7 +163,7 @@ const Home: React.FC = () => {
     setShowContractAlert(false);
     try {
       await managementApi.post('/api-hrm/employee-contracts/expiring-alert/');
-    } catch {}
+    } catch { }
   };
 
   const fetchMyContracts = async (isManualCheck = false) => {
@@ -200,7 +200,7 @@ const Home: React.FC = () => {
   useEffect(() => {
     hrmAPI.getCompanyAnnouncements({ is_current: true, unread_only: true, page_size: 5 })
       .then((res) => setUnreadAnnouncements(res.results || []))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Tự đóng gate khi đã đọc hết tất cả REGULATION bắt buộc
@@ -213,8 +213,8 @@ const Home: React.FC = () => {
   }, [onboarding]);
 
   const noActiveContractDialog = myContracts !== null && myContracts.length > 0 && !hasActiveContract;
-  useLockBodyScroll(!!viewingDoc || showDocGate || showContractAlert || noActiveContractDialog);
-
+  //useLockBodyScroll(!!viewingDoc || showDocGate || showContractAlert || noActiveContractDialog);
+  useLockBodyScroll(!!viewingDoc || showDocGate || showContractAlert);
   const fetchBirthdaysToday = async () => {
     try {
       const data = await employeesAPI.birthdays_today();
@@ -361,14 +361,14 @@ const Home: React.FC = () => {
   // Calculate working days based on start date
   const calculateWorkingDays = () => {
     if (!employee?.start_date) return 0;
-    
+
     const startDate = new Date(employee.start_date);
     const today = new Date();
-    
+
     // Calculate difference in days
     const diffTime = Math.abs(today.getTime() - startDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     return diffDays;
   };
 
@@ -680,15 +680,14 @@ const Home: React.FC = () => {
               return (
                 <div
                   key={entry.employee_id}
-                  className={`flex items-center gap-4 p-3 rounded-xl border transition-shadow hover:shadow-md ${
-                    rankNum === 1
+                  className={`flex items-center gap-4 p-3 rounded-xl border transition-shadow hover:shadow-md ${rankNum === 1
                       ? 'bg-yellow-50 border-yellow-200'
                       : rankNum === 2
-                      ? 'bg-gray-50 border-gray-200'
-                      : rankNum === 3
-                      ? 'bg-orange-50 border-orange-200'
-                      : 'bg-white border-gray-100'
-                  }`}
+                        ? 'bg-gray-50 border-gray-200'
+                        : rankNum === 3
+                          ? 'bg-orange-50 border-orange-200'
+                          : 'bg-white border-gray-100'
+                    }`}
                 >
                   {/* Rank badge */}
                   <div className="w-8 text-center flex-shrink-0">
@@ -1085,6 +1084,7 @@ const Home: React.FC = () => {
       })(), document.body)}
 
       {/* Non-dismissable dialog: employee has fetched contracts but none are active */}
+      {/* TEMPORARILY DISABLED
       {noActiveContractDialog && createPortal(
         <div className="fixed inset-0 z-[9997] flex items-center justify-center p-4 bg-black/70">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -1134,6 +1134,7 @@ const Home: React.FC = () => {
         </div>,
         document.body
       )}
+      */}
 
       {/* Contract expiry alert dialog */}
       {showContractAlert && expiringContracts.length > 0 && createPortal(
@@ -1166,11 +1167,10 @@ const Home: React.FC = () => {
               {expiringContracts.map((c) => (
                 <div
                   key={c.id}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
-                    c.days <= 0
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${c.days <= 0
                       ? 'bg-red-50 border-red-200'
                       : 'bg-orange-50 border-orange-200'
-                  }`}
+                    }`}
                 >
                   <ExclamationTriangleIcon className={`w-5 h-5 flex-shrink-0 ${c.days <= 0 ? 'text-red-500' : 'text-orange-500'}`} />
                   <div className="flex-1 min-w-0">
@@ -1181,11 +1181,10 @@ const Home: React.FC = () => {
                       {c.end_date ? ` · HH: ${new Date(c.end_date).toLocaleDateString('vi-VN')}` : ''}
                     </p>
                   </div>
-                  <span className={`text-xs font-bold whitespace-nowrap px-2.5 py-1 rounded-full ${
-                    c.days <= 0
+                  <span className={`text-xs font-bold whitespace-nowrap px-2.5 py-1 rounded-full ${c.days <= 0
                       ? 'bg-red-100 text-red-700'
                       : 'bg-orange-100 text-orange-700'
-                  }`}>
+                    }`}>
                     {c.days <= 0 ? 'Đã hết hạn' : `Còn ${c.days} ngày`}
                   </span>
                 </div>
@@ -1252,7 +1251,7 @@ const Home: React.FC = () => {
               <p className="text-xs text-gray-500">
                 {viewingDoc.is_read ? '✓ Bạn đã đọc tài liệu này'
                   : docReadable ? '✓ Có thể xác nhận đã đọc'
-                  : '⏳ Vui lòng đọc hết tài liệu (tối thiểu 10 giây)...'}
+                    : '⏳ Vui lòng đọc hết tài liệu (tối thiểu 10 giây)...'}
               </p>
               {!viewingDoc.is_read && (
                 <button
