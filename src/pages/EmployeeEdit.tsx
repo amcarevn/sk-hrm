@@ -6,11 +6,11 @@ import {
   sectionsAPI,
   positionsAPI,
   companyUnitsAPI,
-  EmployeeUpdateData,
 } from '../utils/api';
 import { SelectBox } from '@/components/LandingLayout/SelectBox';
 import { WORK_LOCATION_OPTIONS } from '../constants/onboarding';
 import onboardingService from '../services/onboarding.service';
+import { toDisplayDate, toApiDate } from '../utils/dateUtils';
 
 // ============================================
 // CONSTANTS
@@ -105,19 +105,6 @@ const EDUCATION_LEVEL_OPTIONS = [
 ];
 
 // ============================================
-// DATE HELPERS — locale-independent DD/MM/YYYY
-// ============================================
-
-const toDisplayDate = (apiDate: string): string => {
-  const match = apiDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return match ? `${match[3]}/${match[2]}/${match[1]}` : apiDate;
-};
-
-const toApiDate = (displayDate: string): string => {
-  const match = displayDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  return match ? `${match[3]}-${match[2]}-${match[1]}` : displayDate;
-};
-
 // ============================================
 // HELPER COMPONENTS
 // ============================================
@@ -431,9 +418,9 @@ const EmployeeEdit: React.FC = () => {
         is_hr: formData.is_hr,
       };
 
-      // Helper: only add if not empty
+      // Helper: gửi field kể cả khi rỗng — '' → null để BE có thể clear nullable field
       const add = (key: string, val: any) => {
-        if (val !== '' && val !== null && val !== undefined) payload[key] = val;
+        if (val !== undefined) payload[key] = val === '' ? null : val;
       };
 
       add('date_of_birth', toApiDate(formData.date_of_birth));
@@ -490,10 +477,10 @@ const EmployeeEdit: React.FC = () => {
       add('bank_account_holder', formData.bank_account_holder?.trim());
       add('bank_branch', formData.bank_branch?.trim());
 
-      if (formData.basic_salary !== '') payload['basic_salary'] = Number(formData.basic_salary);
-      if (formData.allowance !== '') payload['allowance'] = Number(formData.allowance);
+      payload['basic_salary'] = formData.basic_salary !== '' ? Number(formData.basic_salary) : null;
+      payload['allowance'] = formData.allowance !== '' ? Number(formData.allowance) : null;
       add('contract_type', formData.contract_type);
-      if (formData.probation_months !== '') payload['probation_months'] = Number(formData.probation_months);
+      payload['probation_months'] = formData.probation_months !== '' ? Number(formData.probation_months) : null;
       add('probation_end_date', toApiDate(formData.probation_end_date));
       add('probation_rate', formData.probation_rate);
       add('contract_start_date', toApiDate(formData.contract_start_date));

@@ -11,7 +11,6 @@ import {
   ETHNICITY_OPTIONS, NATIONALITY_OPTIONS, SECTION_OPTIONS, WORK_FORM_OPTIONS, WORK_LOCATION_OPTIONS,
   CITIZEN_ID_ISSUE_PLACE_OPTIONS, EDUCATION_LEVEL_OPTIONS, RANK_OPTIONS,
   REGION_OPTIONS, BLOCK_OPTIONS, SUB_DEPARTMENT_OPTIONS, POSITION_OPTIONS,
-  GENDER_OPTIONS, PROBATION_MONTHS_OPTIONS, PROBATION_RATE_OPTIONS,
 } from '../constants/onboarding';
 import {
   CheckCircleIcon,
@@ -55,7 +54,6 @@ interface FormValues {
   gender: string;
   education_level: string;
   facebook_link: string;
-  start_date: string;
   region: string;
   block: string;
   sub_department: string;
@@ -91,6 +89,7 @@ interface FormValues {
   bank_account: string;
   bank_name: string;
   bank_branch: string;
+  bank_account_holder: string;
 }
 
 // ============================================
@@ -111,10 +110,10 @@ interface TFProps {
   maxLength?: number;
 }
 
-const TF: React.FC<TFProps> = ({ label, value, onChange, placeholder, type = 'text', disabled, multiline, rows, error, maxLength }) => (
+const TF: React.FC<TFProps> = ({ label, value, onChange, placeholder, type = 'text', disabled, multiline, rows, error, maxLength, required }) => (
   <div>
     <label className="block text-base font-semibold text-gray-800 mb-1.5">
-      {label}
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </label>
     {multiline ? (
       <textarea
@@ -155,18 +154,23 @@ interface SFProps {
   searchable?: boolean;
 }
 
-const SF: React.FC<SFProps> = ({ label, value, onChange, options, searchable }) => {
+const SF: React.FC<SFProps> = ({ label, value, onChange, options, searchable, required }) => {
   const normalized = options.map((o) => typeof o === 'string' ? { value: o, label: o } : o);
   return (
-    <SelectBox
-      label={label}
-      value={value}
-      options={normalized}
-      onChange={onChange}
-      searchable={searchable || normalized.length > 10}
-      placeholder={`Chọn ${label.toLowerCase()}`}
-      size="lg"
-    />
+    <div>
+      <label className="block text-base font-semibold mb-1.5 text-gray-800">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <SelectBox
+        label=""
+        value={value}
+        options={normalized}
+        onChange={onChange}
+        searchable={searchable || normalized.length > 10}
+        placeholder={`Chọn ${label.toLowerCase()}`}
+        size="lg"
+      />
+    </div>
   );
 };
 
@@ -228,7 +232,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const [values, setValues] = useState<FormValues>({
     candidate_name: '', candidate_email: '', candidate_phone: '',
     date_of_birth: '', gender: 'M', education_level: '', facebook_link: '',
-    start_date: new Date().toISOString().slice(0, 10), region: '', block: '', sub_department: '',
+    region: '', block: '', sub_department: '',
     section: '', position: '', job_rank: '', ethnicity: '', birth_place: '', nationality: '', doctor_team: '', work_form: '',
     work_location: '', company_unit: '', probation_rate: '',
     citizen_id: '', citizen_id_issue_date: '', citizen_id_issue_place: '',
@@ -238,7 +242,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
     emergency_contact_phone: '', emergency_contact_dob: '',
     emergency_contact_occupation: '', emergency_contact_address: '',
     salary: '', allowance: '', probation_period_months: '2',
-    bank_account: '', bank_name: '', bank_branch: '',
+    bank_account: '', bank_name: '', bank_branch: '', bank_account_holder: '',
   });
 
   const showToast = (type: 'success' | 'error' | 'warning', msg: string) => {
@@ -322,14 +326,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
         if (age > 65) return `Tuổi không hợp lệ (${age} tuổi)`;
         return '';
       }
-      case 'start_date': {
-        const sd = new Date(val);
-        if (isNaN(sd.getTime())) return 'Ngày không hợp lệ';
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        if (sd < now) return 'Ngày bắt đầu phải từ hôm nay trở đi';
-        return '';
-      }
       case 'citizen_id_issue_date': {
         const d = new Date(val);
         if (isNaN(d.getTime())) return 'Ngày cấp không hợp lệ';
@@ -400,7 +396,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
       if (!values.gender) { showToast('error', 'Vui lòng chọn giới tính'); return false; }
       if (!values.candidate_phone.trim()) { showToast('error', 'Vui lòng nhập số điện thoại'); return false; }
       if (!/^\d{10}$/.test(values.candidate_phone.trim())) { showToast('error', 'Số điện thoại phải có đúng 10 chữ số'); return false; }
-      if (!values.start_date) { showToast('error', 'Vui lòng chọn ngày bắt đầu'); return false; }
       if (!values.education_level) { showToast('error', 'Vui lòng chọn trình độ học vấn'); return false; }
       if (!values.ethnicity) { showToast('error', 'Vui lòng chọn dân tộc'); return false; }
       if (!values.birth_place.trim()) { showToast('error', 'Vui lòng nhập nơi khai sinh'); return false; }
@@ -462,6 +457,14 @@ export const EmployeeOnboardingForm: React.FC = () => {
       if (!values.emergency_contact_occupation.trim()) { showToast('error', 'Vui lòng nhập nghề nghiệp người liên hệ'); return false; }
       if (!values.emergency_contact_address.trim()) { showToast('error', 'Vui lòng nhập địa chỉ người liên hệ'); return false; }
     }
+    if (step === 6) {
+      if (!values.salary.trim()) { showToast('error', 'Vui lòng nhập mức lương cơ bản'); return false; }
+      if (isNaN(Number(values.salary)) || Number(values.salary) <= 0) { showToast('error', 'Mức lương cơ bản phải là số dương'); return false; }
+      if (values.allowance.trim() !== '' && (isNaN(Number(values.allowance)) || Number(values.allowance) < 0)) { showToast('error', 'Phụ cấp không hợp lệ'); return false; }
+      if (!values.bank_account.trim()) { showToast('error', 'Vui lòng nhập số tài khoản ngân hàng'); return false; }
+      if (!values.bank_name.trim()) { showToast('error', 'Vui lòng nhập tên ngân hàng'); return false; }
+      if (!values.bank_account_holder.trim()) { showToast('error', 'Vui lòng nhập tên chủ tài khoản'); return false; }
+    }
     return true;
   };
 
@@ -472,7 +475,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
         values.date_of_birth && !getFieldError('date_of_birth', values.date_of_birth) &&
         values.gender &&
         values.candidate_phone.trim() && /^\d{10}$/.test(values.candidate_phone.trim()) &&
-        values.start_date && !getFieldError('start_date', values.start_date) &&
         values.education_level && values.ethnicity &&
         values.birth_place.trim() && values.nationality.trim() &&
         values.facebook_link.trim() && !getFieldError('facebook_link', values.facebook_link));
@@ -495,6 +497,10 @@ export const EmployeeOnboardingForm: React.FC = () => {
         values.emergency_contact_occupation.trim() &&
         values.emergency_contact_address.trim());
     }
+    if (step === 5) {
+      return !!(values.salary.trim() && !isNaN(Number(values.salary)) && Number(values.salary) > 0 &&
+        values.bank_account.trim() && values.bank_name.trim() && values.bank_account_holder.trim());
+    }
     return true;
   };
 
@@ -510,8 +516,8 @@ export const EmployeeOnboardingForm: React.FC = () => {
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       showToast('error', 'File CCCD phải là định dạng PDF'); e.target.value = ''; return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('error', 'File CCCD không được vượt quá 5MB'); e.target.value = ''; return;
+    if (file.size > 15 * 1024 * 1024) {
+      showToast('error', 'File CCCD không được vượt quá 15MB'); e.target.value = ''; return;
     }
     setCitizenIdFile(file);
   };
@@ -536,7 +542,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
 
   // ===== SUBMIT =====
   const handleSubmit = async () => {
-    for (let step = 1; step <= 5; step++) {
+    for (let step = 1; step <= 6; step++) {
       if (!validateStep(step)) return;
     }
     if (!citizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return; }
@@ -558,7 +564,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('nationality', values.nationality);
       ap('probation_rate', values.probation_rate);
       ap('facebook_link', values.facebook_link);
-      ap('start_date', values.start_date);
       ap('company_unit', values.company_unit);
       ap('region', values.region);
       ap('block', values.block);
@@ -593,6 +598,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('bank_account', values.bank_account);
       ap('bank_name', values.bank_name);
       ap('bank_branch', values.bank_branch);
+      ap('bank_account_holder', values.bank_account_holder);
 
       const res = await fetch(
         `${API_BASE_URL}/api-hrm/employee-onboarding-form/submit/${token}/`,
@@ -681,10 +687,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
             <SF label="Giới tính" value={values.gender} onChange={handleSelect('gender')}
               options={[{ value: 'M', label: 'Nam' }, { value: 'F', label: 'Nữ' }, { value: 'O', label: 'Khác' }]} required />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TF label="Số điện thoại" value={values.candidate_phone} onChange={handleChange('candidate_phone')} required placeholder="0123456789" error={getFieldError('candidate_phone', values.candidate_phone)} maxLength={10} />
-            <TF label="Ngày bắt đầu" value={values.start_date} onChange={handleChange('start_date')} type="date" required error={getFieldError('start_date', values.start_date)} />
-          </div>
+          <TF label="Số điện thoại" value={values.candidate_phone} onChange={handleChange('candidate_phone')} required placeholder="0123456789" error={getFieldError('candidate_phone', values.candidate_phone)} maxLength={10} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SF label="Trình độ học vấn" value={values.education_level} onChange={handleSelect('education_level')} options={EDUCATION_LEVEL_OPTIONS} required />
             <SF label="Dân tộc" value={values.ethnicity} onChange={handleSelect('ethnicity')} options={ETHNICITY_OPTIONS} searchable />
@@ -745,7 +748,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   {citizenIdFile
                     ? <p className="text-sm text-green-700 font-medium truncate">{citizenIdFile.name}</p>
-                    : <p className="text-sm text-gray-500">Nhấn để chọn file PDF (tối đa 5MB)</p>
+                    : <p className="text-sm text-gray-500">Nhấn để chọn file PDF (tối đa 15MB)</p>
                   }
                 </div>
                 <input type="file" accept=".pdf" onChange={handleFileChange} className="hidden" />
@@ -839,8 +842,8 @@ export const EmployeeOnboardingForm: React.FC = () => {
         <div className="flex-1 flex flex-col gap-5 justify-evenly">
           <h3 className="text-3xl font-bold text-gray-900 text-center">Thông tin lương</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TF label="Mức lương cơ bản (VNĐ)" value={values.salary} onChange={handleChange('salary')} type="number" placeholder="10000000" />
-            <TF label="Phụ cấp (VNĐ)" value={values.allowance} onChange={handleChange('allowance')} type="number" placeholder="2000000" />
+            <TF label="Mức lương cơ bản (VNĐ)" value={values.salary} onChange={handleChange('salary')} type="number" placeholder="10000000" required />
+            <TF label="Phụ cấp (VNĐ)" value={values.allowance} onChange={handleChange('allowance')} type="number" placeholder="0" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SF label="Số tháng thử việc" value={values.probation_period_months} onChange={handleSelect('probation_period_months')} options={[
@@ -860,9 +863,10 @@ export const EmployeeOnboardingForm: React.FC = () => {
           <div className="border border-gray-200 rounded-xl p-4 space-y-4">
             <p className="text-base font-semibold text-gray-700">Thông tin ngân hàng</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <TF label="Số tài khoản" value={values.bank_account} onChange={handleChange('bank_account')} placeholder="123456789012" />
-              <TF label="Tên ngân hàng" value={values.bank_name} onChange={handleChange('bank_name')} placeholder="ACB, Vietcombank, Techcombank..." />
+              <TF label="Số tài khoản" value={values.bank_account} onChange={handleChange('bank_account')} placeholder="123456789012" required />
+              <TF label="Tên ngân hàng" value={values.bank_name} onChange={handleChange('bank_name')} placeholder="ACB, Vietcombank, Techcombank..." required />
             </div>
+            <TF label="Tên chủ tài khoản" value={values.bank_account_holder} onChange={handleChange('bank_account_holder')} placeholder="NGUYEN VAN A" required />
             <div>
               <TF label="Chi nhánh" value={values.bank_branch} onChange={handleChange('bank_branch')} placeholder="Chi nhánh Hà Nội, TP.HCM..." />
               <p className="text-xs text-gray-400 mt-1 px-1">* Trong trường hợp không phải Ngân hàng ACB</p>
@@ -889,7 +893,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
             ['Ngày sinh', values.date_of_birth ? new Date(values.date_of_birth).toLocaleDateString('vi-VN') : null],
             ['Giới tính', values.gender === 'M' ? 'Nam' : values.gender === 'F' ? 'Nữ' : values.gender === 'O' ? 'Khác' : null],
             ['Số điện thoại', values.candidate_phone],
-            ['Ngày bắt đầu', values.start_date ? new Date(values.start_date).toLocaleDateString('vi-VN') : null],
             ['Trình độ học vấn', values.education_level],
             ['Dân tộc', values.ethnicity],
             ['Nơi khai sinh', values.birth_place],
@@ -938,6 +941,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
             ['Tỉ lệ thử việc', ({ OPTION_1: '85% → 85%', OPTION_2: '85% → 100%', OPTION_3: '100% → 100%' } as Record<string, string>)[values.probation_rate] || null],
             ['Ngân hàng', values.bank_name],
             ['Số tài khoản', values.bank_account],
+            ['Tên chủ tài khoản', values.bank_account_holder],
             ['Chi nhánh', values.bank_branch],
           ]},
         ] as { title: string; color: string; fields: [string, string | null][] }[];
