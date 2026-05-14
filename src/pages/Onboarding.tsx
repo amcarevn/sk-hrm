@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { positionsAPI, employeesAPI } from '../utils/api';
+import { positionsAPI, employeesAPI, companyUnitsAPI } from '../utils/api';
 import {
   ArrowPathIcon,
   LinkIcon,
@@ -52,6 +52,7 @@ type CreateOnboardingForm = {
   gender: 'M' | 'F' | 'O';
   candidate_email: string;
   direct_manager_id: string;
+  company_unit: string;
 };
 
 type EmployeeOption = {
@@ -100,6 +101,8 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
   const [submitting, setSubmitting] = useState(false);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
+  const [companyUnits, setCompanyUnits] = useState<Array<{ id: number; name: string; prefix_code?: string; code: string }>>([]);
+  const [loadingUnits, setLoadingUnits] = useState(true);
   const [feedback, setFeedback] = useState<{ open: boolean; variant: FeedbackVariant; title: string; message?: string; onCloseCb?: () => void }>({ open: false, variant: 'info', title: '' });
   const showFeedback = (variant: FeedbackVariant, title: string, message?: string, onCloseCb?: () => void) =>
     setFeedback({ open: true, variant, title, message, onCloseCb });
@@ -114,6 +117,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
     gender: 'M',
     candidate_email: '',
     direct_manager_id: '',
+    company_unit: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof CreateOnboardingForm, string>>>({});
 
@@ -149,7 +153,20 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
         setLoadingEmployees(false);
       }
     };
+    const fetchUnits = async () => {
+      setLoadingUnits(true);
+      try {
+        const res = await companyUnitsAPI.list({ page_size: 100, active_only: true });
+        setCompanyUnits(res.results ?? []);
+      } catch (err) {
+        console.error('Failed to load company units:', err);
+      } finally {
+        setLoadingUnits(false);
+      }
+    };
+
     fetchManagers();
+    fetchUnits();
   }, []);
 
   const validate = (): boolean => {
@@ -160,6 +177,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
     if (!form.candidate_email.trim()) errs.candidate_email = 'Vui lòng nhập email';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.candidate_email))
       errs.candidate_email = 'Email không hợp lệ';
+    if (!form.company_unit) errs.company_unit = 'Vui lòng chọn đơn vị làm việc';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -177,6 +195,9 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
       };
       if (form.direct_manager_id) {
         payload.direct_manager_id = parseInt(form.direct_manager_id);
+      }
+      if (form.company_unit) {
+        payload.company_unit = parseInt(form.company_unit);
       }
       await onboardingService.create(payload);
       showFeedback('success', 'Tạo quy trình thành công', undefined, onSuccess);
@@ -289,6 +310,20 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
             />
           )}
 
+          {field('company_unit', 'Đơn vị làm việc', true,
+            <SelectBox
+              label=""
+              value={form.company_unit}
+              options={companyUnits.map((u) => ({ 
+                value: String(u.id), 
+                label: `${u.name} (${u.prefix_code || u.code || 'N/A'})` 
+              }))}
+              onChange={(v) => setForm({ ...form, company_unit: v })}
+              searchable
+              placeholder={loadingUnits ? 'Đang tải...' : 'Chọn đơn vị làm việc'}
+            />
+          )}
+
           {field('direct_manager_id', 'Quản lý trực tiếp', false,
             <SelectBox
               label=""
@@ -313,7 +348,8 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
           {(() => {
             const nameValid = form.candidate_name.trim().length > 0 && /^[a-zA-ZÀ-ỹ\s]+$/.test(form.candidate_name.trim()) && form.candidate_name.trim().length <= 50;
             const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.candidate_email.trim());
-            const isFormValid = nameValid && emailValid && Object.keys(errors).length === 0;
+            const unitValid = !!form.company_unit;
+            const isFormValid = nameValid && emailValid && unitValid && Object.keys(errors).length === 0;
             return (
               <button
                 onClick={handleSubmit}
@@ -354,6 +390,7 @@ const Onboarding: React.FC = () => {
   const [onboardings, setOnboardings] = useState<OnboardingItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
   const [tokenLoading, setTokenLoading] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [feedback, setFeedback] = useState<{ open: boolean; variant: FeedbackVariant; title: string; message?: string }>({ open: false, variant: 'info', title: '' });
@@ -439,6 +476,24 @@ const Onboarding: React.FC = () => {
       showFeedback('error', 'Tạo link thất bại', msg);
     } finally {
       setTokenLoading(null);
+    }
+  };
+
+  const handleSyncLegacyTasks = async () => {
+    if (!confirm('Bạn có chắc muốn quét & tự động tạo 4 bước Task mặc định cho toàn bộ hồ sơ cũ? Thao tác này sẽ đồng bộ hóa kiến trúc dữ liệu lịch sử ngay lập tức.')) {
+      return;
+    }
+    setSyncLoading(true);
+    try {
+      const res = await onboardingService.syncLegacyTasks();
+      showFeedback('success', 'Đồng bộ thành công', res.message);
+      await fetchOnboardings();
+    } catch (e: any) {
+      console.error(e);
+      const msg = e.response?.data?.message || 'Có lỗi xảy ra khi đồng bộ dữ liệu.';
+      showFeedback('error', 'Lỗi đồng bộ', msg);
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -691,10 +746,22 @@ const Onboarding: React.FC = () => {
             </button>
           )}
 
+          {isHR && (
+            <button
+              onClick={handleSyncLegacyTasks}
+              disabled={syncLoading}
+              className="ml-auto px-3 py-2 text-sm bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 rounded-lg flex items-center gap-1.5 disabled:opacity-50 font-medium transition-all active:scale-95"
+              title="Tự động bổ sung 4 task mặc định cho người cũ và khóa Task 1 nếu đã duyệt."
+            >
+              <ArrowPathIcon className={`w-4 h-4 ${syncLoading ? 'animate-spin' : ''}`} />
+              {syncLoading ? 'Đang xử lý...' : 'Đồng bộ người cũ'}
+            </button>
+          )}
+
           <button
             onClick={() => fetchOnboardings()}
             disabled={loading}
-            className="ml-auto px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600 flex items-center gap-1.5 disabled:opacity-50"
+            className={`${isHR ? 'ml-0' : 'ml-auto'} px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-100 text-gray-600 flex items-center gap-1.5 disabled:opacity-50`}
           >
             <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Làm mới

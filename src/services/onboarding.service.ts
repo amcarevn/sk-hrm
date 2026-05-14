@@ -418,6 +418,16 @@ export const onboardingService = {
     return response.data;
   },
 
+  /**
+   * Admin - Đồng bộ dữ liệu quy trình cũ
+   */
+  syncLegacyTasks: async (): Promise<{ success: boolean; message: string }> => {
+    const response: AxiosResponse<{ success: boolean; message: string }> = await managementApi.post(
+      '/api-hrm/onboardings/sync-legacy-tasks/'
+    );
+    return response.data;
+  },
+
   // ========== Token & Email Actions ==========
 
   /**

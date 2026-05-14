@@ -53,6 +53,7 @@ import PositionList from './pages/PositionList';
 import PositionCreate from './pages/PositionCreate';
 import PositionEdit from './pages/PositionEdit';
 import PositionEmployees from './pages/PositionEmployees';
+import CompanyUnitList from './pages/CompanyUnitList';
 import AttendanceManagement from './pages/AttendanceManagement';
 import AttendanceUpload from './pages/AttendanceUpload';
 import AttendanceView from './pages/AttendanceView';
@@ -451,6 +452,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <EmployeeEdit />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Company Unit Management Routes */}
+          <Route
+            path="/dashboard/company-units"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CompanyUnitList />
                 </Layout>
               </ProtectedRoute>
             }
