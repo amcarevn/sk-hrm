@@ -68,6 +68,7 @@ const RANK_LABELS: Record<string, string> = {
   DIRECTOR: 'Giám đốc',
   DEPUTY_DIRECTOR: 'Phó Giám đốc',
   LEADER: 'Leader',
+  SUPERVISOR: 'Quản lý',
   MANAGER: 'Trưởng phòng',
   MANAGER_TRAINEE: 'Trưởng phòng tập sự',
   DEPUTY_MANAGER: 'Phó phòng',
