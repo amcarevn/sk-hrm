@@ -88,6 +88,7 @@ const RANK_OPTIONS = [
   { label: 'Giám đốc', value: 'DIRECTOR' },
   { label: 'Phó Giám đốc', value: 'DEPUTY_DIRECTOR' },
   { label: 'Leader', value: 'LEADER' },
+  { label: 'Quản lý', value: 'SUPERVISOR' },
   { label: 'Trưởng phòng', value: 'MANAGER' },
   { label: 'Trưởng phòng tập sự', value: 'MANAGER_TRAINEE' },
   { label: 'Phó phòng', value: 'DEPUTY_MANAGER' },
