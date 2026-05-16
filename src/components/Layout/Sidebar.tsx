@@ -30,6 +30,7 @@ import {
   GiftIcon,
   MagnifyingGlassIcon,
   MegaphoneIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 
 // Define interface for navigation items
@@ -216,6 +217,18 @@ const navigationItems: NavigationItem[] = [
         name: 'Cấu hình tính lương',
         href: '/dashboard/salary-management/config',
         icon: CurrencyDollarIcon,
+        roles: ['ADMIN'],
+      },
+      {
+        name: 'Dữ liệu',
+        href: '/dashboard/salary-management/penalty',
+        icon: ExclamationCircleIcon,
+        roles: ['ADMIN'],
+      },
+      {
+        name: 'Cấu hình tăng ca',
+        href: '/dashboard/salary-management/overtime',
+        icon: ClockIcon,
         roles: ['ADMIN'],
       },
     ],
