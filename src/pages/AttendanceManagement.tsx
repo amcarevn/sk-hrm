@@ -180,6 +180,8 @@ const AttendanceManagement: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
   const [selectedContext, setSelectedContext] = useState<ContextType>(null);
   const [selectedReason, setSelectedReason] = useState<ReasonType>(null);
+  const [businessTripShift, setBusinessTripShift] = useState<'morning' | 'afternoon' | 'full_day' | null>(null);
+  const [firstDayShift, setFirstDayShift] = useState<'morning' | 'afternoon' | 'full_day' | null>(null);
   const [formNote, setFormNote] = useState('');
 
   // Overtime (Tăng ca) state
@@ -382,7 +384,9 @@ const AttendanceManagement: React.FC = () => {
   // Handle context selection
   const handleContextSelect = (context: ContextType) => {
     setSelectedContext(context);
-    setSelectedReason(null); // Reset reason when context changes
+    setSelectedReason(null);
+    setBusinessTripShift(null);
+    setFirstDayShift(null);
     // Move to step 2 for contexts that have sub-reasons (including monthly_leave now)
     if (context && (context === 'explanation' || context === 'registration' || context === 'online_work' || context === 'monthly_leave')) {
       setCurrentStep(2);
@@ -392,6 +396,8 @@ const AttendanceManagement: React.FC = () => {
   // Handle reason selection
   const handleReasonSelect = (reason: ReasonType) => {
     setSelectedReason(reason);
+    if (reason !== 'business_trip') setBusinessTripShift(null);
+    if (reason !== 'first_day') setFirstDayShift(null);
     // Set overtime end time to checkout time when selecting overtime only
     if (
       reason === 'overtime' &&
@@ -1045,11 +1051,38 @@ const AttendanceManagement: React.FC = () => {
         return;
       }
 
+      // Validate business trip shift selection
+      if (selectedReason === 'business_trip' && !businessTripShift) {
+        showNotify('error', 'Thiếu thông tin', 'Vui lòng chọn ca (sáng/chiều/cả ngày) cho đơn công tác');
+        setIsSubmitting(false);
+        return;
+      }
+      if (selectedReason === 'first_day' && !firstDayShift) {
+        showNotify('error', 'Thiếu thông tin', 'Vui lòng chọn ca (sáng/chiều/cả ngày) cho đơn ngày đầu đi làm');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Construct reason string
       let reasonLabel = '';
       if (selectedContext === 'explanation') {
-        reasonLabel =
-          explanationReasons.find((r) => r.id === selectedReason)?.label || '';
+        if (selectedReason === 'business_trip') {
+          const btShiftMap: Record<string, string> = {
+            morning: 'Đi công tác ca sáng',
+            afternoon: 'Đi công tác ca chiều',
+            full_day: 'Đi công tác cả ngày',
+          };
+          reasonLabel = btShiftMap[businessTripShift || ''] || 'Đi công tác';
+        } else if (selectedReason === 'first_day') {
+          const fdShiftMap: Record<string, string> = {
+            morning: 'Ngày đầu đi làm ca sáng',
+            afternoon: 'Ngày đầu đi làm ca chiều',
+            full_day: 'Ngày đầu đi làm cả ngày',
+          };
+          reasonLabel = fdShiftMap[firstDayShift || ''] || 'Ngày đầu đi làm';
+        } else {
+          reasonLabel = explanationReasons.find((r) => r.id === selectedReason)?.label || '';
+        }
       } else if (selectedContext === 'registration') {
         reasonLabel =
           registrationReasons.find((r) => r.id === selectedReason)?.label || '';
@@ -1083,6 +1116,12 @@ const AttendanceManagement: React.FC = () => {
       let expectedStatus = 'PRESENT';
       if (selectedContext === 'monthly_leave' || selectedContext === 'online_work') {
         expectedStatus = (selectedReason === 'full_day' || selectedReason === 'checkpage') ? 'ABSENT' : 'HALF_DAY';
+      } else if (selectedReason === 'business_trip') {
+        if (businessTripShift === 'full_day') expectedStatus = 'ABSENT';
+        else if (businessTripShift === 'morning' || businessTripShift === 'afternoon') expectedStatus = 'HALF_DAY';
+      } else if (selectedReason === 'first_day') {
+        if (firstDayShift === 'full_day') expectedStatus = 'ABSENT';
+        else if (firstDayShift === 'morning' || firstDayShift === 'afternoon') expectedStatus = 'HALF_DAY';
       }
 
       let result;
@@ -2583,7 +2622,7 @@ const AttendanceManagement: React.FC = () => {
                                             Ca: {rawReason.toLowerCase().includes('sáng') ? 'Sáng' : rawReason.toLowerCase().includes('chiều') ? 'Chiều' : 'Cả ngày'}
                                           </p>
                                           {rawReason.includes(':') && (
-                                            <p>Nội dung: {rawReason.split(':').slice(1).join(':').trim()}</p>
+                                            <p>{rawReason.split(':').slice(1).join(':').trim()}</p>
                                           )}
                                         </>
                                       ) : (
@@ -2607,7 +2646,7 @@ const AttendanceManagement: React.FC = () => {
                                             </div>
                                           )}
                                           {cleanedReason && (
-                                            <p className="text-gray-900 font-medium">Nội dung: {cleanedReason}</p>
+                                            <p className="text-gray-900 font-medium">{cleanedReason}</p>
                                           )}
                                         </>
                                       )}
@@ -2697,14 +2736,12 @@ const AttendanceManagement: React.FC = () => {
                                                   : (rawReason.toLowerCase().includes('checkpage') ? 'CheckPage' : (rawReason.toLowerCase().includes('sáng') ? 'Sáng' : rawReason.toLowerCase().includes('chiều') ? 'Chiều' : 'Cả ngày'))}
                                            </p>
                                            {cleanedReason && (
-                                             <p>Nội dung: {cleanedReason}</p>
+                                             <p>{cleanedReason}</p>
                                            )}
                                          </>
                                        ) : (
                                          cleanedReason && (
-                                           <p>
-                                             Nội dung: {cleanedReason}
-                                           </p>
+                                           <p>{cleanedReason}</p>
                                          )
                                        )}
                                       {ev.data?.status && ev.data.status !== 'APPROVED' && (
@@ -3234,6 +3271,80 @@ const AttendanceManagement: React.FC = () => {
                           </div>
                         </div>
                       )}
+
+                    {/* === Shift Selection for Business Trip === */}
+                    {selectedContext === 'explanation' && selectedReason === 'business_trip' && (
+                      <div className="space-y-3 mb-4 animate-fadeIn">
+                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                          Chọn ca
+                        </h3>
+                        <div className="flex flex-wrap gap-3">
+                          {[
+                            { id: 'morning' as const, label: 'Ca sáng' },
+                            { id: 'afternoon' as const, label: 'Ca chiều' },
+                            { id: 'full_day' as const, label: 'Cả ngày' },
+                          ].map((shift) => {
+                            const isSelected = businessTripShift === shift.id;
+                            return (
+                              <button
+                                key={shift.id}
+                                type="button"
+                                onClick={() => setBusinessTripShift(shift.id)}
+                                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border-2 transition-all duration-150 ${isSelected
+                                  ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm'
+                                  : 'border-dashed border-indigo-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                                }`}
+                              >
+                                {renderIcon('briefcase', isSelected)}
+                                {shift.label}
+                                {isSelected && (
+                                  <svg className="w-4 h-4 ml-2 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* === Shift Selection for First Day === */}
+                    {selectedContext === 'explanation' && selectedReason === 'first_day' && (
+                      <div className="space-y-3 mb-4 animate-fadeIn">
+                        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                          Chọn ca
+                        </h3>
+                        <div className="flex flex-wrap gap-3">
+                          {[
+                            { id: 'morning' as const, label: 'Ca sáng' },
+                            { id: 'afternoon' as const, label: 'Ca chiều' },
+                            { id: 'full_day' as const, label: 'Cả ngày' },
+                          ].map((shift) => {
+                            const isSelected = firstDayShift === shift.id;
+                            return (
+                              <button
+                                key={shift.id}
+                                type="button"
+                                onClick={() => setFirstDayShift(shift.id)}
+                                className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border-2 transition-all duration-150 ${isSelected
+                                  ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm'
+                                  : 'border-dashed border-indigo-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                                }`}
+                              >
+                                {renderIcon('calendar', isSelected)}
+                                {shift.label}
+                                {isSelected && (
+                                  <svg className="w-4 h-4 ml-2 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {/* === Time Info for Late/Early Leave === */}
                     {selectedContext === 'explanation' &&
