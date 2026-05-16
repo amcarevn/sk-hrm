@@ -223,6 +223,8 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; msg: string } | null>(null);
   const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
   const [vneidScreenshotFile, setVneidScreenshotFile] = useState<File | null>(null);
+  const [hasCitizenIdFile, setHasCitizenIdFile] = useState(false);
+  const [hasVneidScreenshot, setHasVneidScreenshot] = useState(false);
   const [workType, setWorkType] = useState('');
   const [companyUnits, setCompanyUnits] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -298,9 +300,52 @@ export const EmployeeOnboardingForm: React.FC = () => {
         setOnboardingData(data.data);
         setValues((v) => ({
           ...v,
-          candidate_name: data.data.candidate_name,
-          candidate_email: data.data.candidate_email,
+          candidate_name: data.data.candidate_name || '',
+          candidate_email: data.data.candidate_email || '',
+          candidate_phone: data.data.candidate_phone || '',
+          date_of_birth: data.data.date_of_birth || '',
+          gender: data.data.gender === 'MALE' ? 'M' : data.data.gender === 'FEMALE' ? 'F' : (data.data.gender || 'M'),
+          education_level: data.data.education_level || '',
+          facebook_link: data.data.facebook_link || '',
+          region: data.data.region || '',
+          block: data.data.block || '',
+          sub_department: data.data.sub_department || '',
+          section: data.data.section || '',
+          position: data.data.position || '',
+          job_rank: data.data.job_rank || '',
+          ethnicity: data.data.ethnicity || '',
+          birth_place: data.data.birth_place || '',
+          nationality: data.data.nationality || '',
+          probation_rate: data.data.probation_rate || '',
+          doctor_team: data.data.doctor_team || '',
+          work_form: data.data.work_form || '',
+          work_location: data.data.work_location || '',
+          company_unit: data.data.company_unit || '',
+          citizen_id: data.data.citizen_id || '',
+          citizen_id_issue_date: data.data.citizen_id_issue_date || '',
+          citizen_id_issue_place: data.data.citizen_id_issue_place || '',
+          old_id_number: data.data.old_id_number || '',
+          permanent_address: data.data.permanent_address || '',
+          current_address: data.data.current_address || '',
+          social_insurance_number: data.data.social_insurance_number || '',
+          tax_code: data.data.tax_code || '',
+          marital_status: data.data.marital_status || 'SINGLE',
+          emergency_contact_name: data.data.emergency_contact_name || '',
+          emergency_contact_relationship: data.data.emergency_contact_relationship || '',
+          emergency_contact_phone: data.data.emergency_contact_phone || '',
+          emergency_contact_dob: data.data.emergency_contact_dob || '',
+          emergency_contact_occupation: data.data.emergency_contact_occupation || '',
+          emergency_contact_address: data.data.emergency_contact_address || '',
+          salary: data.data.salary ? String(Math.floor(Number(data.data.salary))) : '',
+          allowance: data.data.allowance ? String(Math.floor(Number(data.data.allowance))) : '',
+          probation_period_months: data.data.probation_period_months ? String(data.data.probation_period_months) : '2',
+          bank_account: data.data.bank_account || '',
+          bank_name: data.data.bank_name || '',
+          bank_branch: data.data.bank_branch || '',
+          bank_account_holder: data.data.bank_account_holder || '',
         }));
+        setHasCitizenIdFile(!!data.data.has_citizen_id_file);
+        setHasVneidScreenshot(!!data.data.has_vneid_screenshot);
       } catch {
         setPageError('Không thể tải thông tin. Vui lòng kiểm tra lại link.');
       } finally {
@@ -417,8 +462,8 @@ export const EmployeeOnboardingForm: React.FC = () => {
     if (step === 3) {
       if (!values.citizen_id.trim()) { showToast('error', 'Vui lòng nhập số CCCD'); return false; }
       if (!/^\d{12}$/.test(values.citizen_id.trim())) { showToast('error', 'Số CCCD phải có đúng 12 chữ số'); return false; }
-      if (!citizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return false; }
-      if (!vneidScreenshotFile) { showToast('error', 'Vui lòng upload ảnh chụp màn hình thông tin VNeID'); return false; }
+      if (!citizenIdFile && !hasCitizenIdFile) { showToast('error', 'Vui lòng upload file CCCD (PDF)'); return false; }
+      if (!vneidScreenshotFile && !hasVneidScreenshot) { showToast('error', 'Vui lòng upload ảnh chụp màn hình thông tin VNeID'); return false; }
       if (!values.citizen_id_issue_date) { showToast('error', 'Vui lòng chọn ngày cấp CCCD'); return false; }
       {
         const issueDate = new Date(values.citizen_id_issue_date);
@@ -484,7 +529,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
         values.position && values.job_rank && values.work_form && values.work_location);
     }
     if (step === 2) {
-      return !!(values.citizen_id.trim() && citizenIdFile && vneidScreenshotFile &&
+      return !!(values.citizen_id.trim() && (citizenIdFile || hasCitizenIdFile) && (vneidScreenshotFile || hasVneidScreenshot) &&
         values.citizen_id_issue_date && values.citizen_id_issue_place.trim());
     }
     if (step === 3) {
@@ -743,12 +788,14 @@ export const EmployeeOnboardingForm: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-1">File CCCD (2 mặt - PDF) <span className="text-red-500">*</span></p>
               <label className={`flex items-center gap-3 w-full border-2 border-dashed rounded-lg px-4 py-3 cursor-pointer transition-colors
-                ${citizenIdFile ? 'border-green-400 bg-green-50' : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'}`}>
-                <span className="text-2xl">{citizenIdFile ? '✅' : '📄'}</span>
+                ${(citizenIdFile || hasCitizenIdFile) ? 'border-green-400 bg-green-50' : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'}`}>
+                <span className="text-2xl">{(citizenIdFile || hasCitizenIdFile) ? '✅' : '📄'}</span>
                 <div className="flex-1 min-w-0">
                   {citizenIdFile
                     ? <p className="text-sm text-green-700 font-medium truncate">{citizenIdFile.name}</p>
-                    : <p className="text-sm text-gray-500">Nhấn để chọn file PDF (tối đa 15MB)</p>
+                    : hasCitizenIdFile
+                      ? <p className="text-sm text-green-700 font-medium truncate">Đã nộp CCCD trước đó (nhấn chọn tệp mới để đổi)</p>
+                      : <p className="text-sm text-gray-500">Nhấn để chọn file PDF (tối đa 15MB)</p>
                   }
                 </div>
                 <input type="file" accept=".pdf" onChange={handleFileChange} className="hidden" />
@@ -757,12 +804,14 @@ export const EmployeeOnboardingForm: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-1">Ảnh VNeID <span className="text-red-500">*</span></p>
               <label className={`flex items-center gap-3 w-full border-2 border-dashed rounded-lg px-4 py-3 cursor-pointer transition-colors
-                ${vneidScreenshotFile ? 'border-green-400 bg-green-50' : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'}`}>
-                <span className="text-2xl">{vneidScreenshotFile ? '✅' : '🖼️'}</span>
+                ${(vneidScreenshotFile || hasVneidScreenshot) ? 'border-green-400 bg-green-50' : 'border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50'}`}>
+                <span className="text-2xl">{(vneidScreenshotFile || hasVneidScreenshot) ? '✅' : '🖼️'}</span>
                 <div className="flex-1 min-w-0">
                   {vneidScreenshotFile
                     ? <p className="text-sm text-green-700 font-medium truncate">{vneidScreenshotFile.name}</p>
-                    : <p className="text-sm text-gray-500">Nhấn để chọn ảnh hoặc PDF (JPG, PNG, PDF...)</p>
+                    : hasVneidScreenshot
+                      ? <p className="text-sm text-green-700 font-medium truncate">Đã nộp ảnh trước đó (nhấn chọn tệp mới để đổi)</p>
+                      : <p className="text-sm text-gray-500">Nhấn để chọn ảnh hoặc PDF (JPG, PNG, PDF...)</p>
                   }
                 </div>
                 <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,.heic,.heif,application/pdf" onChange={handleVneidScreenshotChange} className="hidden" />

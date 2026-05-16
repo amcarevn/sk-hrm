@@ -387,7 +387,7 @@ const EmployeeEdit: React.FC = () => {
 
   const loadCompanyUnits = async () => {
     try {
-      const response = await companyUnitsAPI.list({ page_size: 100 });
+      const response = await companyUnitsAPI.list({ page_size: 100, active_only: true });
       setCompanyUnits(Array.isArray(response) ? response : (response.results || []));
     } catch (err) { console.error('Failed to load company units:', err); }
   };
@@ -419,12 +419,16 @@ const EmployeeEdit: React.FC = () => {
         is_hr: formData.is_hr,
       };
 
-      // Helper: gửi field kể cả khi rỗng — '' → null để BE có thể clear nullable field
+      // Helper cho text/string fields (blank=True): gửi '' khi rỗng, không gửi null
       const add = (key: string, val: any) => {
-        if (val !== undefined) payload[key] = val === '' ? null : val;
+        if (val !== undefined) payload[key] = val;
+      };
+      // Helper cho date fields (null=True, blank=True): gửi null khi rỗng để BE có thể clear
+      const addDate = (key: string, displayDate: string) => {
+        payload[key] = toApiDate(displayDate) || null;
       };
 
-      add('date_of_birth', toApiDate(formData.date_of_birth));
+      addDate('date_of_birth', formData.date_of_birth);
       add('phone_number', formData.phone_number?.trim());
       add('personal_email', formData.personal_email?.trim());
       add('ethnicity', formData.ethnicity?.trim());
@@ -432,8 +436,8 @@ const EmployeeEdit: React.FC = () => {
       add('marital_status', formData.marital_status);
       add('facebook_link', formData.facebook_link?.trim());
 
-      add('start_date', toApiDate(formData.start_date));
-      add('end_date', toApiDate(formData.end_date));
+      addDate('start_date', formData.start_date);
+      addDate('end_date', formData.end_date);
       add('position_id', formData.position_id);
       add('department_id', formData.department_id);
       if (formData.manager_id !== undefined) payload['manager_id'] = formData.manager_id;
@@ -455,14 +459,14 @@ const EmployeeEdit: React.FC = () => {
         };
         payload['extra_info'] = JSON.stringify(nextExtra);
       }
-      add('official_start_date', toApiDate(formData.official_start_date));
+      addDate('official_start_date', formData.official_start_date);
       add('education_level', formData.education_level);
 
       add('termination_reason', formData.termination_reason?.trim());
       add('employment_status_notes', formData.employment_status_notes?.trim());
 
       add('cccd_number', formData.cccd_number?.trim());
-      add('cccd_issue_date', toApiDate(formData.cccd_issue_date));
+      addDate('cccd_issue_date', formData.cccd_issue_date);
       add('cccd_issue_place', formData.cccd_issue_place);
       add('old_id_number', formData.old_id_number?.trim());
       add('birth_place', formData.birth_place?.trim());
@@ -482,10 +486,10 @@ const EmployeeEdit: React.FC = () => {
       payload['allowance'] = formData.allowance !== '' ? Number(formData.allowance) : null;
       add('contract_type', formData.contract_type);
       payload['probation_months'] = formData.probation_months !== '' ? Number(formData.probation_months) : null;
-      add('probation_end_date', toApiDate(formData.probation_end_date));
+      addDate('probation_end_date', formData.probation_end_date);
       add('probation_rate', formData.probation_rate);
-      add('contract_start_date', toApiDate(formData.contract_start_date));
-      add('contract_end_date', toApiDate(formData.contract_end_date));
+      addDate('contract_start_date', formData.contract_start_date);
+      addDate('contract_end_date', formData.contract_end_date);
       add('revenue_percentage', formData.revenue_percentage);
       add('profit_percentage', formData.profit_percentage);
 
@@ -499,7 +503,7 @@ const EmployeeEdit: React.FC = () => {
       add('emergency_contact_name', formData.emergency_contact_name?.trim());
       add('emergency_contact_relationship', formData.emergency_contact_relationship?.trim());
       add('emergency_contact_phone', formData.emergency_contact_phone?.trim());
-      add('emergency_contact_dob', toApiDate(formData.emergency_contact_dob));
+      addDate('emergency_contact_dob', formData.emergency_contact_dob);
       add('emergency_contact_occupation', formData.emergency_contact_occupation?.trim());
       add('emergency_contact_address', formData.emergency_contact_address?.trim());
 
@@ -703,7 +707,13 @@ const EmployeeEdit: React.FC = () => {
               label="Cấp bậc"
               value={formData.rank}
               placeholder="Chọn cấp bậc"
-              options={[{ value: '', label: 'Không có' }, ...RANK_OPTIONS]}
+              options={[
+                { value: '', label: 'Không có' },
+                ...RANK_OPTIONS,
+                ...(formData.rank && !RANK_OPTIONS.some(o => o.value === formData.rank)
+                  ? [{ value: formData.rank, label: formData.rank }]
+                  : []),
+              ]}
               onChange={(v) => handleSelect('rank', v)}
             />
 

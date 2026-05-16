@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { API_BASE_URL } from '../utils/api';
+import { createPortal } from 'react-dom';
 import { managementApi } from '../utils/api';
 import { companyUnitsAPI } from '../utils/api/hrm.api';
 import type { CompanyUnit } from '../utils/api/types';
@@ -256,37 +256,37 @@ export default function ContractTemplates() {
           <p className="text-gray-400 text-sm mt-1">Nhấn "Thêm template" để tạo mới</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+          <table className="w-full min-w-[800px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên template</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại hợp đồng</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Đơn vị</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Người tạo</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày tạo</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên template</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại hợp đồng</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Đơn vị</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Trạng thái</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Người tạo</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Ngày tạo</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {templates.map(t => (
                 <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <DocumentTextIcon className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                      <div className="text-left">
+                  <td className="px-4 py-3">
+                    <div className="flex items-start gap-2">
+                      <DocumentTextIcon className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                      <div>
                         <p className="text-sm font-medium text-gray-900">{t.name}</p>
                         {t.description && <p className="text-xs text-gray-400 mt-0.5">{t.description}</p>}
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-4 py-3">
                     <span className="text-sm text-gray-700">{t.contract_type_display}</span>
                   </td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-500">{t.company_unit_name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{t.company_unit_name || '—'}</td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                       t.status === 'ACTIVE'
                         ? 'bg-green-100 text-green-700'
                         : 'bg-gray-100 text-gray-500'
@@ -294,30 +294,30 @@ export default function ContractTemplates() {
                       {t.status === 'ACTIVE' ? '● Đang dùng' : '● Không dùng'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-500">{t.created_by_name || '—'}</td>
-                  <td className="px-4 py-3 text-center text-sm text-gray-500">
+                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">{t.created_by_name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                     {new Date(t.created_at).toLocaleDateString('vi-VN')}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 justify-center flex-wrap">
+                    <div className="flex items-center gap-1 justify-center flex-nowrap">
                       <button
                         onClick={() => setDetailTemplate(t)}
-                        className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded"
+                        className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded whitespace-nowrap"
                       >Chi tiết</button>
                       <button
                         onClick={() => openEdit(t)}
-                        className="px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50 rounded"
+                        className="px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-50 rounded whitespace-nowrap"
                       >Sửa</button>
                       {t.file && (
                         <a
                           href={t.file_url || t.file}
                           download
-                          className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded"
+                          className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded whitespace-nowrap"
                         >Tải file</a>
                       )}
                       <button
                         onClick={() => handleToggleStatus(t)}
-                        className={`px-2 py-1 text-xs rounded ${
+                        className={`px-2 py-1 text-xs rounded whitespace-nowrap ${
                           t.status === 'ACTIVE'
                             ? 'text-orange-600 hover:bg-orange-50'
                             : 'text-green-600 hover:bg-green-50'
@@ -328,7 +328,7 @@ export default function ContractTemplates() {
                       <button
                         onClick={() => handleDelete(t.id)}
                         disabled={deletingId === t.id}
-                        className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+                        className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded disabled:opacity-50 whitespace-nowrap"
                       >Xóa</button>
                     </div>
                   </td>
@@ -340,16 +340,16 @@ export default function ContractTemplates() {
       )}
 
       {/* Detail Modal */}
-      {detailTemplate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+      {detailTemplate && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9997] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 flex-shrink-0">
               <h3 className="text-lg font-semibold text-gray-900">Chi tiết template</h3>
               <button onClick={() => setDetailTemplate(null)}>
                 <XMarkIcon className="w-5 h-5 text-gray-400 hover:text-gray-600" />
               </button>
             </div>
-            <div className="p-6 space-y-3">
+            <div className="p-6 space-y-3 overflow-y-auto">
               {([
                 ['Tên template', detailTemplate.name],
                 ['Loại hợp đồng', detailTemplate.contract_type_display],
@@ -377,20 +377,21 @@ export default function ContractTemplates() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Modal */}
-      {editTemplate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+      {editTemplate && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9997] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 flex-shrink-0">
               <h3 className="text-lg font-semibold text-gray-900">Sửa template hợp đồng</h3>
               <button onClick={() => setEditTemplate(null)}>
                 <XMarkIcon className="w-5 h-5 text-gray-400 hover:text-gray-600" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tên template <span className="text-red-500">*</span></label>
                 <input
@@ -455,7 +456,7 @@ export default function ContractTemplates() {
                 </select>
               </div>
             </div>
-            <div className="flex gap-3 p-6 border-t border-gray-100">
+            <div className="flex gap-3 p-6 border-t border-gray-100 flex-shrink-0">
               <button
                 onClick={() => setEditTemplate(null)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
@@ -469,20 +470,21 @@ export default function ContractTemplates() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+      {showAddModal && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9997] p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 flex-shrink-0">
               <h3 className="text-lg font-semibold text-gray-900">Thêm template hợp đồng</h3>
               <button onClick={() => setShowAddModal(false)}>
                 <XMarkIcon className="w-5 h-5 text-gray-400 hover:text-gray-600" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tên template <span className="text-red-500">*</span></label>
                 <input
@@ -548,7 +550,7 @@ export default function ContractTemplates() {
                 </select>
               </div>
             </div>
-            <div className="flex gap-3 p-6 border-t border-gray-100">
+            <div className="flex gap-3 p-6 border-t border-gray-100 flex-shrink-0">
               <button
                 onClick={() => setShowAddModal(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
@@ -564,7 +566,8 @@ export default function ContractTemplates() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

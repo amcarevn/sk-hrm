@@ -889,8 +889,8 @@ const Home: React.FC = () => {
       </a>
 
       {/* Birthday Wish Modal */}
-      {wishModal.open && wishModal.employee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      {wishModal.open && wishModal.employee && createPortal(
+        <div className="fixed inset-0 z-[9997] flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div className="flex items-center gap-3">
@@ -940,12 +940,13 @@ const Home: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Wishes List Modal */}
-      {wishListModal.open && wishListModal.employee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      {wishListModal.open && wishListModal.employee && createPortal(
+        <div className="fixed inset-0 z-[9997] flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
               <div className="flex items-center gap-3">
@@ -1015,7 +1016,8 @@ const Home: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Blocking gate: bắt buộc đọc nội quy trước khi dùng hệ thống */}
