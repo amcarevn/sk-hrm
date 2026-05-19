@@ -69,6 +69,19 @@ interface MyContract {
   created_at: string;
 }
 
+const CONTRACT_TYPE_MAP: Record<string, string> = {
+  PROBATION: 'Hợp đồng thử việc',
+  INTERN: 'Hợp đồng thực tập',
+  COLLABORATOR: 'Hợp đồng cộng tác viên',
+  ONE_YEAR: 'Hợp đồng 1 năm',
+  TWO_YEAR: 'Hợp đồng 2 năm',
+  INDEFINITE: 'Hợp đồng không xác định thời hạn',
+  SERVICE: 'Hợp đồng dịch vụ',
+  CONFIDENTIALITY: 'Cam kết bảo mật',
+  COMPANY_RULES: 'Nội quy công ty',
+  NURSING_COMMITMENT: 'Cam kết nuôi dưỡng',
+};
+
 const getDaysUntilExpiry = (endDate: string | null | undefined): number | null => {
   if (!endDate) return null;
   const today = new Date();
@@ -510,7 +523,7 @@ const Profile: React.FC = () => {
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
             Thông tin cá nhân
           </h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="mt-1 text-sm text-gray-900">
             Quản lý thông tin cá nhân và tài khoản ngân hàng
           </p>
         </div>
@@ -964,6 +977,7 @@ const Profile: React.FC = () => {
                 <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-2" />
                 <span className="text-gray-900">
                   {employee.contract_type_display ||
+                    (employee.contract_type ? CONTRACT_TYPE_MAP[employee.contract_type] : undefined) ||
                     employee.contract_type ||
                     'Chưa cập nhật'}
                 </span>
@@ -1369,19 +1383,21 @@ const Profile: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nơi cấp</label>
                 <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
-                  <span className="text-gray-900">{employee.cccd_issue_place || 'Chưa cập nhật'}</span>
+                  <span className="text-gray-900">
+                    {CITIZEN_ID_ISSUE_PLACE_OPTIONS.find(o => o.value === employee.cccd_issue_place)?.label || employee.cccd_issue_place || 'Chưa cập nhật'}
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* Nơi khai sinh — read only */}
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nơi khai sinh</label>
               <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                 <MapPinIcon className="h-5 w-5 text-gray-400 mr-2" />
                 <span className="text-gray-900">{employee.birth_place || 'Chưa cập nhật'}</span>
               </div>
-            </div>
+            </div> */}
 
             {/* Hộ khẩu thường trú — read only */}
             <div>
@@ -1780,8 +1796,9 @@ const Profile: React.FC = () => {
                         />
                       </div>
                       <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Nơi cấp</label>
                         <SelectBox<string>
-                          label="Nơi cấp"
+                          label=""
                           value={editForm.cccd_issue_place}
                           options={CITIZEN_ID_ISSUE_PLACE_OPTIONS}
                           onChange={v => handleInputChange('cccd_issue_place', v)}
