@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import  API_BASE_URL from '../utils/api';
+import API_BASE_URL, { managementApi } from '../utils/api';
+import { formatDate } from '../utils/dateUtils';
 import ContractSection from './ContractSection';
 import {
   CheckCircleIcon,
@@ -13,6 +14,9 @@ import {
   ArrowTopRightOnSquareIcon,
   PencilIcon,
   PlayIcon,
+  LinkIcon,
+  EnvelopeIcon,
+  ClipboardDocumentIcon,
 } from '@heroicons/react/24/outline';
 import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
@@ -28,6 +32,19 @@ import {
   WORK_LOCATION_OPTIONS,
 } from '../constants/onboarding';
 
+const EDUCATION_LEVEL_MAP: Record<string, string> = {
+  MASTER: 'Thạc sĩ',
+  BACHELOR: 'Cử nhân đại học',
+  ASSOCIATE: 'Cử nhân cao đẳng',
+  HIGH_SCHOOL: 'Trung cấp',
+  OTHER: 'Khác',
+};
+
+const displayEducationLevel = (value?: string | null): string => {
+  if (!value) return 'Chưa có dữ liệu';
+  return EDUCATION_LEVEL_MAP[value] ?? value;
+};
+
 // ============================================
 // TYPE DEFINITIONS
 // ============================================
@@ -37,6 +54,7 @@ type OnboardingTask = {
   name: string;
   description: string;
   task_type: string;
+  task_code: string | null;
   order: number;
   deadline: string | null;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';
@@ -105,7 +123,7 @@ type OnboardingDetail = {
   ethnicity?: string;
   nationality?: string;
   marital_status?: string;
-  company_unit?: string;
+  company_unit?: any;
   work_form?: string;
   region?: string;
   block?: string;
@@ -150,6 +168,8 @@ type OnboardingDetail = {
   citizen_id_file?: string | null;
   citizen_id_file_url?: string | null;
   vneid_screenshot_url?: string | null;
+  employee_form_url?: string | null;
+  token_status?: 'not_generated' | 'active' | 'expired' | 'completed';
   employee_info_completed?: boolean;
   employee_info_completed_at?: string | null;
 };
@@ -172,19 +192,12 @@ const WORK_FORM_LABELS: Record<string, string> = {
   PART_TIME: 'Part-time',
 };
 
-const CONTRACT_TYPE_LABELS: Record<string, string> = {
-  PROBATION: 'Thử việc',
-  DEFINITE: 'Có thời hạn',
-  INDEFINITE: 'Vô thời hạn',
-  SEASONAL: 'Theo mùa vụ',
-  PART_TIME: 'Bán thời gian',
-};
 
 const getStatusBadge = (status: string) => {
   const statusConfig = {
     DRAFT: { label: 'Nháp', color: 'bg-gray-100 text-gray-800' },
-    IN_PROGRESS: { label: 'Đang thực hiện', color: 'bg-blue-100 text-blue-800' },
-    COMPLETED: { label: 'Hoàn thành', color: 'bg-green-100 text-green-800' },
+    IN_PROGRESS: { label: 'Đang thực hiện', color: 'bg-primary-100 text-primary-700' },
+    COMPLETED: { label: 'Hoàn thành', color: 'bg-emerald-100 text-emerald-600' },
     CANCELLED: { label: 'Đã hủy', color: 'bg-red-100 text-red-800' },
   };
   const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.DRAFT;
@@ -232,14 +245,6 @@ const withCurrentOption = (
   return exists ? options : [{ value: currentValue, label: currentValue }, ...options];
 };
 
-const formatDate = (dateStr: string | null | undefined): string => {
-  if (!dateStr) return 'Chưa có dữ liệu';
-  return new Date(dateStr).toLocaleDateString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-};
 
 /** Hiển thị giá trị hoặc 'Chưa có dữ liệu', lọc cả string "NULL"/"null"/"None" */
 const safeDisplay = (value: any, fallback = 'Chưa có dữ liệu'): string => {
@@ -278,9 +283,9 @@ const EditField: React.FC<EditFieldProps> = ({
 
   const val = editData[name] ?? '';
   const error = validate && val ? validate(val) : '';
-  const baseClass = `w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-    readOnly ? 'bg-gray-50 text-gray-500 cursor-not-allowed border-gray-300 focus:ring-blue-500' :
-    error ? 'border-red-400 focus:ring-red-500/20' : 'border-gray-300 focus:ring-blue-500'
+  const baseClass = `w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+    readOnly ? 'bg-gray-50 text-gray-500 cursor-not-allowed border-gray-200 focus:ring-primary-500' :
+    error ? 'border-red-400 focus:ring-red-500/20' : 'border-gray-200 focus:ring-primary-500'
   }`;
 
   if (options) {
@@ -351,6 +356,13 @@ const OnboardingDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingDetail | null>(null);
   const [employeeProfile, setEmployeeProfile] = useState<SuperAdminEmployee | null>(null);
+  const [firstContract, setFirstContract] = useState<{
+    contract_type: string | null;
+    contract_type_display: string | null;
+    start_date: string | null;
+    end_date: string | null;
+    status: string | null;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'tasks' | 'documents' | 'contracts'>('info');
   const [previewFile, setPreviewFile] = useState<{ url: string; label: string; type: 'image' | 'pdf' } | null>(null);
   const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
@@ -416,6 +428,15 @@ const OnboardingDetail: React.FC = () => {
           console.warn('Could not load employee profile:', profileErr);
           setEmployeeProfile(null);
         }
+        try {
+          const { data } = await managementApi.get('/api-hrm/employee-contracts/', {
+            params: { onboarding_id: parseInt(id) }
+          });
+          const list = Array.isArray(data) ? data : data.results || [];
+          setFirstContract(list.length > 0 ? list[0] : null);
+        } catch {
+          setFirstContract(null);
+        }
       }
     } catch (error: any) {
       console.error('❌ FETCH DETAIL ERROR:', error);
@@ -434,9 +455,9 @@ const OnboardingDetail: React.FC = () => {
       onConfirm: async () => {
         setConfirmDialog(null);
         try {
-          const task4 = onboarding.tasks?.find(t => t.order === 4);
-          if (!task4) return;
-          await onboardingService.completeTask(task4.id, 'Quản lý trực tiếp đã xác nhận thông tin nhân viên');
+          const task1 = onboarding.tasks?.find(t => t.order === 1);
+          if (!task1) return;
+          await onboardingService.completeTask(task1.id, 'Admin đã xác nhận thông tin nhân viên điền');
           showSuccess('Đã duyệt thông tin nhân viên');
           await fetchOnboardingDetail();
         } catch (error: any) {
@@ -444,6 +465,45 @@ const OnboardingDetail: React.FC = () => {
         }
       },
     });
+  };
+
+  const [tokenLoading, setTokenLoading] = useState(false);
+
+  const handleGenerateToken = async () => {
+    if (!id) return;
+    setTokenLoading(true);
+    try {
+      await onboardingService.generateToken(parseInt(id));
+      showSuccess('Đã khởi tạo link điền thông tin cho nhân viên.');
+      await fetchOnboardingDetail();
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Không thể tạo link');
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
+  const handleCopyLink = (url: string) => {
+    if (!url) {
+      showError('Chưa có link để copy, hãy bấm tạo link mới trước.');
+      return;
+    }
+    navigator.clipboard.writeText(url)
+      .then(() => showSuccess('Đã sao chép link gửi cho nhân viên!'))
+      .catch(() => showError('Không thể tự động copy, vui lòng copy thủ công.'));
+  };
+
+  const handleSendEmail = async () => {
+    if (!id) return;
+    setTokenLoading(true);
+    try {
+      await onboardingService.sendEmployeeEmail(parseInt(id));
+      showSuccess('Đã gửi email chứa link onboarding thành công cho nhân viên.');
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Không thể gửi email');
+    } finally {
+      setTokenLoading(false);
+    }
   };
 
   const handleCompleteProcess = () => {
@@ -528,21 +588,6 @@ const OnboardingDetail: React.FC = () => {
         if ('employment_status_notes' in editData) employeeData.employment_status_notes = editData.employment_status_notes;
         if ('start_date' in editData) employeeData.start_date = editData.start_date;
         if ('work_location' in editData) employeeData.work_location = editData.work_location || null;
-
-        // work_type lưu vào employee.extra_info (JSON)
-        if ('work_type' in editData) {
-          const prevExtra = (() => {
-            try {
-              return typeof employeeProfile?.extra_info === 'string'
-                ? JSON.parse(employeeProfile.extra_info || '{}')
-                : (employeeProfile?.extra_info || {});
-            } catch { return {}; }
-          })();
-          employeeData.extra_info = JSON.stringify({
-            ...prevExtra,
-            work_type: editData.work_type || undefined,
-          });
-        }
 
         // Update onboarding
         if (Object.keys(onboardingData).length > 0) {
@@ -651,6 +696,7 @@ const OnboardingDetail: React.FC = () => {
         // Fields to update in employee
         if ('bank_name' in editData) employeeData.bank_name = editData.bank_name;
         if ('bank_account' in editData) employeeData.bank_account = editData.bank_account;
+        if ('bank_account_holder' in editData) employeeData.bank_account_holder = editData.bank_account_holder;
         if ('bank_branch' in editData) employeeData.bank_branch = editData.bank_branch;
 
         // Update onboarding
@@ -660,22 +706,7 @@ const OnboardingDetail: React.FC = () => {
 
         // Update employee profile
         if (empId && Object.keys(employeeData).length > 0) {
-          const updateData = { ...employeeData };
-          if ('bank_account_holder' in editData) {
-            updateData.extra_info = JSON.stringify({
-              ...(() => {
-                try {
-                  return typeof employeeProfile?.extra_info === 'string'
-                    ? JSON.parse(employeeProfile.extra_info || '{}')
-                    : (employeeProfile?.extra_info || {});
-                } catch {
-                  return {};
-                }
-              })(),
-              bank_account_holder: editData.bank_account_holder || undefined,
-            });
-          }
-          await employeesAPI.partialUpdateByEmployeeId(empId, updateData);
+          await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
         }
 
         await fetchOnboardingDetail();
@@ -699,17 +730,28 @@ const OnboardingDetail: React.FC = () => {
       // ── Lương & Hợp đồng (emp_salary) ──
       else if (editSection === 'emp_salary') {
         const employeeData: Record<string, any> = {};
+        const onboardingData: Record<string, any> = {};
 
-        if ('basic_salary' in editData) employeeData.basic_salary = editData.basic_salary || null;
+        if ('basic_salary' in editData) {
+          employeeData.basic_salary = editData.basic_salary || null;
+          onboardingData.salary = editData.basic_salary || null;
+        }
         if ('allowance' in editData) employeeData.allowance = editData.allowance || null;
         if ('contract_type' in editData) employeeData.contract_type = editData.contract_type;
         if ('probation_months' in editData) employeeData.probation_months = editData.probation_months || null;
         // probation_end_date do BE tự tính từ start_date + probation_months - 1 ngày, FE không gửi lên
         if ('probation_rate' in editData) employeeData.probation_rate = editData.probation_rate;
+        if ('contract_start_date' in editData) employeeData.contract_start_date = editData.contract_start_date || null;
+        if ('contract_end_date' in editData) employeeData.contract_end_date = editData.contract_end_date || null;
 
+        if (Object.keys(onboardingData).length > 0) {
+          await onboardingService.superAdminPartialUpdate(parseInt(id), onboardingData);
+        }
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
         }
+
+        await fetchOnboardingDetail();
       }
       // ── Hồ sơ đính kèm (attached_files) ──
       else if (editSection === 'attached_files') {
@@ -755,11 +797,44 @@ const OnboardingDetail: React.FC = () => {
       else if (editSection === 'emp_file_status') {
         const employeeData: Record<string, any> = {};
 
-        if ('file_status' in editData) employeeData.file_status = editData.file_status;
+        const FILE_STATUS_LABEL: Record<string, string> = {
+          NOT_SUBMITTED: 'Chưa nộp',
+          NEED_SUPPLEMENT: 'Cần bổ sung hồ sơ',
+          PENDING_REVIEW: 'Chờ rà soát',
+          COMPLETE: 'Nộp đủ',
+        };
+        if ('file_status' in editData) {
+          employeeData.file_status = editData.file_status;
+          employeeData.file_status_display = FILE_STATUS_LABEL[editData.file_status] ?? editData.file_status;
+        }
         if ('file_review_notes' in editData) employeeData.file_review_notes = editData.file_review_notes;
+
+        // Khi admin set COMPLETE → tự động đánh dấu đủ 3 hồ sơ bắt buộc
+        if (editData.file_status === 'COMPLETE') {
+          employeeData.doc_resume = true;
+          employeeData.doc_cccd = true;
+          employeeData.doc_health = true;
+        }
 
         if (empId && Object.keys(employeeData).length > 0) {
           await employeesAPI.partialUpdateByEmployeeId(empId, employeeData);
+          setEmployeeProfile(prev => prev ? { ...prev, ...employeeData } as any : prev);
+
+          // Auto-complete task4 nếu vừa COMPLETE
+          if (editData.file_status === 'COMPLETE') {
+            const task4 = onboarding?.tasks?.find(t => t.order === 4);
+            if (task4 && task4.status !== 'COMPLETED') {
+              try {
+                await onboardingService.completeTask(task4.id, 'Tự động hoàn thành khi đủ hồ sơ bắt buộc');
+                setOnboarding(prev => prev ? {
+                  ...prev,
+                  tasks: prev.tasks?.map(t =>
+                    t.id === task4.id ? { ...t, status: 'COMPLETED' as const } : t
+                  ),
+                } : prev);
+              } catch { /* ignore */ }
+            }
+          }
         }
       }
 
@@ -818,17 +893,17 @@ const OnboardingDetail: React.FC = () => {
     const vneidScreenshotUrl =
       onboarding.vneid_screenshot_url ||
       (employeeProfile as any)?.vneid_screenshot_url ||
-      normalizeFileUrl(employeeProfile?.vneid_screenshot);
+      null;
 
     // Helper: Section header with edit button
     const SectionHeader: React.FC<{ title: string; color: string; onEdit?: () => void }> = ({ title, color, onEdit }) => {
-      const borderColors: Record<string, string> = { blue: 'border-blue-300', indigo: 'border-indigo-300', amber: 'border-amber-300', emerald: 'border-emerald-300', rose: 'border-rose-300', purple: 'border-purple-300', gray: 'border-gray-300' };
-      const textColors: Record<string, string> = { blue: 'text-blue-700', indigo: 'text-indigo-700', amber: 'text-amber-700', emerald: 'text-emerald-700', rose: 'text-rose-700', purple: 'text-purple-700', gray: 'text-gray-700' };
+      const borderColors: Record<string, string> = { blue: 'border-primary-300', indigo: 'border-primary-300', amber: 'border-amber-300', emerald: 'border-emerald-300', rose: 'border-rose-300', purple: 'border-violet-300', gray: 'border-gray-300' };
+      const textColors: Record<string, string> = { blue: 'text-primary-700', indigo: 'text-primary-700', amber: 'text-amber-700', emerald: 'text-emerald-700', rose: 'text-rose-700', purple: 'text-violet-700', gray: 'text-gray-700' };
       return (
         <div className={`flex items-center justify-between pb-3 mb-4 border-b-2 ${borderColors[color] || 'border-gray-200'}`}>
           <h3 className={`text-sm font-bold uppercase tracking-wide ${textColors[color] || 'text-gray-700'}`}>{title}</h3>
           {onEdit && userRole === 'ADMIN' && (
-            <button onClick={onEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+            <button onClick={onEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors">
               <PencilIcon className="w-3.5 h-3.5" />
               Chỉnh sửa
             </button>
@@ -841,7 +916,7 @@ const OnboardingDetail: React.FC = () => {
     const InfoField: React.FC<{ label: string; value?: string | null; highlight?: boolean; full?: boolean }> = ({ label, value, highlight, full }) => (
       <div className={`flex items-baseline justify-between py-2.5 border-b border-gray-100 ${full ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
         <span className="text-sm text-gray-500 shrink-0 mr-3">{label}:</span>
-        <span className={`text-sm text-right truncate max-w-[60%] ${value && value !== 'Chưa có dữ liệu' ? (highlight ? 'font-semibold text-indigo-600' : 'font-semibold text-gray-800') : 'text-gray-300 italic'}`}>
+        <span className={`text-sm text-right truncate max-w-[60%] ${value && value !== 'Chưa có dữ liệu' ? (highlight ? 'font-semibold text-primary-600' : 'font-semibold text-gray-800') : 'text-gray-300 italic'}`}>
           {value || '—'}
         </span>
       </div>
@@ -850,8 +925,8 @@ const OnboardingDetail: React.FC = () => {
     return (
       <div className="space-y-6">
 
-        {/* ── Thông tin nhân viên ── */}
-        <div className="bg-white rounded-xl border p-5">
+        {/* ── 1. Thông tin nhân viên ── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <SectionHeader title="Thông tin nhân viên" color="blue" onEdit={() => openEdit('employee_info', {
             employee_id: employeeProfile?.employee_id ?? onboarding.employee?.employee_id ?? '',
             full_name: employeeProfile?.full_name ?? onboarding.candidate_name ?? '',
@@ -889,10 +964,12 @@ const OnboardingDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Thông tin công việc ── */}
-        <div className="bg-white rounded-xl border p-5">
+        {/* ── 2. Thông tin công việc ── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <SectionHeader title="Thông tin công việc" color="indigo" onEdit={() => openEdit('job', {
-            company_unit: onboarding.company_unit ?? '',
+            company_unit: (typeof onboarding.company_unit === 'object' && onboarding.company_unit)
+              ? (onboarding.company_unit.code || '')
+              : (onboarding.company_unit ?? ''),
             department_id: onboarding.department?.id ? String(onboarding.department.id) : '',
             department_name: (employeeProfile as any)?.department?.name ?? onboarding.department?.name ?? '',
             position_id: (employeeProfile as any)?.position?.id ? String((employeeProfile as any).position.id) : (onboarding.position?.id ? String(onboarding.position.id) : ''),
@@ -907,10 +984,17 @@ const OnboardingDetail: React.FC = () => {
             employment_status_notes: (employeeProfile as any)?.employment_status_notes ?? onboarding.employment_status_notes ?? '',
             start_date: employeeProfile?.start_date ?? onboarding.start_date ?? '',
             work_location: (employeeProfile as any)?.work_location ?? '',
-            work_type: extraInfo.work_type ?? '',
           })} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
-            <InfoField label="Đơn vị" value={allCompanyUnits.find(cu => cu.code === onboarding.company_unit)?.name || safeDisplay(onboarding.company_unit)} />
+            <InfoField 
+              label="Đơn vị" 
+              value={(() => {
+                const cu = onboarding.company_unit;
+                if (!cu) return 'Chưa có dữ liệu';
+                if (typeof cu === 'object') return cu.name || cu.code || 'Chưa có dữ liệu';
+                return allCompanyUnits.find(x => x.code === cu)?.name || safeDisplay(cu);
+              })()} 
+            />
             <InfoField label="Phòng ban" value={safeDisplay((employeeProfile as any)?.department?.name || onboarding.department?.name)} />
             <InfoField label="Vị trí" value={safeDisplay((employeeProfile as any)?.position?.title || onboarding.position?.title)} />
             <InfoField label="Cấp bậc" value={safeDisplay(employeeProfile?.rank || onboarding.rank)} />
@@ -919,8 +1003,7 @@ const OnboardingDetail: React.FC = () => {
             <InfoField label="Team bác sĩ" value={safeDisplay(employeeProfile?.doctor_team || onboarding.doctor_team)} />
             <InfoField label="Ngày bắt đầu" value={employeeProfile?.start_date ? formatDate(employeeProfile.start_date) : formatDate(onboarding.start_date)} />
             <InfoField label="Hình thức" value={(employeeProfile?.work_form || onboarding.work_form) ? (WORK_FORM_LABELS[employeeProfile?.work_form || onboarding.work_form!] || employeeProfile?.work_form || onboarding.work_form) : null} />
-            <InfoField label="Loại hình làm việc" value={safeDisplay(extraInfo.work_type)} />
-            <InfoField label="Địa điểm làm việc" value={safeDisplay((employeeProfile as any)?.work_location_display || (employeeProfile as any)?.work_location)} />
+            <InfoField label="Địa điểm làm việc" value={WORK_LOCATION_OPTIONS.find(o => o.value === (employeeProfile as any)?.work_location)?.label || safeDisplay((employeeProfile as any)?.work_location)} />
             <InfoField label="Vùng/Miền" value={safeDisplay(employeeProfile?.region || onboarding.region)} />
             <InfoField label="Khối" value={safeDisplay(employeeProfile?.block || onboarding.block)} />
             <InfoField label="Trạng thái" value={
@@ -932,11 +1015,10 @@ const OnboardingDetail: React.FC = () => {
           </div>
         </div>
 
-        {/* Employee-filled sections — only visible to admin */}
-        {userRole === 'ADMIN' && onboarding.employee_info_completed && (
+        {userRole === 'ADMIN' && (
           <>
-            {/* ── Giấy tờ tùy thân & địa chỉ ── */}
-            <div className="bg-white rounded-xl border p-5">
+            {/* ── 3. Giấy tờ tùy thân & địa chỉ ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <SectionHeader title="Giấy tờ tùy thân & địa chỉ" color="amber" onEdit={() => openEdit('personal', {
                 cccd_number: employeeProfile?.cccd_number ?? onboarding.citizen_id ?? '',
                 cccd_issue_date: employeeProfile?.cccd_issue_date ?? (onboarding as any).citizen_id_issue_date ?? '',
@@ -969,8 +1051,8 @@ const OnboardingDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* ── Trình độ học vấn ── */}
-            <div className="bg-white rounded-xl border p-5">
+            {/* ── 4. Trình độ học vấn ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <SectionHeader title="Trình độ học vấn" color="emerald" onEdit={() => openEdit('education', {
                 education_level: employeeProfile?.education_level ?? onboarding.education_level ?? '',
                 university: (extraInfo.university || onboarding.university) ?? '',
@@ -978,15 +1060,15 @@ const OnboardingDetail: React.FC = () => {
                 graduation_year: (extraInfo.graduation_year || onboarding.graduation_year) ?? '',
               })} />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
-                <InfoField label="Trình độ" value={safeDisplay(employeeProfile?.education_level || onboarding.education_level)} />
+                <InfoField label="Trình độ" value={displayEducationLevel(employeeProfile?.education_level || onboarding.education_level)} />
                 <InfoField label="Trường" value={safeDisplay(extraInfo.university || onboarding.university)} />
                 <InfoField label="Chuyên ngành" value={safeDisplay(extraInfo.major || onboarding.major)} />
                 <InfoField label="Năm tốt nghiệp" value={String(extraInfo.graduation_year || onboarding.graduation_year || '') || null} />
               </div>
             </div>
 
-            {/* ── Thông tin tài chính & ngân hàng ── */}
-            <div className="bg-white rounded-xl border p-5">
+            {/* ── 5. Tài chính & ngân hàng ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <SectionHeader title="Tài chính & ngân hàng" color="purple" onEdit={() => openEdit('financial', {
                 bank_name: employeeProfile?.bank_name ?? onboarding.bank_name ?? '',
                 bank_account: employeeProfile?.bank_account ?? onboarding.bank_account ?? '',
@@ -1001,164 +1083,45 @@ const OnboardingDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* ── Hồ sơ đính kèm ── */}
-            {(onboarding.cv_file || onboarding.id_card_front || onboarding.id_card_back || onboarding.diploma_file || onboarding.citizen_id_file || onboarding.citizen_id_file_url || vneidScreenshotUrl || extraInfo.facebook_link) && (
-              <div className="bg-white rounded-lg border p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold flex items-center">
-                    Hồ sơ đính kèm
-                  </h3>
-                  {userRole === 'ADMIN' && (
-                    <button
-                      onClick={() => openEdit('attached_files', {
-                        diploma_file: null,
-                        citizen_id_file: null,
-                        vneid_screenshot: null,
-                        facebook_link: extraInfo.facebook_link ?? '',
-                      })}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
-                    >
-                      <PencilIcon className="w-3.5 h-3.5" />
-                      Chỉnh sửa
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Files */}
-                  {([
-                    { key: 'cv_file', label: 'CV', url: onboarding.cv_file_url || onboarding.cv_file },
-                    { key: 'id_card_front', label: 'CCCD mặt trước', url: onboarding.id_card_front_url || onboarding.id_card_front },
-                    { key: 'id_card_back', label: 'CCCD mặt sau', url: onboarding.id_card_back_url || onboarding.id_card_back },
-                    { key: 'diploma_file', label: 'Bằng cấp', url: onboarding.diploma_file_url || onboarding.diploma_file },
-                    { key: 'citizen_id_file', label: 'File CMND/CCCD', url: onboarding.citizen_id_file_url || onboarding.citizen_id_file },
-                    { key: 'vneid_screenshot', label: 'Ảnh chụp màn hình VNeID', url: vneidScreenshotUrl },
-                  ] as { key: string; label: string; url: string | null | undefined }[])
-                    .filter(f => f.url)
-                    .map(f => {
-                      const fileUrl = f.url as string;
-                      const fileType = getFileType(fileUrl);
-                      const isImage = fileType === 'image' && !imgErrors[f.key];
-                      return (
-                        <div key={f.key} className="border rounded-lg overflow-hidden">
-                          {isImage ? (
-                            <div
-                              className="h-32 bg-gray-100 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity overflow-hidden"
-                              onClick={() => setPreviewFile({ url: fileUrl, label: f.label, type: 'image' })}
-                            >
-                              <img
-                                src={fileUrl}
-                                alt={f.label}
-                                className="object-cover w-full h-full"
-                                onError={() => setImgErrors(prev => ({ ...prev, [f.key]: true }))}
-                              />
-                            </div>
-                          ) : (
-                            <div
-                              className="h-32 bg-red-50 flex flex-col items-center justify-center cursor-pointer hover:bg-red-100 transition-colors"
-                              onClick={() => setPreviewFile({ url: fileUrl, label: f.label, type: fileType === 'image' ? 'image' : 'pdf' })}
-                            >
-                              <DocumentTextIcon className="w-10 h-10 text-red-500 mb-1" />
-                              <span className="text-xs text-red-600 font-medium">PDF</span>
-                            </div>
-                          )}
-                          <div className="p-2 bg-white flex items-center justify-between">
-                            <label className="text-xs text-gray-600 font-medium truncate">{f.label}</label>
-                            <div className="flex gap-1 flex-shrink-0">
-                              <button
-                                onClick={() => setPreviewFile({ url: fileUrl, label: f.label, type: fileType === 'image' ? 'image' : 'pdf' })}
-                                className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors"
-                                title="Xem trước"
-                              >
-                                <EyeIcon className="w-4 h-4" />
-                              </button>
-                              <a
-                                href={fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1 rounded text-gray-500 hover:bg-gray-100 transition-colors"
-                                title="Mở tab mới"
-                              >
-                                <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-                              </a>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  }
-
-                  {!vneidScreenshotUrl && (
-                    <div className="border rounded-lg overflow-hidden">
-                      <div className="h-32 bg-gray-50 flex flex-col items-center justify-center">
-                        <span className="text-3xl mb-1">🖼️</span>
-                        <span className="text-xs text-gray-500 font-medium px-2 text-center">
-                          Chưa tải ảnh VNeID
-                        </span>
-                      </div>
-                      <div className="p-2 bg-white">
-                        <label className="text-xs text-gray-600 font-medium truncate">
-                          Ảnh chụp màn hình VNeID
-                        </label>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Facebook — cùng grid với các file */}
-                  {extraInfo.facebook_link && (
-                    <div className="border rounded-lg overflow-hidden">
-                      <div className="h-32 bg-blue-50 flex flex-col items-center justify-center">
-                        <span className="text-3xl mb-1">👤</span>
-                        <span className="text-xs text-blue-500 font-medium px-2 text-center truncate w-full">
-                          Facebook
-                        </span>
-                      </div>
-                      <div className="p-2 bg-white flex items-center justify-between">
-                        <label className="text-xs text-gray-600 font-medium truncate">Facebook</label>
-                        <a
-                          href={extraInfo.facebook_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1 rounded text-gray-500 hover:bg-gray-100 transition-colors"
-                          title="Mở Facebook"
-                        >
-                          <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-                        </a>
-                      </div>
-                    </div>
-                  )}
-                </div>
+            {/* ── 6. Lương & Hợp đồng ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <SectionHeader title="Lương & Hợp đồng" color="rose" onEdit={() => openEdit('emp_salary', {
+                basic_salary: employeeProfile?.basic_salary ?? '',
+                allowance: employeeProfile?.allowance ?? '',
+                contract_type: employeeProfile?.contract_type ?? '',
+                probation_months: employeeProfile?.probation_months ?? '',
+                probation_end_date: employeeProfile?.probation_end_date ?? '',
+                probation_rate: (employeeProfile as any)?.probation_rate ?? '',
+                contract_start_date: (employeeProfile as any)?.contract_start_date ?? '',
+                contract_end_date: (employeeProfile as any)?.contract_end_date ?? '',
+              })} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
+                <InfoField label="Lương cơ bản" value={employeeProfile?.basic_salary != null ? `${Number(employeeProfile.basic_salary).toLocaleString('vi-VN')} đ` : 'Chưa có dữ liệu'} highlight />
+                <InfoField label="Phụ cấp" value={employeeProfile?.allowance != null ? `${Number(employeeProfile.allowance).toLocaleString('vi-VN')} đ` : 'Chưa có dữ liệu'} />
+                <div className="hidden lg:block" />
+                <InfoField label="Thử việc" value={employeeProfile?.probation_months != null ? `${employeeProfile.probation_months} tháng` : 'Chưa có dữ liệu'} />
+                <InfoField label="Kết thúc thử việc" value={employeeProfile?.probation_end_date ? formatDate(employeeProfile.probation_end_date) : 'Chưa có dữ liệu'} />
+                <InfoField label="Tỉ lệ thử việc" value={(employeeProfile as any)?.probation_rate ? (PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate) : 'Chưa có dữ liệu'} />
+                <InfoField label="Ngày bắt đầu HĐ" value={
+                  (firstContract?.status === 'SIGNED' && firstContract.start_date ? formatDate(firstContract.start_date) : null)
+                  || ((employeeProfile as any)?.contract_start_date ? formatDate((employeeProfile as any).contract_start_date) : null)
+                  || 'Chưa có dữ liệu'
+                } />
+                <InfoField label="Ngày kết thúc HĐ" value={
+                  (firstContract?.status === 'SIGNED' && firstContract.end_date ? formatDate(firstContract.end_date) : null)
+                  || ((employeeProfile as any)?.contract_end_date ? formatDate((employeeProfile as any).contract_end_date) : null)
+                  || 'Chưa có dữ liệu'
+                } />
+                <InfoField label="Loại hợp đồng" value={
+                  (firstContract?.status === 'SIGNED' && firstContract.contract_type_display)
+                  || (employeeProfile?.contract_type ? (CONTRACT_OPTIONS.find(o => o.value === employeeProfile.contract_type)?.label || employeeProfile.contract_type) : null)
+                  || 'Chưa có dữ liệu'
+                } />
               </div>
-            )}
-          </>
-        )}
+            </div>
 
-        {/* Admin-only: remaining employee profile sections */}
-        {userRole === 'ADMIN' && employeeProfile && (
-          <>
-            {/* Salary & Contract */}
-            {(employeeProfile.basic_salary != null || employeeProfile.contract_type) && (
-              <div className="bg-white rounded-xl border p-5">
-                <SectionHeader title="Lương & Hợp đồng" color="rose" onEdit={() => openEdit('emp_salary', {
-                  basic_salary: employeeProfile.basic_salary ?? '',
-                  allowance: employeeProfile.allowance ?? '',
-                  contract_type: employeeProfile.contract_type ?? '',
-                  probation_months: employeeProfile.probation_months ?? '',
-                  probation_end_date: employeeProfile.probation_end_date ?? '',
-                  probation_rate: (employeeProfile as any).probation_rate ?? '',
-                })} />
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
-                  <InfoField label="Lương cơ bản" value={employeeProfile.basic_salary != null ? `${Number(employeeProfile.basic_salary).toLocaleString('vi-VN')} đ` : null} highlight />
-                  <InfoField label="Phụ cấp" value={employeeProfile.allowance != null ? `${Number(employeeProfile.allowance).toLocaleString('vi-VN')} đ` : null} />
-                  <InfoField label="Loại hợp đồng" value={employeeProfile.contract_type ? (employeeProfile.contract_type_display || CONTRACT_TYPE_LABELS[employeeProfile.contract_type] || employeeProfile.contract_type) : null} />
-                  <InfoField label="Thử việc" value={employeeProfile.probation_months != null ? `${employeeProfile.probation_months} tháng` : null} />
-                  <InfoField label="Kết thúc thử việc" value={employeeProfile.probation_end_date ? formatDate(employeeProfile.probation_end_date) : null} />
-                  <InfoField label="Tỉ lệ thử việc" value={(employeeProfile as any).probation_rate ? (PROBATION_RATE_OPTIONS.find(o => o.value === (employeeProfile as any).probation_rate)?.label || (employeeProfile as any).probation_rate) : null} />
-                </div>
-              </div>
-            )}
-
-            {/* File Status */}
-            <div className="bg-white rounded-xl border p-5">
+            {/* ── 7. Trạng thái hồ sơ ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <SectionHeader title="Trạng thái hồ sơ" color="gray" onEdit={() => openEdit('emp_file_status', {
                 file_status: employeeProfile?.file_status ?? 'NOT_SUBMITTED',
                 file_review_notes: (employeeProfile as any)?.file_review_notes ?? '',
@@ -1169,9 +1132,136 @@ const OnboardingDetail: React.FC = () => {
               </div>
             </div>
 
-            {/* Liên hệ khẩn cấp */}
-            {(employeeProfile as any).emergency_contact_name && (
-              <div className="bg-white rounded-xl border p-5">
+            {/* ── 8. Hồ sơ đính kèm ── */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold flex items-center">
+                  Hồ sơ đính kèm
+                </h3>
+                {userRole === 'ADMIN' && (
+                  <button
+                    onClick={() => openEdit('attached_files', {
+                      diploma_file: null,
+                      citizen_id_file: null,
+                      vneid_screenshot: null,
+                      facebook_link: extraInfo.facebook_link ?? '',
+                    })}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors"
+                  >
+                    <PencilIcon className="w-3.5 h-3.5" />
+                    Chỉnh sửa
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {/* Files */}
+                {([
+                  { key: 'cv_file', label: 'CV', url: onboarding.cv_file_url || onboarding.cv_file },
+                  { key: 'id_card_front', label: 'CCCD mặt trước', url: onboarding.id_card_front_url || onboarding.id_card_front },
+                  { key: 'id_card_back', label: 'CCCD mặt sau', url: onboarding.id_card_back_url || onboarding.id_card_back },
+                  { key: 'diploma_file', label: 'Bằng cấp', url: onboarding.diploma_file_url || onboarding.diploma_file },
+                  { key: 'citizen_id_file', label: 'File CMND/CCCD', url: onboarding.citizen_id_file_url || onboarding.citizen_id_file },
+                  { key: 'vneid_screenshot', label: 'Ảnh chụp màn hình VNeID', url: vneidScreenshotUrl },
+                ] as { key: string; label: string; url: string | null | undefined }[])
+                  .filter(f => f.url)
+                  .map(f => {
+                    const fileUrl = f.url as string;
+                    const fileType = getFileType(fileUrl);
+                    const isImage = fileType === 'image' && !imgErrors[f.key];
+                    return (
+                      <div key={f.key} className="border border-gray-100 rounded-xl overflow-hidden">
+                        {isImage ? (
+                          <div
+                            className="h-32 bg-gray-100 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity overflow-hidden"
+                            onClick={() => setPreviewFile({ url: fileUrl, label: f.label, type: 'image' })}
+                          >
+                            <img
+                              src={fileUrl}
+                              alt={f.label}
+                              className="object-cover w-full h-full"
+                              onError={() => setImgErrors(prev => ({ ...prev, [f.key]: true }))}
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="h-32 bg-red-50 flex flex-col items-center justify-center cursor-pointer hover:bg-red-100 transition-colors"
+                            onClick={() => setPreviewFile({ url: fileUrl, label: f.label, type: fileType === 'image' ? 'image' : 'pdf' })}
+                          >
+                            <DocumentTextIcon className="w-10 h-10 text-red-500 mb-1" />
+                            <span className="text-xs text-red-600 font-medium">PDF</span>
+                          </div>
+                        )}
+                        <div className="p-2 bg-white flex items-center justify-between">
+                          <label className="text-xs text-gray-600 font-medium truncate">{f.label}</label>
+                          <div className="flex gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => setPreviewFile({ url: fileUrl, label: f.label, type: fileType === 'image' ? 'image' : 'pdf' })}
+                              className="p-1 rounded text-primary-600 hover:bg-primary-50 transition-colors"
+                              title="Xem trước"
+                            >
+                              <EyeIcon className="w-4 h-4" />
+                            </button>
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+                              title="Mở tab mới"
+                            >
+                              <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                }
+
+                {!vneidScreenshotUrl && (
+                  <div className="border border-gray-100 rounded-xl overflow-hidden">
+                    <div className="h-32 bg-gray-50 flex flex-col items-center justify-center">
+                      <span className="text-3xl mb-1">🖼️</span>
+                      <span className="text-xs text-gray-500 font-medium px-2 text-center">
+                        Chưa tải ảnh VNeID
+                      </span>
+                    </div>
+                    <div className="p-2 bg-white">
+                      <label className="text-xs text-gray-600 font-medium truncate">
+                        Ảnh chụp màn hình VNeID
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Facebook — cùng grid với các file */}
+                {extraInfo.facebook_link && (
+                  <div className="border border-gray-100 rounded-xl overflow-hidden">
+                    <div className="h-32 bg-primary-50 flex flex-col items-center justify-center">
+                      <span className="text-3xl mb-1">👤</span>
+                      <span className="text-xs text-primary-500 font-medium px-2 text-center truncate w-full">
+                        Facebook
+                      </span>
+                    </div>
+                    <div className="p-2 bg-white flex items-center justify-between">
+                      <label className="text-xs text-gray-600 font-medium truncate">Facebook</label>
+                      <a
+                        href={extraInfo.facebook_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 rounded text-gray-500 hover:bg-gray-100 transition-colors"
+                        title="Mở Facebook"
+                      >
+                        <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Liên hệ khẩn cấp ── */}
+            {(employeeProfile as any)?.emergency_contact_name && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <SectionHeader title="Liên hệ khẩn cấp" color="rose" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
                   <InfoField label="Họ tên" value={safeDisplay((employeeProfile as any).emergency_contact_name)} />
@@ -1186,25 +1276,88 @@ const OnboardingDetail: React.FC = () => {
           </>
         )}
 
-        {/* Chờ duyệt */}
-        {(() => {
-          const task4 = onboarding.tasks?.find(t => t.order === 4);
-          if (!task4 || task4.status !== 'IN_PROGRESS') return null;
+        {/* Chờ duyệt hoặc Gửi link cho nhân viên — chỉ ADMIN thấy, hiện khi task1 chưa hoàn thành */}
+        {userRole === 'ADMIN' && (() => {
+          const task1 = onboarding.tasks?.find(t => t.order === 1);
+          if (task1?.status === 'COMPLETED') return null;
+
+          const isGenerated = onboarding.token_status === 'active';
+          const isExpired = onboarding.token_status === 'expired';
+
           return (
-            <div className="bg-amber-50 rounded-xl border border-amber-200 p-5">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-amber-700 mb-2">Chờ duyệt thông tin nhân viên</h3>
-              <p className="text-amber-700 text-sm mb-4">Nhân viên đã điền xong thông tin. Vui lòng kiểm tra và xác nhận.</p>
-              <button onClick={handleApproveEmployeeInfo} className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors">
-                <CheckCircleIcon className="w-4 h-4" />
-                Duyệt thông tin
-              </button>
+            <div className="bg-amber-50/30 rounded-xl border border-amber-200/70 p-5 space-y-5 shadow-sm">
+              {onboarding.employee_info_completed ? (
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-amber-700 mb-1.5">
+                    Chờ duyệt thông tin nhân viên
+                  </h3>
+                  <p className="text-amber-700 text-sm mb-4 opacity-90">
+                    Nhân viên đã điền thông tin tự phục vụ. Vui lòng đối soát kỹ lưỡng và bấm duyệt hoặc gửi lại link nếu cần bổ sung.
+                  </p>
+                  <button
+                    onClick={handleApproveEmployeeInfo}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 shadow-sm shadow-amber-500/20 transition-all active:scale-95"
+                  >
+                    <CheckCircleIcon className="w-4 h-4" />
+                    Duyệt và xác nhận thông tin nhân viên
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-700 mb-1.5">
+                    Báo cáo cung cấp thông tin
+                  </h3>
+                  <p className="text-slate-600 text-sm opacity-85">
+                    Nhân viên mới hiện chưa hoàn thành/cung cấp hồ sơ qua đường dẫn tự phục vụ.
+                  </p>
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-amber-200/50 flex flex-wrap items-center gap-2.5">
+                {(!isGenerated || isExpired) ? (
+                  <button
+                    disabled={tokenLoading}
+                    onClick={handleGenerateToken}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg shadow-sm shadow-primary-600/10 transition-all active:scale-95 disabled:opacity-60"
+                  >
+                    <ArrowPathIcon className={`w-3.5 h-3.5 ${tokenLoading ? 'animate-spin' : ''}`} />
+                    {isExpired ? 'Cấp lại link mới' : 'Tạo đường dẫn link'}
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleCopyLink((onboarding as any).employee_form_url)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:border-amber-500 hover:text-amber-700 rounded-lg transition-all duration-200"
+                    >
+                      <ClipboardDocumentIcon className="w-3.5 h-3.5 text-slate-500" />
+                      Copy link đưa cho NV
+                    </button>
+                    <button
+                      disabled={tokenLoading}
+                      onClick={handleSendEmail}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-200 hover:bg-primary-100 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-60"
+                    >
+                      <EnvelopeIcon className="w-3.5 h-3.5 text-primary-600" />
+                      Gửi Mail
+                    </button>
+                    <button
+                      disabled={tokenLoading}
+                      onClick={handleGenerateToken}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors ml-1"
+                      title="Hủy bỏ link cũ và khởi tạo một token bảo mật hoàn toàn mới"
+                    >
+                      Khởi tạo lại
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           );
         })()}
 
         {/* Ghi chú */}
         {onboarding.notes && (
-          <div className="bg-white rounded-xl border p-5">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <SectionHeader title="Ghi chú" color="gray" />
             <p className="text-gray-700 text-sm whitespace-pre-wrap">{onboarding.notes}</p>
           </div>
@@ -1323,9 +1476,6 @@ const OnboardingDetail: React.FC = () => {
                   { value: 'FULL_TIME', label: 'Full-time' },
                   { value: 'PART_TIME', label: 'Part-time' },
                 ])}
-                {ef('Loại hình làm việc', 'work_type', undefined, undefined, undefined, 'Full-time, Part-time, ...')}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {ef('Địa điểm làm việc', 'work_location', undefined, WORK_LOCATION_OPTIONS)}
                 {ef('Ngày bắt đầu làm việc', 'start_date', 'date')}
               </div>
@@ -1416,7 +1566,7 @@ const OnboardingDetail: React.FC = () => {
 
         // ── Lương & Hợp đồng ──
         // Phải khớp với openEdit('emp_salary'): basic_salary, allowance, contract_type,
-        // probation_months, probation_end_date, probation_rate, bank_name, bank_account
+        // probation_months, probation_end_date, probation_rate, contract_start_date, contract_end_date
         case 'emp_salary':
           return (
             <div className="space-y-4">
@@ -1430,6 +1580,10 @@ const OnboardingDetail: React.FC = () => {
                 {ef('Ngày kết thúc thử việc (tự tính)', 'probation_end_date', 'date', undefined, true)}
               </div>
               {ef('Tỉ lệ thử việc', 'probation_rate', undefined, PROBATION_RATE_OPTIONS)}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {ef('Ngày bắt đầu HĐ', 'contract_start_date', 'date')}
+                {ef('Ngày kết thúc HĐ', 'contract_end_date', 'date')}
+              </div>
             </div>
           );
 
@@ -1464,7 +1618,7 @@ const OnboardingDetail: React.FC = () => {
                       href={currentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-primary-600 hover:underline"
                     >
                       Xem file hiện tại
                     </a>
@@ -1477,7 +1631,7 @@ const OnboardingDetail: React.FC = () => {
                     const f = e.target.files?.[0] || null;
                     handleEditFieldChange(name, f);
                   }}
-                  className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                 />
                 {file && (
                   <div className="flex items-center justify-between text-xs text-gray-600">
@@ -1528,8 +1682,8 @@ const OnboardingDetail: React.FC = () => {
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <PencilIcon className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+                <PencilIcon className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <h4 className="text-lg font-bold text-gray-900">{sectionTitles[editSection]}</h4>
@@ -1553,14 +1707,14 @@ const OnboardingDetail: React.FC = () => {
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
             <button
               onClick={() => setEditSection(null)}
-              className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              className="btn-secondary"
             >
               Hủy
             </button>
             <button
               onClick={() => setConfirmDialog({ text: 'Bạn có chắc muốn lưu thay đổi?', onConfirm: () => { setConfirmDialog(null); handleSaveEdit(); } })}
               disabled={editLoading}
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-200 transition-colors"
+              className="btn-primary shadow-sm disabled:opacity-50"
             >
               {editLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
@@ -1579,7 +1733,7 @@ const OnboardingDetail: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <ArrowPathIcon className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <ArrowPathIcon className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-4" />
           <span className="text-lg text-gray-600">Đang tải thông tin...</span>
         </div>
       </div>
@@ -1596,7 +1750,7 @@ const OnboardingDetail: React.FC = () => {
           <ArrowLeftIcon className="w-5 h-5 mr-2" />
           Quay lại danh sách
         </button>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-5">
           <div className="flex items-center">
             <ExclamationTriangleIcon className="w-8 h-8 text-red-600 mr-3" />
             <div>
@@ -1604,7 +1758,7 @@ const OnboardingDetail: React.FC = () => {
               <p className="text-red-700 mt-1">{error}</p>
               <button
                 onClick={fetchOnboardingDetail}
-                className="mt-3 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                className="btn-danger mt-3"
               >
                 Thử lại
               </button>
@@ -1625,12 +1779,12 @@ const OnboardingDetail: React.FC = () => {
           <ArrowLeftIcon className="w-5 h-5 mr-2" />
           Quay lại danh sách
         </button>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5">
           <div className="flex items-center">
-            <ExclamationTriangleIcon className="w-8 h-8 text-yellow-600 mr-3" />
+            <ExclamationTriangleIcon className="w-8 h-8 text-amber-600 mr-3" />
             <div>
-              <h3 className="text-lg font-semibold text-yellow-900">Không tìm thấy dữ liệu</h3>
-              <p className="text-yellow-700 mt-1">Không tìm thấy quy trình onboarding với ID: {id}</p>
+              <h3 className="text-lg font-bold text-amber-800">Không tìm thấy dữ liệu</h3>
+              <p className="text-amber-700 mt-1">Không tìm thấy quy trình onboarding với ID: {id}</p>
             </div>
           </div>
         </div>
@@ -1661,7 +1815,7 @@ const OnboardingDetail: React.FC = () => {
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               {/* Avatar placeholder */}
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-500 to-primary-800 flex items-center justify-center text-white text-xl font-bold shrink-0">
                 {onboarding.candidate_name?.charAt(0)?.toUpperCase() || '?'}
               </div>
               <div>
@@ -1671,7 +1825,7 @@ const OnboardingDetail: React.FC = () => {
                 </div>
                 <p className="text-gray-500 mt-0.5">
                   {onboarding.position?.title || '—'} — {onboarding.department?.name || '—'}
-                  {employeeProfile?.employee_id && <span className="ml-2 text-blue-600 font-mono text-sm">{employeeProfile.employee_id}</span>}
+                  {employeeProfile?.employee_id && <span className="ml-2 text-primary-600 font-mono text-sm">{employeeProfile.employee_id}</span>}
                 </p>
               </div>
             </div>
@@ -1680,11 +1834,11 @@ const OnboardingDetail: React.FC = () => {
               <div className="relative w-16 h-16">
                 <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
                   <circle cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" strokeWidth="5" />
-                  <circle cx="32" cy="32" r="28" fill="none" stroke={progressPct >= 100 ? '#22c55e' : '#3b82f6'} strokeWidth="5" strokeLinecap="round"
+                  <circle cx="32" cy="32" r="28" fill="none" stroke={progressPct >= 100 ? '#22c55e' : '#1B65B8'} strokeWidth="5" strokeLinecap="round"
                     strokeDasharray={`${2 * Math.PI * 28}`} strokeDashoffset={`${2 * Math.PI * 28 * (1 - progressPct / 100)}`}
                     className="transition-all duration-500" />
                 </svg>
-                <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${progressPct >= 100 ? 'text-green-600' : 'text-blue-600'}`}>
+                <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${progressPct >= 100 ? 'text-emerald-600' : 'text-primary-600'}`}>
                   {progressPct}%
                 </span>
               </div>
@@ -1707,10 +1861,10 @@ const OnboardingDetail: React.FC = () => {
             <div className="sm:hidden">
               <div className="flex items-center justify-between text-sm mb-1.5">
                 <span className="text-gray-500">Tiến độ</span>
-                <span className="font-bold text-blue-600">{progressPct}%</span>
+                <span className="font-bold text-primary-600">{progressPct}%</span>
               </div>
               <div className="w-full bg-gray-100 rounded-full h-2">
-                <div className={`h-2 rounded-full transition-all duration-500 ${progressPct >= 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${progressPct}%` }} />
+                <div className={`h-2 rounded-full transition-all duration-500 ${progressPct >= 100 ? 'bg-emerald-500' : 'bg-primary-600'}`} style={{ width: `${progressPct}%` }} />
               </div>
               <p className="text-xs text-gray-400 mt-1">{completedTasks}/{totalTasks} tasks</p>
             </div>
@@ -1721,7 +1875,7 @@ const OnboardingDetail: React.FC = () => {
               {([
                 ['SĐT', employeeProfile?.phone_number || onboarding.candidate_phone],
                 ['Email', employeeProfile?.personal_email || onboarding.candidate_email],
-                ['Ngày bắt đầu', onboarding.start_date ? new Date(onboarding.start_date).toLocaleDateString('vi-VN') : null],
+                ['Ngày bắt đầu', onboarding.start_date ? formatDate(onboarding.start_date) : null],
               ] as [string, string | null | undefined][]).map(([label, val]) => {
                 const display = safeDisplay(val);
                 const isEmpty = display === 'Chưa có dữ liệu';
@@ -1753,28 +1907,54 @@ const OnboardingDetail: React.FC = () => {
                       onChange={async (e) => {
                         const empId = employeeProfile?.employee_id;
                         if (!empId) return;
-                        try {
-                          // Tính trạng thái mới sau khi toggle
-                          const newDocs = {
-                            doc_resume: (employeeProfile as any).doc_resume || false,
-                            doc_cccd: (employeeProfile as any).doc_cccd || false,
-                            doc_health: (employeeProfile as any).doc_health || false,
-                            [field]: e.target.checked,
-                          };
-                          // 3 trường bắt buộc: doc_resume, doc_cccd, doc_health
-                          const hasAny = newDocs.doc_resume || newDocs.doc_cccd || newDocs.doc_health;
-                          const hasAll = newDocs.doc_resume && newDocs.doc_cccd && newDocs.doc_health;
-                          const fileStatus = hasAll ? 'COMPLETE' : hasAny ? 'NEED_SUPPLEMENT' : 'NOT_SUBMITTED';
+                        const newChecked = e.target.checked;
+                        const newDocs = {
+                          doc_resume: (employeeProfile as any).doc_resume || false,
+                          doc_cccd: (employeeProfile as any).doc_cccd || false,
+                          doc_health: (employeeProfile as any).doc_health || false,
+                          [field]: newChecked,
+                        };
+                        const hasAny = newDocs.doc_resume || newDocs.doc_cccd || newDocs.doc_health;
+                        const hasAll = newDocs.doc_resume && newDocs.doc_cccd && newDocs.doc_health;
+                        const fileStatus = hasAll ? 'COMPLETE' : hasAny ? 'NEED_SUPPLEMENT' : 'NOT_SUBMITTED';
+                        const fileStatusDisplay = hasAll ? 'Nộp đủ' : hasAny ? 'Cần bổ sung hồ sơ' : 'Chưa nộp';
 
+                        // Optimistic update — hiện ngay, revert nếu lỗi
+                        const prev = employeeProfile;
+                        setEmployeeProfile(p => p ? {
+                          ...p,
+                          [field]: newChecked,
+                          file_status: fileStatus,
+                          file_status_display: fileStatusDisplay,
+                        } as any : p);
+                        try {
                           await employeesAPI.partialUpdateByEmployeeId(empId, {
-                            [field]: e.target.checked,
+                            [field]: newChecked,
                             file_status: fileStatus,
                           } as any);
-                        } catch { /* ignore */ }
+
+                          // Auto-complete task4 khi đủ 3 hồ sơ bắt buộc
+                          if (hasAll) {
+                            const task4 = onboarding?.tasks?.find(t => t.order === 4);
+                            if (task4 && task4.status !== 'COMPLETED') {
+                              try {
+                                await onboardingService.completeTask(task4.id, 'Tự động hoàn thành khi đủ hồ sơ bắt buộc');
+                                setOnboarding(p => p ? {
+                                  ...p,
+                                  tasks: p.tasks?.map(t =>
+                                    t.id === task4.id ? { ...t, status: 'COMPLETED' as const } : t
+                                  ),
+                                } : p);
+                              } catch { /* ignore */ }
+                            }
+                          }
+                        } catch {
+                          setEmployeeProfile(prev);
+                        }
                       }}
-                      className="w-4 h-4 rounded text-green-600 border-gray-300 focus:ring-green-500"
+                      className="w-4 h-4 rounded text-emerald-600 border-gray-300 focus:ring-emerald-500"
                     />
-                    <span className={`${(employeeProfile as any)[field] ? 'text-green-700 font-medium' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                    <span className={`${(employeeProfile as any)[field] ? 'text-emerald-700 font-medium' : 'text-gray-600 group-hover:text-gray-900'}`}>
                       {label}
                     </span>
                     {!required && <span className="text-xs text-gray-400">(không bắt buộc)</span>}
@@ -1790,13 +1970,13 @@ const OnboardingDetail: React.FC = () => {
                 {onboarding.tasks?.map((t, i) => (
                   <div key={t.id} className="flex items-center gap-2 text-sm">
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                      t.status === 'COMPLETED' ? 'bg-green-500 text-white' :
-                      t.status === 'IN_PROGRESS' ? 'bg-blue-500 text-white' :
+                      t.status === 'COMPLETED' ? 'bg-emerald-500 text-white' :
+                      t.status === 'IN_PROGRESS' ? 'bg-primary-500 text-white' :
                       'bg-gray-200 text-gray-500'
                     }`}>
                       {t.status === 'COMPLETED' ? '✓' : i + 1}
                     </div>
-                    <span className={`truncate ${t.status === 'COMPLETED' ? 'text-green-700 font-medium' : t.status === 'IN_PROGRESS' ? 'text-blue-700 font-medium' : 'text-gray-500'}`}>
+                    <span className={`truncate ${t.status === 'COMPLETED' ? 'text-emerald-700 font-medium' : t.status === 'IN_PROGRESS' ? 'text-primary-700 font-medium' : 'text-gray-500'}`}>
                       {t.name}
                     </span>
                   </div>
@@ -1816,7 +1996,7 @@ const OnboardingDetail: React.FC = () => {
                   onClick={() => setActiveTab('info')}
                   className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
                     activeTab === 'info'
-                      ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                      ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-500'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -1828,7 +2008,7 @@ const OnboardingDetail: React.FC = () => {
                   onClick={() => setActiveTab('tasks')}
                   className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
                     activeTab === 'tasks'
-                      ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                      ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-500'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -1839,7 +2019,7 @@ const OnboardingDetail: React.FC = () => {
                 onClick={() => setActiveTab('documents')}
                 className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
                   activeTab === 'documents'
-                    ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                    ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-500'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -1850,7 +2030,7 @@ const OnboardingDetail: React.FC = () => {
                   onClick={() => setActiveTab('contracts')}
                   className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
                     activeTab === 'contracts'
-                      ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                      ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-500'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -1869,13 +2049,19 @@ const OnboardingDetail: React.FC = () => {
                 onUpdate={fetchOnboardingDetail}
                 canCompleteTask={(task) => {
                   const docs = onboarding.documents || [];
-                  const taskName = (task.name || '').toLowerCase();
 
-                  // Task "Đọc nội quy" → check documents REGULATION required đã đọc
-                  if (taskName.includes('nội quy công ty')) {
-                    const unread = docs.filter(
-                      (d) => d.document_type === 'REGULATION' && d.is_required && !d.is_read
+                  // Dùng task_code thay vì name/order — stable, rename-safe
+                  if (task.task_code === 'READ_REGULATION') {
+                    const required = docs.filter(
+                      (d) => d.document_type === 'REGULATION' && d.is_required
                     );
+                    if (required.length === 0) {
+                      return {
+                        allowed: false,
+                        reason: 'Chưa có tài liệu nội quy nào được gán cho onboarding này',
+                      };
+                    }
+                    const unread = required.filter((d) => !d.is_read);
                     if (unread.length > 0) {
                       return {
                         allowed: false,
@@ -1918,7 +2104,7 @@ const OnboardingDetail: React.FC = () => {
           >
             <div className="flex items-center justify-between px-5 py-3 border-b">
               <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                <DocumentTextIcon className="w-5 h-5 text-blue-600" />
+                <DocumentTextIcon className="w-5 h-5 text-primary-600" />
                 {previewFile.label}
               </h4>
               <div className="flex items-center gap-2">
@@ -1926,7 +2112,7 @@ const OnboardingDetail: React.FC = () => {
                   href={previewFile.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-primary-600 border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
                 >
                   <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                   Mở tab mới

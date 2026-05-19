@@ -7,7 +7,7 @@ import {
   UserPlusIcon,
   UsersIcon,
   ComputerDesktopIcon,
-
+  UserMinusIcon,
   WrenchScrewdriverIcon,
   ArchiveBoxIcon,
   Squares2X2Icon,
@@ -107,7 +107,7 @@ const DonutCard = ({
     <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-primary-500 shadow-sm p-5">
       <div className="mb-4">
         <h3 className="text-sm font-bold text-gray-900">{title}</h3>
-        {sub && <p className="text-xs text-gray-600 mt-0.5">{sub}</p>}
+        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
       </div>
       <div className="flex items-center gap-5">
         {/* Donut */}
@@ -209,11 +209,11 @@ const StatCard = ({
           </span>
         )}
       </div>
-      <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">{name}</p>
+      <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{name}</p>
       <p className="text-2xl font-extrabold text-gray-900 tracking-tight mt-0.5 truncate">
         {formatter(rawValue)}
       </p>
-      <p className="text-xs text-gray-600 mt-1">{subtext}</p>
+      <p className="text-xs text-gray-400 mt-1">{subtext}</p>
     </div>
   );
 };
@@ -241,9 +241,31 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-64 gap-3">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
-        <p className="text-sm text-gray-500">Đang tải dữ liệu...</p>
+      <div className="space-y-5">
+        <div className="h-9 w-48 bg-gray-100 rounded-xl animate-pulse" />
+        <div className="h-10 w-72 bg-gray-100 rounded-xl animate-pulse" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 h-28 animate-pulse">
+              <div className="h-9 w-9 bg-gray-100 rounded-xl mb-3" />
+              <div className="h-3 w-20 bg-gray-100 rounded mb-2" />
+              <div className="h-7 w-16 bg-gray-100 rounded" />
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {[1,2].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse">
+              <div className="h-4 w-32 bg-gray-100 rounded mb-4" />
+              <div className="flex items-center gap-5">
+                <div className="h-40 w-40 rounded-full bg-gray-100 flex-shrink-0" />
+                <div className="flex-1 space-y-3">
+                  {[1,2,3].map(j => <div key={j} className="h-3 bg-gray-100 rounded" />)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -306,9 +328,9 @@ const Dashboard = () => {
       <div className="flex flex-col items-center text-center gap-2 sm:flex-row sm:items-center sm:justify-between sm:text-left">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Dashboard HRM</h1>
-          <p className="text-sm text-gray-900 mt-0.5">Tổng quan nhân sự & tài sản</p>
+          <p className="text-xs text-gray-400 mt-0.5">Tổng quan nhân sự & tài sản</p>
         </div>
-        <span className="text-[11px] text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-1.5 flex-shrink-0">
+        <span className="text-[11px] text-gray-400 bg-white border border-gray-100 rounded-lg px-3 py-1.5 flex-shrink-0">
           {formatDate(new Date())}
         </span>
       </div>
@@ -339,7 +361,7 @@ const Dashboard = () => {
       {activeTab === 'overview' && (
         <div className="flex flex-col gap-5 flex-1">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard name="Tổng nhân viên" rawValue={stats.employee_stats.active + stats.employee_stats.probation} formatter={formatNumber}
+            <StatCard name="Tổng nhân viên" rawValue={stats.employee_stats.total} formatter={formatNumber}
               subtext={`${formatNumber(stats.employee_stats.active)} đang làm việc`}
               icon={UsersIcon} iconBg="bg-primary-100 text-primary-600" trend={stats.trends.employee_growth} />
             <StatCard name="Thử việc" rawValue={stats.employee_stats.probation} formatter={formatNumber}
@@ -363,7 +385,7 @@ const Dashboard = () => {
         <div className="space-y-5">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard name="Đang làm việc" rawValue={stats.employee_stats.active} formatter={formatNumber}
-              subtext={`Tổng ${formatNumber(stats.employee_stats.active + stats.employee_stats.probation)} nhân viên`}
+              subtext={`Tổng ${formatNumber(stats.employee_stats.total)} nhân viên`}
               icon={UsersIcon} iconBg="bg-primary-100 text-primary-600" trend={stats.trends.employee_growth} />
             <StatCard name="Thử việc" rawValue={stats.employee_stats.probation} formatter={formatNumber}
               subtext={`${formatNumber(stats.employee_stats.new_last_30_days)} mới / 30 ngày`}
@@ -371,9 +393,9 @@ const Dashboard = () => {
             <StatCard name="Mới tuyển dụng" rawValue={stats.employee_stats.recent_hires} formatter={formatNumber}
               subtext="Trong 30 ngày gần nhất"
               icon={UserGroupIcon} iconBg="bg-emerald-100 text-emerald-600" trend={null} />
-            <StatCard name="Tổng cộng" rawValue={stats.employee_stats.active + stats.employee_stats.probation} formatter={formatNumber}
-              subtext="Đang hoạt động"
-              icon={UserGroupIcon} iconBg="bg-violet-100 text-violet-600" trend={null} />
+            <StatCard name="Nghỉ việc" rawValue={stats.employee_stats.inactive} formatter={formatNumber}
+              subtext="Không còn làm việc"
+              icon={UserMinusIcon} iconBg="bg-red-100 text-red-500" trend={null} />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <DonutCard title="Phân bố giới tính" data={genderData}

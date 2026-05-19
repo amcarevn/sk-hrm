@@ -118,9 +118,12 @@ const AttendanceRanking: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
+        <div className="h-9 w-9 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center flex-shrink-0">
+          <TrophyIcon className="h-5 w-5" />
+        </div>
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Bảng xếp hạng chấm công</h1>
-          <p className="text-sm text-gray-900 mt-0.5">Thống kê nhân viên đi sớm và đúng giờ theo tháng</p>
+          <p className="text-sm text-gray-400 mt-0.5">Thống kê nhân viên đi sớm và đúng giờ theo tháng</p>
         </div>
       </div>
 

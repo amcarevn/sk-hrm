@@ -30,6 +30,7 @@ import {
   GiftIcon,
   MagnifyingGlassIcon,
   MegaphoneIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavigationItem {
@@ -117,6 +118,13 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN'],
     children: [
       {
+        name: 'Quản lý đơn vị',
+        href: '/dashboard/company-units',
+        icon: BuildingOfficeIcon,
+        roles: ['ADMIN'],
+        employeePermission: 'can_manage_company_config',
+      },
+      {
         name: 'Quản lý phòng ban',
         href: '/dashboard/departments',
         icon: BuildingOfficeIcon,
@@ -200,9 +208,35 @@ const navigationItems: NavigationItem[] = [
   // --- Lương ---
   {
     name: 'Quản lý tính lương',
-    href: '/dashboard/salary-management',
+    href: '/dashboard/salary-management/config',
     icon: CurrencyDollarIcon,
     roles: ['ADMIN'],
+    children: [
+      {
+        name: 'Bảng lương',
+        href: '/dashboard/salary-management/payroll',
+        icon: TableCellsIcon,
+        roles: ['ADMIN'],
+      },
+      {
+        name: 'Cấu hình tính lương',
+        href: '/dashboard/salary-management/config',
+        icon: CurrencyDollarIcon,
+        roles: ['ADMIN'],
+      },
+      {
+        name: 'Dữ liệu',
+        href: '/dashboard/salary-management/penalty',
+        icon: ExclamationCircleIcon,
+        roles: ['ADMIN'],
+      },
+      {
+        name: 'Cấu hình tăng ca',
+        href: '/dashboard/salary-management/overtime',
+        icon: ClockIcon,
+        roles: ['ADMIN'],
+      },
+    ],
   },
 
   // --- Tài sản ---
@@ -255,6 +289,12 @@ const navigationItems: NavigationItem[] = [
       {
         name: 'Template hợp đồng',
         href: '/dashboard/contract-templates',
+        icon: DocumentTextIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Hợp đồng hàng loạt',
+        href: '/dashboard/bulk-contracts',
         icon: DocumentTextIcon,
         roles: ['ADMIN', 'HR'],
       },
@@ -327,14 +367,14 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   if (loading) {
     return (
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex min-h-0 flex-1 flex-col bg-[#0d2206]">
+        <div className="flex min-h-0 flex-1 flex-col bg-primary-900">
           <div className="flex h-16 items-center px-4">
-            <div className="h-8 w-8 rounded-lg bg-[#1a3d0f] animate-pulse"></div>
-            <div className="ml-2 h-6 w-32 bg-[#1a3d0f] rounded animate-pulse"></div>
+            <div className="h-8 w-8 rounded-lg bg-primary-800 animate-pulse"></div>
+            <div className="ml-2 h-6 w-32 bg-primary-800 rounded animate-pulse"></div>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-10 bg-[#1a3d0f] rounded-lg animate-pulse"></div>
+              <div key={i} className="h-10 bg-primary-800 rounded-lg animate-pulse"></div>
             ))}
           </nav>
         </div>
@@ -405,8 +445,8 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
             onClick={collapsed ? undefined : () => toggleGroup(item.name, expanded)}
             className={`w-full group flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
               active
-                ? 'bg-sk-green text-white'
-                : 'text-white hover:bg-sk-green-dark'
+                ? 'bg-primary-700 text-white'
+                : 'text-white hover:bg-primary-800'
             } ${collapsed ? 'justify-center' : 'justify-between'}`}
             title={collapsed ? item.name : undefined}
           >
@@ -427,7 +467,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
             )}
           </button>
           {!collapsed && expanded && (
-            <div className="ml-4 mt-0.5 space-y-0.5 border-l border-sk-green/30 pl-3">
+            <div className="ml-4 mt-0.5 space-y-0.5 border-l border-primary-700/60 pl-3">
               {visibleChildren.map(child => {
                 const childActive = location.pathname.startsWith(child.href);
                 return (
@@ -436,8 +476,8 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                     to={child.href}
                     className={`group flex items-center px-2 py-1.5 text-sm rounded-lg transition-all duration-150 ${
                       childActive
-                        ? 'bg-sk-green-dark text-white font-medium'
-                        : 'text-white/60 hover:bg-sk-green-dark hover:text-white font-normal'
+                        ? 'bg-primary-600 text-white font-medium'
+                        : 'text-white/60 hover:bg-primary-800 hover:text-white font-normal'
                     }`}
                   >
                     <child.icon
@@ -462,8 +502,8 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         to={item.href}
         className={`group flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
           isActive
-            ? 'bg-sk-green text-white'
-            : 'text-white hover:bg-sk-green-dark'
+            ? 'bg-primary-600 text-white'
+            : 'text-white hover:bg-primary-800'
         } ${collapsed ? 'justify-center' : ''}`}
         title={collapsed ? item.name : undefined}
       >
@@ -482,37 +522,42 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
       {/* Mobile sidebar overlay */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 bg-primary-950/80 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-[#0d2206]">
-          <div className="relative flex h-16 items-center justify-center border-b border-sk-green/20">
-            <Link to="/" className="flex items-center justify-center">
-              <img src="/logo-sk.png" alt="SK Dental Clinic" className="h-8 w-auto max-w-[130px] object-contain" />
-            </Link>
+        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-primary-900">
+          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[13px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
+              <div className="flex items-center gap-2">
+                <div className="h-px w-4 bg-primary-500/60" />
+                <span className="text-[8px] font-bold tracking-[0.55em] text-primary-400 uppercase leading-none">Group</span>
+                <div className="h-px w-4 bg-primary-500/60" />
+              </div>
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="absolute right-3 p-1 rounded-md text-sk-green-light/60 hover:text-white hover:bg-sk-green-dark transition-colors"
+              className="absolute right-3 p-1 rounded-md text-primary-500 hover:text-white hover:bg-primary-800 transition-colors"
             >
               <XMarkIcon className="h-4 w-4" />
             </button>
           </div>
-          <nav className="flex-1 overflow-y-auto space-y-1 px-2 py-4">
+          <nav className="flex-1 overflow-y-auto scrollbar-hide space-y-1 px-2 py-4">
             {navigation.map((item) => renderNavItem(item, false))}
           </nav>
 
           {user && (
-            <div className="border-t border-sk-green/20 bg-[#060f03] px-2 py-3">
+            <div className="border-t border-primary-800 bg-primary-950 px-2 py-3">
               <Link to="/dashboard/settings" className="block">
-                <div className="flex items-center space-x-3 hover:bg-sk-green-dark p-2 rounded-lg transition-colors">
+                <div className="flex items-center space-x-3 hover:bg-primary-800 p-2 rounded-lg transition-colors">
                   {user.hrm_user?.avatar_url ? (
                     <img
                       src={user.hrm_user.avatar_url}
                       alt="Avatar"
-                      className="h-8 w-8 rounded-full object-cover ring-2 ring-sk-green/30"
+                      className="h-8 w-8 rounded-full object-cover ring-2 ring-primary-700"
                     />
                   ) : (
-                    <div className="h-8 w-8 bg-gradient-to-br from-sk-green to-sk-green-dark rounded-full flex items-center justify-center ring-2 ring-sk-green/30">
+                    <div className="h-8 w-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center ring-2 ring-primary-700">
                       <span className="text-sm font-semibold text-white">
                         {user.username?.charAt(0).toUpperCase()}
                       </span>
@@ -522,15 +567,13 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                     <p className="text-sm font-medium text-white truncate">
                       {user.username}
                     </p>
-                    <div className="flex items-center space-x-2">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          userRole === 'ADMIN' ? 'bg-red-100 text-red-800' : 'bg-sk-green/20 text-sk-green-light'
-                        }`}
-                      >
-                        {userRole}
-                      </span>
-                    </div>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-0.5 ${
+                      userRole === 'ADMIN'
+                        ? 'bg-red-900/60 text-red-300'
+                        : 'bg-primary-700 text-primary-200'
+                    }`}>
+                      {userRole}
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -541,18 +584,24 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
 
       {/* Desktop sidebar */}
       <div
-        className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col transition-all duration-300 ${isCollapsed ? 'lg:w-16' : 'lg:w-64'}`}
+        className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col lg:h-screen transition-all duration-300 ${isCollapsed ? 'lg:w-16' : 'lg:w-64'}`}
       >
-        <div className="flex min-h-0 flex-1 flex-col bg-[#0d2206]">
-          <div className="relative flex h-16 items-center justify-center border-b border-sk-green/20">
+        <div className="flex h-full min-h-0 flex-col bg-primary-900 overflow-hidden">
+          {/* Logo area */}
+          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60">
             {!isCollapsed && (
-              <Link to="/" className="flex items-center justify-center">
-                <img src="/logo-sk.png" alt="SK Dental Clinic" className="h-10 w-auto object-contain" />
-              </Link>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[18px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
+                <div className="flex items-center gap-2">
+                  <div className="h-px w-6 bg-primary-500/60" />
+                  <span className="text-[11px] font-bold tracking-[0.55em] text-primary-300 uppercase leading-none">Group</span>
+                  <div className="h-px w-6 bg-primary-500/60" />
+                </div>
+              </div>
             )}
             <button
               onClick={handleCollapseToggle}
-              className="absolute right-2 p-1.5 rounded-md text-sk-green-light/50 hover:text-white hover:bg-sk-green-dark transition-colors"
+              className="absolute right-2 p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-primary-800 transition-all duration-150"
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {isCollapsed ? (
@@ -562,22 +611,36 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
               )}
             </button>
           </div>
-          <nav className="flex-1 overflow-y-auto space-y-1 px-2 py-4">
+
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto scrollbar-hide space-y-0.5 px-2 py-4">
             {navigation.map((item) => renderNavItem(item, isCollapsed))}
           </nav>
 
+          {/* User section */}
           {!isCollapsed && user && (
-            <div className="border-t border-sk-green/20 bg-[#060f03] px-2 py-3">
+            <div className="border-t border-primary-800 bg-primary-950 px-2 py-3">
+              <a
+                href="https://music-player.thammytrunganh.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-colors w-fit"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+                <span className="text-xs font-medium text-white">Order nhạc ở đây</span>
+              </a>
               <Link to="/dashboard/settings" className="block">
-                <div className="flex items-center space-x-3 hover:bg-sk-green-dark p-2 rounded-lg transition-colors">
+                <div className="flex items-center space-x-3 hover:bg-primary-800 p-2 rounded-lg transition-colors">
                   {user.hrm_user?.avatar_url ? (
                     <img
                       src={user.hrm_user.avatar_url}
                       alt="Avatar"
-                      className="h-8 w-8 rounded-full object-cover flex-shrink-0 ring-2 ring-sk-green/30"
+                      className="h-8 w-8 rounded-full object-cover ring-2 ring-primary-700 flex-shrink-0"
                     />
                   ) : (
-                    <div className="h-8 w-8 bg-gradient-to-br from-sk-green to-sk-green-dark rounded-full flex items-center justify-center flex-shrink-0 ring-2 ring-sk-green/30">
+                    <div className="h-8 w-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center ring-2 ring-primary-700 flex-shrink-0">
                       <span className="text-sm font-semibold text-white">
                         {(user.employee_profile?.full_name || user.hrm_user?.full_name || user.firstName || user.username)?.charAt(0).toUpperCase()}
                       </span>
@@ -587,16 +650,14 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                     <p className="text-sm font-medium text-white truncate">
                       {user.employee_profile?.full_name || user.hrm_user?.full_name || user.firstName || user.username}
                     </p>
-                    <p className="text-xs text-white/50 truncate">{user.username}</p>
-                    <div className="flex items-center space-x-2 mt-0.5">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          userRole === 'ADMIN' ? 'bg-red-100 text-red-800' : 'bg-sk-green/20 text-sk-green-light'
-                        }`}
-                      >
-                        {userRole}
-                      </span>
-                    </div>
+                    <p className="text-xs text-primary-400 truncate">{user.username}</p>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-0.5 ${
+                      userRole === 'ADMIN'
+                        ? 'bg-red-900/60 text-red-300'
+                        : 'bg-primary-700 text-primary-200'
+                    }`}>
+                      {userRole}
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -605,23 +666,26 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         </div>
       </div>
 
-      {/* Mobile menu button */}
-      <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:hidden">
+      {/* Mobile top bar */}
+      <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center border-b border-primary-800/60 bg-primary-900 px-4 shadow-sm lg:hidden">
         <button
           type="button"
-          className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+          className="p-1.5 text-primary-400 hover:text-white transition-colors"
           onClick={() => setSidebarOpen(true)}
         >
-          <Bars3Icon className="h-6 w-6" />
+          <Bars3Icon className="h-5 w-5" />
         </button>
-        <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-sk-green flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-black text-xs tracking-tight">SK</span>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-[13px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
+            <div className="flex items-center gap-2">
+              <div className="h-px w-4 bg-primary-500/60" />
+              <span className="text-[8px] font-bold tracking-[0.55em] text-primary-400 uppercase leading-none">Group</span>
+              <div className="h-px w-4 bg-primary-500/60" />
             </div>
-            <span className="text-sm font-bold text-gray-900">SK Dental Clinic</span>
-          </Link>
+          </div>
         </div>
+        <div className="w-8" />
       </div>
     </>
   );

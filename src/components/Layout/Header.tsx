@@ -128,7 +128,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => setBellOpen((o) => !o)}
-                className="p-1.5 text-gray-500 hover:text-sk-green transition-colors relative"
+                className="p-1.5 text-gray-500 hover:text-primary-600 transition-colors relative"
               >
                 <span className="sr-only">Xem thông báo</span>
                 <BellIcon className="h-6 w-6" aria-hidden="true" />
@@ -142,8 +142,8 @@ export default function Header() {
               {bellOpen && (
                 <div className="absolute right-0 z-30 mt-2 w-80 origin-top-right rounded-xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden">
                   {/* Header */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-sk-border bg-sk-bg-section">
-                    <span className="text-sm font-semibold text-sk-text">Thông báo</span>
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-primary-100 bg-primary-50">
+                    <span className="text-sm font-semibold text-primary-900">Thông báo</span>
                     {unreadIds.size > 0 && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-600">
                         {unreadIds.size} mới
@@ -162,10 +162,10 @@ export default function Header() {
                           <div
                             key={ann.id}
                             onClick={() => { markRead(ann.id); setBellOpen(false); openDrawer(ann); }}
-                            className={`flex gap-2 px-4 py-3 cursor-pointer transition-colors border-l-4 ${PRIORITY_BORDER[ann.priority] || 'border-gray-200'} ${isUnread ? 'bg-sk-green/5 hover:bg-sk-green/10' : 'hover:bg-gray-50'}`}
+                            className={`flex gap-2 px-4 py-3 cursor-pointer transition-colors border-l-4 ${PRIORITY_BORDER[ann.priority] || 'border-gray-200'} ${isUnread ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
                           >
                             {isUnread && (
-                              <span className="mt-1.5 flex-shrink-0 h-2 w-2 rounded-full bg-sk-green" />
+                              <span className="mt-1.5 flex-shrink-0 h-2 w-2 rounded-full bg-blue-500" />
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1 flex-wrap mb-0.5">
@@ -188,7 +188,7 @@ export default function Header() {
                     {/* Infinite scroll sentinel */}
                     <div ref={sentinelRef} className="py-2 flex justify-center">
                       {loadingMore && (
-                        <div className="animate-spin h-4 w-4 border-2 border-sk-green border-t-transparent rounded-full" />
+                        <div className="animate-spin h-4 w-4 border-2 border-primary-600 border-t-transparent rounded-full" />
                       )}
                     </div>
                   </div>
@@ -197,7 +197,7 @@ export default function Header() {
                   <div className="border-t border-gray-100">
                     <button
                       onClick={() => { setBellOpen(false); openDrawer(); }}
-                      className="w-full px-4 py-2.5 text-sm font-semibold text-sk-green hover:bg-sk-green/5 transition-colors text-center tracking-tight"
+                      className="w-full px-4 py-2.5 text-sm font-semibold text-primary-600 hover:bg-primary-50 transition-colors text-center tracking-tight"
                     >
                       Xem tất cả thông báo →
                     </button>
@@ -260,6 +260,7 @@ export default function Header() {
           </div>
         </div>
       </header>
+
     </>
   );
 }

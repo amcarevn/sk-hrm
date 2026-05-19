@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import Pagination from '../components/Pagination';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
-import { UsersIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { UsersIcon } from '@heroicons/react/24/outline';
 
 
 const EmployeeList: React.FC = () => {
@@ -42,52 +42,11 @@ const EmployeeList: React.FC = () => {
     summary: { total: number; created: number; updated: number; failed: number };
     errors: Array<{ row: number; employee_id?: string; warnings?: string[]; errors?: string[] }>;
   } | null>(null);
-  const [expiringContractEmployees, setExpiringContractEmployees] = useState<Employee[]>([]);
-  const [isLoadingExpiringContracts, setIsLoadingExpiringContracts] = useState(false);
-  const [showExpiringContracts, setShowExpiringContracts] = useState(false);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
   const isSuperUser = user?.is_superuser === true || user?.is_super_admin === true;
 
   const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
   const COOLDOWN_DURATION = 120; // 2 phút (giây)
-
-  const getNearestExpiryDate = (employee: Employee) => {
-    const dates: Date[] = [];
-    if (employee.probation_end_date) dates.push(new Date(employee.probation_end_date));
-    if (employee.contract_end_date) dates.push(new Date(employee.contract_end_date));
-    if (dates.length === 0) return null;
-    return new Date(Math.min(...dates.map((d) => d.getTime())));
-  };
-  
-  const fetchExpiringContractEmployees = async () => {
-    try {
-      setIsLoadingExpiringContracts(true);
-      const response = await employeesAPI.list({ page_size: 1000 });
-      
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const fourDaysLater = new Date(today);
-      fourDaysLater.setDate(today.getDate() + 4);
-      
-      const expiring = (response.results || []).filter((emp: Employee) => {
-        const nearestExpiryDate = getNearestExpiryDate(emp);
-        if (!nearestExpiryDate) return false;
-        nearestExpiryDate.setHours(0, 0, 0, 0);
-        return nearestExpiryDate >= today && nearestExpiryDate <= fourDaysLater;
-      }).sort((a: Employee, b: Employee) => {
-        const dateA = getNearestExpiryDate(a) || new Date();
-        const dateB = getNearestExpiryDate(b) || new Date();
-        return dateA.getTime() - dateB.getTime();
-      });
-      
-      setExpiringContractEmployees(expiring);
-    } catch (err) {
-      console.error('Error fetching expiring contract employees:', err);
-    } finally {
-      setIsLoadingExpiringContracts(false);
-    }
-  };
-  
   const fetchEmployees = async (search = '', status = 'all', department = 'all', page = 1, pageSize = 20, contractType = 'all', expiringSoon = 'all') => {
     try {
       setLoading(true);
@@ -159,7 +118,6 @@ const EmployeeList: React.FC = () => {
   useEffect(() => {
     fetchStats();
     fetchDepartments();
-    fetchExpiringContractEmployees();
   }, []);
 
   // Chặn scroll khi mở dialog import
@@ -1089,7 +1047,7 @@ const EmployeeList: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const deadline = new Date(today);
-    deadline.setDate(today.getDate() + 4);
+    deadline.setDate(today.getDate() + 5);
 
     const probEnd = employee.probation_end_date ? new Date(employee.probation_end_date) : null;
     const contEnd = employee.contract_end_date ? new Date(employee.contract_end_date) : null;
@@ -1105,9 +1063,12 @@ const EmployeeList: React.FC = () => {
     <>
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-6">
+        <div className="h-10 w-10 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+          <UsersIcon className="h-6 w-6" />
+        </div>
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Quản lý nhân viên</h1>
-          <p className="text-sm text-gray-900">Quản lý thông tin nhân viên, phòng ban, chức vụ và các thông tin liên quan.</p>
+          <p className="text-sm text-gray-400">Quản lý thông tin nhân viên, phòng ban, chức vụ và các thông tin liên quan.</p>
         </div>
       </div>
 
@@ -1115,7 +1076,7 @@ const EmployeeList: React.FC = () => {
         {/* Statistics Section - At the top as requested */}
         <div className="mb-8">
           <h2 className="text-sm font-bold text-gray-900 mb-4">Thống kê nhân viên</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
             <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-primary-500 shadow-sm p-4">
               <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Tổng số</p>
               <p className="text-2xl font-extrabold text-primary-600 mt-1">{stats.total}</p>
@@ -1144,85 +1105,8 @@ const EmployeeList: React.FC = () => {
               <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Khác</p>
               <p className="text-2xl font-extrabold text-violet-500 mt-1">{stats.other}</p>
             </div>
-
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => setShowExpiringContracts((prev) => !prev)}
-                className="text-left bg-white rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 shadow-sm p-4 hover:bg-amber-50 transition-colors"
-              >
-                <p className="text-[11px] font-medium text-amber-700 uppercase tracking-wide">Sắp hết hạn HĐ</p>
-                <div className="mt-1 flex items-center justify-between gap-2">
-                  <p className="text-2xl font-extrabold text-amber-600">
-                    {isLoadingExpiringContracts ? '...' : expiringContractEmployees.length}
-                  </p>
-                  <ExclamationTriangleIcon className="h-5 w-5 text-amber-500" />
-                </div>
-              </button>
-            )}
           </div>
         </div>
-
-        {isAdmin && showExpiringContracts && (
-          <div className="mb-6 bg-amber-50 rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 p-5">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 mt-0.5">
-                <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-bold text-amber-900 mb-3">
-                  ⚠️ Cảnh báo: {expiringContractEmployees.length} nhân sự sắp hết hạn hợp đồng
-                </h3>
-                {expiringContractEmployees.length === 0 ? (
-                  <p className="text-sm text-amber-800">Không có nhân sự nào sắp hết hạn hợp đồng trong 4 ngày tới.</p>
-                ) : (
-                <div className="space-y-2">
-                  {expiringContractEmployees.map((emp) => {
-                    const nearestExpiryDate = getNearestExpiryDate(emp);
-                    const today = new Date();
-                    const daysUntilExpiry = nearestExpiryDate ? Math.ceil((nearestExpiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-                    return (
-                      <div key={emp.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 hover:bg-amber-50 transition-colors">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{emp.full_name}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-gray-500">Mã NV: {emp.employee_id}</span>
-                            {emp.department && <span className="text-xs text-gray-500">• {emp.department.name}</span>}
-                            {nearestExpiryDate && (
-                              <span className="text-xs text-amber-600 font-medium">
-                                • Hết hạn: {nearestExpiryDate.toLocaleDateString('vi-VN')}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {daysUntilExpiry <= 1 && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              Hôm nay/Hôm qua
-                            </span>
-                          )}
-                          {daysUntilExpiry > 1 && daysUntilExpiry <= 4 && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                              {daysUntilExpiry} ngày còn lại
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/employees/${emp.id}`)}
-                            className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
-                          >
-                            Xem chi tiết
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Search and Filter Section */}
         <div className="mb-6 bg-gray-50/50 p-5 rounded-2xl border border-gray-100">

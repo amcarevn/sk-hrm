@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ArrowPathIcon,
   ArrowDownTrayIcon,
+  UserMinusIcon,
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
@@ -337,10 +338,13 @@ const Offboarding: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 flex-1 min-h-0">
       {/* Page header */}
-      <div className="flex items-center">
+      <div className="flex items-center gap-3">
+        <div className="h-9 w-9 bg-red-100 text-red-600 rounded-xl flex items-center justify-center flex-shrink-0">
+          <UserMinusIcon className="h-5 w-5" />
+        </div>
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Offboard nhân sự</h1>
-          <p className="text-sm text-gray-900 mt-0.5">
+          <p className="text-sm text-gray-400 mt-0.5">
             Quản lý đơn nghỉ việc & yêu cầu offboard. Admin xử lý cuối sau khi Quản lý đã duyệt.
           </p>
         </div>

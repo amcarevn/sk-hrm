@@ -460,7 +460,7 @@ export default function AssetList() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Quản lý tài sản</h1>
-          <p className="mt-1 text-sm text-gray-900">
+          <p className="mt-1 text-sm text-gray-600">
             Quản lý tất cả tài sản công ty, theo dõi trạng thái và người sử dụng
           </p>
         </div>
@@ -475,7 +475,7 @@ export default function AssetList() {
           <button
             onClick={handleImportClick}
             disabled={isImporting}
-            className="btn-secondary bg-white inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="btn-secondary inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isImporting ? (
               <>
@@ -495,7 +495,7 @@ export default function AssetList() {
           <button
             onClick={handleExportExcel}
             disabled={isExporting}
-            className="btn-secondary bg-white inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="btn-secondary inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isExporting ? (
               <>
@@ -522,16 +522,18 @@ export default function AssetList() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Sticky wrapper: Stats + Filters */}
+      <div className="sticky top-16 z-20 -mx-6 px-6 py-4 bg-gray-50/95 backdrop-blur space-y-4">
+        {/* Stats Cards */}
+        {stats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <div className="flex items-center gap-4">
                 <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
                   <ComputerDesktopIcon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Tổng số tài sản</p>
+                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Tổng số tài sản</p>
                   <p className="text-2xl font-extrabold text-gray-900 tracking-tight">{formatNumber(stats.total)}</p>
                 </div>
               </div>
@@ -543,7 +545,7 @@ export default function AssetList() {
                   <UserIcon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Đang sử dụng</p>
+                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Đang sử dụng</p>
                   <p className="text-2xl font-extrabold text-gray-900 tracking-tight">{formatNumber(stats.in_use)}</p>
                 </div>
               </div>
@@ -555,7 +557,7 @@ export default function AssetList() {
                   <ShieldCheckIcon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Hết hạn bảo hành</p>
+                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Hết hạn bảo hành</p>
                   <p className="text-2xl font-extrabold text-gray-900 tracking-tight">{formatNumber(stats.expired_warranty)}</p>
                 </div>
               </div>
@@ -563,8 +565,8 @@ export default function AssetList() {
           </div>
         )}
 
-      {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        {/* Filters */}
+        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label htmlFor="search" className="block text-sm font-medium text-gray-700">
@@ -672,6 +674,7 @@ export default function AssetList() {
               )}
             </div>
           </div>
+        </div>
       </div>
 
       {/* Error Message */}
@@ -726,7 +729,7 @@ export default function AssetList() {
 
       {/* Assets Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-auto max-h-[calc(100vh-28rem)]">
+        <div className="overflow-auto max-h-[calc(100vh-16rem)]">
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>

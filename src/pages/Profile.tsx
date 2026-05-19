@@ -34,7 +34,6 @@ import {
   MagnifyingGlassIcon,
   TrashIcon,
   EyeIcon,
-  EyeSlashIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon,
@@ -69,19 +68,6 @@ interface MyContract {
   generated_file: string | null;
   created_at: string;
 }
-
-const CONTRACT_TYPE_MAP: Record<string, string> = {
-  PROBATION: 'Hợp đồng thử việc',
-  INTERN: 'Hợp đồng thực tập',
-  COLLABORATOR: 'Hợp đồng cộng tác viên',
-  ONE_YEAR: 'Hợp đồng 1 năm',
-  TWO_YEAR: 'Hợp đồng 2 năm',
-  INDEFINITE: 'Hợp đồng không xác định thời hạn',
-  SERVICE: 'Hợp đồng dịch vụ',
-  CONFIDENTIALITY: 'Cam kết bảo mật',
-  COMPANY_RULES: 'Nội quy công ty',
-  NURSING_COMMITMENT: 'Cam kết nuôi dưỡng',
-};
 
 const getDaysUntilExpiry = (endDate: string | null | undefined): number | null => {
   if (!endDate) return null;
@@ -120,7 +106,6 @@ const Profile: React.FC = () => {
   const [manager, setManager] = useState<Employee | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [showTeamModal, setShowTeamModal] = useState(false);
-  const [showSalary, setShowSalary] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -467,9 +452,25 @@ const Profile: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-64 gap-3">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
-        <p className="text-sm text-gray-500">Đang tải dữ liệu...</p>
+      <div className="space-y-5 animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 bg-gray-100 rounded-xl" />
+          <div className="space-y-1.5">
+            <div className="h-5 w-40 bg-gray-100 rounded" />
+            <div className="h-3 w-56 bg-gray-100 rounded" />
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-32" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 space-y-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-64" />
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-48" />
+          </div>
+          <div className="space-y-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-48" />
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-40" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -509,7 +510,7 @@ const Profile: React.FC = () => {
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
             Thông tin cá nhân
           </h1>
-          <p className="mt-1 text-sm text-gray-900">
+          <p className="mt-1 text-sm text-gray-400">
             Quản lý thông tin cá nhân và tài khoản ngân hàng
           </p>
         </div>
@@ -865,6 +866,78 @@ const Profile: React.FC = () => {
             )}
           </div>
 
+          {/* Team Members Card */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <UserGroupIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Thành viên trong team</h3>
+                <p className="text-xs text-gray-400">{teamMembers.length} thành viên</p>
+              </div>
+            </div>
+
+            {teamMembers.length > 0 ? (
+              <div className="space-y-4">
+                {teamMembers.slice(0, 5).map((member) => (
+                  <div
+                    key={member.id}
+                    className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium text-gray-900">
+                          {member.full_name}
+                        </h4>
+                        <p className="text-sm text-gray-400">
+                          {member.position_title}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Mã NV: {member.employee_id}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      {member.phone_number && (
+                        <div className="flex items-center text-gray-600">
+                          <PhoneIcon className="h-4 w-4 mr-1" />
+                          <span>{member.phone_number}</span>
+                        </div>
+                      )}
+                      {member.personal_email && (
+                        <div className="flex items-center text-gray-600">
+                          <EnvelopeIcon className="h-4 w-4 mr-1" />
+                          <span className="truncate">
+                            {member.personal_email}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {teamMembers.length > 5 && (
+                  <div className="text-center pt-4 border-t border-gray-100">
+                    <button
+                      onClick={() => setShowTeamModal(true)}
+                      className="text-sm text-primary-600 hover:text-primary-800 font-medium"
+                    >
+                      Xem thêm ({teamMembers.length - 5} thành viên khác)
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <p className="mt-2 text-sm text-gray-400">
+                  Không có thành viên trong team
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -891,7 +964,6 @@ const Profile: React.FC = () => {
                 <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-2" />
                 <span className="text-gray-900">
                   {employee.contract_type_display ||
-                    (employee.contract_type ? CONTRACT_TYPE_MAP[employee.contract_type] : undefined) ||
                     employee.contract_type ||
                     'Chưa cập nhật'}
                 </span>
@@ -903,24 +975,12 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Lương cơ bản
                 </label>
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-xl">
-                  <span className="text-gray-900 flex-1">
-                    {showSalary
-                      ? (employee.basic_salary ? formatCurrency(employee.basic_salary) : 'Chưa cập nhật')
-                      : '*******'}
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
+                  <span className="text-gray-900">
+                    {employee.basic_salary
+                      ? formatCurrency(employee.basic_salary)
+                      : 'Chưa cập nhật'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowSalary((v) => !v)}
-                    className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-                    title={showSalary ? 'Ẩn lương' : 'Hiện lương'}
-                  >
-                    {showSalary ? (
-                      <EyeSlashIcon className="h-4 w-4" />
-                    ) : (
-                      <EyeIcon className="h-4 w-4" />
-                    )}
-                  </button>
                 </div>
               </div>
 
@@ -1309,21 +1369,19 @@ const Profile: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nơi cấp</label>
                 <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
-                  <span className="text-gray-900">
-                    {CITIZEN_ID_ISSUE_PLACE_OPTIONS.find(o => o.value === employee.cccd_issue_place)?.label || employee.cccd_issue_place || 'Chưa cập nhật'}
-                  </span>
+                  <span className="text-gray-900">{employee.cccd_issue_place || 'Chưa cập nhật'}</span>
                 </div>
               </div>
             </div>
 
             {/* Nơi khai sinh — read only */}
-            {/* <div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nơi khai sinh</label>
               <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                 <MapPinIcon className="h-5 w-5 text-gray-400 mr-2" />
                 <span className="text-gray-900">{employee.birth_place || 'Chưa cập nhật'}</span>
               </div>
-            </div> */}
+            </div>
 
             {/* Hộ khẩu thường trú — read only */}
             <div>
@@ -1345,78 +1403,6 @@ const Profile: React.FC = () => {
 
           </div>
         </div>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-            <UserGroupIcon className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-gray-900">Thành viên trong team</h3>
-            <p className="text-xs text-gray-400">{teamMembers.length} thành viên</p>
-          </div>
-        </div>
-
-        {teamMembers.length > 0 ? (
-          <div className="space-y-4">
-            {teamMembers.slice(0, 5).map((member) => (
-              <div
-                key={member.id}
-                className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-medium text-gray-900">
-                      {member.full_name}
-                    </h4>
-                    <p className="text-sm text-gray-400">
-                      {member.position_title}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      Mã NV: {member.employee_id}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                  {member.phone_number && (
-                    <div className="flex items-center text-gray-600">
-                      <PhoneIcon className="h-4 w-4 mr-1" />
-                      <span>{member.phone_number}</span>
-                    </div>
-                  )}
-                  {member.personal_email && (
-                    <div className="flex items-center text-gray-600">
-                      <EnvelopeIcon className="h-4 w-4 mr-1" />
-                      <span className="truncate">
-                        {member.personal_email}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {teamMembers.length > 5 && (
-              <div className="text-center pt-4 border-t border-gray-100">
-                <button
-                  onClick={() => setShowTeamModal(true)}
-                  className="text-sm text-primary-600 hover:text-primary-800 font-medium"
-                >
-                  Xem thêm ({teamMembers.length - 5} thành viên khác)
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-6">
-            <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-2 text-sm text-gray-400">
-              Không có thành viên trong team
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Team Members Modal */}
@@ -1794,9 +1780,8 @@ const Profile: React.FC = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Nơi cấp</label>
                         <SelectBox<string>
-                          label=""
+                          label="Nơi cấp"
                           value={editForm.cccd_issue_place}
                           options={CITIZEN_ID_ISSUE_PLACE_OPTIONS}
                           onChange={v => handleInputChange('cccd_issue_place', v)}
