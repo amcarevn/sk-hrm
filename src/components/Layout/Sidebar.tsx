@@ -476,13 +476,13 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                     to={child.href}
                     className={`group flex items-center px-2 py-1.5 text-sm rounded-lg transition-all duration-150 ${
                       childActive
-                        ? 'bg-primary-600 text-white font-medium'
-                        : 'text-white/60 hover:bg-primary-800 hover:text-white font-normal'
+                        ? 'bg-primary-600 text-white font-semibold'
+                        : 'text-white/90 hover:bg-primary-800 hover:text-white font-medium'
                     }`}
                   >
                     <child.icon
                       className={`h-4 w-4 flex-shrink-0 mr-2 transition-colors ${
-                        childActive ? 'text-white' : 'text-white/50 group-hover:text-white'
+                        childActive ? 'text-white' : 'text-white/70 group-hover:text-white'
                       }`}
                     />
                     {child.name}
