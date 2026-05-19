@@ -196,8 +196,8 @@ const WORK_FORM_LABELS: Record<string, string> = {
 const getStatusBadge = (status: string) => {
   const statusConfig = {
     DRAFT: { label: 'Nháp', color: 'bg-gray-100 text-gray-800' },
-    IN_PROGRESS: { label: 'Đang thực hiện', color: 'bg-blue-100 text-blue-800' },
-    COMPLETED: { label: 'Hoàn thành', color: 'bg-green-100 text-green-800' },
+    IN_PROGRESS: { label: 'Đang thực hiện', color: 'bg-primary-100 text-primary-700' },
+    COMPLETED: { label: 'Hoàn thành', color: 'bg-emerald-100 text-emerald-600' },
     CANCELLED: { label: 'Đã hủy', color: 'bg-red-100 text-red-800' },
   };
   const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.DRAFT;
@@ -283,9 +283,9 @@ const EditField: React.FC<EditFieldProps> = ({
 
   const val = editData[name] ?? '';
   const error = validate && val ? validate(val) : '';
-  const baseClass = `w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-    readOnly ? 'bg-gray-50 text-gray-500 cursor-not-allowed border-gray-300 focus:ring-blue-500' :
-    error ? 'border-red-400 focus:ring-red-500/20' : 'border-gray-300 focus:ring-blue-500'
+  const baseClass = `w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
+    readOnly ? 'bg-gray-50 text-gray-500 cursor-not-allowed border-gray-200 focus:ring-primary-500' :
+    error ? 'border-red-400 focus:ring-red-500/20' : 'border-gray-200 focus:ring-primary-500'
   }`;
 
   if (options) {
@@ -897,13 +897,13 @@ const OnboardingDetail: React.FC = () => {
 
     // Helper: Section header with edit button
     const SectionHeader: React.FC<{ title: string; color: string; onEdit?: () => void }> = ({ title, color, onEdit }) => {
-      const borderColors: Record<string, string> = { blue: 'border-blue-300', indigo: 'border-indigo-300', amber: 'border-amber-300', emerald: 'border-emerald-300', rose: 'border-rose-300', purple: 'border-purple-300', gray: 'border-gray-300' };
-      const textColors: Record<string, string> = { blue: 'text-blue-700', indigo: 'text-indigo-700', amber: 'text-amber-700', emerald: 'text-emerald-700', rose: 'text-rose-700', purple: 'text-purple-700', gray: 'text-gray-700' };
+      const borderColors: Record<string, string> = { blue: 'border-primary-300', indigo: 'border-primary-300', amber: 'border-amber-300', emerald: 'border-emerald-300', rose: 'border-rose-300', purple: 'border-violet-300', gray: 'border-gray-300' };
+      const textColors: Record<string, string> = { blue: 'text-primary-700', indigo: 'text-primary-700', amber: 'text-amber-700', emerald: 'text-emerald-700', rose: 'text-rose-700', purple: 'text-violet-700', gray: 'text-gray-700' };
       return (
         <div className={`flex items-center justify-between pb-3 mb-4 border-b-2 ${borderColors[color] || 'border-gray-200'}`}>
           <h3 className={`text-sm font-bold uppercase tracking-wide ${textColors[color] || 'text-gray-700'}`}>{title}</h3>
           {onEdit && userRole === 'ADMIN' && (
-            <button onClick={onEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+            <button onClick={onEdit} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors">
               <PencilIcon className="w-3.5 h-3.5" />
               Chỉnh sửa
             </button>
@@ -916,7 +916,7 @@ const OnboardingDetail: React.FC = () => {
     const InfoField: React.FC<{ label: string; value?: string | null; highlight?: boolean; full?: boolean }> = ({ label, value, highlight, full }) => (
       <div className={`flex items-baseline justify-between py-2.5 border-b border-gray-100 ${full ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
         <span className="text-sm text-gray-500 shrink-0 mr-3">{label}:</span>
-        <span className={`text-sm text-right truncate max-w-[60%] ${value && value !== 'Chưa có dữ liệu' ? (highlight ? 'font-semibold text-indigo-600' : 'font-semibold text-gray-800') : 'text-gray-300 italic'}`}>
+        <span className={`text-sm text-right truncate max-w-[60%] ${value && value !== 'Chưa có dữ liệu' ? (highlight ? 'font-semibold text-primary-600' : 'font-semibold text-gray-800') : 'text-gray-300 italic'}`}>
           {value || '—'}
         </span>
       </div>
@@ -926,7 +926,7 @@ const OnboardingDetail: React.FC = () => {
       <div className="space-y-6">
 
         {/* ── 1. Thông tin nhân viên ── */}
-        <div className="bg-white rounded-xl border p-5">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <SectionHeader title="Thông tin nhân viên" color="blue" onEdit={() => openEdit('employee_info', {
             employee_id: employeeProfile?.employee_id ?? onboarding.employee?.employee_id ?? '',
             full_name: employeeProfile?.full_name ?? onboarding.candidate_name ?? '',
@@ -965,7 +965,7 @@ const OnboardingDetail: React.FC = () => {
         </div>
 
         {/* ── 2. Thông tin công việc ── */}
-        <div className="bg-white rounded-xl border p-5">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <SectionHeader title="Thông tin công việc" color="indigo" onEdit={() => openEdit('job', {
             company_unit: (typeof onboarding.company_unit === 'object' && onboarding.company_unit)
               ? (onboarding.company_unit.code || '')
@@ -1018,7 +1018,7 @@ const OnboardingDetail: React.FC = () => {
         {userRole === 'ADMIN' && (
           <>
             {/* ── 3. Giấy tờ tùy thân & địa chỉ ── */}
-            <div className="bg-white rounded-xl border p-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <SectionHeader title="Giấy tờ tùy thân & địa chỉ" color="amber" onEdit={() => openEdit('personal', {
                 cccd_number: employeeProfile?.cccd_number ?? onboarding.citizen_id ?? '',
                 cccd_issue_date: employeeProfile?.cccd_issue_date ?? (onboarding as any).citizen_id_issue_date ?? '',
@@ -1052,7 +1052,7 @@ const OnboardingDetail: React.FC = () => {
             </div>
 
             {/* ── 4. Trình độ học vấn ── */}
-            <div className="bg-white rounded-xl border p-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <SectionHeader title="Trình độ học vấn" color="emerald" onEdit={() => openEdit('education', {
                 education_level: employeeProfile?.education_level ?? onboarding.education_level ?? '',
                 university: (extraInfo.university || onboarding.university) ?? '',
@@ -1068,7 +1068,7 @@ const OnboardingDetail: React.FC = () => {
             </div>
 
             {/* ── 5. Tài chính & ngân hàng ── */}
-            <div className="bg-white rounded-xl border p-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <SectionHeader title="Tài chính & ngân hàng" color="purple" onEdit={() => openEdit('financial', {
                 bank_name: employeeProfile?.bank_name ?? onboarding.bank_name ?? '',
                 bank_account: employeeProfile?.bank_account ?? onboarding.bank_account ?? '',
@@ -1084,7 +1084,7 @@ const OnboardingDetail: React.FC = () => {
             </div>
 
             {/* ── 6. Lương & Hợp đồng ── */}
-            <div className="bg-white rounded-xl border p-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <SectionHeader title="Lương & Hợp đồng" color="rose" onEdit={() => openEdit('emp_salary', {
                 basic_salary: employeeProfile?.basic_salary ?? '',
                 allowance: employeeProfile?.allowance ?? '',
@@ -1121,7 +1121,7 @@ const OnboardingDetail: React.FC = () => {
             </div>
 
             {/* ── 7. Trạng thái hồ sơ ── */}
-            <div className="bg-white rounded-xl border p-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <SectionHeader title="Trạng thái hồ sơ" color="gray" onEdit={() => openEdit('emp_file_status', {
                 file_status: employeeProfile?.file_status ?? 'NOT_SUBMITTED',
                 file_review_notes: (employeeProfile as any)?.file_review_notes ?? '',
@@ -1133,9 +1133,9 @@ const OnboardingDetail: React.FC = () => {
             </div>
 
             {/* ── 8. Hồ sơ đính kèm ── */}
-            <div className="bg-white rounded-lg border p-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold flex items-center">
+                <h3 className="text-sm font-bold flex items-center">
                   Hồ sơ đính kèm
                 </h3>
                 {userRole === 'ADMIN' && (
@@ -1146,7 +1146,7 @@ const OnboardingDetail: React.FC = () => {
                       vneid_screenshot: null,
                       facebook_link: extraInfo.facebook_link ?? '',
                     })}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-primary-50 hover:text-primary-600 rounded-lg transition-colors"
                   >
                     <PencilIcon className="w-3.5 h-3.5" />
                     Chỉnh sửa
@@ -1169,7 +1169,7 @@ const OnboardingDetail: React.FC = () => {
                     const fileType = getFileType(fileUrl);
                     const isImage = fileType === 'image' && !imgErrors[f.key];
                     return (
-                      <div key={f.key} className="border rounded-lg overflow-hidden">
+                      <div key={f.key} className="border border-gray-100 rounded-xl overflow-hidden">
                         {isImage ? (
                           <div
                             className="h-32 bg-gray-100 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity overflow-hidden"
@@ -1196,7 +1196,7 @@ const OnboardingDetail: React.FC = () => {
                           <div className="flex gap-1 flex-shrink-0">
                             <button
                               onClick={() => setPreviewFile({ url: fileUrl, label: f.label, type: fileType === 'image' ? 'image' : 'pdf' })}
-                              className="p-1 rounded text-blue-600 hover:bg-blue-50 transition-colors"
+                              className="p-1 rounded text-primary-600 hover:bg-primary-50 transition-colors"
                               title="Xem trước"
                             >
                               <EyeIcon className="w-4 h-4" />
@@ -1218,7 +1218,7 @@ const OnboardingDetail: React.FC = () => {
                 }
 
                 {!vneidScreenshotUrl && (
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="border border-gray-100 rounded-xl overflow-hidden">
                     <div className="h-32 bg-gray-50 flex flex-col items-center justify-center">
                       <span className="text-3xl mb-1">🖼️</span>
                       <span className="text-xs text-gray-500 font-medium px-2 text-center">
@@ -1235,10 +1235,10 @@ const OnboardingDetail: React.FC = () => {
 
                 {/* Facebook — cùng grid với các file */}
                 {extraInfo.facebook_link && (
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="h-32 bg-blue-50 flex flex-col items-center justify-center">
+                  <div className="border border-gray-100 rounded-xl overflow-hidden">
+                    <div className="h-32 bg-primary-50 flex flex-col items-center justify-center">
                       <span className="text-3xl mb-1">👤</span>
-                      <span className="text-xs text-blue-500 font-medium px-2 text-center truncate w-full">
+                      <span className="text-xs text-primary-500 font-medium px-2 text-center truncate w-full">
                         Facebook
                       </span>
                     </div>
@@ -1261,7 +1261,7 @@ const OnboardingDetail: React.FC = () => {
 
             {/* ── Liên hệ khẩn cấp ── */}
             {(employeeProfile as any)?.emergency_contact_name && (
-              <div className="bg-white rounded-xl border p-5">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <SectionHeader title="Liên hệ khẩn cấp" color="rose" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
                   <InfoField label="Họ tên" value={safeDisplay((employeeProfile as any).emergency_contact_name)} />
@@ -1318,7 +1318,7 @@ const OnboardingDetail: React.FC = () => {
                   <button
                     disabled={tokenLoading}
                     onClick={handleGenerateToken}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-600/10 transition-all active:scale-95 disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg shadow-sm shadow-primary-600/10 transition-all active:scale-95 disabled:opacity-60"
                   >
                     <ArrowPathIcon className={`w-3.5 h-3.5 ${tokenLoading ? 'animate-spin' : ''}`} />
                     {isExpired ? 'Cấp lại link mới' : 'Tạo đường dẫn link'}
@@ -1335,9 +1335,9 @@ const OnboardingDetail: React.FC = () => {
                     <button
                       disabled={tokenLoading}
                       onClick={handleSendEmail}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-60"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-200 hover:bg-primary-100 rounded-lg transition-all duration-200 active:scale-95 disabled:opacity-60"
                     >
-                      <EnvelopeIcon className="w-3.5 h-3.5 text-indigo-600" />
+                      <EnvelopeIcon className="w-3.5 h-3.5 text-primary-600" />
                       Gửi Mail
                     </button>
                     <button
@@ -1357,7 +1357,7 @@ const OnboardingDetail: React.FC = () => {
 
         {/* Ghi chú */}
         {onboarding.notes && (
-          <div className="bg-white rounded-xl border p-5">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <SectionHeader title="Ghi chú" color="gray" />
             <p className="text-gray-700 text-sm whitespace-pre-wrap">{onboarding.notes}</p>
           </div>
@@ -1618,7 +1618,7 @@ const OnboardingDetail: React.FC = () => {
                       href={currentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-primary-600 hover:underline"
                     >
                       Xem file hiện tại
                     </a>
@@ -1631,7 +1631,7 @@ const OnboardingDetail: React.FC = () => {
                     const f = e.target.files?.[0] || null;
                     handleEditFieldChange(name, f);
                   }}
-                  className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                 />
                 {file && (
                   <div className="flex items-center justify-between text-xs text-gray-600">
@@ -1682,8 +1682,8 @@ const OnboardingDetail: React.FC = () => {
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <PencilIcon className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+                <PencilIcon className="w-5 h-5 text-primary-600" />
               </div>
               <div>
                 <h4 className="text-lg font-bold text-gray-900">{sectionTitles[editSection]}</h4>
@@ -1707,14 +1707,14 @@ const OnboardingDetail: React.FC = () => {
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
             <button
               onClick={() => setEditSection(null)}
-              className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              className="btn-secondary"
             >
               Hủy
             </button>
             <button
               onClick={() => setConfirmDialog({ text: 'Bạn có chắc muốn lưu thay đổi?', onConfirm: () => { setConfirmDialog(null); handleSaveEdit(); } })}
               disabled={editLoading}
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-200 transition-colors"
+              className="btn-primary shadow-sm disabled:opacity-50"
             >
               {editLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
@@ -1733,7 +1733,7 @@ const OnboardingDetail: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <ArrowPathIcon className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <ArrowPathIcon className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-4" />
           <span className="text-lg text-gray-600">Đang tải thông tin...</span>
         </div>
       </div>
@@ -1750,7 +1750,7 @@ const OnboardingDetail: React.FC = () => {
           <ArrowLeftIcon className="w-5 h-5 mr-2" />
           Quay lại danh sách
         </button>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-5">
           <div className="flex items-center">
             <ExclamationTriangleIcon className="w-8 h-8 text-red-600 mr-3" />
             <div>
@@ -1758,7 +1758,7 @@ const OnboardingDetail: React.FC = () => {
               <p className="text-red-700 mt-1">{error}</p>
               <button
                 onClick={fetchOnboardingDetail}
-                className="mt-3 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                className="btn-danger mt-3"
               >
                 Thử lại
               </button>
@@ -1779,12 +1779,12 @@ const OnboardingDetail: React.FC = () => {
           <ArrowLeftIcon className="w-5 h-5 mr-2" />
           Quay lại danh sách
         </button>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5">
           <div className="flex items-center">
-            <ExclamationTriangleIcon className="w-8 h-8 text-yellow-600 mr-3" />
+            <ExclamationTriangleIcon className="w-8 h-8 text-amber-600 mr-3" />
             <div>
-              <h3 className="text-lg font-semibold text-yellow-900">Không tìm thấy dữ liệu</h3>
-              <p className="text-yellow-700 mt-1">Không tìm thấy quy trình onboarding với ID: {id}</p>
+              <h3 className="text-lg font-bold text-amber-800">Không tìm thấy dữ liệu</h3>
+              <p className="text-amber-700 mt-1">Không tìm thấy quy trình onboarding với ID: {id}</p>
             </div>
           </div>
         </div>
@@ -1815,7 +1815,7 @@ const OnboardingDetail: React.FC = () => {
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               {/* Avatar placeholder */}
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
+              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary-500 to-primary-800 flex items-center justify-center text-white text-xl font-bold shrink-0">
                 {onboarding.candidate_name?.charAt(0)?.toUpperCase() || '?'}
               </div>
               <div>
@@ -1825,7 +1825,7 @@ const OnboardingDetail: React.FC = () => {
                 </div>
                 <p className="text-gray-500 mt-0.5">
                   {onboarding.position?.title || '—'} — {onboarding.department?.name || '—'}
-                  {employeeProfile?.employee_id && <span className="ml-2 text-blue-600 font-mono text-sm">{employeeProfile.employee_id}</span>}
+                  {employeeProfile?.employee_id && <span className="ml-2 text-primary-600 font-mono text-sm">{employeeProfile.employee_id}</span>}
                 </p>
               </div>
             </div>
@@ -1834,11 +1834,11 @@ const OnboardingDetail: React.FC = () => {
               <div className="relative w-16 h-16">
                 <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
                   <circle cx="32" cy="32" r="28" fill="none" stroke="#e5e7eb" strokeWidth="5" />
-                  <circle cx="32" cy="32" r="28" fill="none" stroke={progressPct >= 100 ? '#22c55e' : '#3b82f6'} strokeWidth="5" strokeLinecap="round"
+                  <circle cx="32" cy="32" r="28" fill="none" stroke={progressPct >= 100 ? '#22c55e' : '#1B65B8'} strokeWidth="5" strokeLinecap="round"
                     strokeDasharray={`${2 * Math.PI * 28}`} strokeDashoffset={`${2 * Math.PI * 28 * (1 - progressPct / 100)}`}
                     className="transition-all duration-500" />
                 </svg>
-                <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${progressPct >= 100 ? 'text-green-600' : 'text-blue-600'}`}>
+                <span className={`absolute inset-0 flex items-center justify-center text-sm font-bold ${progressPct >= 100 ? 'text-emerald-600' : 'text-primary-600'}`}>
                   {progressPct}%
                 </span>
               </div>
@@ -1861,10 +1861,10 @@ const OnboardingDetail: React.FC = () => {
             <div className="sm:hidden">
               <div className="flex items-center justify-between text-sm mb-1.5">
                 <span className="text-gray-500">Tiến độ</span>
-                <span className="font-bold text-blue-600">{progressPct}%</span>
+                <span className="font-bold text-primary-600">{progressPct}%</span>
               </div>
               <div className="w-full bg-gray-100 rounded-full h-2">
-                <div className={`h-2 rounded-full transition-all duration-500 ${progressPct >= 100 ? 'bg-green-500' : 'bg-blue-600'}`} style={{ width: `${progressPct}%` }} />
+                <div className={`h-2 rounded-full transition-all duration-500 ${progressPct >= 100 ? 'bg-emerald-500' : 'bg-primary-600'}`} style={{ width: `${progressPct}%` }} />
               </div>
               <p className="text-xs text-gray-400 mt-1">{completedTasks}/{totalTasks} tasks</p>
             </div>
@@ -1952,9 +1952,9 @@ const OnboardingDetail: React.FC = () => {
                           setEmployeeProfile(prev);
                         }
                       }}
-                      className="w-4 h-4 rounded text-green-600 border-gray-300 focus:ring-green-500"
+                      className="w-4 h-4 rounded text-emerald-600 border-gray-300 focus:ring-emerald-500"
                     />
-                    <span className={`${(employeeProfile as any)[field] ? 'text-green-700 font-medium' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                    <span className={`${(employeeProfile as any)[field] ? 'text-emerald-700 font-medium' : 'text-gray-600 group-hover:text-gray-900'}`}>
                       {label}
                     </span>
                     {!required && <span className="text-xs text-gray-400">(không bắt buộc)</span>}
@@ -1970,13 +1970,13 @@ const OnboardingDetail: React.FC = () => {
                 {onboarding.tasks?.map((t, i) => (
                   <div key={t.id} className="flex items-center gap-2 text-sm">
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                      t.status === 'COMPLETED' ? 'bg-green-500 text-white' :
-                      t.status === 'IN_PROGRESS' ? 'bg-blue-500 text-white' :
+                      t.status === 'COMPLETED' ? 'bg-emerald-500 text-white' :
+                      t.status === 'IN_PROGRESS' ? 'bg-primary-500 text-white' :
                       'bg-gray-200 text-gray-500'
                     }`}>
                       {t.status === 'COMPLETED' ? '✓' : i + 1}
                     </div>
-                    <span className={`truncate ${t.status === 'COMPLETED' ? 'text-green-700 font-medium' : t.status === 'IN_PROGRESS' ? 'text-blue-700 font-medium' : 'text-gray-500'}`}>
+                    <span className={`truncate ${t.status === 'COMPLETED' ? 'text-emerald-700 font-medium' : t.status === 'IN_PROGRESS' ? 'text-primary-700 font-medium' : 'text-gray-500'}`}>
                       {t.name}
                     </span>
                   </div>
@@ -1996,7 +1996,7 @@ const OnboardingDetail: React.FC = () => {
                   onClick={() => setActiveTab('info')}
                   className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
                     activeTab === 'info'
-                      ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                      ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-500'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -2008,7 +2008,7 @@ const OnboardingDetail: React.FC = () => {
                   onClick={() => setActiveTab('tasks')}
                   className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
                     activeTab === 'tasks'
-                      ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                      ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-500'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -2019,7 +2019,7 @@ const OnboardingDetail: React.FC = () => {
                 onClick={() => setActiveTab('documents')}
                 className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
                   activeTab === 'documents'
-                    ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                    ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-500'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -2030,7 +2030,7 @@ const OnboardingDetail: React.FC = () => {
                   onClick={() => setActiveTab('contracts')}
                   className={`py-3 px-4 text-sm font-medium rounded-t-lg transition-colors ${
                     activeTab === 'contracts'
-                      ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-500'
+                      ? 'bg-slate-50 text-primary-600 border-b-2 border-primary-500'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -2104,7 +2104,7 @@ const OnboardingDetail: React.FC = () => {
           >
             <div className="flex items-center justify-between px-5 py-3 border-b">
               <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                <DocumentTextIcon className="w-5 h-5 text-blue-600" />
+                <DocumentTextIcon className="w-5 h-5 text-primary-600" />
                 {previewFile.label}
               </h4>
               <div className="flex items-center gap-2">
@@ -2112,7 +2112,7 @@ const OnboardingDetail: React.FC = () => {
                   href={previewFile.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-primary-600 border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
                 >
                   <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                   Mở tab mới
