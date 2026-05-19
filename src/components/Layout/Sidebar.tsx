@@ -526,15 +526,12 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           onClick={() => setSidebarOpen(false)}
         />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-primary-900">
-          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60">
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-[13px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
-              <div className="flex items-center gap-2">
-                <div className="h-px w-4 bg-primary-500/60" />
-                <span className="text-[8px] font-bold tracking-[0.55em] text-primary-400 uppercase leading-none">Group</span>
-                <div className="h-px w-4 bg-primary-500/60" />
-              </div>
-            </div>
+          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60 px-10">
+            <img
+              src="https://apps.thammytrunganh.com/img/logota.png?v=2026_05_18_10_10"
+              alt="Trung Anh Group"
+              className="h-9 w-auto max-w-[140px] object-contain brightness-[400]"
+            />
             <button
               onClick={() => setSidebarOpen(false)}
               className="absolute right-3 p-1 rounded-md text-primary-500 hover:text-white hover:bg-primary-800 transition-colors"
@@ -588,16 +585,13 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
       >
         <div className="flex h-full min-h-0 flex-col bg-primary-900 overflow-hidden">
           {/* Logo area */}
-          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60">
+          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60 px-10">
             {!isCollapsed && (
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-[18px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
-                <div className="flex items-center gap-2">
-                  <div className="h-px w-6 bg-primary-500/60" />
-                  <span className="text-[11px] font-bold tracking-[0.55em] text-primary-300 uppercase leading-none">Group</span>
-                  <div className="h-px w-6 bg-primary-500/60" />
-                </div>
-              </div>
+              <img
+                src="https://apps.thammytrunganh.com/img/logota.png?v=2026_05_18_10_10"
+                alt="Trung Anh Group"
+                className="h-9 w-auto max-w-[140px] object-contain drop-shadow-sm  brightness-[400]"
+              />
             )}
             <button
               onClick={handleCollapseToggle}
@@ -676,14 +670,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           <Bars3Icon className="h-5 w-5" />
         </button>
         <div className="flex flex-1 items-center justify-center">
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-[13px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
-            <div className="flex items-center gap-2">
-              <div className="h-px w-4 bg-primary-500/60" />
-              <span className="text-[8px] font-bold tracking-[0.55em] text-primary-400 uppercase leading-none">Group</span>
-              <div className="h-px w-4 bg-primary-500/60" />
-            </div>
-          </div>
+          <img
+            src="https://apps.thammytrunganh.com/img/logota.png?v=2026_05_18_10_10"
+            alt="Trung Anh Group"
+            className="h-8 w-auto max-w-[120px] object-contain brightness-[400]"
+          />
         </div>
         <div className="w-8" />
       </div>
