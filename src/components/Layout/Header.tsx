@@ -1,14 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import {
   BellIcon,
   MagnifyingGlassIcon,
   UserCircleIcon,
-  KeyIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
-import ChangePasswordModal from '@/components/Layout/ChangePasswordModal';
 import { hrmAPI } from '@/utils/api';
 import { useNotificationDrawer } from '@/contexts/NotificationDrawerContext';
 
@@ -37,8 +34,6 @@ const TYPE_BADGE: Record<string, string> = {
 
 export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
-  const [changePasswordModalKey, setChangePasswordModalKey] = useState(0);
   const [bellOpen, setBellOpen] = useState(false);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [page, setPage] = useState(1);
@@ -105,36 +100,24 @@ export default function Header() {
   const handleLogout = () => {
     logout();
     setUserMenuOpen(false);
-    setChangePasswordModalKey(0);
-  };
-
-  const handleOpenChangePassword = () => {
-    setUserMenuOpen(false);
-    setChangePasswordModalKey(prev => prev + 1);
-    setShowChangePasswordModal(true);
   };
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6">
-        <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/logo-trung-anh.png" alt="Trung Anh Group" className="h-8 w-auto max-w-[130px] object-contain" />
-            </Link>
-          </div>
-          <form className="relative flex flex-1" action="#" method="GET">
+      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-100 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6">
+        <div className="flex flex-1 items-center gap-x-4 lg:gap-x-6">
+          <form className="relative flex flex-1 items-center" action="#" method="GET">
             <label htmlFor="search-field" className="sr-only">
               Tìm kiếm
             </label>
             <MagnifyingGlassIcon
-              className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400"
+              className="pointer-events-none absolute left-0 h-5 w-5 text-gray-400"
               aria-hidden="true"
             />
             <input
               id="search-field"
-              className="block h-full w-full border-0 py-0 pl-8 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
-              placeholder="Search..."
+              className="block w-full border-0 py-2 pl-8 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm bg-transparent"
+              placeholder="Tìm kiếm..."
               type="search"
               name="search"
             />
@@ -145,7 +128,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={() => setBellOpen((o) => !o)}
-                className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 relative"
+                className="p-1.5 text-gray-500 hover:text-primary-600 transition-colors relative"
               >
                 <span className="sr-only">Xem thông báo</span>
                 <BellIcon className="h-6 w-6" aria-hidden="true" />
@@ -159,8 +142,8 @@ export default function Header() {
               {bellOpen && (
                 <div className="absolute right-0 z-30 mt-2 w-80 origin-top-right rounded-xl bg-white shadow-xl ring-1 ring-gray-200 overflow-hidden">
                   {/* Header */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
-                    <span className="text-sm font-semibold text-gray-900">Thông báo</span>
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-primary-100 bg-primary-50">
+                    <span className="text-sm font-semibold text-primary-900">Thông báo</span>
                     {unreadIds.size > 0 && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-600">
                         {unreadIds.size} mới
@@ -205,7 +188,7 @@ export default function Header() {
                     {/* Infinite scroll sentinel */}
                     <div ref={sentinelRef} className="py-2 flex justify-center">
                       {loadingMore && (
-                        <div className="animate-spin h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full" />
+                        <div className="animate-spin h-4 w-4 border-2 border-primary-600 border-t-transparent rounded-full" />
                       )}
                     </div>
                   </div>
@@ -214,7 +197,7 @@ export default function Header() {
                   <div className="border-t border-gray-100">
                     <button
                       onClick={() => { setBellOpen(false); openDrawer(); }}
-                      className="w-full px-4 py-2.5 text-sm font-medium text-primary-600 hover:bg-primary-50 transition-colors text-center"
+                      className="w-full px-4 py-2.5 text-sm font-semibold text-primary-600 hover:bg-primary-50 transition-colors text-center tracking-tight"
                     >
                       Xem tất cả thông báo →
                     </button>
@@ -230,7 +213,7 @@ export default function Header() {
             <div className="relative">
               <button
                 type="button"
-                className="-m-1.5 flex items-center p-1.5"
+                className="flex items-center p-1.5"
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
               >
                 <span className="sr-only">Mở menu người dùng</span>
@@ -263,13 +246,6 @@ export default function Header() {
                     </div>
                     <div className="py-1">
                       <button
-                        onClick={handleOpenChangePassword}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        <KeyIcon className="h-4 w-4 mr-3 text-gray-400" />
-                        Đổi mật khẩu
-                      </button>
-                      <button
                         onClick={handleLogout}
                         className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                       >
@@ -285,14 +261,6 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Change Password Modal */}
-      {showChangePasswordModal && (
-        <ChangePasswordModal
-          key={changePasswordModalKey}
-          onClose={() => setShowChangePasswordModal(false)}
-          onSuccess={() => { setShowChangePasswordModal(false); }}
-        />
-      )}
     </>
   );
 }

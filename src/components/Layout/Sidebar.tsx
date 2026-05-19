@@ -33,18 +33,16 @@ import {
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 
-// Define interface for navigation items
 interface NavigationItem {
   name: string;
   href: string;
   icon: any;
   roles: string[];
-  departments?: string[]; // Optional department codes
-  employeePermission?: string; // Optional employee_permission key that grants access
-  children?: NavigationItem[]; // Sub-items for collapsible groups
+  departments?: string[];
+  employeePermission?: string;
+  children?: NavigationItem[];
 }
 
-// Define navigation items with role requirements
 const navigationItems: NavigationItem[] = [
   // --- Tổng quan ---
   {
@@ -63,7 +61,7 @@ const navigationItems: NavigationItem[] = [
     name: 'Bảng thông báo',
     href: '/dashboard/announcements',
     icon: MegaphoneIcon,
-    roles: ['ADMIN','HR'],
+    roles: ['ADMIN', 'HR'],
   },
   {
     name: 'Me',
@@ -104,7 +102,7 @@ const navigationItems: NavigationItem[] = [
         roles: ['ADMIN'],
       },
       {
-        name: 'Reset mật khẩu',
+        name: 'Cấp lại mật khẩu',
         href: '/dashboard/password-reset',
         icon: KeyIcon,
         roles: ['ADMIN', 'HR'],
@@ -164,7 +162,7 @@ const navigationItems: NavigationItem[] = [
         roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
       },
       {
-        name: 'Quản lý chấm công',
+        name: 'Upload chấm công',
         href: '/dashboard/attendance/upload',
         icon: CloudArrowUpIcon,
         roles: ['ADMIN', 'HR'],
@@ -366,18 +364,17 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const location = useLocation();
   const { user, loading } = useAuth();
 
-  // If still loading auth data, show minimal sidebar
   if (loading) {
     return (
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
+        <div className="flex min-h-0 flex-1 flex-col bg-primary-900">
           <div className="flex h-16 items-center px-4">
-            <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse"></div>
-            <div className="ml-2 h-6 w-32 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-8 w-8 rounded-lg bg-primary-800 animate-pulse"></div>
+            <div className="ml-2 h-6 w-32 bg-primary-800 rounded animate-pulse"></div>
           </div>
           <nav className="flex-1 space-y-1 px-2 py-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-10 bg-gray-100 rounded-md animate-pulse"></div>
+              <div key={i} className="h-10 bg-primary-800 rounded-lg animate-pulse"></div>
             ))}
           </nav>
         </div>
@@ -385,12 +382,10 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     );
   }
 
-  // Filter navigation items based on user role and department
   const userRole = user?.role ? user.role.toUpperCase() : 'USER';
   const isSuperAdmin = user?.is_super_admin || (user as any)?.is_superuser || false;
   const isManager = user?.is_manager || false;
 
-  // Get user's department code
   const userDepartmentCode = (
     user?.employee_profile?.department_code ||
     user?.hrm_user?.department_code ||
@@ -398,29 +393,23 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     null
   );
 
-  // Get employee_permission from user profile
   const employeePermission = user?.employee_permission;
 
   const canAccessItem = (item: NavigationItem): boolean => {
-    // 1. Check if item requires a specific employee permission
     if (item.employeePermission && employeePermission?.[item.employeePermission as keyof typeof employeePermission]) {
       return true;
     }
-    // 2. Check department access
     if (item.departments && userDepartmentCode) {
       if (item.departments.includes(userDepartmentCode)) {
         return item.roles.some(role => role.toUpperCase() === userRole);
       }
     }
-    // 3. Special case: Managers can access Onboarding
     if (isManager && item.name === 'Onboard nhân sự') {
       return true;
     }
-    // 4. Check role access
     return item.roles.some(role => role.toUpperCase() === userRole);
   };
 
-  // Unified filtering logic
   const navigation = isSuperAdmin
     ? navigationItems
     : navigationItems.filter(canAccessItem);
@@ -435,7 +424,6 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     }
   };
 
-  // Check if any child of a group is currently active (auto-expand)
   const isGroupActive = (item: NavigationItem) =>
     item.children?.some(child => location.pathname.startsWith(child.href)) ?? false;
 
@@ -446,7 +434,6 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   };
 
   const renderNavItem = (item: NavigationItem, collapsed: boolean) => {
-    // Group item with children
     if (item.children && item.children.length > 0) {
       const visibleChildren = isSuperAdmin ? item.children : item.children.filter(canAccessItem);
       if (visibleChildren.length === 0) return null;
@@ -456,37 +443,47 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         <div key={item.name}>
           <button
             onClick={collapsed ? undefined : () => toggleGroup(item.name, expanded)}
-            className={`w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors ${
-              active ? 'bg-primary-100 text-primary-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            className={`w-full group flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
+              active
+                ? 'bg-primary-700 text-white'
+                : 'text-white hover:bg-primary-800'
             } ${collapsed ? 'justify-center' : 'justify-between'}`}
             title={collapsed ? item.name : undefined}
           >
-            <span className={`flex items-center ${collapsed ? '' : ''}`}>
+            <span className="flex items-center">
               <item.icon
-                className={`h-6 w-6 flex-shrink-0 ${active ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'} ${collapsed ? '' : 'mr-3'}`}
+                className={`h-5 w-5 flex-shrink-0 ${
+                  active ? 'text-white' : 'text-white/70 group-hover:text-white'
+                } ${collapsed ? '' : 'mr-3'}`}
               />
               {!collapsed && item.name}
             </span>
             {!collapsed && (
               <ChevronRightIcon
-                className={`h-4 w-4 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
+                className={`h-4 w-4 transition-transform duration-200 ${
+                  active ? 'text-white/80' : 'text-white/40'
+                } ${expanded ? 'rotate-90' : ''}`}
               />
             )}
           </button>
           {!collapsed && expanded && (
-            <div className="ml-4 mt-0.5 space-y-0.5 border-l border-gray-200 pl-3">
+            <div className="ml-4 mt-0.5 space-y-0.5 border-l border-primary-700/60 pl-3">
               {visibleChildren.map(child => {
-                const childActive = location.pathname === child.href;
+                const childActive = location.pathname.startsWith(child.href);
                 return (
                   <Link
                     key={child.name}
                     to={child.href}
-                    className={`group flex items-center px-2 py-1.5 text-sm font-medium rounded-md ${
-                      childActive ? 'bg-primary-100 text-primary-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    className={`group flex items-center px-2 py-1.5 text-sm rounded-lg transition-all duration-150 ${
+                      childActive
+                        ? 'bg-primary-600 text-white font-medium'
+                        : 'text-white/60 hover:bg-primary-800 hover:text-white font-normal'
                     }`}
                   >
                     <child.icon
-                      className={`h-4 w-4 flex-shrink-0 mr-2 ${childActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'}`}
+                      className={`h-4 w-4 flex-shrink-0 mr-2 transition-colors ${
+                        childActive ? 'text-white' : 'text-white/50 group-hover:text-white'
+                      }`}
                     />
                     {child.name}
                   </Link>
@@ -498,19 +495,22 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
       );
     }
 
-    // Regular flat item
     const isActive = location.pathname === item.href;
     return (
       <Link
         key={item.name}
         to={item.href}
-        className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
-          isActive ? 'bg-primary-100 text-primary-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+        className={`group flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
+          isActive
+            ? 'bg-primary-600 text-white'
+            : 'text-white hover:bg-primary-800'
         } ${collapsed ? 'justify-center' : ''}`}
         title={collapsed ? item.name : undefined}
       >
         <item.icon
-          className={`h-6 w-6 flex-shrink-0 ${isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-500'} ${collapsed ? '' : 'mr-3'}`}
+          className={`h-5 w-5 flex-shrink-0 ${
+            isActive ? 'text-white' : 'text-white/70 group-hover:text-white'
+          } ${collapsed ? '' : 'mr-3'}`}
         />
         {!collapsed && item.name}
       </Link>
@@ -519,85 +519,89 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile sidebar */}
-      <div
-        className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}
-      >
+      {/* Mobile sidebar overlay */}
+      <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
         <div
-          className="fixed inset-0 bg-gray-600 bg-opacity-75"
+          className="fixed inset-0 bg-primary-950/80 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
-        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
-          <div className="flex h-16 items-center justify-between px-4">
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/logo-trung-anh.png" alt="Trung Anh Group" className="h-8 w-auto max-w-[130px] object-contain" />
-            </Link>
+        <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-primary-900">
+          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[13px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
+              <div className="flex items-center gap-2">
+                <div className="h-px w-4 bg-primary-500/60" />
+                <span className="text-[8px] font-bold tracking-[0.55em] text-primary-400 uppercase leading-none">Group</span>
+                <div className="h-px w-4 bg-primary-500/60" />
+              </div>
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="absolute right-3 p-1 rounded-md text-primary-500 hover:text-white hover:bg-primary-800 transition-colors"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <XMarkIcon className="h-4 w-4" />
             </button>
           </div>
-          <nav className="flex-1 overflow-y-auto space-y-1 px-2 py-4">
+          <nav className="flex-1 overflow-y-auto scrollbar-hide space-y-1 px-2 py-4">
             {navigation.map((item) => renderNavItem(item, false))}
           </nav>
 
-          {/* User Info Section */}
           {user && (
-            <div className="border-t border-gray-200 px-2 py-4">
+            <div className="border-t border-primary-800 bg-primary-950 px-2 py-3">
               <Link to="/dashboard/settings" className="block">
-                <div className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                <div className="flex items-center space-x-3 hover:bg-primary-800 p-2 rounded-lg transition-colors">
                   {user.hrm_user?.avatar_url ? (
                     <img
                       src={user.hrm_user.avatar_url}
                       alt="Avatar"
-                      className="h-8 w-8 rounded-full object-cover"
+                      className="h-8 w-8 rounded-full object-cover ring-2 ring-primary-700"
                     />
                   ) : (
-                    <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-white">
+                    <div className="h-8 w-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center ring-2 ring-primary-700">
+                      <span className="text-sm font-semibold text-white">
                         {user.username?.charAt(0).toUpperCase()}
                       </span>
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-medium text-white truncate">
                       {user.username}
                     </p>
-                    <div className="flex items-center space-x-2">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${userRole === 'ADMIN'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-blue-100 text-blue-800'
-                          }`}
-                      >
-                        {userRole}
-                      </span>
-                    </div>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-0.5 ${
+                      userRole === 'ADMIN'
+                        ? 'bg-red-900/60 text-red-300'
+                        : 'bg-primary-700 text-primary-200'
+                    }`}>
+                      {userRole}
+                    </span>
                   </div>
                 </div>
               </Link>
             </div>
           )}
-
         </div>
       </div>
 
       {/* Desktop sidebar */}
       <div
-        className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col transition-all duration-300 ${isCollapsed ? 'lg:w-16' : 'lg:w-64'}`}
+        className={`hidden lg:fixed lg:inset-y-0 lg:flex lg:flex-col lg:h-screen transition-all duration-300 ${isCollapsed ? 'lg:w-16' : 'lg:w-64'}`}
       >
-        <div className="flex min-h-0 flex-1 flex-col bg-white border-r border-gray-200">
-          <div className="relative flex h-16 items-center justify-center">
+        <div className="flex h-full min-h-0 flex-col bg-primary-900 overflow-hidden">
+          {/* Logo area */}
+          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60">
             {!isCollapsed && (
-              <Link to="/" className="flex items-center justify-center">
-                <img src="/logo-trung-anh.png" alt="Trung Anh Group" className="h-10 w-auto object-contain" />
-              </Link>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[18px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
+                <div className="flex items-center gap-2">
+                  <div className="h-px w-6 bg-primary-500/60" />
+                  <span className="text-[11px] font-bold tracking-[0.55em] text-primary-300 uppercase leading-none">Group</span>
+                  <div className="h-px w-6 bg-primary-500/60" />
+                </div>
+              </div>
             )}
             <button
               onClick={handleCollapseToggle}
-              className="absolute right-2 p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              className="absolute right-2 p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-primary-800 transition-all duration-150"
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {isCollapsed ? (
@@ -607,14 +611,15 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
               )}
             </button>
           </div>
-          <nav className="flex-1 overflow-y-auto space-y-1 px-2 py-4">
+
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto scrollbar-hide space-y-0.5 px-2 py-4">
             {navigation.map((item) => renderNavItem(item, isCollapsed))}
           </nav>
 
-          {/* User Info Section */}
+          {/* User section */}
           {!isCollapsed && user && (
-            <div className="border-t border-gray-200 px-2 py-3">
-              {/* Music Order Badge - above user info */}
+            <div className="border-t border-primary-800 bg-primary-950 px-2 py-3">
               <a
                 href="https://music-player.thammytrunganh.com/"
                 target="_blank"
@@ -627,61 +632,60 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                 <span className="text-xs font-medium text-white">Order nhạc ở đây</span>
               </a>
               <Link to="/dashboard/settings" className="block">
-                <div className="flex items-center space-x-3 hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                <div className="flex items-center space-x-3 hover:bg-primary-800 p-2 rounded-lg transition-colors">
                   {user.hrm_user?.avatar_url ? (
                     <img
                       src={user.hrm_user.avatar_url}
                       alt="Avatar"
-                      className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                      className="h-8 w-8 rounded-full object-cover ring-2 ring-primary-700 flex-shrink-0"
                     />
                   ) : (
-                    <div className="h-8 w-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-medium text-white">
+                    <div className="h-8 w-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center ring-2 ring-primary-700 flex-shrink-0">
+                      <span className="text-sm font-semibold text-white">
                         {(user.employee_profile?.full_name || user.hrm_user?.full_name || user.firstName || user.username)?.charAt(0).toUpperCase()}
                       </span>
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-medium text-white truncate">
                       {user.employee_profile?.full_name || user.hrm_user?.full_name || user.firstName || user.username}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">{user.username}</p>
-                    <div className="flex items-center space-x-2 mt-0.5">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${userRole === 'ADMIN'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-blue-100 text-blue-800'
-                          }`}
-                      >
-                        {userRole}
-                      </span>
-                    </div>
+                    <p className="text-xs text-primary-400 truncate">{user.username}</p>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-0.5 ${
+                      userRole === 'ADMIN'
+                        ? 'bg-red-900/60 text-red-300'
+                        : 'bg-primary-700 text-primary-200'
+                    }`}>
+                      {userRole}
+                    </span>
                   </div>
                 </div>
               </Link>
             </div>
           )}
-
         </div>
       </div>
 
-      {/* Mobile menu button */}
-      <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:hidden">
+      {/* Mobile top bar */}
+      <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center border-b border-primary-800/60 bg-primary-900 px-4 shadow-sm lg:hidden">
         <button
           type="button"
-          className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+          className="p-1.5 text-primary-400 hover:text-white transition-colors"
           onClick={() => setSidebarOpen(true)}
         >
-          <Bars3Icon className="h-6 w-6" />
+          <Bars3Icon className="h-5 w-5" />
         </button>
-        <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-blue-900 flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-black text-xs tracking-tight">TAG</span>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex flex-col items-center gap-1">
+            <span className="text-[13px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
+            <div className="flex items-center gap-2">
+              <div className="h-px w-4 bg-primary-500/60" />
+              <span className="text-[8px] font-bold tracking-[0.55em] text-primary-400 uppercase leading-none">Group</span>
+              <div className="h-px w-4 bg-primary-500/60" />
             </div>
-            <span className="text-sm font-bold text-gray-900">Trung Anh Group</span>
-          </Link>
+          </div>
         </div>
+        <div className="w-8" />
       </div>
     </>
   );

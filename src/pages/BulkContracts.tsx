@@ -13,6 +13,7 @@ import {
 import MultiPdfPreviewModal, { ContractPreviewItem } from '../components/Common/MultiPdfPreviewModal';
 import PdfPreviewModal from '../components/Common/PdfPreviewModal';
 import { SelectBox, MultiSelectBox, SelectOption } from '../components/LandingLayout/SelectBox';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const fmtDate = (d: string | null | undefined) => {
   if (!d) return '';
@@ -40,8 +41,8 @@ const effectiveStatus = (status: string, endDate: string | null | undefined): st
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   DRAFT:        { label: 'Bản nháp', color: 'bg-gray-100 text-gray-700' },
-  PENDING_SIGN: { label: 'Chờ ký',   color: 'bg-yellow-100 text-yellow-700' },
-  SIGNED:       { label: 'Đang hiệu lực', color: 'bg-green-100 text-green-700' },
+  PENDING_SIGN: { label: 'Chờ ký',   color: 'bg-amber-100 text-amber-700' },
+  SIGNED:       { label: 'Đang hiệu lực', color: 'bg-emerald-100 text-emerald-700' },
   EXPIRED:      { label: 'Hết hạn',  color: 'bg-red-100 text-red-700' },
   CANCELLED:    { label: 'Đã hủy',   color: 'bg-gray-100 text-gray-500' },
 };
@@ -121,6 +122,7 @@ const BulkContracts: React.FC = () => {
   const [signingId, setSigningId] = useState<number | null>(null);
   const [signingAll, setSigningAll] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [assigningTemplateId, setAssigningTemplateId] = useState<number | null>(null);
   const [draftEdits, setDraftEdits] = useState<Record<number, { templateId: number; contractNumber: string }>>({});
   const [batchState, setBatchState] = useState<BatchState>(null);
@@ -294,8 +296,12 @@ const BulkContracts: React.FC = () => {
     }
   };
 
-  const handleDeleteContract = async (contractId: number) => {
-    if (!window.confirm('Xác nhận xóa hợp đồng này? Hành động không thể hoàn tác.')) return;
+  const handleDeleteContract = (contractId: number) => {
+    setConfirmDeleteId(contractId);
+  };
+
+  const executeDeleteContract = async (contractId: number) => {
+    setConfirmDeleteId(null);
     setDeletingId(contractId);
     try {
       await managementApi.delete(`/api-hrm/employee-contracts/${contractId}/`);
@@ -493,49 +499,10 @@ const BulkContracts: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Hợp đồng hàng loạt</h1>
-          <p className="text-sm text-gray-500 mt-1">Gắn hợp đồng nhanh cho nhiều nhân viên cùng lúc và xem trước PDF trước khi in.</p>
-        </div>
-        {/* Skeleton toolbar */}
-        <div className="flex flex-col gap-2">
-          <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex items-center gap-3 shadow-sm">
-            <div className="h-8 w-56 bg-gray-200 rounded-lg animate-pulse" />
-            <div className="ml-auto h-8 w-28 bg-gray-200 rounded-lg animate-pulse" />
-            <div className="h-8 w-32 bg-gray-200 rounded-lg animate-pulse" />
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg px-4 py-2.5 flex items-center gap-3 shadow-sm">
-            <div className="h-4 w-12 bg-gray-200 rounded animate-pulse" />
-            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse" />
-            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse" />
-            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse" />
-          </div>
-        </div>
-        {/* Skeleton table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex gap-4">
-            {[80, 160, 100, 180, 120, 120, 80].map((w, i) => (
-              <div key={i} className="h-3 bg-gray-200 rounded animate-pulse" style={{ width: w }} />
-            ))}
-          </div>
-          <div className="divide-y divide-gray-100">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="px-4 py-3.5 flex items-center gap-4">
-                <div className="h-4 w-4 bg-gray-200 rounded animate-pulse flex-shrink-0" />
-                <div className="h-4 w-4 bg-gray-200 rounded animate-pulse flex-shrink-0" />
-                <div className="flex flex-col gap-1.5 w-40">
-                  <div className="h-3.5 bg-gray-200 rounded animate-pulse" />
-                  <div className="h-2.5 w-20 bg-gray-100 rounded animate-pulse" />
-                </div>
-                <div className="h-3.5 w-28 bg-gray-200 rounded animate-pulse" />
-                <div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" />
-                <div className="h-8 w-44 bg-gray-200 rounded-lg animate-pulse" />
-                <div className="h-8 w-32 bg-gray-200 rounded-lg animate-pulse" />
-                <div className="h-8 w-32 bg-gray-200 rounded-lg animate-pulse" />
-              </div>
-            ))}
-          </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto" />
+          <p className="mt-4 text-gray-600">Đang tải danh sách hợp đồng...</p>
         </div>
       </div>
     );
@@ -545,7 +512,7 @@ const BulkContracts: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Hợp đồng hàng loạt</h1>
+        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Hợp đồng hàng loạt</h1>
         <p className="text-sm text-gray-500 mt-1">
           Gắn hợp đồng nhanh cho nhiều nhân viên cùng lúc và xem trước PDF trước khi in.
         </p>
@@ -553,28 +520,28 @@ const BulkContracts: React.FC = () => {
 
       {/* Summary bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-          <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-            <CheckCircleIcon className="w-5 h-5 text-green-600" />
+        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
+          <div className="h-9 w-9 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+            <CheckCircleIcon className="w-5 h-5 text-emerald-600" />
           </div>
           <div>
-            <p className="text-xl font-bold text-green-700">{summaryStats.signed}</p>
-            <p className="text-xs text-green-600">Đang hiệu lực</p>
+            <p className="text-xl font-bold text-emerald-700">{summaryStats.signed}</p>
+            <p className="text-xs text-emerald-600">Đang hiệu lực</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3">
-          <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-            <ExclamationTriangleIcon className="w-5 h-5 text-orange-500" />
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+          <div className="h-9 w-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <ExclamationTriangleIcon className="w-5 h-5 text-amber-500" />
           </div>
           <div>
-            <p className="text-xl font-bold text-orange-600">{summaryStats.expiringSoon}</p>
-            <p className="text-xs text-orange-600">Sắp hết hạn (≤ 5 ngày)</p>
+            <p className="text-xl font-bold text-amber-600">{summaryStats.expiringSoon}</p>
+            <p className="text-xs text-amber-600">Sắp hết hạn (≤ 5 ngày)</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+          <div className="h-9 w-9 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
             <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
           </div>
           <div>
@@ -583,18 +550,18 @@ const BulkContracts: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-          <div className="w-9 h-9 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
-            <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600" />
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+          <div className="h-9 w-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <ExclamationTriangleIcon className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <p className="text-xl font-bold text-yellow-700">{summaryStats.pendingSign}</p>
-            <p className="text-xs text-yellow-700">Chờ ký</p>
+            <p className="text-xl font-bold text-amber-700">{summaryStats.pendingSign}</p>
+            <p className="text-xs text-amber-700">Chờ ký</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
-          <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+        <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
+          <div className="h-9 w-9 rounded-xl bg-gray-200 flex items-center justify-center flex-shrink-0">
             <ExclamationTriangleIcon className="w-5 h-5 text-gray-500" />
           </div>
           <div>
@@ -607,13 +574,13 @@ const BulkContracts: React.FC = () => {
       {/* ── Sticky toolbar ── */}
       <div ref={toolbarRef} className="sticky top-0 z-20 flex flex-col gap-2 bg-gray-50 -mx-1 px-1 pt-1 pb-2 shadow-sm">
       {/* Action bar */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-3 shadow-sm">
+      <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 flex flex-wrap items-center gap-3 shadow-sm">
         <input
           type="text"
           placeholder="Tìm nhân viên..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="input-field w-56"
         />
         <span className="text-sm text-gray-600 ml-auto">
           Đã chọn: <strong>{selectedRows.length}</strong> nhân viên
@@ -621,7 +588,7 @@ const BulkContracts: React.FC = () => {
         <button
           onClick={handleCreate}
           disabled={!canCreate || creating}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {creating && (
             <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -634,7 +601,7 @@ const BulkContracts: React.FC = () => {
         {selectedPreviewItems.length > 0 && (
           <button
             onClick={() => setShowSelectedPreview(true)}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="btn-secondary flex items-center gap-2"
           >
             <EyeIcon className="w-4 h-4" />
             Xem hợp đồng đã chọn ({selectedPreviewItems.length})
@@ -643,7 +610,7 @@ const BulkContracts: React.FC = () => {
         {multiPreviewItems.length > 0 && (
           <button
             onClick={() => setShowMultiPreview(true)}
-            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+            className="btn-primary flex items-center gap-2"
           >
             <EyeIcon className="w-4 h-4" />
             Xem trước PDF vừa tạo ({multiPreviewItems.length})
@@ -652,7 +619,7 @@ const BulkContracts: React.FC = () => {
       </div>
 
       {/* ── Filter bar ── */}
-      <div className="bg-white border border-gray-200 rounded-lg px-4 py-2.5 flex flex-wrap items-center gap-3 shadow-sm">
+      <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-wrap items-center gap-3">
         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Bộ lọc</span>
         <div className="w-48">
           <SelectBox
@@ -698,8 +665,8 @@ const BulkContracts: React.FC = () => {
 
       {/* ── Bulk fill bar ── */}
       {selectedRows.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-blue-800 whitespace-nowrap">
+        <div className="bg-primary-50 border border-primary-200 rounded-2xl px-4 py-3 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-primary-800 whitespace-nowrap">
             Điền cho {selectedRows.length} nhân viên đã chọn:
           </span>
           <div className="min-w-[200px]">
@@ -713,24 +680,24 @@ const BulkContracts: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <label className="text-xs text-blue-700 whitespace-nowrap">Ngày bắt đầu</label>
+            <label className="text-xs text-primary-700 whitespace-nowrap">Ngày bắt đầu</label>
             <input
               type="date"
               value={bulkStartDate}
               onChange={(e) => setBulkStartDate(e.target.value)}
-              className="border border-blue-300 bg-white rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field"
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <label className="text-xs text-blue-700 whitespace-nowrap">Ngày kết thúc</label>
+            <label className="text-xs text-primary-700 whitespace-nowrap">Ngày kết thúc</label>
             <input
               type="date"
               value={bulkEndDate}
               onChange={(e) => setBulkEndDate(e.target.value)}
-              className="border border-blue-300 bg-white rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-field"
             />
           </div>
-          <label className="flex items-center gap-1.5 text-sm text-orange-700 cursor-pointer select-none whitespace-nowrap border border-orange-200 bg-orange-50 rounded-lg px-3 py-1.5">
+          <label className="flex items-center gap-1.5 text-sm text-amber-700 cursor-pointer select-none whitespace-nowrap border border-amber-200 bg-amber-50 rounded-lg px-3 py-1.5">
             <input
               type="checkbox"
               checked={bulkOverride}
@@ -742,7 +709,7 @@ const BulkContracts: React.FC = () => {
           <button
             onClick={applyBulkToSelected}
             disabled={!bulkStartDate || !bulkEndDate}
-            className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+            className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
             Áp dụng
           </button>
@@ -758,25 +725,25 @@ const BulkContracts: React.FC = () => {
           batchState.phase === 'contract' ? 'Đang tạo hợp đồng...' :
                                             'Đang tạo PDF và gán số hợp đồng...';
         const phaseColor =
-          batchState.phase === 'cancel'   ? 'bg-orange-500' :
-          batchState.phase === 'contract' ? 'bg-blue-500' :
-                                            'bg-indigo-500';
+          batchState.phase === 'cancel'   ? 'bg-amber-500' :
+          batchState.phase === 'contract' ? 'bg-primary-500' :
+                                            'bg-primary-600';
         return (
-          <div className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 space-y-3">
+          <div className="rounded-2xl border border-primary-200 bg-primary-50 px-5 py-4 space-y-3">
             {/* Header row */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2.5">
-                <svg className="w-4 h-4 animate-spin text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 animate-spin text-primary-600 flex-shrink-0" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-                <span className="text-sm font-semibold text-blue-800">
+                <span className="text-sm font-semibold text-primary-800">
                   Đang xử lý {batchState.current}/{batchState.total} hợp đồng
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs flex-shrink-0">
                 {batchState.successCount > 0 && (
-                  <span className="flex items-center gap-1 text-green-700 font-medium">
+                  <span className="flex items-center gap-1 text-emerald-700 font-medium">
                     <CheckCircleIcon className="w-3.5 h-3.5" />
                     {batchState.successCount} thành công
                   </span>
@@ -791,7 +758,7 @@ const BulkContracts: React.FC = () => {
             </div>
 
             {/* Progress bar */}
-            <div className="relative h-2 bg-blue-100 rounded-full overflow-hidden">
+            <div className="relative h-2 bg-primary-100 rounded-full overflow-hidden">
               <div
                 className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${phaseColor}`}
                 style={{ width: `${pct}%` }}
@@ -799,9 +766,9 @@ const BulkContracts: React.FC = () => {
             </div>
 
             {/* Phase + employee */}
-            <div className="flex items-center justify-between text-xs text-blue-700">
+            <div className="flex items-center justify-between text-xs text-primary-700">
               <span>{phaseLabel} <span className="font-medium">{batchState.employeeName}</span></span>
-              <span className="text-blue-500">{pct}%</span>
+              <span className="text-primary-500">{pct}%</span>
             </div>
           </div>
         );
@@ -809,20 +776,20 @@ const BulkContracts: React.FC = () => {
 
       {/* ── Bảng kết quả vừa tạo ── */}
       {createdContracts.length > 0 && (
-        <div className="bg-white rounded-xl border border-green-200 overflow-hidden">
-          <div className="px-4 py-2.5 bg-green-50 border-b border-green-200 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-green-800">
+        <div className="bg-white rounded-2xl border border-emerald-200 overflow-hidden">
+          <div className="px-4 py-2.5 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-emerald-800">
               ✓ Hợp đồng vừa tạo ({createdContracts.length})
             </p>
             <div className="flex items-center gap-3">
-              <p className="text-xs text-green-600">
+              <p className="text-xs text-emerald-600">
                 Bấm "Đã ký" sau khi nhân viên ký vật lý để sync vào hồ sơ
               </p>
               {createdContracts.some((c) => c.status === 'PENDING_SIGN') && (
                 <button
                   onClick={handleMarkAllSigned}
                   disabled={signingAll}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   {signingAll ? (
                     <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -865,7 +832,7 @@ const BulkContracts: React.FC = () => {
                       {c.generated_file && (
                         <button
                           onClick={() => setSinglePreview({ id: c.id, name: c.employee_name })}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50"
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50"
                         >
                           <EyeIcon className="w-3.5 h-3.5" />
                           Xem PDF
@@ -875,7 +842,7 @@ const BulkContracts: React.FC = () => {
                         <button
                           onClick={() => handleMarkSigned(c.id)}
                           disabled={signingId === c.id}
-                          className="flex items-center gap-1 px-2.5 py-1 text-xs text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {signingId === c.id ? (
                             <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -889,7 +856,7 @@ const BulkContracts: React.FC = () => {
                         </button>
                       )}
                       {c.status === 'SIGNED' && (
-                        <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                        <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
                           <CheckCircleIcon className="w-3.5 h-3.5" />
                           Đã sync hồ sơ
                         </span>
@@ -904,7 +871,7 @@ const BulkContracts: React.FC = () => {
       )}
 
       {/* ── Bảng nhân viên ── */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600 text-xs uppercase sticky z-10 shadow-sm" style={{ top: toolbarHeight }}>
             <tr>
@@ -954,7 +921,7 @@ const BulkContracts: React.FC = () => {
                     if (latestContract?.status === 'SIGNED') {
                       const days = getDaysUntilExpiry(latestContract.end_date);
                       if (days !== null && days <= 0) return 'bg-red-50 hover:bg-red-100';
-                      if (days !== null && days <= 5) return 'bg-orange-50 hover:bg-orange-100';
+                      if (days !== null && days <= 5) return 'bg-amber-50 hover:bg-amber-100';
                     }
                     return 'hover:bg-gray-50';
                   })()}`}>
@@ -996,7 +963,7 @@ const BulkContracts: React.FC = () => {
                             const days = getDaysUntilExpiry(latestContract.end_date);
                             if (days === null || days > 5) return null;
                             return (
-                              <span className={`flex items-center gap-1 text-xs font-medium ${days <= 0 ? 'text-red-600' : 'text-orange-500'}`}>
+                              <span className={`flex items-center gap-1 text-xs font-medium ${days <= 0 ? 'text-red-600' : 'text-amber-500'}`}>
                                 <ExclamationTriangleIcon className="w-3 h-3 flex-shrink-0" />
                                 {days <= 0 ? 'Đã hết hạn' : `Hết hạn trong ${days} ngày`}
                               </span>
@@ -1020,13 +987,13 @@ const BulkContracts: React.FC = () => {
                           portal
                         />
                         {hasSigned && (
-                          <div className="flex items-center gap-1 text-xs text-yellow-600">
+                          <div className="flex items-center gap-1 text-xs text-amber-600">
                             <ExclamationTriangleIcon className="w-3.5 h-3.5" />
                             Đang có hợp đồng hiệu lực
                           </div>
                         )}
                         {nonFinalContracts.length > 0 && (
-                          <label className="flex items-center gap-1 text-xs text-orange-600 cursor-pointer select-none">
+                          <label className="flex items-center gap-1 text-xs text-amber-600 cursor-pointer select-none">
                             <input
                               type="checkbox"
                               checked={row.override}
@@ -1044,7 +1011,7 @@ const BulkContracts: React.FC = () => {
                         type="date"
                         value={row.start_date}
                         onChange={(e) => updateRow(emp.id, { start_date: e.target.value })}
-                        className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="input-field"
                       />
                     </td>
                     {/* End date */}
@@ -1053,18 +1020,18 @@ const BulkContracts: React.FC = () => {
                         type="date"
                         value={row.end_date}
                         onChange={(e) => updateRow(emp.id, { end_date: e.target.value })}
-                        className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="input-field"
                       />
                     </td>
                     {/* Result */}
                     <td className="px-4 py-3 text-center">
                       {result === 'pending' && (
-                        <svg className="w-4 h-4 animate-spin text-blue-500 mx-auto" fill="none" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 animate-spin text-primary-500 mx-auto" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                         </svg>
                       )}
-                      {result === 'success' && <CheckCircleIcon className="w-5 h-5 text-green-500 mx-auto" />}
+                      {result === 'success' && <CheckCircleIcon className="w-5 h-5 text-emerald-500 mx-auto" />}
                       {result === 'error' && (
                         <div className="relative group flex justify-center">
                           <XCircleIcon className="w-5 h-5 text-red-500 cursor-help" />
@@ -1081,12 +1048,12 @@ const BulkContracts: React.FC = () => {
                   {/* Expanded history — chỉ hiện hợp đồng đã ký */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan={9} className="bg-blue-50 px-6 py-4 space-y-4">
+                      <td colSpan={9} className="bg-gray-50 px-6 py-4 space-y-4">
 
                         {/* ── Hợp đồng đang xử lý (DRAFT / PENDING_SIGN) ── */}
                         {deletableContracts.length > 0 && (
                           <div>
-                            <p className="text-xs font-semibold text-orange-700 mb-2">
+                            <p className="text-xs font-semibold text-amber-700 mb-2">
                               Đang xử lý ({deletableContracts.length})
                             </p>
                             <table className="w-full text-xs">
@@ -1102,7 +1069,7 @@ const BulkContracts: React.FC = () => {
                                   <th className="text-left pb-1">Thao tác</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-orange-100">
+                              <tbody className="divide-y divide-amber-100">
                                 {deletableContracts.map((c) => {
                                   const edit = draftEdits[c.id] ?? { templateId: c.template ?? 0, contractNumber: c.contract_number ?? '' };
                                   const isDraft = c.status === 'DRAFT';
@@ -1121,7 +1088,7 @@ const BulkContracts: React.FC = () => {
                                             [c.id]: { ...edit, contractNumber: e.target.value },
                                           }))}
                                           placeholder="Nhập số HĐ..."
-                                          className="border border-gray-300 rounded px-2 py-0.5 text-xs w-28 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                          className="border border-gray-300 rounded px-2 py-0.5 text-xs w-28 focus:outline-none focus:ring-1 focus:ring-primary-400"
                                         />
                                       ) : (
                                         <span className="text-gray-600">{c.contract_number || '—'}</span>
@@ -1160,7 +1127,7 @@ const BulkContracts: React.FC = () => {
                                         {c.generated_file && (
                                           <button
                                             onClick={() => setSinglePreview({ id: c.id, name: emp.full_name })}
-                                            className="flex items-center gap-1 text-blue-600 hover:underline"
+                                            className="flex items-center gap-1 text-primary-600 hover:underline"
                                           >
                                             <EyeIcon className="w-3.5 h-3.5" />
                                             Xem PDF
@@ -1170,7 +1137,7 @@ const BulkContracts: React.FC = () => {
                                           <button
                                             onClick={() => handleAssignTemplate(c.id)}
                                             disabled={!edit.templateId || isSaving}
-                                            className="flex items-center gap-1 px-2 py-0.5 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            className="flex items-center gap-1 px-2 py-0.5 text-white bg-primary-600 rounded hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed"
                                           >
                                             {isSaving
                                               ? <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
@@ -1182,7 +1149,7 @@ const BulkContracts: React.FC = () => {
                                           <button
                                             onClick={() => handleMarkSigned(c.id)}
                                             disabled={signingId === c.id}
-                                            className="flex items-center gap-1 px-2 py-0.5 text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="flex items-center gap-1 px-2 py-0.5 text-white bg-emerald-600 rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                           >
                                             {signingId === c.id
                                               ? <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" /></svg>
@@ -1213,7 +1180,7 @@ const BulkContracts: React.FC = () => {
                         {/* ── Hợp đồng đang hiệu lực ── */}
                         {activeContracts.length > 0 && (
                           <div>
-                            <p className="text-xs font-semibold text-green-700 mb-2">
+                            <p className="text-xs font-semibold text-emerald-700 mb-2">
                               Đang hiệu lực ({activeContracts.length})
                             </p>
                             <table className="w-full text-xs">
@@ -1228,7 +1195,7 @@ const BulkContracts: React.FC = () => {
                                   <th className="text-left pb-1">Thao tác</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-green-100">
+                              <tbody className="divide-y divide-emerald-100">
                                 {activeContracts.map((c) => {
                                   const days = getDaysUntilExpiry(c.end_date);
                                   const warn = days !== null && days <= 5;
@@ -1240,14 +1207,14 @@ const BulkContracts: React.FC = () => {
                                       <td className="py-1.5 pr-4 text-gray-600">{c.template_name || '—'}</td>
                                       <td className="py-1.5 pr-4 text-gray-600">{fmtDate(c.start_date)}</td>
                                       <td className="py-1.5 pr-4">
-                                        <span className={`flex items-center gap-1 ${warn ? 'text-orange-500 font-medium' : 'text-gray-600'}`}>
+                                        <span className={`flex items-center gap-1 ${warn ? 'text-amber-500 font-medium' : 'text-gray-600'}`}>
                                           {fmtDate(c.end_date) || '—'}
                                           {warn && <ExclamationTriangleIcon className="w-3 h-3 flex-shrink-0" title={`Hết hạn trong ${days} ngày`} />}
                                         </span>
                                       </td>
                                       <td className="py-1.5">
                                         {c.generated_file && (
-                                          <button onClick={() => setSinglePreview({ id: c.id, name: emp.full_name })} className="flex items-center gap-1 text-blue-600 hover:underline">
+                                          <button onClick={() => setSinglePreview({ id: c.id, name: emp.full_name })} className="flex items-center gap-1 text-primary-600 hover:underline">
                                             <EyeIcon className="w-3.5 h-3.5" /> Xem PDF
                                           </button>
                                         )}
@@ -1300,7 +1267,7 @@ const BulkContracts: React.FC = () => {
                                           {c.generated_file && (
                                             <button
                                               onClick={() => setSinglePreview({ id: c.id, name: emp.full_name })}
-                                              className="flex items-center gap-1 text-blue-600 hover:underline"
+                                              className="flex items-center gap-1 text-primary-600 hover:underline"
                                             >
                                               <EyeIcon className="w-3.5 h-3.5" /> Xem PDF
                                             </button>
@@ -1369,6 +1336,14 @@ const BulkContracts: React.FC = () => {
         }
         downloadFilename={`${singlePreview?.name || 'hop-dong'}.pdf`}
         onClose={() => setSinglePreview(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="Xóa hợp đồng"
+        message="Xác nhận xóa hợp đồng này? Hành động không thể hoàn tác."
+        onConfirm={() => confirmDeleteId !== null && executeDeleteContract(confirmDeleteId)}
+        onClose={() => setConfirmDeleteId(null)}
       />
     </div>
   );

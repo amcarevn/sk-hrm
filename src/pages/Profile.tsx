@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import {
   employeesAPI,
   departmentsAPI,
@@ -36,8 +37,13 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
+import { CITIZEN_ID_ISSUE_PLACE_OPTIONS } from '../constants/onboarding';
+import ChangePasswordModal from '../components/Layout/ChangePasswordModal';
+import FeedbackDialog from '../components/FeedbackDialog';
 
 interface TeamMember {
   id: number;
@@ -79,13 +85,13 @@ const getContractDisplayStatus = (contract: MyContract): { label: string; classN
       return { label: 'Đã hết hạn', className: 'bg-red-100 text-red-700' };
     }
     if (days !== null && days <= 5) {
-      return { label: `Sắp hết hạn (${days} ngày)`, className: 'bg-orange-100 text-orange-700' };
+      return { label: `Sắp hết hạn (${days} ngày)`, className: 'bg-amber-100 text-amber-600' };
     }
-    return { label: 'Đang hiệu lực', className: 'bg-green-100 text-green-700' };
+    return { label: 'Đang hiệu lực', className: 'bg-emerald-100 text-emerald-600' };
   }
   const map: Record<string, { label: string; className: string }> = {
     DRAFT: { label: 'Nháp', className: 'bg-gray-100 text-gray-600' },
-    PENDING_SIGN: { label: 'Chờ ký', className: 'bg-blue-100 text-blue-700' },
+    PENDING_SIGN: { label: 'Chờ ký', className: 'bg-primary-100 text-primary-600' },
     EXPIRED: { label: 'Đã hết hạn', className: 'bg-red-100 text-red-700' },
     CANCELLED: { label: 'Đã huỷ', className: 'bg-gray-100 text-gray-500' },
   };
@@ -102,17 +108,31 @@ const Profile: React.FC = () => {
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingField, setEditingField] = useState<string | null>(null);
+
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  useLockBodyScroll(showEditModal);
+  const [editSubmitting, setEditSubmitting] = useState(false);
   const [editForm, setEditForm] = useState({
     phone_number: '',
     personal_email: '',
     bank_name: '',
     bank_account: '',
+    date_of_birth: '',
+    cccd_number: '',
+    cccd_issue_date: '',
+    cccd_issue_place: '',
+    permanent_residence: '',
+    current_address: '',
   });
 
   // Avatar state
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changePasswordKey, setChangePasswordKey] = useState(0);
+  const [showPasswordSuccess, setShowPasswordSuccess] = useState(false);
 
   // Manager assignment state
   const [showManagerModal, setShowManagerModal] = useState(false);
@@ -185,6 +205,12 @@ const Profile: React.FC = () => {
         personal_email: emp.personal_email || '',
         bank_name: emp.bank_name || '',
         bank_account: emp.bank_account || '',
+        date_of_birth: emp.date_of_birth || '',
+        cccd_number: emp.cccd_number || '',
+        cccd_issue_date: emp.cccd_issue_date || '',
+        cccd_issue_place: emp.cccd_issue_place || '',
+        permanent_residence: emp.permanent_residence || '',
+        current_address: emp.current_address || '',
       });
 
       // Fetch department details
@@ -268,44 +294,57 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleEdit = (field: string) => {
-    setEditingField(field);
+  // Edit modal handlers
+  const openEditModal = () => {
+    if (!employee) return;
+    setEditForm({
+      phone_number: employee.phone_number || '',
+      personal_email: employee.personal_email || '',
+      bank_name: employee.bank_name || '',
+      bank_account: employee.bank_account || '',
+      date_of_birth: employee.date_of_birth || '',
+      cccd_number: employee.cccd_number || '',
+      cccd_issue_date: employee.cccd_issue_date || '',
+      cccd_issue_place: employee.cccd_issue_place || '',
+      permanent_residence: employee.permanent_residence || '',
+      current_address: employee.current_address || '',
+    });
+    setShowEditModal(true);
   };
 
-  const handleSave = async (field: string) => {
+  const closeEditModal = () => {
+    setShowEditModal(false);
+  };
+
+  const handleSaveAll = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!employee) return;
-
     try {
-      const updateData: any = {};
-      updateData[field] = editForm[field as keyof typeof editForm];
-
-      await employeesAPI.partialUpdate(employee.id, updateData);
-
-      // Update local employee data
-      setEmployee((prev) => (prev ? { ...prev, ...updateData } : null));
-      setEditingField(null);
-
-      alert('Cập nhật thành công!');
+      setEditSubmitting(true);
+      await employeesAPI.partialUpdate(employee.id, {
+        phone_number: editForm.phone_number || undefined,
+        personal_email: editForm.personal_email || undefined,
+        bank_name: editForm.bank_name || undefined,
+        bank_account: editForm.bank_account || undefined,
+        date_of_birth: editForm.date_of_birth || undefined,
+        cccd_number: editForm.cccd_number || undefined,
+        cccd_issue_date: editForm.cccd_issue_date || undefined,
+        cccd_issue_place: editForm.cccd_issue_place || undefined,
+        permanent_residence: editForm.permanent_residence || undefined,
+        current_address: editForm.current_address || undefined,
+      });
+      setEmployee(prev => prev ? { ...prev, ...editForm } : null);
+      setShowEditModal(false);
     } catch (err: any) {
       console.error('Error updating profile:', err);
       alert('Cập nhật thất bại. Vui lòng thử lại sau.');
+    } finally {
+      setEditSubmitting(false);
     }
-  };
-
-  const handleCancel = () => {
-    if (employee) {
-      setEditForm({
-        phone_number: employee.phone_number || '',
-        personal_email: employee.personal_email || '',
-        bank_name: employee.bank_name || '',
-        bank_account: employee.bank_account || '',
-      });
-    }
-    setEditingField(null);
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setEditForm((prev) => ({ ...prev, [field]: value }));
+    setEditForm(prev => ({ ...prev, [field]: value }));
   };
 
   const handleManagerSearch = (query: string) => {
@@ -388,8 +427,15 @@ const Profile: React.FC = () => {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('vi-VN');
+    const date = new Date(dateString);
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
   };
+
+  const formatCurrency = (n: number) =>
+    n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' VNĐ';
 
   const getGenderText = (gender: string) => {
     switch (gender) {
@@ -406,10 +452,24 @@ const Profile: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Đang tải thông tin cá nhân...</p>
+      <div className="space-y-5 animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 bg-gray-100 rounded-xl" />
+          <div className="space-y-1.5">
+            <div className="h-5 w-40 bg-gray-100 rounded" />
+            <div className="h-3 w-56 bg-gray-100 rounded" />
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-32" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 space-y-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-64" />
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-48" />
+          </div>
+          <div className="space-y-5">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-48" />
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-40" />
+          </div>
         </div>
       </div>
     );
@@ -417,64 +477,51 @@ const Profile: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg
-              className="h-5 w-5 text-red-400"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-800">Đã xảy ra lỗi</h3>
-            <p className="text-sm text-red-700 mt-2">{error}</p>
-            <button
-              onClick={fetchProfileData}
-              className="mt-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-            >
-              Thử lại
-            </button>
-          </div>
+      <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-8 text-center">
+        <div className="h-12 w-12 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <ExclamationTriangleIcon className="h-6 w-6" />
         </div>
+        <p className="text-sm font-semibold text-red-600 mb-1">Đã xảy ra lỗi</p>
+        <p className="text-xs text-gray-400 mb-4">{error}</p>
+        <button onClick={fetchProfileData} className="btn-primary text-xs px-4 py-2">
+          Thử lại
+        </button>
       </div>
     );
   }
 
   if (!employee) {
     return (
-      <div className="text-center py-12">
-        <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">
-          Không tìm thấy thông tin nhân viên
-        </h3>
-        <p className="mt-1 text-sm text-gray-500">
-          Vui lòng liên hệ quản trị viên để được hỗ trợ.
-        </p>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center">
+        <div className="h-12 w-12 bg-primary-100 text-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <UserIcon className="h-6 w-6" />
+        </div>
+        <p className="text-sm font-semibold text-gray-500">Không tìm thấy thông tin nhân viên</p>
+        <p className="text-xs text-gray-400 mt-1">Vui lòng liên hệ quản trị viên để được hỗ trợ.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
             Thông tin cá nhân
           </h1>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-sm text-gray-400">
             Quản lý thông tin cá nhân và tài khoản ngân hàng
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+        <div className="mt-4 sm:mt-0 flex items-center gap-3">
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+            employee.employment_status === 'ACTIVE'
+              ? 'bg-emerald-100 text-emerald-600'
+              : employee.employment_status === 'PROBATION'
+                ? 'bg-amber-100 text-amber-600'
+                : 'bg-gray-100 text-gray-500'
+          }`}>
             <UserIcon className="h-4 w-4 mr-1" />
             {employee.employment_status === 'ACTIVE'
               ? 'Đang làm việc'
@@ -482,12 +529,36 @@ const Profile: React.FC = () => {
                 ? 'Đang thử việc'
                 : 'Đã nghỉ việc'}
           </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setChangePasswordKey(k => k + 1); setShowChangePassword(true); }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-colors"
+            >
+              <KeyIcon className="h-3.5 w-3.5" />
+              Đổi mật khẩu
+            </button>
+            <button
+              onClick={openEditModal}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-colors"
+            >
+              <PencilIcon className="h-3.5 w-3.5" />
+              Chỉnh sửa thông tin
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Avatar Card */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Ảnh đại diện</h2>
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+            <PhotoIcon className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Ảnh đại diện</h3>
+            <p className="text-xs text-gray-400">Ảnh hiển thị trên hệ thống</p>
+          </div>
+        </div>
         <div className="flex items-center space-x-6">
           <div className="relative flex-shrink-0">
             {employee.avatar_url ? (
@@ -497,7 +568,7 @@ const Profile: React.FC = () => {
                 className="h-20 w-20 rounded-full object-cover border-2 border-gray-200"
               />
             ) : (
-              <div className="h-20 w-20 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center border-2 border-gray-200">
+              <div className="h-20 w-20 rounded-full bg-gradient-to-r from-primary-500 to-primary-800 flex items-center justify-center border-2 border-gray-200">
                 <span className="text-2xl font-bold text-white">
                   {employee.full_name?.charAt(0).toUpperCase() || '?'}
                 </span>
@@ -515,39 +586,37 @@ const Profile: React.FC = () => {
             />
             <label
               htmlFor="avatar-upload"
-              className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer ${avatarUploading ? 'opacity-50 pointer-events-none' : ''}`}
+              className={`inline-flex items-center px-4 py-2 border border-gray-300 rounded-xl shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer ${avatarUploading ? 'opacity-50 pointer-events-none' : ''}`}
             >
               <PhotoIcon className="h-4 w-4 mr-2 text-gray-400" />
               {avatarUploading ? 'Đang tải...' : 'Thay đổi ảnh'}
             </label>
-            <p className="mt-1 text-xs text-gray-500">PNG, JPG, GIF tối đa 5MB</p>
+            <p className="mt-1 text-xs text-gray-400">PNG, JPG, GIF tối đa 5MB</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left Column - Personal Information */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-5">
           {/* Personal Info Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-medium text-gray-900">
-                Thông tin cá nhân
-              </h2>
-              <div className="flex items-center space-x-2">
-                <IdentificationIcon className="h-5 w-5 text-gray-400" />
-                <span className="text-sm text-gray-500">
-                  Mã NV: {employee.employee_id}
-                </span>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <IdentificationIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Thông tin cá nhân</h3>
+                <p className="text-xs text-gray-400">Mã NV: {employee.employee_id}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Họ và tên
                 </label>
-                <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                   <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
                   <span className="text-gray-900">{employee.full_name}</span>
                 </div>
@@ -557,7 +626,7 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Giới tính
                 </label>
-                <div className="p-3 bg-gray-50 rounded-md">
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
                   <span className="text-gray-900">
                     {getGenderText(employee.gender)}
                   </span>
@@ -565,16 +634,10 @@ const Profile: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ngày sinh
-                </label>
-                <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ngày sinh</label>
+                <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                   <CalendarIcon className="h-5 w-5 text-gray-400 mr-2" />
-                  <span className="text-gray-900">
-                    {employee.date_of_birth
-                      ? formatDate(employee.date_of_birth)
-                      : 'N/A'}
-                  </span>
+                  <span className="text-gray-900">{employee.date_of_birth ? formatDate(employee.date_of_birth) : 'Chưa cập nhật'}</span>
                 </div>
               </div>
 
@@ -582,7 +645,7 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Ngày vào làm
                 </label>
-                <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                   <CalendarIcon className="h-5 w-5 text-gray-400 mr-2" />
                   <span className="text-gray-900">
                     {employee.start_date
@@ -592,229 +655,92 @@ const Profile: React.FC = () => {
                 </div>
               </div>
 
-              {/* Editable Fields */}
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Số điện thoại
-                  </label>
-                  {editingField === 'phone_number' ? (
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => handleSave('phone_number')}
-                        className="text-green-600 hover:text-green-900"
-                      >
-                        <CheckIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={handleCancel}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <XMarkIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleEdit('phone_number')}
-                      className="text-blue-600 hover:text-blue-900 text-sm"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                  )}
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Số điện thoại
+                </label>
+                <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
+                  <PhoneIcon className="h-5 w-5 text-gray-400 mr-2" />
+                  <span className="text-gray-900">
+                    {employee.phone_number || 'Chưa cập nhật'}
+                  </span>
                 </div>
-                {editingField === 'phone_number' ? (
-                  <input
-                    type="tel"
-                    value={editForm.phone_number}
-                    onChange={(e) =>
-                      handleInputChange('phone_number', e.target.value)
-                    }
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    placeholder="Nhập số điện thoại"
-                  />
-                ) : (
-                  <div className="flex items-center p-3 bg-gray-50 rounded-md">
-                    <PhoneIcon className="h-5 w-5 text-gray-400 mr-2" />
-                    <span className="text-gray-900">
-                      {employee.phone_number || 'Chưa cập nhật'}
-                    </span>
-                  </div>
-                )}
               </div>
 
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Email cá nhân
-                  </label>
-                  {editingField === 'personal_email' ? (
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => handleSave('personal_email')}
-                        className="text-green-600 hover:text-green-900"
-                      >
-                        <CheckIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={handleCancel}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <XMarkIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleEdit('personal_email')}
-                      className="text-blue-600 hover:text-blue-900 text-sm"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                  )}
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email cá nhân
+                </label>
+                <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
+                  <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-2" />
+                  <span className="text-gray-900">
+                    {employee.personal_email || 'Chưa cập nhật'}
+                  </span>
                 </div>
-                {editingField === 'personal_email' ? (
-                  <input
-                    type="email"
-                    value={editForm.personal_email}
-                    onChange={(e) =>
-                      handleInputChange('personal_email', e.target.value)
-                    }
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    placeholder="Nhập email cá nhân"
-                  />
-                ) : (
-                  <div className="flex items-center p-3 bg-gray-50 rounded-md">
-                    <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-2" />
-                    <span className="text-gray-900">
-                      {employee.personal_email || 'Chưa cập nhật'}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
 
           {/* Bank Information Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-6">
-              Thông tin ngân hàng
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <BanknotesIcon className="h-5 w-5" />
+              </div>
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Tên ngân hàng
-                  </label>
-                  {editingField === 'bank_name' ? (
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => handleSave('bank_name')}
-                        className="text-green-600 hover:text-green-900"
-                      >
-                        <CheckIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={handleCancel}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <XMarkIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleEdit('bank_name')}
-                      className="text-blue-600 hover:text-blue-900 text-sm"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                  )}
+                <h3 className="text-sm font-bold text-gray-900">Thông tin ngân hàng</h3>
+                <p className="text-xs text-gray-400">Tài khoản nhận lương</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tên ngân hàng
+                </label>
+                <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
+                  <BanknotesIcon className="h-5 w-5 text-gray-400 mr-2" />
+                  <span className="text-gray-900">
+                    {employee.bank_name || 'Chưa cập nhật'}
+                  </span>
                 </div>
-                {editingField === 'bank_name' ? (
-                  <input
-                    type="text"
-                    value={editForm.bank_name}
-                    onChange={(e) =>
-                      handleInputChange('bank_name', e.target.value)
-                    }
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    placeholder="Nhập tên ngân hàng"
-                  />
-                ) : (
-                  <div className="flex items-center p-3 bg-gray-50 rounded-md">
-                    <BanknotesIcon className="h-5 w-5 text-gray-400 mr-2" />
-                    <span className="text-gray-900">
-                      {employee.bank_name || 'Chưa cập nhật'}
-                    </span>
-                  </div>
-                )}
               </div>
 
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Số tài khoản
-                  </label>
-                  {editingField === 'bank_account' ? (
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => handleSave('bank_account')}
-                        className="text-green-600 hover:text-green-900"
-                      >
-                        <CheckIcon className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={handleCancel}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <XMarkIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleEdit('bank_account')}
-                      className="text-blue-600 hover:text-blue-900 text-sm"
-                    >
-                      <PencilIcon className="h-4 w-4" />
-                    </button>
-                  )}
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Số tài khoản
+                </label>
+                <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
+                  <BanknotesIcon className="h-5 w-5 text-gray-400 mr-2" />
+                  <span className="text-gray-900">
+                    {employee.bank_account || 'Chưa cập nhật'}
+                  </span>
                 </div>
-                {editingField === 'bank_account' ? (
-                  <input
-                    type="text"
-                    value={editForm.bank_account}
-                    onChange={(e) =>
-                      handleInputChange('bank_account', e.target.value)
-                    }
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    placeholder="Nhập số tài khoản"
-                  />
-                ) : (
-                  <div className="flex items-center p-3 bg-gray-50 rounded-md">
-                    <BanknotesIcon className="h-5 w-5 text-gray-400 mr-2" />
-                    <span className="text-gray-900">
-                      {employee.bank_account || 'Chưa cập nhật'}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
         </div>
 
         {/* Right Column - Department and Team Info */}
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Department Info Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-6">
-              Thông tin phòng ban
-            </h2>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <BuildingOfficeIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Thông tin phòng ban</h3>
+                <p className="text-xs text-gray-400">Đơn vị công tác</p>
+              </div>
+            </div>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Phòng ban
                 </label>
-                <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                   <BuildingOfficeIcon className="h-5 w-5 text-gray-400 mr-2" />
                   <span className="text-gray-900">
                     {department?.name ||
@@ -828,7 +754,7 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Mã phòng ban
                 </label>
-                <div className="p-3 bg-gray-50 rounded-md">
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
                   <span className="text-gray-900">
                     {department?.code || employee.department?.code || 'N/A'}
                   </span>
@@ -839,7 +765,7 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Chức vụ
                 </label>
-                <div className="p-3 bg-gray-50 rounded-md">
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
                   <span className="text-gray-900">
                     {employee.position?.title || 'Không có chức vụ'}
                   </span>
@@ -849,31 +775,35 @@ const Profile: React.FC = () => {
           </div>
 
           {/* Manager Info Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-medium text-gray-900">
-                Quản lý trực tiếp
-              </h2>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setShowManagerModal(true)}
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 border border-indigo-300 rounded-md hover:bg-indigo-50 disabled:opacity-50"
-                  disabled={managerSaving}
-                >
-                  <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
-                  Tìm &amp; gán quản lý
-                </button>
-                {(manager || employee?.manager_name) && (
-                  <button
-                    onClick={handleClearManager}
-                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-600 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50"
-                    disabled={managerSaving}
-                    title="Xoá quản lý trực tiếp"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
-                )}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <UserGroupIcon className="h-5 w-5" />
               </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Quản lý trực tiếp</h3>
+                <p className="text-xs text-gray-400">Người quản lý</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mb-4">
+              <button
+                onClick={() => setShowManagerModal(true)}
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-primary-600 border border-primary-200 rounded-md hover:bg-primary-50 disabled:opacity-50"
+                disabled={managerSaving}
+              >
+                <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
+                Tìm &amp; gán quản lý
+              </button>
+              {(manager || employee?.manager_name) && (
+                <button
+                  onClick={handleClearManager}
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-600 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50"
+                  disabled={managerSaving}
+                  title="Xoá quản lý trực tiếp"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
             {manager || employee.manager_name ? (
@@ -882,7 +812,7 @@ const Profile: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Họ tên
                   </label>
-                  <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                  <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                     <UserIcon className="h-5 w-5 text-gray-400 mr-2" />
                     <span className="text-gray-900">
                       {manager?.full_name || employee.manager_name}
@@ -895,7 +825,7 @@ const Profile: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Mã nhân viên
                     </label>
-                    <div className="p-3 bg-gray-50 rounded-md">
+                    <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
                       <span className="text-gray-900">{manager.employee_id}</span>
                     </div>
                   </div>
@@ -906,7 +836,7 @@ const Profile: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Chức vụ
                     </label>
-                    <div className="p-3 bg-gray-50 rounded-md">
+                    <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
                       <span className="text-gray-900">{manager.position.title}</span>
                     </div>
                   </div>
@@ -917,7 +847,7 @@ const Profile: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Số điện thoại
                     </label>
-                    <div className="flex items-center p-3 bg-gray-50 rounded-md">
+                    <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                       <PhoneIcon className="h-5 w-5 text-gray-400 mr-2" />
                       <span className="text-gray-900">
                         {manager.phone_number}
@@ -929,7 +859,7 @@ const Profile: React.FC = () => {
             ) : (
               <div className="text-center py-6">
                 <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-500">
+                <p className="mt-2 text-sm text-gray-400">
                   Không có quản lý trực tiếp
                 </p>
               </div>
@@ -937,14 +867,15 @@ const Profile: React.FC = () => {
           </div>
 
           {/* Team Members Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-medium text-gray-900">
-                Thành viên trong team
-              </h2>
-              <span className="text-sm text-gray-500">
-                {teamMembers.length} thành viên
-              </span>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <UserGroupIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Thành viên trong team</h3>
+                <p className="text-xs text-gray-400">{teamMembers.length} thành viên</p>
+              </div>
             </div>
 
             {teamMembers.length > 0 ? (
@@ -952,17 +883,17 @@ const Profile: React.FC = () => {
                 {teamMembers.slice(0, 5).map((member) => (
                   <div
                     key={member.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+                    className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50"
                   >
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="font-medium text-gray-900">
                           {member.full_name}
                         </h4>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-400">
                           {member.position_title}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-400">
                           Mã NV: {member.employee_id}
                         </p>
                       </div>
@@ -988,10 +919,10 @@ const Profile: React.FC = () => {
                 ))}
 
                 {teamMembers.length > 5 && (
-                  <div className="text-center pt-4 border-t border-gray-200">
+                  <div className="text-center pt-4 border-t border-gray-100">
                     <button
                       onClick={() => setShowTeamModal(true)}
-                      className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                      className="text-sm text-primary-600 hover:text-primary-800 font-medium"
                     >
                       Xem thêm ({teamMembers.length - 5} thành viên khác)
                     </button>
@@ -1001,7 +932,7 @@ const Profile: React.FC = () => {
             ) : (
               <div className="text-center py-6">
                 <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-500">
+                <p className="mt-2 text-sm text-gray-400">
                   Không có thành viên trong team
                 </p>
               </div>
@@ -1011,14 +942,17 @@ const Profile: React.FC = () => {
       </div>
 
       {/* New Onboarding and HR Information Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Contract and Salary Information */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-medium text-gray-900">
-              Thông tin hợp đồng & Lương
-            </h2>
-            <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <CurrencyDollarIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Thông tin hợp đồng &amp; Lương</h3>
+              <p className="text-xs text-gray-400">Loại hợp đồng và mức lương</p>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -1026,7 +960,7 @@ const Profile: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Loại hợp đồng
               </label>
-              <div className="flex items-center p-3 bg-gray-50 rounded-md">
+              <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                 <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-2" />
                 <span className="text-gray-900">
                   {employee.contract_type_display ||
@@ -1041,13 +975,10 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Lương cơ bản
                 </label>
-                <div className="p-3 bg-gray-50 rounded-md">
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
                   <span className="text-gray-900">
                     {employee.basic_salary
-                      ? new Intl.NumberFormat('vi-VN', {
-                          style: 'currency',
-                          currency: 'VND',
-                        }).format(employee.basic_salary)
+                      ? formatCurrency(employee.basic_salary)
                       : 'Chưa cập nhật'}
                   </span>
                 </div>
@@ -1057,7 +988,7 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tháng thử việc
                 </label>
-                <div className="p-3 bg-gray-50 rounded-md">
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
                   <span className="text-gray-900">
                     {employee.probation_months
                       ? `${employee.probation_months} tháng`
@@ -1071,7 +1002,7 @@ const Profile: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Ngày kết thúc thử việc
               </label>
-              <div className="flex items-center p-3 bg-gray-50 rounded-md">
+              <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                 <ClockIcon className="h-5 w-5 text-gray-400 mr-2" />
                 <span className="text-gray-900">
                   {employee.probation_end_date
@@ -1084,12 +1015,15 @@ const Profile: React.FC = () => {
         </div>
 
         {/* Employee File Status */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-medium text-gray-900">
-              Trạng thái hồ sơ
-            </h2>
-            <DocumentCheckIcon className="h-5 w-5 text-gray-400" />
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <DocumentCheckIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Trạng thái hồ sơ</h3>
+              <p className="text-xs text-gray-400">Hồ sơ nhân sự</p>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -1098,13 +1032,13 @@ const Profile: React.FC = () => {
                 Trạng thái hồ sơ
               </label>
               <div
-                className={`flex items-center p-3 rounded-md ${
+                className={`flex items-center px-3 py-2.5 rounded-xl ${
                   employee.file_status === 'COMPLETE'
-                    ? 'bg-green-50 text-green-800'
+                    ? 'bg-emerald-50 text-emerald-700'
                     : employee.file_status === 'NEED_SUPPLEMENT'
-                      ? 'bg-yellow-50 text-yellow-800'
+                      ? 'bg-amber-50 text-amber-700'
                       : employee.file_status === 'NOT_SUBMITTED'
-                        ? 'bg-red-50 text-red-800'
+                        ? 'bg-red-50 text-red-700'
                         : 'bg-gray-50 text-gray-800'
                 }`}
               >
@@ -1122,7 +1056,7 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Hạn nộp hồ sơ
                 </label>
-                <div className="p-3 bg-gray-50 rounded-md">
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
                   <span className="text-gray-900">
                     {employee.file_submission_deadline
                       ? formatDate(employee.file_submission_deadline)
@@ -1135,7 +1069,7 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Ngày nộp hồ sơ
                 </label>
-                <div className="p-3 bg-gray-50 rounded-md">
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
                   <span className="text-gray-900">
                     {employee.file_submission_date
                       ? formatDate(employee.file_submission_date)
@@ -1150,7 +1084,7 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Ghi chú rà soát
                 </label>
-                <div className="p-3 bg-gray-50 rounded-md">
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
                   <p className="text-gray-900 text-sm">
                     {employee.file_review_notes}
                   </p>
@@ -1169,16 +1103,16 @@ const Profile: React.FC = () => {
         if (requiredDocs.length === 0) return null;
         const unreadCount = requiredDocs.filter((d) => !d.is_read).length;
         return (
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-5 mb-6">
+          <div className="bg-primary-50 border border-primary-200 rounded-2xl p-5 mb-5">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0">
-                <DocumentTextIcon className="w-6 h-6 text-white" />
+              <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <DocumentTextIcon className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-900">Tài liệu onboarding cần đọc</h3>
-                <p className="text-xs text-gray-600">
+                <h3 className="text-sm font-bold text-gray-900">Tài liệu onboarding cần đọc</h3>
+                <p className="text-xs text-gray-400">
                   {unreadCount === 0
-                    ? '✓ Bạn đã đọc hết tài liệu bắt buộc'
+                    ? 'Bạn đã đọc hết tài liệu bắt buộc'
                     : `${unreadCount} / ${requiredDocs.length} chưa đọc`}
                 </p>
               </div>
@@ -1186,19 +1120,19 @@ const Profile: React.FC = () => {
 
             <div className="space-y-3">
               {requiredDocs.map((doc) => (
-                <div key={doc.id} className="bg-white rounded-lg border p-4">
+                <div key={doc.id} className="bg-white rounded-2xl border border-primary-200 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 text-sm">{doc.document_name}</p>
                       {doc.description && (
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{doc.description}</p>
+                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">{doc.description}</p>
                       )}
                       {doc.is_read ? (
-                        <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-600">
                           <CheckCircleIcon className="w-3 h-3" /> Đã đọc
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                        <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-600">
                           <ClockIcon className="w-3 h-3" /> Chưa đọc
                         </span>
                       )}
@@ -1208,7 +1142,7 @@ const Profile: React.FC = () => {
                         setViewingDoc(doc);
                         setDocReadable(false);
                       }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors flex-shrink-0 inline-flex items-center gap-1.5"
+                      className="px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-colors flex-shrink-0 inline-flex items-center gap-1.5"
                     >
                       <EyeIcon className="w-4 h-4" />
                       Xem
@@ -1223,19 +1157,22 @@ const Profile: React.FC = () => {
 
       {/* Contract Section */}
       {isAdminNoProfile === false && (
-        <div className="bg-white rounded-xl shadow p-6">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <DocumentTextIcon className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-lg font-medium text-gray-900">Hợp đồng lao động</h2>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <DocumentTextIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Hợp đồng lao động</h3>
+              <p className="text-xs text-gray-400">Danh sách hợp đồng</p>
             </div>
             {contractsLoading && (
-              <ArrowPathIcon className="h-4 w-4 animate-spin text-gray-400" />
+              <ArrowPathIcon className="h-4 w-4 animate-spin text-gray-400 ml-auto" />
             )}
           </div>
 
           {!contractsLoading && myContracts.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-400">
               <DocumentTextIcon className="mx-auto h-10 w-10 text-gray-300 mb-2" />
               <p className="text-sm">Chưa có hợp đồng nào</p>
             </div>
@@ -1254,19 +1191,19 @@ const Profile: React.FC = () => {
               <div className="space-y-5">
                 {/* Active contract */}
                 {active ? (
-                  <div className={`rounded-xl border-2 p-5 ${
+                  <div className={`rounded-2xl border p-5 ${
                     getDaysUntilExpiry(active.end_date) !== null && getDaysUntilExpiry(active.end_date)! <= 5
-                      ? 'border-orange-300 bg-orange-50'
-                      : 'border-green-300 bg-green-50'
+                      ? 'border-amber-300 bg-amber-50'
+                      : 'border-emerald-300 bg-emerald-50'
                   }`}>
                     <div className="flex items-start justify-between gap-3 flex-wrap">
                       <div>
-                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Hợp đồng hiện tại</p>
+                        <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Hợp đồng hiện tại</p>
                         <p className="font-semibold text-gray-900 text-base">
                           {active.template_name || active.contract_type_display}
                         </p>
                         {active.contract_number && (
-                          <p className="text-xs text-gray-500 mt-0.5">Số HĐ: {active.contract_number}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">Số HĐ: {active.contract_number}</p>
                         )}
                       </div>
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${className}`}>
@@ -1275,29 +1212,29 @@ const Profile: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
                       <div>
-                        <span className="text-gray-500">Ngày bắt đầu</span>
+                        <span className="text-gray-400">Ngày bắt đầu</span>
                         <p className="font-medium text-gray-800">{active.start_date ? formatDate(active.start_date) : '—'}</p>
                       </div>
                       <div>
-                        <span className="text-gray-500">Ngày kết thúc</span>
+                        <span className="text-gray-400">Ngày kết thúc</span>
                         <p className="font-medium text-gray-800">{active.end_date ? formatDate(active.end_date) : 'Không xác định'}</p>
                       </div>
                       {active.company_unit_name && (
                         <div className="col-span-2">
-                          <span className="text-gray-500">Đơn vị ký kết</span>
+                          <span className="text-gray-400">Đơn vị ký kết</span>
                           <p className="font-medium text-gray-800">{active.company_unit_name}</p>
                         </div>
                       )}
                     </div>
                     {getDaysUntilExpiry(active.end_date) !== null && getDaysUntilExpiry(active.end_date)! <= 5 && getDaysUntilExpiry(active.end_date)! >= 0 && (
-                      <div className="mt-3 flex items-center gap-2 text-orange-700 bg-orange-100 rounded-lg px-3 py-2 text-sm">
+                      <div className="mt-3 flex items-center gap-2 text-amber-700 bg-amber-100 rounded-xl px-3 py-2 text-sm">
                         <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0" />
                         Hợp đồng sắp hết hạn trong {getDaysUntilExpiry(active.end_date)} ngày. Vui lòng liên hệ phòng HCNS để gia hạn nhằm tiếp tục sử dụng dịch vụ.
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="rounded-xl border-2 border-red-300 bg-red-50 p-5">
+                  <div className="rounded-2xl border border-red-300 bg-red-50 p-5">
                     <div className="flex items-center gap-3">
                       <ExclamationTriangleIcon className="h-6 w-6 text-red-500 flex-shrink-0" />
                       <div>
@@ -1311,8 +1248,8 @@ const Profile: React.FC = () => {
                 {/* History */}
                 {history.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Lịch sử hợp đồng</p>
-                    <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Lịch sử hợp đồng</p>
+                    <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl overflow-hidden">
                       {history.map((c) => {
                         const { label: hLabel, className: hClass } = getContractDisplayStatus(c);
                         return (
@@ -1343,14 +1280,17 @@ const Profile: React.FC = () => {
       )}
 
       {/* Training and Personal Information Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Training Information */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-medium text-gray-900">
-              Đào tạo hội nhập
-            </h2>
-            <AcademicCapIcon className="h-5 w-5 text-gray-400" />
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <AcademicCapIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Đào tạo hội nhập</h3>
+              <p className="text-xs text-gray-400">Tình trạng đào tạo</p>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -1359,9 +1299,9 @@ const Profile: React.FC = () => {
                 Bài thuyết trình đào tạo
               </label>
               <div
-                className={`flex items-center p-3 rounded-md ${
+                className={`flex items-center px-3 py-2.5 rounded-xl ${
                   employee.training_presentation_viewed
-                    ? 'bg-green-50 text-green-800'
+                    ? 'bg-emerald-50 text-emerald-700'
                     : 'bg-gray-50 text-gray-800'
                 }`}
               >
@@ -1383,7 +1323,7 @@ const Profile: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Ảnh chụp thông tin VNEID
               </label>
-              <div className="flex items-center p-3 bg-gray-50 rounded-md">
+              <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                 <PhotoIcon className="h-5 w-5 text-gray-400 mr-2" />
                 <span className="text-gray-900">
                   {employee.vneid_screenshot ? 'Đã tải lên' : 'Chưa tải lên'}
@@ -1394,75 +1334,73 @@ const Profile: React.FC = () => {
         </div>
 
         {/* CCCD and Personal Information */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-medium text-gray-900">
-              Thông tin CCCD
-            </h2>
-            <IdentificationIcon className="h-5 w-5 text-gray-400" />
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <IdentificationIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Thông tin CCCD</h3>
+              <p className="text-xs text-gray-400">Căn cước công dân</p>
+            </div>
           </div>
 
           <div className="space-y-4">
+
+            {/* Số CCCD — read only */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Số CCCD
-              </label>
-              <div className="p-3 bg-gray-50 rounded-md">
-                <span className="text-gray-900">
-                  {employee.cccd_number || 'Chưa cập nhật'}
-                </span>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Số CCCD</label>
+              <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
+                <IdentificationIcon className="h-5 w-5 text-gray-400 mr-2" />
+                <span className="text-gray-900">{employee.cccd_number || 'Chưa cập nhật'}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
+              {/* Ngày cấp — read only */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ngày cấp
-                </label>
-                <div className="p-3 bg-gray-50 rounded-md">
-                  <span className="text-gray-900">
-                    {employee.cccd_issue_date
-                      ? formatDate(employee.cccd_issue_date)
-                      : 'Chưa cập nhật'}
-                  </span>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ngày cấp</label>
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
+                  <span className="text-gray-900">{employee.cccd_issue_date ? formatDate(employee.cccd_issue_date) : 'Chưa cập nhật'}</span>
                 </div>
               </div>
 
+              {/* Nơi cấp — read only */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nơi cấp
-                </label>
-                <div className="p-3 bg-gray-50 rounded-md">
-                  <span className="text-gray-900">
-                    {employee.cccd_issue_place || 'Chưa cập nhật'}
-                  </span>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nơi cấp</label>
+                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
+                  <span className="text-gray-900">{employee.cccd_issue_place || 'Chưa cập nhật'}</span>
                 </div>
               </div>
             </div>
 
+            {/* Nơi khai sinh — read only */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nơi khai sinh
-              </label>
-              <div className="flex items-center p-3 bg-gray-50 rounded-md">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nơi khai sinh</label>
+              <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                 <MapPinIcon className="h-5 w-5 text-gray-400 mr-2" />
-                <span className="text-gray-900">
-                  {employee.birth_place || 'Chưa cập nhật'}
-                </span>
+                <span className="text-gray-900">{employee.birth_place || 'Chưa cập nhật'}</span>
               </div>
             </div>
 
+            {/* Hộ khẩu thường trú — read only */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nơi thường trú
-              </label>
-              <div className="flex items-center p-3 bg-gray-50 rounded-md">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hộ khẩu thường trú</label>
+              <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
                 <HomeIcon className="h-5 w-5 text-gray-400 mr-2" />
-                <span className="text-gray-900">
-                  {employee.permanent_residence || 'Chưa cập nhật'}
-                </span>
+                <span className="text-gray-900">{employee.permanent_residence || 'Chưa cập nhật'}</span>
               </div>
             </div>
+
+            {/* Địa chỉ hiện tại — read only */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Địa chỉ hiện tại</label>
+              <div className="flex items-center px-3 py-2.5 bg-gray-50 rounded-xl">
+                <MapPinIcon className="h-5 w-5 text-gray-400 mr-2" />
+                <span className="text-gray-900">{employee.current_address || 'Chưa cập nhật'}</span>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -1475,16 +1413,16 @@ const Profile: React.FC = () => {
           aria-modal="true"
           aria-labelledby="team-modal-title"
         >
-          <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[80vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
                 <h2
                   id="team-modal-title"
-                  className="text-lg font-bold text-gray-900"
+                  className="text-sm font-bold text-gray-900"
                 >
                   Thành viên trong team
                 </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-400 mt-0.5">
                   {teamMembers.length} thành viên
                 </p>
               </div>
@@ -1500,17 +1438,17 @@ const Profile: React.FC = () => {
               {teamMembers.map((member) => (
                 <div
                   key={member.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+                  className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50"
                 >
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-medium text-gray-900">
                         {member.full_name}
                       </h4>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-400">
                         {member.position_title}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-400">
                         Mã NV: {member.employee_id}
                       </p>
                     </div>
@@ -1544,9 +1482,9 @@ const Profile: React.FC = () => {
           aria-modal="true"
           aria-labelledby="manager-modal-title"
         >
-          <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl flex flex-col max-h-[80vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h2 id="manager-modal-title" className="text-lg font-bold text-gray-900">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h2 id="manager-modal-title" className="text-sm font-bold text-gray-900">
                 Tìm kiếm quản lý trực tiếp
               </h2>
               <button
@@ -1562,7 +1500,7 @@ const Profile: React.FC = () => {
               </button>
             </div>
 
-            <div className="px-6 py-4 border-b">
+            <div className="px-6 py-4 border-b border-gray-100">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
@@ -1570,7 +1508,7 @@ const Profile: React.FC = () => {
                   placeholder="Nhập tên hoặc mã nhân viên..."
                   value={managerSearch}
                   onChange={(e) => handleManagerSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   autoFocus
                 />
               </div>
@@ -1579,12 +1517,12 @@ const Profile: React.FC = () => {
             <div className="overflow-y-auto flex-1 px-6 py-4 space-y-2">
               {managerSearchLoading && (
                 <div className="flex justify-center py-6">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600" />
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
                 </div>
               )}
 
               {!managerSearchLoading && managerSearch && managerResults.length === 0 && (
-                <p className="text-center text-sm text-gray-500 py-6">
+                <p className="text-center text-sm text-gray-400 py-6">
                   Không tìm thấy nhân viên nào
                 </p>
               )}
@@ -1600,25 +1538,25 @@ const Profile: React.FC = () => {
                   key={emp.id}
                   onClick={() => handleSelectManager(emp)}
                   disabled={managerSaving}
-                  className="w-full text-left border border-gray-200 rounded-lg p-4 hover:bg-indigo-50 hover:border-indigo-300 transition-colors disabled:opacity-50"
+                  className="w-full text-left border border-gray-200 rounded-xl p-4 hover:bg-primary-50 hover:border-primary-200 transition-colors disabled:opacity-50"
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-gray-900">{emp.full_name}</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-400">
                         Mã NV: {emp.employee_id}
                         {emp.position?.title ? ` · ${emp.position.title}` : ''}
                       </p>
                     </div>
-                    <CheckIcon className="h-5 w-5 text-indigo-400 opacity-0 hover:opacity-100" />
+                    <CheckIcon className="h-5 w-5 text-primary-400 opacity-0 hover:opacity-100" />
                   </div>
                 </button>
               ))}
             </div>
 
             {managerSaving && (
-              <div className="px-6 py-3 border-t flex items-center justify-center text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mr-2" />
+              <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-center text-sm text-gray-400">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500 mr-2" />
                 Đang lưu...
               </div>
             )}
@@ -1636,16 +1574,16 @@ const Profile: React.FC = () => {
             className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-6 py-4 border-b flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{viewingDoc.document_name}</h3>
+                <h3 className="text-sm font-bold text-gray-900">{viewingDoc.document_name}</h3>
                 {viewingDoc.description && (
-                  <p className="text-xs text-gray-500 mt-0.5">{viewingDoc.description}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{viewingDoc.description}</p>
                 )}
               </div>
               <button
                 onClick={() => setViewingDoc(null)}
-                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -1663,19 +1601,19 @@ const Profile: React.FC = () => {
                   }}
                 />
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
+                <div className="flex items-center justify-center h-full text-gray-400">
                   Không có file đính kèm
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-500">
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-400">
                 {viewingDoc.is_read
-                  ? '✓ Bạn đã đọc tài liệu này'
+                  ? 'Bạn đã đọc tài liệu này'
                   : docReadable
-                  ? '✓ Có thể xác nhận đã đọc'
-                  : '⏳ Vui lòng đọc hết tài liệu (tối thiểu 10 giây)...'}
+                  ? 'Có thể xác nhận đã đọc'
+                  : 'Vui lòng đọc hết tài liệu (tối thiểu 10 giây)...'}
               </p>
               {!viewingDoc.is_read && (
                 <button
@@ -1694,12 +1632,217 @@ const Profile: React.FC = () => {
                       setMarkingReadId(null);
                     }
                   }}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-blue-700"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-primary-700"
                 >
                   <CheckCircleIcon className="w-4 h-4" />
                   {markingReadId === viewingDoc.id ? 'Đang lưu...' : 'Đánh dấu đã đọc'}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showChangePassword && (
+        <ChangePasswordModal
+          key={changePasswordKey}
+          onClose={() => setShowChangePassword(false)}
+          onSuccess={() => { setShowChangePassword(false); setShowPasswordSuccess(true); }}
+        />
+      )}
+
+      <FeedbackDialog
+        open={showPasswordSuccess}
+        variant="success"
+        title="Đổi mật khẩu thành công"
+        message="Mật khẩu của bạn đã được cập nhật. Vui lòng dùng mật khẩu mới cho lần đăng nhập tiếp theo."
+        okLabel="Đóng"
+        onClose={() => setShowPasswordSuccess(false)}
+      />
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={closeEditModal} />
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <PencilIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900">Chỉnh sửa thông tin cá nhân</h3>
+                    <p className="text-xs text-gray-400">Cập nhật thông tin liên hệ, CCCD và địa chỉ</p>
+                  </div>
+                </div>
+                <button onClick={closeEditModal} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Form with scrollable body + sticky footer */}
+              <form onSubmit={handleSaveAll} className="flex flex-col flex-1 min-h-0">
+                <div className="p-6 space-y-6 overflow-y-auto flex-1">
+
+                  {/* Section 1: Thông tin liên hệ */}
+                  <div>
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-3">Thông tin liên hệ</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Ngày sinh</label>
+                        <input
+                          type="date"
+                          value={editForm.date_of_birth}
+                          onChange={e => handleInputChange('date_of_birth', e.target.value)}
+                          className="input-field w-full"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Số điện thoại</label>
+                        <input
+                          type="tel"
+                          value={editForm.phone_number}
+                          onChange={e => handleInputChange('phone_number', e.target.value)}
+                          className="input-field w-full"
+                          placeholder="Nhập số điện thoại"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email cá nhân</label>
+                        <input
+                          type="email"
+                          value={editForm.personal_email}
+                          onChange={e => handleInputChange('personal_email', e.target.value)}
+                          className="input-field w-full"
+                          placeholder="Nhập email cá nhân"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-gray-100" />
+
+                  {/* Section 2: Thông tin ngân hàng */}
+                  <div>
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-3">Thông tin ngân hàng</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Tên ngân hàng</label>
+                        <input
+                          type="text"
+                          value={editForm.bank_name}
+                          onChange={e => handleInputChange('bank_name', e.target.value)}
+                          className="input-field w-full"
+                          placeholder="Ví dụ: Vietcombank"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Số tài khoản</label>
+                        <input
+                          type="text"
+                          value={editForm.bank_account}
+                          onChange={e => handleInputChange('bank_account', e.target.value)}
+                          className="input-field w-full"
+                          placeholder="Nhập số tài khoản"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-gray-100" />
+
+                  {/* Section 3: Thông tin CCCD */}
+                  <div>
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-3">Căn cước công dân</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Số CCCD</label>
+                        <input
+                          type="text"
+                          value={editForm.cccd_number}
+                          onChange={e => handleInputChange('cccd_number', e.target.value)}
+                          className="input-field w-full"
+                          placeholder="Nhập số CCCD"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Ngày cấp</label>
+                        <input
+                          type="date"
+                          value={editForm.cccd_issue_date}
+                          onChange={e => handleInputChange('cccd_issue_date', e.target.value)}
+                          className="input-field w-full"
+                        />
+                      </div>
+                      <div>
+                        <SelectBox<string>
+                          label="Nơi cấp"
+                          value={editForm.cccd_issue_place}
+                          options={CITIZEN_ID_ISSUE_PLACE_OPTIONS}
+                          onChange={v => handleInputChange('cccd_issue_place', v)}
+                          placeholder="Chọn nơi cấp..."
+                          portal
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-gray-100" />
+
+                  {/* Section 4: Địa chỉ */}
+                  <div>
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-3">Địa chỉ</p>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Hộ khẩu thường trú</label>
+                        <input
+                          type="text"
+                          value={editForm.permanent_residence}
+                          onChange={e => handleInputChange('permanent_residence', e.target.value)}
+                          className="input-field w-full"
+                          placeholder="Nhập địa chỉ hộ khẩu thường trú"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Địa chỉ hiện tại</label>
+                        <input
+                          type="text"
+                          value={editForm.current_address}
+                          onChange={e => handleInputChange('current_address', e.target.value)}
+                          className="input-field w-full"
+                          placeholder="Nhập địa chỉ hiện tại"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Modal footer inside form */}
+                <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    className="btn-secondary text-xs px-4 py-2"
+                  >
+                    Huỷ
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editSubmitting}
+                    className="btn-primary text-xs px-4 py-2 disabled:opacity-50"
+                  >
+                    {editSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  </button>
+                </div>
+              </form>
+
             </div>
           </div>
         </div>
