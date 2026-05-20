@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import Pagination from '../components/Pagination';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
-import { UsersIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 
 const EmployeeList: React.FC = () => {
@@ -42,11 +42,48 @@ const EmployeeList: React.FC = () => {
     summary: { total: number; created: number; updated: number; failed: number };
     errors: Array<{ row: number; employee_id?: string; warnings?: string[]; errors?: string[] }>;
   } | null>(null);
+  const [expiringContractEmployees, setExpiringContractEmployees] = useState<Employee[]>([]);
+  const [isLoadingExpiringContracts, setIsLoadingExpiringContracts] = useState(false);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
   const isSuperUser = user?.is_superuser === true || user?.is_super_admin === true;
 
   const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
   const COOLDOWN_DURATION = 120; // 2 phút (giây)
+  
+  const fetchExpiringContractEmployees = async () => {
+    try {
+      setIsLoadingExpiringContracts(true);
+      const response = await employeesAPI.list({ 
+        employment_status: 'PROBATION',
+        page_size: 1000
+      });
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const fourDaysLater = new Date(today);
+      fourDaysLater.setDate(today.getDate() + 4);
+      
+      const expiring = (response.results || []).filter((emp: Employee) => {
+        if (emp.probation_end_date) {
+          const probEndDate = new Date(emp.probation_end_date);
+          probEndDate.setHours(0, 0, 0, 0);
+          return probEndDate >= today && probEndDate <= fourDaysLater;
+        }
+        return false;
+      }).sort((a: Employee, b: Employee) => {
+        const dateA = a.probation_end_date ? new Date(a.probation_end_date) : new Date();
+        const dateB = b.probation_end_date ? new Date(b.probation_end_date) : new Date();
+        return dateA.getTime() - dateB.getTime();
+      });
+      
+      setExpiringContractEmployees(expiring);
+    } catch (err) {
+      console.error('Error fetching expiring contract employees:', err);
+    } finally {
+      setIsLoadingExpiringContracts(false);
+    }
+  };
+  
   const fetchEmployees = async (search = '', status = 'all', department = 'all', page = 1, pageSize = 20, contractType = 'all', expiringSoon = 'all') => {
     try {
       setLoading(true);
@@ -118,7 +155,8 @@ const EmployeeList: React.FC = () => {
   useEffect(() => {
     fetchStats();
     fetchDepartments();
-  }, []);
+    fetchExpiringContractEmployees();
+  }, []);}
 
   // Chặn scroll khi mở dialog import
   useLockBodyScroll(showImportDialog);
@@ -1104,6 +1142,64 @@ const EmployeeList: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Expiring Contract Alert - Only show for admin */}
+        {isAdmin && expiringContractEmployees.length > 0 && (
+          <div className="mb-6 bg-amber-50 rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 p-5">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 mt-0.5">
+                <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-amber-900 mb-3">
+                  ⚠️ Cảnh báo: {expiringContractEmployees.length} nhân viên sắp hết hạn thử việc
+                </h3>
+                <div className="space-y-2">
+                  {expiringContractEmployees.map((emp) => {
+                    const probEndDate = emp.probation_end_date ? new Date(emp.probation_end_date) : null;
+                    const today = new Date();
+                    const daysUntilExpiry = probEndDate ? Math.ceil((probEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                    return (
+                      <div key={emp.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 hover:bg-amber-50 transition-colors">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{emp.full_name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-gray-500">Mã NV: {emp.employee_id}</span>
+                            {emp.department && <span className="text-xs text-gray-500">• {emp.department.name}</span>}
+                            {probEndDate && (
+                              <span className="text-xs text-amber-600 font-medium">
+                                • Hết hạn: {probEndDate.toLocaleDateString('vi-VN')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {daysUntilExpiry <= 1 && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              Hôm nay/Hôm qua
+                            </span>
+                          )}
+                          {daysUntilExpiry > 1 && daysUntilExpiry <= 4 && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                              {daysUntilExpiry} ngày còn lại
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/employees/${emp.id}`)}
+                            className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                          >
+                            Xem chi tiết
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search and Filter Section */}
         <div className="mb-6 bg-gray-50/50 p-5 rounded-2xl border border-gray-100">

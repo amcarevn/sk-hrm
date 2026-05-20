@@ -34,6 +34,7 @@ import {
   MagnifyingGlassIcon,
   TrashIcon,
   EyeIcon,
+  EyeSlashIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon,
@@ -119,6 +120,7 @@ const Profile: React.FC = () => {
   const [manager, setManager] = useState<Employee | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [showTeamModal, setShowTeamModal] = useState(false);
+  const [showSalary, setShowSalary] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -973,12 +975,24 @@ const Profile: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Lương cơ bản
                 </label>
-                <div className="px-3 py-2.5 bg-gray-50 rounded-xl">
-                  <span className="text-gray-900">
-                    {employee.basic_salary
-                      ? formatCurrency(employee.basic_salary)
-                      : 'Chưa cập nhật'}
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-xl">
+                  <span className="text-gray-900 flex-1">
+                    {showSalary
+                      ? (employee.basic_salary ? formatCurrency(employee.basic_salary) : 'Chưa cập nhật')
+                      : '•••••••'}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowSalary((v) => !v)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                    title={showSalary ? 'Ẩn lương' : 'Hiện lương'}
+                  >
+                    {showSalary ? (
+                      <EyeSlashIcon className="h-4 w-4" />
+                    ) : (
+                      <EyeIcon className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
               </div>
 
