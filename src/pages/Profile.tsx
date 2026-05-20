@@ -865,78 +865,6 @@ const Profile: React.FC = () => {
             )}
           </div>
 
-          {/* Team Members Card */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                <UserGroupIcon className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-gray-900">Thành viên trong team</h3>
-                <p className="text-xs text-gray-400">{teamMembers.length} thành viên</p>
-              </div>
-            </div>
-
-            {teamMembers.length > 0 ? (
-              <div className="space-y-4">
-                {teamMembers.slice(0, 5).map((member) => (
-                  <div
-                    key={member.id}
-                    className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium text-gray-900">
-                          {member.full_name}
-                        </h4>
-                        <p className="text-sm text-gray-400">
-                          {member.position_title}
-                        </p>
-                        <p className="text-sm text-gray-400">
-                          Mã NV: {member.employee_id}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                      {member.phone_number && (
-                        <div className="flex items-center text-gray-600">
-                          <PhoneIcon className="h-4 w-4 mr-1" />
-                          <span>{member.phone_number}</span>
-                        </div>
-                      )}
-                      {member.personal_email && (
-                        <div className="flex items-center text-gray-600">
-                          <EnvelopeIcon className="h-4 w-4 mr-1" />
-                          <span className="truncate">
-                            {member.personal_email}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-
-                {teamMembers.length > 5 && (
-                  <div className="text-center pt-4 border-t border-gray-100">
-                    <button
-                      onClick={() => setShowTeamModal(true)}
-                      className="text-sm text-primary-600 hover:text-primary-800 font-medium"
-                    >
-                      Xem thêm ({teamMembers.length - 5} thành viên khác)
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-400">
-                  Không có thành viên trong team
-                </p>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -979,7 +907,7 @@ const Profile: React.FC = () => {
                   <span className="text-gray-900 flex-1">
                     {showSalary
                       ? (employee.basic_salary ? formatCurrency(employee.basic_salary) : 'Chưa cập nhật')
-                      : '•••••••'}
+                      : '*******'}
                   </span>
                   <button
                     type="button"
@@ -1417,6 +1345,78 @@ const Profile: React.FC = () => {
 
           </div>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
+            <UserGroupIcon className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Thành viên trong team</h3>
+            <p className="text-xs text-gray-400">{teamMembers.length} thành viên</p>
+          </div>
+        </div>
+
+        {teamMembers.length > 0 ? (
+          <div className="space-y-4">
+            {teamMembers.slice(0, 5).map((member) => (
+              <div
+                key={member.id}
+                className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-medium text-gray-900">
+                      {member.full_name}
+                    </h4>
+                    <p className="text-sm text-gray-400">
+                      {member.position_title}
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      Mã NV: {member.employee_id}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  {member.phone_number && (
+                    <div className="flex items-center text-gray-600">
+                      <PhoneIcon className="h-4 w-4 mr-1" />
+                      <span>{member.phone_number}</span>
+                    </div>
+                  )}
+                  {member.personal_email && (
+                    <div className="flex items-center text-gray-600">
+                      <EnvelopeIcon className="h-4 w-4 mr-1" />
+                      <span className="truncate">
+                        {member.personal_email}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {teamMembers.length > 5 && (
+              <div className="text-center pt-4 border-t border-gray-100">
+                <button
+                  onClick={() => setShowTeamModal(true)}
+                  className="text-sm text-primary-600 hover:text-primary-800 font-medium"
+                >
+                  Xem thêm ({teamMembers.length - 5} thành viên khác)
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-6">
+            <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <p className="mt-2 text-sm text-gray-400">
+              Không có thành viên trong team
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Team Members Modal */}
