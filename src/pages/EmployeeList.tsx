@@ -44,19 +44,25 @@ const EmployeeList: React.FC = () => {
   } | null>(null);
   const [expiringContractEmployees, setExpiringContractEmployees] = useState<Employee[]>([]);
   const [isLoadingExpiringContracts, setIsLoadingExpiringContracts] = useState(false);
+  const [showExpiringContracts, setShowExpiringContracts] = useState(false);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
   const isSuperUser = user?.is_superuser === true || user?.is_super_admin === true;
 
   const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
   const COOLDOWN_DURATION = 120; // 2 phút (giây)
+
+  const getNearestExpiryDate = (employee: Employee) => {
+    const dates: Date[] = [];
+    if (employee.probation_end_date) dates.push(new Date(employee.probation_end_date));
+    if (employee.contract_end_date) dates.push(new Date(employee.contract_end_date));
+    if (dates.length === 0) return null;
+    return new Date(Math.min(...dates.map((d) => d.getTime())));
+  };
   
   const fetchExpiringContractEmployees = async () => {
     try {
       setIsLoadingExpiringContracts(true);
-      const response = await employeesAPI.list({ 
-        employment_status: 'PROBATION',
-        page_size: 1000
-      });
+      const response = await employeesAPI.list({ page_size: 1000 });
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -64,15 +70,13 @@ const EmployeeList: React.FC = () => {
       fourDaysLater.setDate(today.getDate() + 4);
       
       const expiring = (response.results || []).filter((emp: Employee) => {
-        if (emp.probation_end_date) {
-          const probEndDate = new Date(emp.probation_end_date);
-          probEndDate.setHours(0, 0, 0, 0);
-          return probEndDate >= today && probEndDate <= fourDaysLater;
-        }
-        return false;
+        const nearestExpiryDate = getNearestExpiryDate(emp);
+        if (!nearestExpiryDate) return false;
+        nearestExpiryDate.setHours(0, 0, 0, 0);
+        return nearestExpiryDate >= today && nearestExpiryDate <= fourDaysLater;
       }).sort((a: Employee, b: Employee) => {
-        const dateA = a.probation_end_date ? new Date(a.probation_end_date) : new Date();
-        const dateB = b.probation_end_date ? new Date(b.probation_end_date) : new Date();
+        const dateA = getNearestExpiryDate(a) || new Date();
+        const dateB = getNearestExpiryDate(b) || new Date();
         return dateA.getTime() - dateB.getTime();
       });
       
@@ -156,7 +160,7 @@ const EmployeeList: React.FC = () => {
     fetchStats();
     fetchDepartments();
     fetchExpiringContractEmployees();
-  }, []);}
+  }, []);
 
   // Chặn scroll khi mở dialog import
   useLockBodyScroll(showImportDialog);
@@ -1085,7 +1089,7 @@ const EmployeeList: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const deadline = new Date(today);
-    deadline.setDate(today.getDate() + 5);
+    deadline.setDate(today.getDate() + 4);
 
     const probEnd = employee.probation_end_date ? new Date(employee.probation_end_date) : null;
     const contEnd = employee.contract_end_date ? new Date(employee.contract_end_date) : null;
@@ -1111,7 +1115,7 @@ const EmployeeList: React.FC = () => {
         {/* Statistics Section - At the top as requested */}
         <div className="mb-8">
           <h2 className="text-sm font-bold text-gray-900 mb-4">Thống kê nhân viên</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
             <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-primary-500 shadow-sm p-4">
               <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Tổng số</p>
               <p className="text-2xl font-extrabold text-primary-600 mt-1">{stats.total}</p>
@@ -1140,11 +1144,26 @@ const EmployeeList: React.FC = () => {
               <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Khác</p>
               <p className="text-2xl font-extrabold text-violet-500 mt-1">{stats.other}</p>
             </div>
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowExpiringContracts((prev) => !prev)}
+                className="text-left bg-white rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 shadow-sm p-4 hover:bg-amber-50 transition-colors"
+              >
+                <p className="text-[11px] font-medium text-amber-700 uppercase tracking-wide">Sắp hết hạn HĐ</p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <p className="text-2xl font-extrabold text-amber-600">
+                    {isLoadingExpiringContracts ? '...' : expiringContractEmployees.length}
+                  </p>
+                  <ExclamationTriangleIcon className="h-5 w-5 text-amber-500" />
+                </div>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Expiring Contract Alert - Only show for admin */}
-        {isAdmin && expiringContractEmployees.length > 0 && (
+        {isAdmin && showExpiringContracts && (
           <div className="mb-6 bg-amber-50 rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 p-5">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 mt-0.5">
@@ -1152,13 +1171,16 @@ const EmployeeList: React.FC = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-sm font-bold text-amber-900 mb-3">
-                  ⚠️ Cảnh báo: {expiringContractEmployees.length} nhân viên sắp hết hạn thử việc
+                  ⚠️ Cảnh báo: {expiringContractEmployees.length} nhân sự sắp hết hạn hợp đồng
                 </h3>
+                {expiringContractEmployees.length === 0 ? (
+                  <p className="text-sm text-amber-800">Không có nhân sự nào sắp hết hạn hợp đồng trong 4 ngày tới.</p>
+                ) : (
                 <div className="space-y-2">
                   {expiringContractEmployees.map((emp) => {
-                    const probEndDate = emp.probation_end_date ? new Date(emp.probation_end_date) : null;
+                    const nearestExpiryDate = getNearestExpiryDate(emp);
                     const today = new Date();
-                    const daysUntilExpiry = probEndDate ? Math.ceil((probEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                    const daysUntilExpiry = nearestExpiryDate ? Math.ceil((nearestExpiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
                     return (
                       <div key={emp.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 hover:bg-amber-50 transition-colors">
                         <div className="flex-1">
@@ -1166,9 +1188,9 @@ const EmployeeList: React.FC = () => {
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-gray-500">Mã NV: {emp.employee_id}</span>
                             {emp.department && <span className="text-xs text-gray-500">• {emp.department.name}</span>}
-                            {probEndDate && (
+                            {nearestExpiryDate && (
                               <span className="text-xs text-amber-600 font-medium">
-                                • Hết hạn: {probEndDate.toLocaleDateString('vi-VN')}
+                                • Hết hạn: {nearestExpiryDate.toLocaleDateString('vi-VN')}
                               </span>
                             )}
                           </div>
@@ -1196,6 +1218,7 @@ const EmployeeList: React.FC = () => {
                     );
                   })}
                 </div>
+                )}
               </div>
             </div>
           </div>
