@@ -35,7 +35,7 @@ const GENDER_OPTIONS = [
 
 const EMPLOYMENT_STATUS_OPTIONS = [
   { label: 'Đang làm việc', value: 'ACTIVE' },
-  { label: 'Tạm dừng', value: 'SUSPENDED' },
+  { label: 'Vô hiệu hoá', value: 'PAUSED' },
   { label: 'Đã nghỉ', value: 'INACTIVE' },
 ];
 
@@ -99,7 +99,6 @@ const RANK_OPTIONS = [
   { label: 'Giám đốc', value: 'DIRECTOR' },
   { label: 'Phó Giám đốc', value: 'DEPUTY_DIRECTOR' },
   { label: 'Leader', value: 'LEADER' },
-  { label: 'Quản lý', value: 'SUPERVISOR' },
   { label: 'Trưởng phòng', value: 'MANAGER' },
   { label: 'Trưởng phòng tập sự', value: 'MANAGER_TRAINEE' },
   { label: 'Phó phòng', value: 'DEPUTY_MANAGER' },
@@ -116,7 +115,6 @@ const EDUCATION_LEVEL_OPTIONS = [
   { label: 'Khác', value: 'OTHER' },
 ];
 
-// ============================================
 // ============================================
 // HELPER COMPONENTS
 // ============================================
@@ -188,6 +186,7 @@ const EmployeeEdit: React.FC = () => {
     facebook_link: '',
 
     // Thông tin công việc
+    is_active: true,
     employment_status: 'ACTIVE',
     start_date: '',
     end_date: '',
@@ -287,7 +286,7 @@ const EmployeeEdit: React.FC = () => {
         employee_id: e.employee_id || '',
         full_name: e.full_name || '',
         gender: e.gender || 'M',
-        date_of_birth: toDisplayDate(e.date_of_birth || ''),
+        date_of_birth: toDisplayDate(e.date_of_birth),
         phone_number: e.phone_number || '',
         personal_email: e.personal_email || '',
         ethnicity: e.ethnicity || '',
@@ -295,17 +294,18 @@ const EmployeeEdit: React.FC = () => {
         marital_status: e.marital_status || '',
         facebook_link: e.facebook_link || ei.facebook_link || '',
 
+        is_active: e.is_active !== false,
         employment_status: e.employment_status || 'ACTIVE',
-        start_date: toDisplayDate(e.start_date || ''),
-        end_date: toDisplayDate(e.end_date || ''),
+        start_date: toDisplayDate(e.start_date),
+        end_date: toDisplayDate(e.end_date),
         position_id: e.position?.id,
         department_id: e.department?.id,
-        manager_id: typeof e.manager === 'number' ? e.manager : e.manager?.id,
+        manager_id: typeof e.manager === 'number' ? e.manager : (e.manager?.id ?? null),
         rank: e.rank || '',
         section: e.section || '',
         doctor_team: e.doctor_team || '',
         work_form: e.work_form || '',
-        official_start_date: toDisplayDate(e.official_start_date || ''),
+        official_start_date: toDisplayDate(e.official_start_date),
         work_location: e.work_location || '',
         region: e.region || '',
         block: e.block || '',
@@ -316,7 +316,7 @@ const EmployeeEdit: React.FC = () => {
         employment_status_notes: e.employment_status_notes || '',
 
         cccd_number: e.cccd_number || '',
-        cccd_issue_date: toDisplayDate(e.cccd_issue_date || ''),
+        cccd_issue_date: toDisplayDate(e.cccd_issue_date),
         cccd_issue_place: e.cccd_issue_place || '',
         old_id_number: e.old_id_number || ei.old_id_number || '',
         birth_place: e.birth_place || '',
@@ -336,10 +336,10 @@ const EmployeeEdit: React.FC = () => {
         allowance: e.allowance ?? '',
         contract_type: e.contract_type || '',
         probation_months: e.probation_months ?? '',
-        probation_end_date: toDisplayDate(e.probation_end_date || ''),
+        probation_end_date: toDisplayDate(e.probation_end_date),
         probation_rate: e.probation_rate || '',
-        contract_start_date: toDisplayDate(e.contract_start_date || ''),
-        contract_end_date: toDisplayDate(e.contract_end_date || ''),
+        contract_start_date: toDisplayDate(e.contract_start_date),
+        contract_end_date: toDisplayDate(e.contract_end_date),
         revenue_percentage: e.revenue_percentage || '',
         profit_percentage: e.profit_percentage || '',
 
@@ -354,15 +354,18 @@ const EmployeeEdit: React.FC = () => {
         emergency_contact_name: e.emergency_contact_name || '',
         emergency_contact_relationship: e.emergency_contact_relationship || '',
         emergency_contact_phone: e.emergency_contact_phone || '',
-        emergency_contact_dob: toDisplayDate(e.emergency_contact_dob || ''),
+        emergency_contact_dob: toDisplayDate(e.emergency_contact_dob),
         emergency_contact_occupation: e.emergency_contact_occupation || '',
         emergency_contact_address: e.emergency_contact_address || '',
       });
       setVneidCurrentUrl(e.vneid_screenshot_url || (e.vneid_screenshot ? String(e.vneid_screenshot) : null));
       setVneidFile(null);
-      setDiplomaCurrentUrl(e.diploma_file_url || null);
+
+      // diploma_file_url và citizen_id_file_url thuộc OnboardingProcess — fetch riêng
+      const onboarding = await onboardingService.getByEmployeeId(e.employee_id).catch(() => null);
+      setDiplomaCurrentUrl(onboarding?.diploma_file_url || null);
       setDiplomaFile(null);
-      setCitizenIdCurrentUrl(e.citizen_id_file_url || null);
+      setCitizenIdCurrentUrl(onboarding?.citizen_id_file_url || null);
       setCitizenIdFile(null);
       setError(null);
     } catch (err: any) {
@@ -402,18 +405,44 @@ const EmployeeEdit: React.FC = () => {
 
   const loadCompanyUnits = async () => {
     try {
-      const response = await companyUnitsAPI.list({ page_size: 100, active_only: true });
+      const response = await companyUnitsAPI.list({ page_size: 100 });
       setCompanyUnits(Array.isArray(response) ? response : (response.results || []));
     } catch (err) { console.error('Failed to load company units:', err); }
   };
 
+  const calcProbationEndDate = (startDateDisplay: string, months: string): string => {
+    const parts = startDateDisplay.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    const m = parseInt(months);
+    if (!parts || isNaN(m) || m <= 0) return '';
+    const d = new Date(parseInt(parts[3]), parseInt(parts[2]) - 1, parseInt(parts[1]));
+    d.setMonth(d.getMonth() + m);
+    d.setDate(d.getDate() - 1);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  };
+
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev: any) => ({ ...prev, [name]: value }));
+    setFormData((prev: any) => {
+      const next = { ...prev, [name]: value };
+      if (name === 'probation_months' && prev.start_date) {
+        next.probation_end_date = calcProbationEndDate(prev.start_date, value);
+      }
+      if (name === 'start_date' && prev.probation_months) {
+        next.probation_end_date = calcProbationEndDate(value, prev.probation_months);
+      }
+      return next;
+    });
   };
 
   const handleSelect = (name: string, value: any) => {
-    setFormData((prev: any) => ({ ...prev, [name]: value }));
+    setFormData((prev: any) => {
+      const next = { ...prev, [name]: value };
+      if (name === 'employment_status') {
+        if (value === 'INACTIVE' || value === 'PAUSED') next.is_active = false;
+        else if (value === 'ACTIVE' || value === 'PROBATION') next.is_active = true;
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -430,20 +459,17 @@ const EmployeeEdit: React.FC = () => {
         employee_id: formData.employee_id.trim(),
         full_name: formData.full_name.trim(),
         gender: formData.gender,
+        is_active: formData.is_active,
         employment_status: formData.employment_status,
         is_hr: formData.is_hr,
       };
 
-      // Helper cho text/string fields (blank=True): gửi '' khi rỗng, không gửi null
+      // Helper: only add if not empty
       const add = (key: string, val: any) => {
-        if (val !== undefined) payload[key] = val;
-      };
-      // Helper cho date fields (null=True, blank=True): gửi null khi rỗng để BE có thể clear
-      const addDate = (key: string, displayDate: string) => {
-        payload[key] = toApiDate(displayDate) || null;
+        if (val !== '' && val !== null && val !== undefined) payload[key] = val;
       };
 
-      addDate('date_of_birth', formData.date_of_birth);
+      add('date_of_birth', toApiDate(formData.date_of_birth));
       add('phone_number', formData.phone_number?.trim());
       add('personal_email', formData.personal_email?.trim());
       add('ethnicity', formData.ethnicity?.trim());
@@ -451,8 +477,9 @@ const EmployeeEdit: React.FC = () => {
       add('marital_status', formData.marital_status);
       add('facebook_link', formData.facebook_link?.trim());
 
-      addDate('start_date', formData.start_date);
-      addDate('end_date', formData.end_date);
+      add('start_date', toApiDate(formData.start_date));
+      // end_date luôn gửi để cho phép xóa (null = xóa ngày nghỉ việc)
+      payload['end_date'] = toApiDate(formData.end_date) || null;
       add('position_id', formData.position_id);
       add('department_id', formData.department_id);
       if (formData.manager_id !== undefined) payload['manager_id'] = formData.manager_id;
@@ -474,14 +501,15 @@ const EmployeeEdit: React.FC = () => {
         };
         payload['extra_info'] = JSON.stringify(nextExtra);
       }
-      addDate('official_start_date', formData.official_start_date);
+      add('official_start_date', toApiDate(formData.official_start_date));
       add('education_level', formData.education_level);
 
-      add('termination_reason', formData.termination_reason?.trim());
+      // termination_reason luôn gửi để cho phép xóa khi đổi trạng thái
+      payload['termination_reason'] = formData.termination_reason?.trim() || null;
       add('employment_status_notes', formData.employment_status_notes?.trim());
 
       add('cccd_number', formData.cccd_number?.trim());
-      addDate('cccd_issue_date', formData.cccd_issue_date);
+      add('cccd_issue_date', toApiDate(formData.cccd_issue_date));
       add('cccd_issue_place', formData.cccd_issue_place);
       add('old_id_number', formData.old_id_number?.trim());
       add('birth_place', formData.birth_place?.trim());
@@ -497,14 +525,14 @@ const EmployeeEdit: React.FC = () => {
       add('bank_account_holder', formData.bank_account_holder?.trim());
       add('bank_branch', formData.bank_branch?.trim());
 
-      payload['basic_salary'] = formData.basic_salary !== '' ? Number(formData.basic_salary) : null;
-      payload['allowance'] = formData.allowance !== '' ? Number(formData.allowance) : null;
+      if (formData.basic_salary !== '') payload['basic_salary'] = Number(formData.basic_salary);
+      if (formData.allowance !== '') payload['allowance'] = Number(formData.allowance);
       add('contract_type', formData.contract_type);
-      payload['probation_months'] = formData.probation_months !== '' ? Number(formData.probation_months) : null;
-      addDate('probation_end_date', formData.probation_end_date);
+      if (formData.probation_months !== '') payload['probation_months'] = Number(formData.probation_months);
+      add('probation_end_date', toApiDate(formData.probation_end_date));
       add('probation_rate', formData.probation_rate);
-      addDate('contract_start_date', formData.contract_start_date);
-      addDate('contract_end_date', formData.contract_end_date);
+      add('contract_start_date', toApiDate(formData.contract_start_date));
+      add('contract_end_date', toApiDate(formData.contract_end_date));
       add('revenue_percentage', formData.revenue_percentage);
       add('profit_percentage', formData.profit_percentage);
 
@@ -518,11 +546,11 @@ const EmployeeEdit: React.FC = () => {
       add('emergency_contact_name', formData.emergency_contact_name?.trim());
       add('emergency_contact_relationship', formData.emergency_contact_relationship?.trim());
       add('emergency_contact_phone', formData.emergency_contact_phone?.trim());
-      addDate('emergency_contact_dob', formData.emergency_contact_dob);
+      add('emergency_contact_dob', toApiDate(formData.emergency_contact_dob));
       add('emergency_contact_occupation', formData.emergency_contact_occupation?.trim());
       add('emergency_contact_address', formData.emergency_contact_address?.trim());
 
-      await employeesAPI.update(parseInt(id!), payload);
+      await employeesAPI.partialUpdate(parseInt(id!), payload);
 
       // Upload VNeID screenshot nếu admin chọn file mới (field thuộc Employee)
       if (vneidFile && formData.employee_id) {
@@ -609,8 +637,8 @@ const EmployeeEdit: React.FC = () => {
             />
 
             <Field label="Ngày sinh">
-              <input type="text" name="date_of_birth" value={formData.date_of_birth}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="text" placeholder="DD/MM/YYYY" name="date_of_birth" value={formData.date_of_birth}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <Field label="Số điện thoại">
@@ -669,18 +697,18 @@ const EmployeeEdit: React.FC = () => {
             />
 
             <Field label="Ngày bắt đầu">
-              <input type="text" name="start_date" value={formData.start_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="text" placeholder="DD/MM/YYYY" name="start_date" value={formData.start_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <Field label="Ngày nghỉ việc">
-              <input type="text" name="end_date" value={formData.end_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="text" placeholder="DD/MM/YYYY" name="end_date" value={formData.end_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <Field label="Ngày lên chính thức">
-              <input type="text" name="official_start_date" value={formData.official_start_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="text" placeholder="DD/MM/YYYY" name="official_start_date" value={formData.official_start_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <SelectBox
@@ -722,13 +750,7 @@ const EmployeeEdit: React.FC = () => {
               label="Cấp bậc"
               value={formData.rank}
               placeholder="Chọn cấp bậc"
-              options={[
-                { value: '', label: 'Không có' },
-                ...RANK_OPTIONS,
-                ...(formData.rank && !RANK_OPTIONS.some(o => o.value === formData.rank)
-                  ? [{ value: formData.rank, label: formData.rank }]
-                  : []),
-              ]}
+              options={[{ value: '', label: 'Không có' }, ...RANK_OPTIONS]}
               onChange={(v) => handleSelect('rank', v)}
             />
 
@@ -790,7 +812,21 @@ const EmployeeEdit: React.FC = () => {
               onChange={(v) => handleSelect('company_unit_id', v ? Number(v) : undefined)}
             />
 
-            <div className="md:col-span-2">
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-colors ${formData.is_active ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100' : 'bg-red-50 border-red-200 hover:bg-red-100'}`}>
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={formData.is_active}
+                  onChange={(e) => handleSelect('is_active', e.target.checked)}
+                />
+                <div>
+                  <p className={`text-sm font-medium ${formData.is_active ? 'text-emerald-700' : 'text-red-700'}`}>
+                    {formData.is_active ? 'Đang hoạt động' : 'Đã vô hiệu hoá'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">Bỏ tick để vô hiệu hoá tài khoản nhân viên này</p>
+                </div>
+              </label>
               <label className="flex items-start gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 cursor-pointer hover:bg-primary-50 transition-colors">
                 <input
                   type="checkbox"
@@ -835,8 +871,8 @@ const EmployeeEdit: React.FC = () => {
             </Field>
 
             <Field label="Ngày cấp CCCD">
-              <input type="text" name="cccd_issue_date" value={formData.cccd_issue_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="text" placeholder="DD/MM/YYYY" name="cccd_issue_date" value={formData.cccd_issue_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <SelectBox
@@ -952,8 +988,8 @@ const EmployeeEdit: React.FC = () => {
             </Field>
 
             <Field label="Ngày kết thúc thử việc">
-              <input type="text" name="probation_end_date" value={formData.probation_end_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="text" placeholder="DD/MM/YYYY" name="probation_end_date" value={formData.probation_end_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <SelectBox
@@ -965,13 +1001,13 @@ const EmployeeEdit: React.FC = () => {
             />
 
             <Field label="Ngày bắt đầu hợp đồng">
-              <input type="text" name="contract_start_date" value={formData.contract_start_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="text" placeholder="DD/MM/YYYY" name="contract_start_date" value={formData.contract_start_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <Field label="Ngày kết thúc hợp đồng">
-              <input type="text" name="contract_end_date" value={formData.contract_end_date}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="text" placeholder="DD/MM/YYYY" name="contract_end_date" value={formData.contract_end_date}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <Field label="Tỷ lệ % doanh số hưởng">
@@ -1049,8 +1085,8 @@ const EmployeeEdit: React.FC = () => {
             </Field>
 
             <Field label="Ngày sinh">
-              <input type="text" name="emergency_contact_dob" value={formData.emergency_contact_dob}
-                onChange={handleInput} placeholder="DD/MM/YYYY" className={inputClass} />
+              <input type="text" placeholder="DD/MM/YYYY" name="emergency_contact_dob" value={formData.emergency_contact_dob}
+                onChange={handleInput} className={inputClass} />
             </Field>
 
             <Field label="Nghề nghiệp">
