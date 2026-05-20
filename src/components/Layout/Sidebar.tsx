@@ -76,13 +76,13 @@ const navigationItems: NavigationItem[] = [
     name: 'Nhân sự',
     href: '/dashboard/employees',
     icon: UserIcon,
-    roles: ['ADMIN', 'USER', 'HR'],
+    roles: ['ADMIN','HR'],
     children: [
       {
         name: 'Quản lý nhân viên',
         href: '/dashboard/employees',
         icon: UserIcon,
-        roles: ['ADMIN', 'USER'],
+        roles: ['ADMIN', 'HR'],
       },
       {
         name: 'Onboard nhân sự',
@@ -94,13 +94,13 @@ const navigationItems: NavigationItem[] = [
         name: 'Offboard nhân sự',
         href: '/dashboard/offboarding',
         icon: UserMinusIcon,
-        roles: ['ADMIN'],
+        roles: ['ADMIN', 'HR'],
       },
       {
         name: 'Quản lý phân quyền',
         href: '/dashboard/roles',
         icon: ShieldCheckIcon,
-        roles: ['ADMIN'],
+        roles: ['ADMIN', 'HR'],
       },
       {
         name: 'Cấp lại mật khẩu',
@@ -186,7 +186,7 @@ const navigationItems: NavigationItem[] = [
         name: 'Phê duyệt chốt công',
         href: '/dashboard/work-finalization/approvals',
         icon: CheckCircleIcon,
-        roles: ['ADMIN'],
+        roles: ['ADMIN', 'HR'],
       },
     ],
   },
@@ -196,13 +196,13 @@ const navigationItems: NavigationItem[] = [
     name: 'Khen thưởng & Kỷ luật',
     href: '/dashboard/rewards',
     icon: GiftIcon,
-    roles: ['ADMIN'],
+    roles: ['ADMIN', 'HR'],
     children: [
       {
         name: 'Xếp hạng chấm công',
         href: '/dashboard/attendance/ranking',
         icon: TrophyIcon,
-        roles: ['ADMIN'],
+        roles: ['ADMIN', 'HR'],
       },
     ],
   },
@@ -212,7 +212,7 @@ const navigationItems: NavigationItem[] = [
     name: 'Quản lý tính lương',
     href: '/dashboard/salary-management/config',
     icon: CurrencyDollarIcon,
-    roles: ['ADMIN'],
+    roles: ['ADMIN', 'HR'],
     children: [
       {
         name: 'Bảng lương',
@@ -230,7 +230,7 @@ const navigationItems: NavigationItem[] = [
         name: 'Dữ liệu',
         href: '/dashboard/salary-management/penalty',
         icon: ExclamationCircleIcon,
-        roles: ['ADMIN'],
+        roles: ['ADMIN' ],
       },
       {
         name: 'Cấu hình tăng ca',
