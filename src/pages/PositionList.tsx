@@ -11,6 +11,7 @@ import {
 import { positionsAPI, departmentsAPI, Position, Department } from '../utils/api';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Pagination from '../components/Pagination';
 
 const PositionList: React.FC = () => {
   const navigate = useNavigate();
@@ -24,16 +25,20 @@ const PositionList: React.FC = () => {
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const [positionToDelete, setPositionToDelete] = useState<Position | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
-  const fetchPositions = async (search = '', department = 'all', isManagement = 'all') => {
+  const fetchPositions = async (search = '', department = 'all', isManagement = 'all', page = 1, pageSize = 20) => {
     try {
       setLoading(true);
-      const params: any = {};
+      const params: any = { page, page_size: pageSize };
       if (search) params.search = search;
       if (department !== 'all') params.department = department;
       if (isManagement !== 'all') params.is_management = isManagement === 'true';
       const response = await positionsAPI.list(params);
       setPositions(response.results || []);
+      setTotalCount(response.count || 0);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách vị trí');
@@ -53,16 +58,23 @@ const PositionList: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchPositions();
+    fetchPositions('', 'all', 'all', 1, itemsPerPage);
     fetchDepartments();
   }, []);
 
   useEffect(() => {
     if (searchTimeout) clearTimeout(searchTimeout);
-    const timeout = setTimeout(() => fetchPositions(searchTerm, departmentFilter, isManagementFilter), 300);
+    const timeout = setTimeout(() => {
+      setCurrentPage(1);
+      fetchPositions(searchTerm, departmentFilter, isManagementFilter, 1, itemsPerPage);
+    }, 300);
     setSearchTimeout(timeout);
     return () => { if (searchTimeout) clearTimeout(searchTimeout); };
   }, [searchTerm, departmentFilter, isManagementFilter]);
+
+  useEffect(() => {
+    fetchPositions(searchTerm, departmentFilter, isManagementFilter, currentPage, itemsPerPage);
+  }, [currentPage, itemsPerPage]);
 
   const handleDeleteConfirm = async () => {
     if (!positionToDelete) return;
@@ -70,7 +82,7 @@ const PositionList: React.FC = () => {
       setDeleting(true);
       await positionsAPI.delete(positionToDelete.id);
       setPositionToDelete(null);
-      fetchPositions(searchTerm, departmentFilter, isManagementFilter);
+      fetchPositions(searchTerm, departmentFilter, isManagementFilter, currentPage, itemsPerPage);
     } catch (err: any) {
       alert('Xóa thất bại: ' + (err.message || 'Lỗi không xác định'));
       setPositionToDelete(null);
@@ -166,7 +178,7 @@ const PositionList: React.FC = () => {
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Danh sách vị trí</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Tổng số: {positions.length} vị trí</p>
+            <p className="text-xs text-gray-400 mt-0.5">Tổng số: {totalCount} vị trí</p>
           </div>
           <button
             className="btn-primary"
@@ -265,6 +277,22 @@ const PositionList: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!loading && !error && totalCount > 0 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(totalCount / itemsPerPage)}
+              totalItems={totalCount}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(size) => {
+                setItemsPerPage(size);
+                setCurrentPage(1);
+              }}
+            />
           </div>
         )}
       </div>

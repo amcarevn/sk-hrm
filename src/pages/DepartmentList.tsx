@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { departmentsAPI, Department } from '../utils/api';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Pagination from '../components/Pagination';
 
 // ── Dialog xem chi tiết phòng ban ──
 const DepartmentDetailDialog: React.FC<{
@@ -39,7 +40,6 @@ const DepartmentDetailDialog: React.FC<{
         className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center">
@@ -58,17 +58,12 @@ const DepartmentDetailDialog: React.FC<{
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-4">
           <InfoRow label="Mã phòng ban" value={department.code} />
           <InfoRow label="Tên phòng ban" value={department.name} />
           <InfoRow label="Phòng ban cha" value={getParentName(department.parent_department)} />
           <InfoRow label="Quản lý" value={department.manager_name || null} />
           <InfoRow label="Mô tả" value={department.description || null} />
-          <InfoRow
-            label="Loại"
-            value={department.is_section ? 'Bộ phận (Section)' : 'Phòng ban'}
-          />
           <InfoRow
             label="Ngày tạo"
             value={department.created_at ? new Date(department.created_at).toLocaleDateString('vi-VN') : null}
@@ -79,7 +74,6 @@ const DepartmentDetailDialog: React.FC<{
           />
         </div>
 
-        {/* Footer */}
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
           <button onClick={onClose} className="btn-secondary">
             Đóng
@@ -101,6 +95,7 @@ const DepartmentDetailDialog: React.FC<{
 const DepartmentList: React.FC = () => {
   const navigate = useNavigate();
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -108,14 +103,18 @@ const DepartmentList: React.FC = () => {
   const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewDepartment, setViewDepartment] = useState<Department | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
-  const fetchDepartments = async (search = '') => {
+  const fetchDepartments = async (search = '', page = 1, pageSize = 20) => {
     try {
       setLoading(true);
-      const params: any = {};
+      const params: any = { page, page_size: pageSize };
       if (search) params.search = search;
       const response = await departmentsAPI.list(params);
       setDepartments(response.results || []);
+      setTotalCount(response.count || 0);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách phòng ban');
@@ -125,16 +124,33 @@ const DepartmentList: React.FC = () => {
     }
   };
 
+  const fetchAllDepartments = async () => {
+    try {
+      const response = await departmentsAPI.list({ page_size: 1000 });
+      setAllDepartments(response.results || []);
+    } catch (err) {
+      console.error('Error fetching all departments:', err);
+    }
+  };
+
   useEffect(() => {
-    fetchDepartments();
+    fetchDepartments('', 1, itemsPerPage);
+    fetchAllDepartments();
   }, []);
 
   useEffect(() => {
     if (searchTimeout) clearTimeout(searchTimeout);
-    const timeout = setTimeout(() => fetchDepartments(searchTerm), 300);
+    const timeout = setTimeout(() => {
+      setCurrentPage(1);
+      fetchDepartments(searchTerm, 1, itemsPerPage);
+    }, 300);
     setSearchTimeout(timeout);
     return () => { if (searchTimeout) clearTimeout(searchTimeout); };
   }, [searchTerm]);
+
+  useEffect(() => {
+    fetchDepartments(searchTerm, currentPage, itemsPerPage);
+  }, [currentPage, itemsPerPage]);
 
   const handleDeleteConfirm = async () => {
     if (!departmentToDelete) return;
@@ -142,7 +158,7 @@ const DepartmentList: React.FC = () => {
       setDeleting(true);
       await departmentsAPI.delete(departmentToDelete.id);
       setDepartmentToDelete(null);
-      fetchDepartments();
+      fetchDepartments(searchTerm, currentPage, itemsPerPage);
     } catch (err: any) {
       alert('Xóa thất bại: ' + (err.message || 'Lỗi không xác định'));
       setDepartmentToDelete(null);
@@ -152,8 +168,8 @@ const DepartmentList: React.FC = () => {
   };
 
   const getParentDepartmentName = (parentId?: number | null) => {
-    if (!parentId) return 'Không có';
-    const parent = departments.find(dept => dept.id === parentId);
+    if (!parentId) return '—';
+    const parent = allDepartments.find(dept => dept.id === parentId);
     return parent ? parent.name : `ID: ${parentId}`;
   };
 
@@ -199,7 +215,7 @@ const DepartmentList: React.FC = () => {
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Danh sách phòng ban</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Tổng số: {departments.length} phòng ban</p>
+            <p className="text-xs text-gray-400 mt-0.5">Tổng số: {totalCount} phòng ban</p>
           </div>
           <button
             className="btn-primary"
@@ -298,9 +314,24 @@ const DepartmentList: React.FC = () => {
             </table>
           </div>
         )}
+
+        {!loading && !error && totalCount > 0 && (
+          <div className="mt-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(totalCount / itemsPerPage)}
+              totalItems={totalCount}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(size) => {
+                setItemsPerPage(size);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Dialog xem chi tiết */}
       <DepartmentDetailDialog
         department={viewDepartment}
         getParentName={getParentDepartmentName}
