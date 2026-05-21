@@ -8,27 +8,27 @@ module.exports = {
       },
       colors: {
         primary: {
-          50: '#EEF4FB',
-          100: '#D4E5F8',
-          200: '#A9CCF1',
-          300: '#70A9E3',
-          400: '#3B85D1',
-          500: '#1B65B8',
-          600: '#144EA8',
-          700: '#0F3A88',
-          800: '#0C2870',
-          900: '#081B54',
-          950: '#040E35',
+          50:  '#F0F7F0',
+          100: '#D4EDD4',
+          200: '#A9DBA9',
+          300: '#72C272',
+          400: '#4CA84C',
+          500: '#2E7A2E',
+          600: '#266426',
+          700: '#1D4E1D',
+          800: '#153915',
+          900: '#0D240D',
+          950: '#061206',
         },
-        // SK Dental Clinic brand colors
         sk: {
-          green:       '#4E9A2E', // primary brand, buttons, logo
-          'green-dark':'#3F7F25', // hover, active
-          'green-light':'#6FBF4A', // highlight, light background
-          border:      '#E0E0E0', // divider, border
-          'bg-section':'#F5F5F5', // section background
-          text:        '#222222', // main text
-          'text-sub':  '#666666', // subtitle, description
+          green:        '#2E7A2E',
+          'green-hover':'#266426',
+          'green-light':'#72C272',
+          'green-pale': '#F0F7F0',
+          border:       '#E0E0E0',
+          'bg-section': '#F5F5F5',
+          text:         '#222222',
+          'text-sub':   '#666666',
         },
       },
       animation: {

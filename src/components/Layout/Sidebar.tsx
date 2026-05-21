@@ -41,6 +41,7 @@ interface NavigationItem {
   departments?: string[];
   employeePermission?: string;
   children?: NavigationItem[];
+  hidden?: boolean;
 }
 
 const navigationItems: NavigationItem[] = [
@@ -121,6 +122,7 @@ const navigationItems: NavigationItem[] = [
         name: 'Quản lý đơn vị',
         href: '/dashboard/company-units',
         icon: BuildingOfficeIcon,
+        hidden: true,
         roles: ['ADMIN'],
         employeePermission: 'can_manage_company_config',
       },
@@ -396,6 +398,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
   const employeePermission = user?.employee_permission;
 
   const canAccessItem = (item: NavigationItem): boolean => {
+    if (item.hidden) return false;
     if (item.employeePermission && employeePermission?.[item.employeePermission as keyof typeof employeePermission]) {
       return true;
     }
@@ -476,13 +479,13 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
                     to={child.href}
                     className={`group flex items-center px-2 py-1.5 text-sm rounded-lg transition-all duration-150 ${
                       childActive
-                        ? 'bg-primary-600 text-white font-medium'
-                        : 'text-white/60 hover:bg-primary-800 hover:text-white font-normal'
+                        ? 'bg-primary-600 text-white font-semibold'
+                        : 'text-white/90 hover:bg-primary-800 hover:text-white font-medium'
                     }`}
                   >
                     <child.icon
                       className={`h-4 w-4 flex-shrink-0 mr-2 transition-colors ${
-                        childActive ? 'text-white' : 'text-white/50 group-hover:text-white'
+                        childActive ? 'text-white' : 'text-white/70 group-hover:text-white'
                       }`}
                     />
                     {child.name}
@@ -526,15 +529,12 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           onClick={() => setSidebarOpen(false)}
         />
         <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-primary-900">
-          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60">
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-[13px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
-              <div className="flex items-center gap-2">
-                <div className="h-px w-4 bg-primary-500/60" />
-                <span className="text-[8px] font-bold tracking-[0.55em] text-primary-400 uppercase leading-none">Group</span>
-                <div className="h-px w-4 bg-primary-500/60" />
-              </div>
-            </div>
+          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60 px-10">
+            <img
+              src="/logo_sk.png"
+              alt="SK Dental Clinic"
+              className="h-12 w-auto max-w-[140px] object-contain brightness-[400]"
+            />
             <button
               onClick={() => setSidebarOpen(false)}
               className="absolute right-3 p-1 rounded-md text-primary-500 hover:text-white hover:bg-primary-800 transition-colors"
@@ -588,16 +588,13 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
       >
         <div className="flex h-full min-h-0 flex-col bg-primary-900 overflow-hidden">
           {/* Logo area */}
-          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60">
+          <div className="relative flex h-16 items-center justify-center border-b border-primary-800/60 px-10">
             {!isCollapsed && (
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-[18px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
-                <div className="flex items-center gap-2">
-                  <div className="h-px w-6 bg-primary-500/60" />
-                  <span className="text-[11px] font-bold tracking-[0.55em] text-primary-300 uppercase leading-none">Group</span>
-                  <div className="h-px w-6 bg-primary-500/60" />
-                </div>
-              </div>
+              <img
+                src="/logo_sk.png"
+                alt="SK Dental Clinic"
+                className="h-12 w-auto max-w-[140px] object-contain drop-shadow-sm  brightness-[400]"
+              />
             )}
             <button
               onClick={handleCollapseToggle}
@@ -620,17 +617,6 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           {/* User section */}
           {!isCollapsed && user && (
             <div className="border-t border-primary-800 bg-primary-950 px-2 py-3">
-              <a
-                href="https://music-player.thammytrunganh.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 transition-colors w-fit"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-white flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                </svg>
-                <span className="text-xs font-medium text-white">Order nhạc ở đây</span>
-              </a>
               <Link to="/dashboard/settings" className="block">
                 <div className="flex items-center space-x-3 hover:bg-primary-800 p-2 rounded-lg transition-colors">
                   {user.hrm_user?.avatar_url ? (
@@ -676,14 +662,11 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
           <Bars3Icon className="h-5 w-5" />
         </button>
         <div className="flex flex-1 items-center justify-center">
-          <div className="flex flex-col items-center gap-1">
-            <span className="text-[13px] font-black tracking-[0.3em] text-white uppercase leading-none">Trung Anh</span>
-            <div className="flex items-center gap-2">
-              <div className="h-px w-4 bg-primary-500/60" />
-              <span className="text-[8px] font-bold tracking-[0.55em] text-primary-400 uppercase leading-none">Group</span>
-              <div className="h-px w-4 bg-primary-500/60" />
-            </div>
-          </div>
+          <img
+            src="/logo_sk.png"
+            alt="SK Dental Clinic"
+            className="h-12 w-auto max-w-[120px] object-contain brightness-[400]"
+          />
         </div>
         <div className="w-8" />
       </div>
