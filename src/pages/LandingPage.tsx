@@ -97,8 +97,8 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src="/logo-trung-anh.png"
-              alt="Trung Anh Group"
+              src="/logo-sk.png"
+              alt="SK DENTAL CLINIC"
               className="h-10 w-auto max-w-[160px] rounded-lg object-contain"
             />
             <span className="text-primary-300 text-xs hidden sm:block">Hệ thống Quản lý Nhân sự</span>
@@ -146,7 +146,8 @@ export default function LandingPage() {
                 custom={1} variants={fadeUp} initial="hidden" animate="visible"
                 className="text-4xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight"
               >
-                Trung Anh Group
+                SK <br />
+                <span className="block mt-[-5px] lg:mt-[-10px] text-3xl lg:text-5xl font-bold text-white tracking-normal normal-case">Dental Clinic</span>
               </motion.h1>
               <motion.p
                 custom={2} variants={fadeUp} initial="hidden" animate="visible"
@@ -159,7 +160,7 @@ export default function LandingPage() {
                 className="mt-5 text-base lg:text-lg text-primary-200 leading-relaxed max-w-xl"
               >
                 Nền tảng quản lý nhân sự, chấm công, tính lương và tài sản tập trung —
-                vận hành toàn bộ hoạt động nhân sự của Trung Anh Group trên một hệ thống duy nhất.
+                vận hành toàn bộ hoạt động nhân sự của SK Dental Clinic trên một hệ thống duy nhất.
               </motion.p>
 
               <motion.div
@@ -189,7 +190,7 @@ export default function LandingPage() {
                 {[
                   { to: 200, suffix: '+', label: 'Nhân viên', duration: 2.8 },
                   { to: cardStats.departments, suffix: '', label: 'Phòng ban', duration: 2.5 },
-                  { to: 6,   suffix: '',  label: 'Phân hệ',   duration: 2.0 },
+                  { to: 6, suffix: '', label: 'Phân hệ', duration: 2.0 },
                   { to: 2026, suffix: '', label: 'Năm vận hành', duration: 4.0 },
                 ].map(({ to, suffix, label, duration }) => (
                   <div key={label}>
@@ -356,7 +357,7 @@ export default function LandingPage() {
               Sẵn sàng đăng nhập vào hệ thống?
             </h2>
             <p className="mt-2 text-primary-300 text-sm">
-              Dành cho cán bộ nhân viên Trung Anh Group. Liên hệ phòng IT nếu cần hỗ trợ tài khoản.
+              Dành cho cán bộ nhân viên SK Dental Clinic. Liên hệ phòng IT nếu cần hỗ trợ tài khoản.
             </p>
           </div>
           <a
@@ -372,13 +373,13 @@ export default function LandingPage() {
           <div className="mx-auto max-w-7xl px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <img
-                src="/logo-trung-anh.png"
-                alt="Trung Anh Group"
+                src="/logo-sk.png"
+                alt="SK DENTAL CLINIC"
                 className="h-8 w-auto max-w-[130px] rounded-lg object-contain"
               />
               <span className="text-primary-400 text-xs hidden sm:block">Hệ thống Quản lý Nhân sự</span>
             </div>
-            <span className="text-primary-500 text-xs">© 2026 Trung Anh Group. All rights reserved.</span>
+            <span className="text-primary-500 text-xs">© 2026 SK DENTAL CLINIC. All rights reserved.</span>
           </div>
         </div>
       </section>
