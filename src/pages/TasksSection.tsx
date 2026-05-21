@@ -32,6 +32,7 @@ type OnboardingTask = {
   name: string;
   description: string;
   task_type: string;
+  task_code?: string | null;
   order: number;
   deadline: string | null;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';

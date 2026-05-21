@@ -15,6 +15,7 @@ interface SelectBoxProps<T> {
   placeholder?: string;
   searchable?: boolean;
   size?: 'default' | 'lg';
+  portal?: boolean;
 }
 
 function SelectBoxInner<T>({

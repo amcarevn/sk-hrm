@@ -103,6 +103,7 @@ export interface OnboardingTask {
   name: string;
   description: string;
   task_type: 'DOCUMENT' | 'CONTRACT' | 'TRAINING' | 'IT_SETUP' | 'ORIENTATION' | 'EVALUATION' | 'OTHER';
+  task_code?: 'FILL_INFO' | 'SIGN_CONTRACT' | 'READ_REGULATION' | 'SUBMIT_DOCS' | null;
   order: number;
   deadline?: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';
@@ -347,21 +348,6 @@ export const onboardingService = {
   },
 
   /**
-   * Lấy thông tin onboarding (bao gồm file URLs) theo employee_id (string code).
-   */
-  getByEmployeeId: async (employeeId: string): Promise<OnboardingProcess | null> => {
-    try {
-      const response: AxiosResponse<OnboardingProcess> = await managementApi.get(
-        `/api-hrm/super-admin/onboarding/`,
-        { params: { employee_id: employeeId } }
-      );
-      return response.data;
-    } catch {
-      return null;
-    }
-  },
-
-  /**
    * Upload/replace files bằng employee_id (string code).
    * BE tự tìm OnboardingProcess qua reverse OneToOne.
    */
@@ -432,6 +418,16 @@ export const onboardingService = {
     return response.data;
   },
 
+  /**
+   * Admin - Đồng bộ dữ liệu quy trình cũ
+   */
+  syncLegacyTasks: async (): Promise<{ success: boolean; message: string }> => {
+    const response: AxiosResponse<{ success: boolean; message: string }> = await managementApi.post(
+      '/api-hrm/onboardings/sync-legacy-tasks/'
+    );
+    return response.data;
+  },
+
   // ========== Token & Email Actions ==========
 
   /**
@@ -439,8 +435,8 @@ export const onboardingService = {
    */
   generateToken: async (
     id: number
-  ): Promise<{ token: string; expires_at: string }> => {
-    const response: AxiosResponse<{ token: string; expires_at: string }> =
+  ): Promise<{ success: boolean; message: string; data: { token: string; expires_at: string; employee_form_url: string } }> => {
+    const response: AxiosResponse<{ success: boolean; message: string; data: { token: string; expires_at: string; employee_form_url: string } }> =
       await managementApi.post(`/api-hrm/onboardings/${id}/generate_employee_token/`);
     return response.data;
   },
@@ -677,6 +673,13 @@ export const onboardingService = {
   syncTemplateToActive: async (id: number): Promise<any> => {
     const response: AxiosResponse<any> = await managementApi.post(
       `/api-hrm/onboarding-document-templates/${id}/sync_to_active/`
+    );
+    return response.data;
+  },
+
+  getByEmployeeId: async (employeeId: string): Promise<OnboardingProcess> => {
+    const response: AxiosResponse<OnboardingProcess> = await managementApi.get(
+      `/api-hrm/onboarding-processes/by-employee/${employeeId}/`
     );
     return response.data;
   },
