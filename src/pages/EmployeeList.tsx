@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import Pagination from '../components/Pagination';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
+import { UsersIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 
 const EmployeeList: React.FC = () => {
@@ -41,11 +42,52 @@ const EmployeeList: React.FC = () => {
     summary: { total: number; created: number; updated: number; failed: number };
     errors: Array<{ row: number; employee_id?: string; warnings?: string[]; errors?: string[] }>;
   } | null>(null);
+  const [expiringContractEmployees, setExpiringContractEmployees] = useState<Employee[]>([]);
+  const [isLoadingExpiringContracts, setIsLoadingExpiringContracts] = useState(false);
+  const [showExpiringContracts, setShowExpiringContracts] = useState(false);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
   const isSuperUser = user?.is_superuser === true || user?.is_super_admin === true;
 
   const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
   const COOLDOWN_DURATION = 120; // 2 phút (giây)
+
+  const getNearestExpiryDate = (employee: Employee) => {
+    const dates: Date[] = [];
+    if (employee.probation_end_date) dates.push(new Date(employee.probation_end_date));
+    if (employee.contract_end_date) dates.push(new Date(employee.contract_end_date));
+    if (dates.length === 0) return null;
+    return new Date(Math.min(...dates.map((d) => d.getTime())));
+  };
+  
+  const fetchExpiringContractEmployees = async () => {
+    try {
+      setIsLoadingExpiringContracts(true);
+      const response = await employeesAPI.list({ page_size: 1000 });
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const fourDaysLater = new Date(today);
+      fourDaysLater.setDate(today.getDate() + 4);
+      
+      const expiring = (response.results || []).filter((emp: Employee) => {
+        const nearestExpiryDate = getNearestExpiryDate(emp);
+        if (!nearestExpiryDate) return false;
+        nearestExpiryDate.setHours(0, 0, 0, 0);
+        return nearestExpiryDate >= today && nearestExpiryDate <= fourDaysLater;
+      }).sort((a: Employee, b: Employee) => {
+        const dateA = getNearestExpiryDate(a) || new Date();
+        const dateB = getNearestExpiryDate(b) || new Date();
+        return dateA.getTime() - dateB.getTime();
+      });
+      
+      setExpiringContractEmployees(expiring);
+    } catch (err) {
+      console.error('Error fetching expiring contract employees:', err);
+    } finally {
+      setIsLoadingExpiringContracts(false);
+    }
+  };
+  
   const fetchEmployees = async (search = '', status = 'all', department = 'all', page = 1, pageSize = 20, contractType = 'all', expiringSoon = 'all') => {
     try {
       setLoading(true);
@@ -117,6 +159,7 @@ const EmployeeList: React.FC = () => {
   useEffect(() => {
     fetchStats();
     fetchDepartments();
+    fetchExpiringContractEmployees();
   }, []);
 
   // Chặn scroll khi mở dialog import
@@ -911,6 +954,95 @@ const EmployeeList: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportErrors = async () => {
+    if (!importResult || importResult.errors.length === 0 || !importFile) return;
+
+    const ExcelJS = (await import('exceljs')).default;
+    const arrayBuffer = await importFile.arrayBuffer();
+    const srcWorkbook = new ExcelJS.Workbook();
+    const ext = importFile.name.split('.').pop()?.toLowerCase();
+
+    if (ext === 'xlsx' || ext === 'xls') {
+      await srcWorkbook.xlsx.load(arrayBuffer);
+    } else {
+      // CSV fallback
+      const text = new TextDecoder().decode(arrayBuffer);
+      const lines = text.split('\n').map(l => l.split(','));
+      const outWb = new ExcelJS.Workbook();
+      const outWs = outWb.addWorksheet('Lỗi import');
+      const errorRowNums = new Set(importResult.errors.map(e => e.row));
+      const errorMap = new Map(importResult.errors.map(e => [e.row, (e.errors || e.warnings || []).join('; ')]));
+      if (lines.length > 0) {
+        outWs.addRow([...lines[0], 'Lỗi / Cảnh báo']);
+        outWs.getRow(1).font = { bold: true };
+        outWs.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+      }
+      lines.slice(1).forEach((cells, i) => {
+        const rowNum = i + 2;
+        if (errorRowNums.has(rowNum)) {
+          const r = outWs.addRow([...cells, errorMap.get(rowNum) || '']);
+          r.getCell(cells.length + 1).font = { color: { argb: 'FFCC0000' } };
+        }
+      });
+      const buf = await outWb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `loi-import-nhan-vien-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click(); URL.revokeObjectURL(url);
+      return;
+    }
+
+    const srcSheet = srcWorkbook.worksheets[0];
+    const errorRowNums = new Set(importResult.errors.map(e => e.row));
+    const errorMap = new Map(importResult.errors.map(e => [e.row, (e.errors || e.warnings || []).join('; ')]));
+
+    const outWorkbook = new ExcelJS.Workbook();
+    const outSheet = outWorkbook.addWorksheet('Lỗi import');
+
+    const headerRow = srcSheet.getRow(1);
+    const headers: string[] = [];
+    headerRow.eachCell({ includeEmpty: true }, (cell) => {
+      headers.push(String(cell.value ?? ''));
+    });
+    headers.push('Lỗi / Cảnh báo');
+
+    const outHeader = outSheet.addRow(headers);
+    outHeader.font = { bold: true };
+    outHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+
+    outSheet.columns = headers.map((h, i) => ({
+      key: String(i),
+      width: i === headers.length - 1 ? 60 : Math.max(h.length + 2, 15),
+    }));
+
+    srcSheet.eachRow({ includeEmpty: false }, (srcRow, rowNumber) => {
+      if (rowNumber === 1) return;
+      if (!errorRowNums.has(rowNumber)) return;
+
+      const values: (string | number | null)[] = [];
+      srcRow.eachCell({ includeEmpty: true }, (cell) => {
+        const v = cell.value;
+        if (v === null || v === undefined) { values.push(''); return; }
+        if (typeof v === 'object' && 'result' in v) { values.push(String((v as any).result ?? '')); return; }
+        values.push(v as string | number);
+      });
+      values.push(errorMap.get(rowNumber) || '');
+
+      const outRow = outSheet.addRow(values);
+      outRow.getCell(values.length).font = { color: { argb: 'FFCC0000' } };
+    });
+
+    const buffer = await outWorkbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `loi-import-nhan-vien-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleImportSubmit = async () => {
     if (!importFile) return;
     setIsImporting(true);
@@ -932,13 +1064,13 @@ const EmployeeList: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ACTIVE':
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đang làm việc</span>;
+        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-600">Đang làm việc</span>;
       case 'SUSPENDED':
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Tạm dừng</span>;
+        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-600">Tạm dừng</span>;
       case 'INACTIVE':
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Đã nghỉ</span>;
+        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-600">Đã nghỉ</span>;
       case 'PROBATION':
-        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Thử việc</span>;
+        return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-600">Thử việc</span>;
       default:
         return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">{status}</span>;
     }
@@ -957,7 +1089,7 @@ const EmployeeList: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const deadline = new Date(today);
-    deadline.setDate(today.getDate() + 5);
+    deadline.setDate(today.getDate() + 4);
 
     const probEnd = employee.probation_end_date ? new Date(employee.probation_end_date) : null;
     const contEnd = employee.contract_end_date ? new Date(employee.contract_end_date) : null;
@@ -972,152 +1104,218 @@ const EmployeeList: React.FC = () => {
   return (
     <>
     <div className="space-y-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Quản lý nhân viên</h1>
-        <p className="text-gray-600 mt-2">
-          Quản lý thông tin nhân viên, phòng ban, chức vụ và các thông tin liên quan.
-        </p>
+      <div className="flex items-center gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Quản lý nhân viên</h1>
+          <p className="text-sm text-gray-900">Quản lý thông tin nhân viên, phòng ban, chức vụ và các thông tin liên quan.</p>
+        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         {/* Statistics Section - At the top as requested */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Thống kê nhân viên</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="font-medium text-blue-900 text-sm">Tổng số</h3>
-              <p className="text-2xl font-bold text-blue-700 mt-1">{stats.total}</p>
+          <h2 className="text-sm font-bold text-gray-900 mb-4">Thống kê nhân viên</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+            <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-primary-500 shadow-sm p-4">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Tổng số</p>
+              <p className="text-2xl font-extrabold text-primary-600 mt-1">{stats.total}</p>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h3 className="font-medium text-green-900 text-sm">Đang làm việc</h3>
-              <p className="text-2xl font-bold text-green-700 mt-1">{stats.active}</p>
+            <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-emerald-500 shadow-sm p-4">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Đang làm việc</p>
+              <p className="text-2xl font-extrabold text-emerald-600 mt-1">{stats.active}</p>
             </div>
-            <div className="bg-yellow-50 p-4 rounded-lg">
-              <h3 className="font-medium text-yellow-900 text-sm">Thử việc</h3>
-              <p className="text-2xl font-bold text-yellow-700 mt-1">{stats.probation}</p>
+            <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-amber-500 shadow-sm p-4">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Thử việc</p>
+              <p className="text-2xl font-extrabold text-amber-600 mt-1">{stats.probation}</p>
             </div>
-            <div className="bg-red-50 p-4 rounded-lg">
-              <h3 className="font-medium text-red-900 text-sm">Đã nghỉ</h3>
-              <p className="text-2xl font-bold text-red-700 mt-1">{stats.inactive}</p>
+            <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-red-500 shadow-sm p-4">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Đã nghỉ</p>
+              <p className="text-2xl font-extrabold text-red-600 mt-1">{stats.inactive}</p>
             </div>
-            <div className="bg-indigo-50 p-4 rounded-lg">
-              <h3 className="font-medium text-indigo-900 text-sm">Nam</h3>
-              <p className="text-2xl font-bold text-indigo-700 mt-1">{stats.male}</p>
+            <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-primary-300 shadow-sm p-4">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Nam</p>
+              <p className="text-2xl font-extrabold text-primary-500 mt-1">{stats.male}</p>
             </div>
-            <div className="bg-pink-50 p-4 rounded-lg">
-              <h3 className="font-medium text-pink-900 text-sm">Nữ</h3>
-              <p className="text-2xl font-bold text-pink-700 mt-1">{stats.female}</p>
+            <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-pink-400 shadow-sm p-4">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Nữ</p>
+              <p className="text-2xl font-extrabold text-pink-500 mt-1">{stats.female}</p>
             </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <h3 className="font-medium text-purple-900 text-sm">Khác</h3>
-              <p className="text-2xl font-bold text-purple-700 mt-1">{stats.other}</p>
+            <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-violet-400 shadow-sm p-4">
+              <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Khác</p>
+              <p className="text-2xl font-extrabold text-violet-500 mt-1">{stats.other}</p>
             </div>
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowExpiringContracts((prev) => !prev)}
+                className="text-left bg-white rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 shadow-sm p-4 hover:bg-amber-50 transition-colors"
+              >
+                <p className="text-[11px] font-medium text-amber-700 uppercase tracking-wide">Sắp hết hạn HĐ</p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <p className="text-2xl font-extrabold text-amber-600">
+                    {isLoadingExpiringContracts ? '...' : expiringContractEmployees.length}
+                  </p>
+                  <ExclamationTriangleIcon className="h-5 w-5 text-amber-500" />
+                </div>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Search and Filter Section */}
-        <div className="mb-6 bg-gray-50 p-4 rounded-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Tìm kiếm nhân viên</h3>
-            {loading && (
-              <div className="flex items-center text-sm text-gray-500">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                Đang tìm kiếm...
+        {isAdmin && showExpiringContracts && (
+          <div className="mb-6 bg-amber-50 rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 p-5">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 mt-0.5">
+                <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
               </div>
-            )}
-          </div>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tìm kiếm theo mã, tên, số điện thoại
-                </label>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập mã NV, tên hoặc số điện thoại..."
-                />
-                <p className="text-xs text-gray-500 mt-1">Tìm kiếm tự động khi bạn gõ</p>
-              </div>
-              <div>
-                <SelectBox<string>
-                  label="Trạng thái"
-                  value={statusFilter}
-                  options={[
-                    { value: 'all', label: 'Tất cả trạng thái' },
-                    { value: 'ACTIVE', label: 'Đang làm việc' },
-                    { value: 'PROBATION', label: 'Thử việc' },
-                    { value: 'INACTIVE', label: 'Đã nghỉ' },
-                  ]}
-                  onChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}
-                />
-              </div>
-              <div>
-                <SelectBox<string>
-                  label="Phòng ban"
-                  value={departmentFilter}
-                  options={[
-                    { value: 'all', label: 'Tất cả phòng ban' },
-                    ...departments.map((dept) => ({ value: String(dept.id), label: dept.name })),
-                  ]}
-                  onChange={(v) => { setDepartmentFilter(v); setCurrentPage(1); }}
-                />
-              </div>
-              <div>
-                <SelectBox<string>
-                  label="Loại hợp đồng"
-                  value={contractTypeFilter}
-                  options={[
-                    { value: 'all', label: 'Tất cả loại hợp đồng' },
-                    { value: 'PROBATION', label: 'Hợp đồng thử việc' },
-                    { value: 'INTERN', label: 'Hợp đồng thực tập sinh' },
-                    { value: 'COLLABORATOR', label: 'Hợp đồng cộng tác viên' },
-                    { value: 'ONE_YEAR', label: 'Hợp đồng lao động 12 tháng' },
-                    { value: 'TWO_YEAR', label: 'Hợp đồng lao động 24 tháng' },
-                    { value: 'INDEFINITE', label: 'Hợp đồng vô thời hạn' },
-                    { value: 'SERVICE', label: 'Hợp đồng dịch vụ' },
-                  ]}
-                  onChange={(v) => { setContractTypeFilter(v); setCurrentPage(1); }}
-                />
-              </div>
-              <div>
-                <SelectBox<string>
-                  label="Hạn HĐ/Thử việc"
-                  value={expiringSoonFilter}
-                  options={[
-                    { value: 'all', label: 'Tất cả' },
-                    { value: 'expiring', label: 'Sắp hết hạn (≤ 5 ngày)' },
-                  ]}
-                  onChange={(v) => { setExpiringSoonFilter(v); setCurrentPage(1); }}
-                />
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-amber-900 mb-3">
+                  ⚠️ Cảnh báo: {expiringContractEmployees.length} nhân sự sắp hết hạn hợp đồng
+                </h3>
+                {expiringContractEmployees.length === 0 ? (
+                  <p className="text-sm text-amber-800">Không có nhân sự nào sắp hết hạn hợp đồng trong 4 ngày tới.</p>
+                ) : (
+                <div className="space-y-2">
+                  {expiringContractEmployees.map((emp) => {
+                    const nearestExpiryDate = getNearestExpiryDate(emp);
+                    const today = new Date();
+                    const daysUntilExpiry = nearestExpiryDate ? Math.ceil((nearestExpiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                    return (
+                      <div key={emp.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100 hover:bg-amber-50 transition-colors">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{emp.full_name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-gray-500">Mã NV: {emp.employee_id}</span>
+                            {emp.department && <span className="text-xs text-gray-500">• {emp.department.name}</span>}
+                            {nearestExpiryDate && (
+                              <span className="text-xs text-amber-600 font-medium">
+                                • Hết hạn: {nearestExpiryDate.toLocaleDateString('vi-VN')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {daysUntilExpiry <= 1 && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              Hôm nay/Hôm qua
+                            </span>
+                          )}
+                          {daysUntilExpiry > 1 && daysUntilExpiry <= 4 && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                              {daysUntilExpiry} ngày còn lại
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/employees/${emp.id}`)}
+                            className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
+                          >
+                            Xem chi tiết
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                )}
               </div>
             </div>
-            <div className="flex justify-end">
+          </div>
+        )}
+
+        {/* Search and Filter Section */}
+        <div className="mb-6 bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-gray-900">Tìm kiếm nhân viên</h3>
+            <div className="flex items-center gap-3">
+              {loading && (
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-primary-600"></div>
+                  Đang tìm kiếm...
+                </div>
+              )}
               <button
                 type="button"
                 onClick={handleReset}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                className="btn-secondary text-xs"
               >
                 Đặt lại bộ lọc
               </button>
             </div>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tìm kiếm
+              </label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                className="input-field w-full"
+                placeholder="Mã NV, tên, số điện thoại..."
+              />
+            </div>
+            <SelectBox<string>
+              label="Trạng thái"
+              value={statusFilter}
+              options={[
+                { value: 'all', label: 'Tất cả trạng thái' },
+                { value: 'ACTIVE', label: 'Đang làm việc' },
+                { value: 'PROBATION', label: 'Thử việc' },
+                { value: 'INACTIVE', label: 'Đã nghỉ' },
+              ]}
+              onChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}
+            />
+            <SelectBox<string>
+              label="Phòng ban"
+              value={departmentFilter}
+              options={[
+                { value: 'all', label: 'Tất cả phòng ban' },
+                ...departments.map((dept) => ({ value: String(dept.id), label: dept.name })),
+              ]}
+              onChange={(v) => { setDepartmentFilter(v); setCurrentPage(1); }}
+            />
+            <SelectBox<string>
+              label="Loại hợp đồng"
+              value={contractTypeFilter}
+              options={[
+                { value: 'all', label: 'Tất cả loại hợp đồng' },
+                { value: 'PROBATION', label: 'Hợp đồng thử việc' },
+                { value: 'INTERN', label: 'Hợp đồng thực tập sinh' },
+                { value: 'COLLABORATOR', label: 'Hợp đồng cộng tác viên' },
+                { value: 'ONE_YEAR', label: 'Hợp đồng lao động 12 tháng' },
+                { value: 'TWO_YEAR', label: 'Hợp đồng lao động 24 tháng' },
+                { value: 'INDEFINITE', label: 'Hợp đồng vô thời hạn' },
+                { value: 'SERVICE', label: 'Hợp đồng dịch vụ' },
+              ]}
+              onChange={(v) => { setContractTypeFilter(v); setCurrentPage(1); }}
+            />
+            <SelectBox<string>
+              label="Hạn HĐ/Thử việc"
+              value={expiringSoonFilter}
+              options={[
+                { value: 'all', label: 'Tất cả' },
+                { value: 'expiring', label: 'Sắp hết hạn (≤ 5 ngày)' },
+              ]}
+              onChange={(v) => { setExpiringSoonFilter(v); setCurrentPage(1); }}
+            />
+          </div>
         </div>
 
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Danh sách nhân viên</h2>
+            <h2 className="text-sm font-bold text-gray-900">Danh sách nhân viên</h2>
             <p className="text-gray-500 text-sm">Tổng số: {totalCount} nhân viên</p>
           </div>
             <div className="flex space-x-2">
               {isAdmin &&(
                 <button 
-                  className={`px-4 py-2 rounded-md transition-colors flex items-center ${
+                  className={`px-4 py-2 rounded-xl transition-colors flex items-center ${
                     isSendingEmails || emailCooldownRemaining > 0
-                      ? 'bg-gray-400 text-white cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-primary-600 text-white hover:bg-primary-700'
                   }`}
                   onClick={handleSendAllEmails}
                   disabled={isSendingEmails || emailCooldownRemaining > 0}
@@ -1149,7 +1347,7 @@ const EmployeeList: React.FC = () => {
               )}
               {(isAdmin || isSuperUser) && (
                 <button
-                  className="bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 transition-colors flex items-center"
+                  className="bg-amber-500 text-white px-4 py-2 rounded-xl hover:bg-amber-600 transition-colors flex items-center"
                   onClick={() => { setShowImportDialog(true); setImportFile(null); setImportResult(null); }}
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1159,7 +1357,7 @@ const EmployeeList: React.FC = () => {
                 </button>
               )}
               <button
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors flex items-center"
+                className="bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors flex items-center"
                 onClick={handleExport}
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1169,7 +1367,7 @@ const EmployeeList: React.FC = () => {
               </button>
               {(isAdmin || isSuperUser) && (
                 <button
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors flex items-center"
+                  className="bg-primary-700 text-white px-4 py-2 rounded-xl hover:bg-primary-800 transition-colors flex items-center"
                   onClick={handleExportAll}
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1180,7 +1378,7 @@ const EmployeeList: React.FC = () => {
               )}
 
               <button 
-                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
+                className="btn-primary"
                 onClick={() => navigate('/dashboard/employees/create')}
               >
                 + Thêm nhân viên
@@ -1204,13 +1402,13 @@ const EmployeeList: React.FC = () => {
             <p className="text-gray-500 mt-1">{error}</p>
             <button 
               onClick={() => fetchEmployees()}
-              className="mt-4 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
+              className="mt-4 btn-primary"
             >
               Thử lại
             </button>
           </div>
         ) : employees.length === 0 ? (
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border border-gray-100 rounded-2xl overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -1238,9 +1436,9 @@ const EmployeeList: React.FC = () => {
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center">
-                      <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                      <div className="h-12 w-12 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <UsersIcon className="h-7 w-7" />
+                      </div>
                       <p className="text-lg font-medium text-gray-900">Chưa có nhân viên nào</p>
                       <p className="text-gray-500 mt-1">Bắt đầu bằng cách thêm nhân viên mới</p>
                     </div>
@@ -1251,7 +1449,7 @@ const EmployeeList: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border border-gray-100 rounded-2xl overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -1280,7 +1478,7 @@ const EmployeeList: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {employees.map((employee) => (
-                    <tr key={employee.id} className={`hover:bg-gray-50 ${isExpiringSoon(employee) ? 'bg-orange-50' : ''}`}>
+                    <tr key={employee.id} className={`hover:bg-gray-50 ${isExpiringSoon(employee) ? 'bg-amber-50' : ''}`}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{employee.employee_id}</div>
                       </td>
@@ -1288,7 +1486,7 @@ const EmployeeList: React.FC = () => {
                         <div className="flex items-center">
                           <div className="text-sm font-medium text-gray-900">{employee.full_name}</div>
                           {isExpiringSoon(employee) && (
-                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800" title="Sắp hết hạn hợp đồng/thử việc (≤ 5 ngày)">
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-600" title="Sắp hết hạn hợp đồng/thử việc (≤ 5 ngày)">
                               ⚠️
                             </span>
                           )}
@@ -1311,34 +1509,34 @@ const EmployeeList: React.FC = () => {
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => navigate(`/dashboard/employees/${employee.id}`)}
-                            className="px-2 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-100 transition-colors"
+                            className="px-2 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors"
                           >
                             Xem
                           </button>
                           <button
                             onClick={() => navigate(`/dashboard/employees/${employee.id}/edit`)}
-                            className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded border border-blue-100 transition-colors"
+                            className="px-2 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors"
                           >
                             Sửa
                           </button>
                           {employee.employment_status === 'ACTIVE' ? (
                             <button
                               onClick={() => handleDeactivate(employee.id)}
-                              className="px-2 py-1 text-xs font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded border border-amber-100 transition-colors"
+                              className="px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200 transition-colors"
                             >
                               Vô hiệu hóa
                             </button>
                           ) : (
                             <button
                               onClick={() => handleActivate(employee.id)}
-                              className="px-2 py-1 text-xs font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded border border-green-100 transition-colors"
+                              className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors"
                             >
                               Kích hoạt
                             </button>
                           )}
                           <button
                             onClick={() => handleDelete(employee.id)}
-                            className="px-2 py-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-100 transition-colors"
+                            className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
                           >
                             Xóa
                           </button>
@@ -1367,9 +1565,9 @@ const EmployeeList: React.FC = () => {
     {/* Import Dialog */}
     {showImportDialog && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <h2 className="text-lg font-semibold text-gray-900">Nhập danh sách nhân viên từ file</h2>
             <button
               onClick={() => { setShowImportDialog(false); setImportResult(null); setImportFile(null); }}
@@ -1383,14 +1581,14 @@ const EmployeeList: React.FC = () => {
 
           <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
             {/* Tải template */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm font-medium text-blue-900 mb-1">Bước 1: Tải file mẫu</p>
-              <p className="text-xs text-blue-700 mb-3">
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+              <p className="text-sm font-medium text-primary-900 mb-1">Bước 1: Tải file mẫu</p>
+              <p className="text-xs text-primary-700 mb-3">
                 Phòng ban/vị trí: nhập tên tiếng Việt. Cột hồ sơ: <strong>x</strong> = đã nộp, để trống = chưa nộp.
               </p>
               <button
                 onClick={handleDownloadTemplate}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1403,13 +1601,13 @@ const EmployeeList: React.FC = () => {
             <div>
               <p className="text-sm font-medium text-gray-900 mb-2">Bước 2: Upload file đã điền</p>
               {!importFile ? (
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 group">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-primary-400 hover:bg-primary-50 transition-all duration-200 group">
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <svg className="w-10 h-10 text-gray-400 mb-3 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-10 h-10 text-gray-400 mb-3 group-hover:text-primary-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                     <p className="mb-2 text-sm text-gray-700 font-medium">
-                      <span className="text-blue-600">Nhấn để chọn file</span> hoặc kéo thả vào đây
+                      <span className="text-primary-600">Nhấn để chọn file</span> hoặc kéo thả vào đây
                     </p>
                     <p className="text-xs text-gray-500">Hỗ trợ .xlsx, .xls, .csv</p>
                   </div>
@@ -1421,23 +1619,23 @@ const EmployeeList: React.FC = () => {
                   />
                 </label>
               ) : (
-                <div className="relative flex items-center p-4 bg-green-50 border-2 border-green-200 rounded-xl">
-                  <div className="flex-shrink-0 bg-green-100 p-2 rounded-lg mr-4">
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="relative flex items-center p-4 bg-emerald-50 border-2 border-emerald-200 rounded-xl">
+                  <div className="flex-shrink-0 bg-emerald-100 p-2 rounded-lg mr-4">
+                    <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-green-900 truncate">
+                    <p className="text-sm font-medium text-emerald-900 truncate">
                       {importFile.name}
                     </p>
-                    <p className="text-xs text-green-600">
+                    <p className="text-xs text-emerald-600">
                       {(importFile.size / 1024).toFixed(1)} KB • Sẵn sàng để import
                     </p>
                   </div>
                   <button
                     onClick={() => { setImportFile(null); setImportResult(null); }}
-                    className="ml-4 p-1 text-green-500 hover:text-green-700 hover:bg-green-100 rounded-full transition-colors"
+                    className="ml-4 p-1 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-100 rounded-full transition-colors"
                     title="Xóa file"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1457,13 +1655,13 @@ const EmployeeList: React.FC = () => {
                     <p className="text-xs text-gray-500">Tổng</p>
                     <p className="text-xl font-bold text-gray-800">{importResult.summary.total}</p>
                   </div>
-                  <div className="bg-green-50 rounded-lg p-3 text-center">
-                    <p className="text-xs text-green-600">Tạo mới</p>
-                    <p className="text-xl font-bold text-green-700">{importResult.summary.created}</p>
+                  <div className="bg-emerald-50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-emerald-600">Tạo mới</p>
+                    <p className="text-xl font-bold text-emerald-700">{importResult.summary.created}</p>
                   </div>
-                  <div className="bg-blue-50 rounded-lg p-3 text-center">
-                    <p className="text-xs text-blue-600">Cập nhật</p>
-                    <p className="text-xl font-bold text-blue-700">{importResult.summary.updated}</p>
+                  <div className="bg-primary-50 rounded-lg p-3 text-center">
+                    <p className="text-xs text-primary-600">Cập nhật</p>
+                    <p className="text-xl font-bold text-primary-700">{importResult.summary.updated}</p>
                   </div>
                   <div className="bg-red-50 rounded-lg p-3 text-center">
                     <p className="text-xs text-red-600">Thất bại</p>
@@ -1472,8 +1670,18 @@ const EmployeeList: React.FC = () => {
                 </div>
                 {importResult.errors.length > 0 && (
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 border-b">
-                      Chi tiết lỗi / cảnh báo
+                    <div className="bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 border-b flex items-center justify-between">
+                      <span>Chi tiết lỗi / cảnh báo</span>
+                      <button
+                        onClick={handleExportErrors}
+                        className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800 font-medium"
+                        title="Xuất danh sách lỗi ra file Excel"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Xuất file
+                      </button>
                     </div>
                     <div className="max-h-40 overflow-y-auto">
                       {importResult.errors.map((err, idx) => (
@@ -1496,17 +1704,17 @@ const EmployeeList: React.FC = () => {
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t">
             <button
               onClick={() => { setShowImportDialog(false); setImportResult(null); setImportFile(null); }}
-              className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
             >
               Đóng
             </button>
             <button
               onClick={handleImportSubmit}
               disabled={!importFile || isImporting}
-              className={`inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md transition-colors ${
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-xl transition-colors ${
                 !importFile || isImporting
                   ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-primary-600 hover:bg-primary-700'
               }`}
             >
               {isImporting ? (

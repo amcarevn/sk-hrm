@@ -578,6 +578,11 @@ export interface EmployeeUpdateData {
   nationality?: string;
   bank_name?: string;
   bank_account?: string;
+  cccd_number?: string;
+  cccd_issue_date?: string;
+  cccd_issue_place?: string;
+  permanent_residence?: string;
+  current_address?: string;
   employment_status?: 'ACTIVE' | 'SUSPENDED' | 'INACTIVE' | 'PROBATION';
   start_date?: string;
   end_date?: string;
@@ -946,6 +951,7 @@ export interface CompanyUnit {
   id: number;
   name: string;
   code: string;
+  prefix_code?: string;
   description?: string;
   is_active: boolean;
   created_at: string;
