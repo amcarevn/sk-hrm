@@ -84,6 +84,7 @@ import WorkFinalization from './pages/WorkFinalization';
 import WorkFinalizationApprovals from './pages/WorkFinalizationApprovals';
 import ContractTemplates from './pages/ContractTemplates';
 import BulkContracts from './pages/BulkContracts';
+import ContractRenewal from './pages/ContractRenewal';
 import DocumentTemplates from './pages/DocumentTemplates';
 import PasswordReset from './pages/PasswordReset';
 import ShiftConfiguration from './pages/ShiftConfiguration';
@@ -927,6 +928,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <BulkContracts />
+                  </Layout>
+                </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/contract-renewals"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ContractRenewal />
                   </Layout>
                 </ProtectedRoute>
             }
