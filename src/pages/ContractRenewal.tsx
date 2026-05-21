@@ -21,6 +21,13 @@ type RenewalContract = {
   generated_file: string | null;
 };
 
+type ContractTemplate = {
+  id: number;
+  name: string;
+  contract_type: string;
+  company_unit: number | null;
+};
+
 const RENEWAL_DAYS = 14;
 
 const formatDate = (value: string | null) => {
@@ -38,12 +45,32 @@ const getDaysLeft = (value: string | null) => {
   return Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 };
 
+const toIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const nextDate = (value: string | null) => {
+  if (!value) return toIsoDate(new Date());
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return toIsoDate(new Date());
+  date.setDate(date.getDate() + 1);
+  return toIsoDate(date);
+};
+
 const ContractRenewal: React.FC = () => {
   const [contracts, setContracts] = useState<RenewalContract[]>([]);
+  const [templates, setTemplates] = useState<ContractTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showPreview, setShowPreview] = useState(false);
   const [previewItems, setPreviewItems] = useState<ContractPreviewItem[]>([]);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | ''>('');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const fetchContracts = useCallback(async () => {
     setLoading(true);
@@ -63,9 +90,29 @@ const ContractRenewal: React.FC = () => {
     fetchContracts();
   }, [fetchContracts]);
 
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      const { data } = await managementApi.get('/api-hrm/contract-templates/', {
+        params: { status: 'ACTIVE' },
+      });
+      const list: ContractTemplate[] = Array.isArray(data) ? data : data.results || [];
+      setTemplates(list);
+    };
+    fetchTemplates();
+  }, []);
+
+  const filteredContracts = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return contracts;
+    return contracts.filter((contract) =>
+      contract.employee_name.toLowerCase().includes(keyword)
+      || contract.employee_code.toLowerCase().includes(keyword)
+    );
+  }, [contracts, search]);
+
   const printableContracts = useMemo(
-    () => contracts.filter((contract) => !!contract.generated_file),
-    [contracts]
+    () => filteredContracts.filter((contract) => !!contract.generated_file),
+    [filteredContracts]
   );
 
   const selectedContracts = useMemo(
@@ -78,14 +125,24 @@ const ContractRenewal: React.FC = () => {
     [selectedContracts]
   );
 
-  const allSelected = contracts.length > 0 && selectedIds.size === contracts.length;
+  const selectedWithoutPdfContracts = useMemo(
+    () => selectedContracts.filter((contract) => !contract.generated_file),
+    [selectedContracts]
+  );
+
+  const allFilteredSelected = filteredContracts.length > 0
+    && filteredContracts.every((contract) => selectedIds.has(contract.id));
 
   const toggleSelectAll = () => {
-    if (allSelected) {
-      setSelectedIds(new Set());
-      return;
-    }
-    setSelectedIds(new Set(contracts.map((contract) => contract.id)));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredContracts.forEach((contract) => next.delete(contract.id));
+      } else {
+        filteredContracts.forEach((contract) => next.add(contract.id));
+      }
+      return next;
+    });
   };
 
   const toggleSelect = (contractId: number) => {
@@ -117,6 +174,75 @@ const ContractRenewal: React.FC = () => {
     setShowPreview(true);
   };
 
+  const openTemplateSelector = () => {
+    if (selectedWithoutPdfContracts.length === 0) {
+      alert('Nhóm đã chọn đều đã có PDF, bạn có thể dùng nút in trực tiếp.');
+      return;
+    }
+    setShowTemplateModal(true);
+  };
+
+  const handleGenerateFromTemplate = async () => {
+    const template = templates.find((item) => item.id === selectedTemplateId);
+    if (!template) {
+      alert('Vui lòng chọn mẫu hợp đồng.');
+      return;
+    }
+
+    setGeneratingPdf(true);
+    try {
+      const generatedItems: ContractPreviewItem[] = [];
+
+      for (const renewalContract of selectedWithoutPdfContracts) {
+        const createPayload = {
+          employee: renewalContract.employee,
+          contract_type: template.contract_type,
+          template: template.id,
+          company_unit: template.company_unit,
+          start_date: nextDate(renewalContract.end_date),
+          end_date: null,
+        };
+
+        const { data: createdContract } = await managementApi.post('/api-hrm/employee-contracts/', createPayload);
+        const { data: generated } = await managementApi.post(
+          `/api-hrm/employee-contracts/${createdContract.id}/generate_and_confirm/`,
+          { overrides: {} }
+        );
+
+        const contractData = generated?.data;
+        generatedItems.push({
+          id: contractData?.id || createdContract.id,
+          employee_name: renewalContract.employee_name,
+          template_name: [
+            template.name,
+            contractData?.contract_type_display,
+            contractData?.contract_number,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        });
+      }
+
+      const existingPrintableItems: ContractPreviewItem[] = selectedPrintableContracts.map((contract) => ({
+        id: contract.id,
+        employee_name: contract.employee_name,
+        template_name: [contract.template_name, contract.contract_type_display, contract.contract_number]
+          .filter(Boolean)
+          .join(' · '),
+      }));
+
+      setPreviewItems([...existingPrintableItems, ...generatedItems]);
+      setShowPreview(true);
+      setShowTemplateModal(false);
+      setSelectedTemplateId('');
+      await fetchContracts();
+    } catch (error: any) {
+      alert(error?.response?.data?.message || error?.response?.data?.detail || 'Không thể tạo PDF từ mẫu đã chọn.');
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -127,6 +253,15 @@ const ContractRenewal: React.FC = () => {
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-4">
+        <div className="mb-3">
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Tìm theo mã hoặc tên nhân viên..."
+            className="w-full md:w-96 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => openPreview(selectedContracts)}
@@ -135,6 +270,14 @@ const ContractRenewal: React.FC = () => {
           >
             <PrinterIcon className="w-4 h-4" />
             In đã chọn ({selectedPrintableContracts.length})
+          </button>
+          <button
+            onClick={openTemplateSelector}
+            disabled={selectedWithoutPdfContracts.length === 0 || templates.length === 0}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ExclamationTriangleIcon className="w-4 h-4" />
+            Chọn mẫu & tạo PDF ({selectedWithoutPdfContracts.length})
           </button>
           <button
             onClick={() => openPreview(printableContracts)}
@@ -156,7 +299,12 @@ const ContractRenewal: React.FC = () => {
         {selectedIds.size > 0 && selectedPrintableContracts.length === 0 && (
           <p className="mt-3 text-xs text-amber-700 flex items-center gap-1">
             <ExclamationTriangleIcon className="w-4 h-4" />
-            Nhân sự đã chọn chưa có PDF hợp đồng để in.
+            Nhân sự đã chọn chưa có PDF hợp đồng để in. Hãy dùng nút “Chọn mẫu & tạo PDF”.
+          </p>
+        )}
+        {!loading && (
+          <p className="mt-2 text-xs text-gray-500">
+            Hiển thị {filteredContracts.length}/{contracts.length} nhân sự.
           </p>
         )}
       </div>
@@ -164,7 +312,7 @@ const ContractRenewal: React.FC = () => {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="p-10 text-center text-gray-600">Đang tải danh sách tái ký hợp đồng...</div>
-        ) : contracts.length === 0 ? (
+        ) : filteredContracts.length === 0 ? (
           <div className="p-10 text-center text-gray-500">Không có hợp đồng nào hết hạn trong {RENEWAL_DAYS} ngày tới.</div>
         ) : (
           <div className="overflow-x-auto">
@@ -174,7 +322,7 @@ const ContractRenewal: React.FC = () => {
                   <th className="px-4 py-3 text-left">
                     <input
                       type="checkbox"
-                      checked={allSelected}
+                      checked={allFilteredSelected}
                       onChange={toggleSelectAll}
                       className="h-4 w-4 rounded border-gray-300 text-primary-600"
                     />
@@ -188,7 +336,7 @@ const ContractRenewal: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {contracts.map((contract) => {
+                {filteredContracts.map((contract) => {
                   const daysLeft = getDaysLeft(contract.end_date);
                   return (
                     <tr key={contract.id} className="hover:bg-gray-50">
@@ -243,6 +391,52 @@ const ContractRenewal: React.FC = () => {
           setPreviewItems([]);
         }}
       />
+
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-lg bg-white rounded-xl shadow-xl border border-gray-200">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h3 className="text-base font-semibold text-gray-900">Chọn mẫu hợp đồng tái ký</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Áp dụng cho {selectedWithoutPdfContracts.length} nhân sự chưa có PDF hợp đồng.
+              </p>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <label className="block text-xs font-semibold text-gray-700 uppercase">Mẫu hợp đồng</label>
+              <select
+                value={selectedTemplateId}
+                onChange={(event) => setSelectedTemplateId(event.target.value ? Number(event.target.value) : '')}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">-- Chọn mẫu --</option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  if (generatingPdf) return;
+                  setShowTemplateModal(false);
+                }}
+                className="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleGenerateFromTemplate}
+                disabled={generatingPdf || selectedTemplateId === ''}
+                className="px-3 py-2 rounded-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
+              >
+                {generatingPdf ? 'Đang tạo PDF...' : 'Tạo PDF & in'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
