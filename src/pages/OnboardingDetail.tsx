@@ -24,7 +24,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import FeedbackDialog from '../components/FeedbackDialog';
 import DocumentsSection from './DocumentsSection';
 import { useAuth } from '../contexts/AuthContext';
-import { employeesAPI, SuperAdminEmployee, departmentsAPI, sectionsAPI, positionsAPI, companyUnitsAPI, Department, Position, CompanyUnit } from '../utils/api';
+import { employeesAPI, SuperAdminEmployee, departmentsAPI, sectionsAPI, positionsAPI, Department, Position } from '../utils/api';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
   CITIZEN_ID_ISSUE_PLACE_OPTIONS as CCCD_ISSUE_PLACE_OPTIONS,
@@ -123,7 +123,6 @@ type OnboardingDetail = {
   ethnicity?: string;
   nationality?: string;
   marital_status?: string;
-  company_unit?: any;
   work_form?: string;
   region?: string;
   block?: string;
@@ -388,7 +387,6 @@ const OnboardingDetail: React.FC = () => {
   }, [editSection]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [allPositions, setAllPositions] = useState<Position[]>([]);
-  const [allCompanyUnits, setAllCompanyUnits] = useState<CompanyUnit[]>([]);
   const [allSections, setAllSections] = useState<Department[]>([]);
 
   // Stable handler — prevents EditField re-mount on every keystroke
@@ -564,7 +562,6 @@ const OnboardingDetail: React.FC = () => {
         const employeeData: Record<string, any> = {};
 
         // Fields to update in onboarding
-        if ('company_unit' in editData) onboardingData.company_unit = editData.company_unit;
         if ('department_id' in editData && editData.department_id) onboardingData.department = Number(editData.department_id);
         if ('position_id' in editData && editData.position_id) onboardingData.position = Number(editData.position_id);
         if ('rank' in editData) onboardingData.rank = editData.rank;
@@ -854,17 +851,14 @@ const OnboardingDetail: React.FC = () => {
   useEffect(() => {
     const loadMasterData = async () => {
       try {
-        const [deptRes, posRes, cuRes, secRes] = await Promise.all([
+        const [deptRes, posRes, secRes] = await Promise.all([
           departmentsAPI.list({ page_size: 1000 }),
           positionsAPI.list({ page_size: 1000 }),
-          companyUnitsAPI.list({ active_only: true, page_size: 100 }),
           sectionsAPI.list({ page_size: 1000 }),
         ]);
         setAllDepartments(deptRes.results || []);
         setAllPositions(posRes.results || []);
-        setAllCompanyUnits(Array.isArray(cuRes) ? cuRes : (cuRes.results || []));
         setAllSections(secRes.results || []);
-        console.log('[MasterData] CompanyUnits:', Array.isArray(cuRes) ? cuRes.length : cuRes.results?.length);
         console.log('[MasterData] Departments:', deptRes.results?.length, 'Positions:', posRes.results?.length, 'Sections:', secRes.results?.length);
       } catch (e) {
         console.warn('Could not load master data:', e);
@@ -967,9 +961,6 @@ const OnboardingDetail: React.FC = () => {
         {/* ── 2. Thông tin công việc ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <SectionHeader title="Thông tin công việc" color="indigo" onEdit={() => openEdit('job', {
-            company_unit: (typeof onboarding.company_unit === 'object' && onboarding.company_unit)
-              ? (onboarding.company_unit.code || '')
-              : (onboarding.company_unit ?? ''),
             department_id: onboarding.department?.id ? String(onboarding.department.id) : '',
             department_name: (employeeProfile as any)?.department?.name ?? onboarding.department?.name ?? '',
             position_id: (employeeProfile as any)?.position?.id ? String((employeeProfile as any).position.id) : (onboarding.position?.id ? String(onboarding.position.id) : ''),
@@ -986,15 +977,6 @@ const OnboardingDetail: React.FC = () => {
             work_location: (employeeProfile as any)?.work_location ?? '',
           })} />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8">
-            <InfoField 
-              label="Đơn vị" 
-              value={(() => {
-                const cu = onboarding.company_unit;
-                if (!cu) return 'Chưa có dữ liệu';
-                if (typeof cu === 'object') return cu.name || cu.code || 'Chưa có dữ liệu';
-                return allCompanyUnits.find(x => x.code === cu)?.name || safeDisplay(cu);
-              })()} 
-            />
             <InfoField label="Phòng ban" value={safeDisplay((employeeProfile as any)?.department?.name || onboarding.department?.name)} />
             <InfoField label="Vị trí" value={safeDisplay((employeeProfile as any)?.position?.title || onboarding.position?.title)} />
             <InfoField label="Cấp bậc" value={safeDisplay(employeeProfile?.rank || onboarding.rank)} />
@@ -1458,9 +1440,6 @@ const OnboardingDetail: React.FC = () => {
           return (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {ef('Đơn vị làm việc', 'company_unit', undefined,
-                  allCompanyUnits.map(cu => ({ value: cu.code, label: cu.name }))
-                )}
                 {ef('Phòng ban', 'department_id', undefined, departmentSelectOptions)}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
