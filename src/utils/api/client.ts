@@ -1,9 +1,11 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 
-//export const API_BASE_URL = 'https://sk-hrm.amcare.vn';
-//export const API_BASE_URL = 'https://app-uat.amcare.vn';
-export const API_BASE_URL = 'http://localhost:8011';
+// Backend API base URL.
+// - Production: dùng fallback bên dưới (URL backend prod). KHÔNG hardcode localhost ở đây
+//   nữa để tránh lọt vào bản build production.
+// - Local dev: đặt VITE_API_BASE_URL trong .env.local (vd http://localhost:8011).
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sk-hrm.amcare.vn';
 // Create axios instance for Management API
 export const managementApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
