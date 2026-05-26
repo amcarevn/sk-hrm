@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { positionsAPI, employeesAPI, companyUnitsAPI } from '../utils/api';
+import { positionsAPI, employeesAPI } from '../utils/api';
 import {
   ArrowPathIcon,
   LinkIcon,
@@ -52,7 +52,6 @@ type CreateOnboardingForm = {
   gender: 'M' | 'F' | 'O';
   candidate_email: string;
   direct_manager_id: string;
-  company_unit: string;
 };
 
 type EmployeeOption = {
@@ -101,8 +100,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
   const [submitting, setSubmitting] = useState(false);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
-  const [companyUnits, setCompanyUnits] = useState<Array<{ id: number; name: string; prefix_code?: string; code: string }>>([]);
-  const [loadingUnits, setLoadingUnits] = useState(true);
   const [feedback, setFeedback] = useState<{ open: boolean; variant: FeedbackVariant; title: string; message?: string; onCloseCb?: () => void }>({ open: false, variant: 'info', title: '' });
   const showFeedback = (variant: FeedbackVariant, title: string, message?: string, onCloseCb?: () => void) =>
     setFeedback({ open: true, variant, title, message, onCloseCb });
@@ -117,7 +114,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
     gender: 'M',
     candidate_email: '',
     direct_manager_id: '',
-    company_unit: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof CreateOnboardingForm, string>>>({});
 
@@ -153,20 +149,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
         setLoadingEmployees(false);
       }
     };
-    const fetchUnits = async () => {
-      setLoadingUnits(true);
-      try {
-        const res = await companyUnitsAPI.list({ page_size: 100, active_only: true });
-        setCompanyUnits(res.results ?? []);
-      } catch (err) {
-        console.error('Failed to load company units:', err);
-      } finally {
-        setLoadingUnits(false);
-      }
-    };
-
     fetchManagers();
-    fetchUnits();
   }, []);
 
   const validate = (): boolean => {
@@ -177,7 +160,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
     if (!form.candidate_email.trim()) errs.candidate_email = 'Vui lòng nhập email';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.candidate_email))
       errs.candidate_email = 'Email không hợp lệ';
-    if (!form.company_unit) errs.company_unit = 'Vui lòng chọn đơn vị làm việc';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -195,9 +177,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
       };
       if (form.direct_manager_id) {
         payload.direct_manager_id = parseInt(form.direct_manager_id);
-      }
-      if (form.company_unit) {
-        payload.company_unit = parseInt(form.company_unit);
       }
       await onboardingService.create(payload);
       showFeedback('success', 'Tạo quy trình thành công', undefined, onSuccess);
@@ -310,20 +289,6 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
             />
           )}
 
-          {field('company_unit', 'Đơn vị làm việc', true,
-            <SelectBox
-              label=""
-              value={form.company_unit}
-              options={companyUnits.map((u) => ({
-                value: String(u.id),
-                label: `${u.name} (${u.prefix_code || u.code || 'N/A'})`
-              }))}
-              onChange={(v) => setForm({ ...form, company_unit: v })}
-              searchable
-              placeholder={loadingUnits ? 'Đang tải...' : 'Chọn đơn vị làm việc'}
-            />
-          )}
-
           {field('direct_manager_id', 'Quản lý trực tiếp', false,
             <SelectBox
               label=""
@@ -348,8 +313,7 @@ const CreateOnboardingModal: React.FC<CreateModalProps> = ({ onClose, onSuccess 
           {(() => {
             const nameValid = form.candidate_name.trim().length > 0 && /^[a-zA-ZÀ-ỹ\s]+$/.test(form.candidate_name.trim()) && form.candidate_name.trim().length <= 50;
             const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.candidate_email.trim());
-            const unitValid = !!form.company_unit;
-            const isFormValid = nameValid && emailValid && unitValid && Object.keys(errors).length === 0;
+            const isFormValid = nameValid && emailValid && Object.keys(errors).length === 0;
             return (
               <button
                 onClick={handleSubmit}

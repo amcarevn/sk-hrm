@@ -69,7 +69,6 @@ interface FormValues {
   doctor_team: string;
   work_form: string;
   work_location: string;
-  company_unit: string;
   citizen_id: string;
   citizen_id_issue_date: string;
   citizen_id_issue_place: string;
@@ -220,7 +219,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
   const [vneidScreenshotFile, setVneidScreenshotFile] = useState<File | null>(null);
   const [workType, setWorkType] = useState('');
-  const [companyUnits, setCompanyUnits] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
@@ -230,7 +228,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
     date_of_birth: '', gender: 'M', education_level: '', facebook_link: '',
     start_date: new Date().toISOString().slice(0, 10), region: '', block: '', sub_department: '',
     section: '', position: '', job_rank: '', ethnicity: '', birth_place: '', nationality: '', doctor_team: '', work_form: '',
-    work_location: '', company_unit: '', probation_rate: '',
+    work_location: '', probation_rate: '',
     citizen_id: '', citizen_id_issue_date: '', citizen_id_issue_place: '',
     old_id_number: '', permanent_address: '', current_address: '',
     social_insurance_number: '', tax_code: '', marital_status: 'SINGLE',
@@ -264,17 +262,14 @@ export const EmployeeOnboardingForm: React.FC = () => {
       return Array.isArray(data) ? data : (data.results || []);
     };
     Promise.all([
-      fetchPublic('/api-hrm/company-units/?active_only=true'),
       fetchPublic('/api-hrm/departments/?page_size=1000'),
       fetchPublic('/api-hrm/positions/?page_size=1000'),
       fetchPublic('/api-hrm/sections/?page_size=1000'),
-    ]).then(([cuList, deptList, posList, secList]) => {
-      setCompanyUnits(cuList);
+    ]).then(([deptList, posList, secList]) => {
       setDepartments(deptList);
       setPositions(posList);
       setSections(secList);
     }).catch(() => {
-      setCompanyUnits([]);
       setDepartments([]);
       setPositions([]);
       setSections([]);
@@ -410,7 +405,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
       if (!/^https?:\/\//i.test(values.facebook_link.trim())) { showToast('error', 'Link Facebook phải bắt đầu bằng http:// hoặc https://'); return false; }
     }
     if (step === 2) {
-      if (!values.company_unit) { showToast('error', 'Vui lòng chọn đơn vị làm việc'); return false; }
       if (!values.region) { showToast('error', 'Vui lòng chọn vùng/miền'); return false; }
       if (!values.block) { showToast('error', 'Vui lòng chọn khối'); return false; }
       if (!values.sub_department) { showToast('error', 'Vui lòng chọn phòng/ban'); return false; }
@@ -478,7 +472,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
         values.facebook_link.trim() && !getFieldError('facebook_link', values.facebook_link));
     }
     if (step === 1) {
-      return !!(values.company_unit && values.region && values.block && values.sub_department &&
+      return !!(values.region && values.block && values.sub_department &&
         values.position && values.job_rank && values.work_form && values.work_location);
     }
     if (step === 2) {
@@ -559,7 +553,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('probation_rate', values.probation_rate);
       ap('facebook_link', values.facebook_link);
       ap('start_date', values.start_date);
-      ap('company_unit', values.company_unit);
       ap('region', values.region);
       ap('block', values.block);
       ap('sub_department', values.sub_department);
@@ -702,8 +695,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
         <div className="flex-1 flex flex-col gap-5 justify-evenly">
           <h3 className="text-3xl font-bold text-gray-900 text-center">Thông tin công việc chi tiết</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-            <SF label="Đơn vị làm việc" value={values.company_unit} onChange={handleSelect('company_unit')}
-              options={companyUnits.map(cu => ({ value: cu.code, label: cu.name }))} />
             <SF label="Vùng/Miền" value={values.region} onChange={handleSelect('region')} options={REGION_OPTIONS} />
             <SF label="Khối" value={values.block} onChange={handleSelect('block')} options={BLOCK_OPTIONS} />
           </div>
@@ -897,7 +888,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
             ['Link Facebook', values.facebook_link],
           ]},
           { title: 'Công việc', color: 'indigo', fields: [
-            ['Đơn vị', companyUnits.find(cu => cu.code === values.company_unit)?.name || values.company_unit || null],
             ['Vùng/Miền', values.region],
             ['Khối', values.block],
             ['Phòng/Ban', values.sub_department],
