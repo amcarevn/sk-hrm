@@ -87,6 +87,10 @@ import PasswordReset from './pages/PasswordReset';
 import ShiftConfiguration from './pages/ShiftConfiguration';
 import AIChat from './pages/AIChat';
 import SalaryManagement from './pages/SalaryManagement';
+import SalaryData from './pages/SalaryData';
+import OvertimeRateConfigPage from './pages/OvertimeRateConfig';
+import ShiftRegistration from './pages/ShiftRegistration';
+import ShiftApproval from './pages/ShiftApproval';
 import AttendanceRanking from './pages/AttendanceRanking';
 import RecruitmentNeeds from './pages/recruitment/RecruitmentNeeds';
 import RecruitmentJobs from './pages/recruitment/RecruitmentJobs';
@@ -943,13 +947,74 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* Salary Management Route */}
+          {/* Salary Management Routes */}
           <Route
             path="/dashboard/salary-management"
             element={
               <ProtectedRoute>
                 <Layout>
                   <SalaryManagement />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/salary-management/payroll"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SalaryManagement defaultTab="view" lockTab />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/salary-management/config"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SalaryManagement defaultTab="config" lockTab />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/salary-management/penalty"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SalaryData />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/salary-management/overtime"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <OvertimeRateConfigPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Shift Registration Routes */}
+          <Route
+            path="/dashboard/shift-registration"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ShiftRegistration />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/shift-approval"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ShiftApproval />
                 </Layout>
               </ProtectedRoute>
             }

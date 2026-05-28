@@ -8,7 +8,6 @@ import {
   companyUnitsAPI,
 } from '../utils/api';
 import { SelectBox } from '@/components/LandingLayout/SelectBox';
-import { WORK_LOCATION_OPTIONS } from '../constants/onboarding';
 import onboardingService from '../services/onboarding.service';
 import { toDisplayDate, toApiDate } from '../utils/dateUtils';
 import {
@@ -777,13 +776,10 @@ const EmployeeEdit: React.FC = () => {
             />
 
 
-            <SelectBox
-              label="Địa điểm làm việc"
-              value={formData.work_location}
-              placeholder="Chọn địa điểm"
-              options={WORK_LOCATION_OPTIONS}
-              onChange={(v) => handleSelect('work_location', v)}
-            />
+            <Field label="Địa điểm làm việc">
+              <input type="text" name="work_location" value={formData.work_location}
+                onChange={handleInput} placeholder="Vd: 167 Trung Kính, Yên Hòa, Hà Nội" className={inputClass} />
+            </Field>
 
             <SelectBox
               label="Vùng/Miền"
