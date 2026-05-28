@@ -47,6 +47,9 @@ export type {
   AttendanceRuleEngineResponse,
   BirthdayWish,
   CompanyUnit,
+  ShiftRegistration,
+  ShiftRegistrationDay,
+  ShiftRegistrationStatus,
 } from './types';
 
 // Re-export all APIs
@@ -76,6 +79,7 @@ export {
   assetMaintenanceAPI,
 } from './assets.api';
 export { companyConfigAPI, hrmAPI, attendanceRuleAPI } from './company-config.api';
+export { shiftRegistrationsAPI } from './shift-registration.api';
 
 // Default export with all APIs
 import { authAPI } from './auth.api';
@@ -104,6 +108,7 @@ import {
   assetMaintenanceAPI,
 } from './assets.api';
 import { companyConfigAPI, hrmAPI, attendanceRuleAPI } from './company-config.api';
+import { shiftRegistrationsAPI } from './shift-registration.api';
 
 export default {
   auth: authAPI,
@@ -133,4 +138,5 @@ export default {
   dashboard: dashboardAPI,
   companyConfig: companyConfigAPI,
   companyUnits: companyUnitsAPI,
+  shiftRegistrations: shiftRegistrationsAPI,
 };

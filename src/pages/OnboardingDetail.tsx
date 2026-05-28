@@ -1455,7 +1455,7 @@ const OnboardingDetail: React.FC = () => {
                   { value: 'FULL_TIME', label: 'Full-time' },
                   { value: 'PART_TIME', label: 'Part-time' },
                 ])}
-                {ef('Địa điểm làm việc', 'work_location', undefined, WORK_LOCATION_OPTIONS)}
+                {ef('Địa điểm làm việc', 'work_location', undefined, undefined, undefined, 'Vd: 167 Trung Kính, Yên Hòa, Hà Nội')}
                 {ef('Ngày bắt đầu làm việc', 'start_date', 'date')}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -807,6 +807,47 @@ export interface ShiftConfig {
   is_current?: boolean;
 }
 
+export interface ShiftRegistrationDay {
+  id?: number;
+  date: string; // YYYY-MM-DD
+  shift: number | null; // ShiftConfig id, null = Nghỉ
+  shift_detail?: {
+    id: number;
+    code: string;
+    name: string;
+    start_time: string;
+    end_time: string;
+  } | null;
+}
+
+export type ShiftRegistrationStatus =
+  | 'DRAFT'
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CANCELLED';
+
+export interface ShiftRegistration {
+  id: number;
+  employee: number;
+  employee_detail?: { id: number; employee_id: string; full_name: string } | null;
+  week_start_date: string;
+  week_end_date: string;
+  status: ShiftRegistrationStatus;
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
+  approved_by?: number | null;
+  approved_by_detail?: { id: number; employee_id: string; full_name: string } | null;
+  reject_reason?: string;
+  days: ShiftRegistrationDay[];
+  registration_deadline: string;
+  is_past_deadline: boolean;
+  is_editable: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface HolidayConfig {
   id: number;
   name: string;

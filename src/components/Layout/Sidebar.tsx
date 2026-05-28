@@ -188,6 +188,18 @@ const navigationItems: NavigationItem[] = [
         icon: CheckCircleIcon,
         roles: ['ADMIN', 'HR'],
       },
+      {
+        name: 'Đăng ký ca làm',
+        href: '/dashboard/shift-registration',
+        icon: ClipboardDocumentListIcon,
+        roles: ['ADMIN', 'USER', 'STAFF', 'HR'],
+      },
+      {
+        name: 'Duyệt ca làm',
+        href: '/dashboard/shift-approval',
+        icon: CheckCircleIcon,
+        roles: ['ADMIN', 'HR'],
+      },
     ],
   },
 
@@ -408,6 +420,9 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
       }
     }
     if (isManager && item.name === 'Onboard nhân sự') {
+      return true;
+    }
+    if (isManager && item.name === 'Duyệt ca làm') {
       return true;
     }
     return item.roles.some(role => role.toUpperCase() === userRole);

@@ -708,7 +708,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <TF label="Team Bác sĩ" value={values.doctor_team} onChange={handleChange('doctor_team')} placeholder="Team Dr. Nguyễn Văn A..." />
-            <SF label="Địa điểm làm việc" value={values.work_location} onChange={handleSelect('work_location')} options={WORK_LOCATION_OPTIONS} required />
+            <TF label="Địa điểm làm việc" value={values.work_location} onChange={handleChange('work_location')} placeholder="Vd: 167 Trung Kính, Yên Hòa, Hà Nội" />
           </div>
           <div className="p-4 bg-gray-50 rounded-lg">
             <RF label="Hình thức làm việc" value={values.work_form}
