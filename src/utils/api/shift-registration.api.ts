@@ -75,4 +75,22 @@ export const shiftRegistrationsAPI = {
     });
     return unwrapList<ShiftRegistration>(res.data);
   },
+
+  upload: async (file: File): Promise<ShiftRegistrationUploadResult> => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await managementApi.post('/api-hrm/shift-registrations/upload/', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
 };
+
+export interface ShiftRegistrationUploadResult {
+  total_rows: number;
+  imported_days: number;
+  created_registrations: number;
+  updated_registrations: number;
+  failed: Array<{ row: number; employee_code?: string; error: string }>;
+  warnings: Array<{ row: number; employee_code?: string; date?: string; warning: string }>;
+}

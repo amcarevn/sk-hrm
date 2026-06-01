@@ -582,6 +582,11 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       return 'bg-purple-100 text-purple-700 ring-1 ring-purple-300';
     }
 
+    // Priority 3.5: Đăng ký nghỉ ca tuần — màu slate để khác "Chưa có dữ liệu"
+    if ((day.engine_context as any)?.is_registered_off) {
+      return 'bg-slate-100 text-slate-600 ring-1 ring-slate-300';
+    }
+
     // Priority 4: Late/Early badge (Yellow) - Only if not enough credit to be Green/Orange
     const late = day.engine_context?.late_minutes || 0;
     const early = day.engine_context?.early_leave_minutes || 0;
@@ -683,8 +688,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     const hasIncomplete = day.engine_context?.is_incomplete;
     if (hasIncomplete) return 'Quên chấm công';
 
+    const isRegisteredOff = (day.engine_context as any)?.is_registered_off;
     const allNoData = day.shifts?.every(s => s.status === 'EMPTY');
-    if (allNoData) return 'Chưa có dữ liệu';
+    if (allNoData) return isRegisteredOff ? 'Đăng ký nghỉ' : 'Chưa có dữ liệu';
+    if (isRegisteredOff) return 'Đăng ký nghỉ';
 
     const late = day.engine_context?.late_minutes || 0;
     const early = day.engine_context?.early_leave_minutes || 0;
