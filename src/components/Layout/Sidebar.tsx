@@ -171,12 +171,6 @@ const navigationItems: NavigationItem[] = [
         departments: ['HCNS'],
       },
       {
-        name: 'Cấu hình ca làm',
-        href: '/dashboard/shift-configuration',
-        icon: ClockIcon,
-        roles: ['ADMIN', 'HR'],
-      },
-      {
         name: 'Chốt công',
         href: '/dashboard/work-finalization',
         icon: TableCellsIcon,

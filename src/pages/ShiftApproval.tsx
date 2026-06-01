@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { shiftRegistrationsAPI } from '../utils/api';
 import type { ShiftRegistration as ShiftRegistrationType } from '../utils/api';
+import type { ShiftRegistrationUploadResult } from '../utils/api/shift-registration.api';
 import {
   CheckCircleIcon,
   XMarkIcon,
   UserGroupIcon,
   ClockIcon,
   ExclamationTriangleIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
 
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -35,6 +37,31 @@ const ShiftApproval: React.FC = () => {
   const [rejectTarget, setRejectTarget] = useState<ShiftRegistrationType | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<ShiftRegistrationUploadResult | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleUploadClick = () => fileInputRef.current?.click();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setUploading(true);
+    setUploadError(null);
+    setUploadResult(null);
+    try {
+      const res = await shiftRegistrationsAPI.upload(f);
+      setUploadResult(res);
+      await fetchPending();
+    } catch (err: any) {
+      console.error('Upload ca làm failed:', err);
+      setUploadError(err?.response?.data?.detail || err?.message || 'Upload thất bại.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const fetchPending = async () => {
     setLoading(true);
@@ -87,18 +114,81 @@ const ShiftApproval: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Duyệt ca làm</h1>
           <p className="mt-1 text-sm text-gray-500">
             Duyệt đăng ký ca làm theo tuần của nhân viên cấp dưới
           </p>
         </div>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-700">
-          <ClockIcon className="h-4 w-4" />
-          {items.length} chờ duyệt
-        </span>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <button
+            onClick={handleUploadClick}
+            disabled={uploading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-60"
+            title="Upload danh sách ca làm (Mã NV, Ngày, Mã ca)"
+          >
+            <ArrowUpTrayIcon className="h-4 w-4" />
+            {uploading ? 'Đang tải lên…' : 'Upload ca làm'}
+          </button>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-700">
+            <ClockIcon className="h-4 w-4" />
+            {items.length} chờ duyệt
+          </span>
+        </div>
       </div>
+
+      {(uploadResult || uploadError) && (
+        <div className={`rounded-2xl border p-4 shadow-sm ${uploadError ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-sm">
+              {uploadError ? (
+                <p className="font-semibold text-red-700">Lỗi: {uploadError}</p>
+              ) : uploadResult && (
+                <>
+                  <p className="font-semibold text-emerald-700">
+                    Đã xử lý {uploadResult.total_rows} dòng — Tạo mới {uploadResult.created_registrations} đơn, cập nhật {uploadResult.updated_registrations} đơn, {uploadResult.imported_days} ngày được ghi.
+                  </p>
+                  {uploadResult.failed.length > 0 && (
+                    <div className="mt-2">
+                      <p className="font-medium text-red-700">{uploadResult.failed.length} dòng lỗi:</p>
+                      <ul className="mt-1 list-disc list-inside text-xs text-red-600 max-h-32 overflow-auto">
+                        {uploadResult.failed.slice(0, 50).map((f, i) => (
+                          <li key={i}>Dòng {f.row}{f.employee_code ? ` (${f.employee_code})` : ''}: {f.error}</li>
+                        ))}
+                        {uploadResult.failed.length > 50 && <li>… và {uploadResult.failed.length - 50} dòng khác</li>}
+                      </ul>
+                    </div>
+                  )}
+                  {uploadResult.warnings.length > 0 && (
+                    <div className="mt-2">
+                      <p className="font-medium text-amber-700">{uploadResult.warnings.length} cảnh báo:</p>
+                      <ul className="mt-1 list-disc list-inside text-xs text-amber-700 max-h-24 overflow-auto">
+                        {uploadResult.warnings.slice(0, 20).map((w, i) => (
+                          <li key={i}>Dòng {w.row}: {w.warning}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <button
+              onClick={() => { setUploadResult(null); setUploadError(null); }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
