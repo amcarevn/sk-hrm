@@ -1194,10 +1194,10 @@ const WorkFinalization: React.FC = () => {
         </div>
       </div>
 
-      {/* Main two-panel layout */}
-      <div className="flex gap-4 min-h-[600px]">
+      {/* Main two-panel layout — stack dọc trên mobile, ngang từ lg */}
+      <div className="flex flex-col lg:flex-row gap-4 lg:min-h-[600px]">
         {/* Left: Employee list */}
-        <div className="w-80 flex-shrink-0 bg-white shadow-sm rounded-2xl border border-gray-100 overflow-hidden flex flex-col">
+        <div className="w-full lg:w-80 lg:flex-shrink-0 bg-white shadow-sm rounded-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[400px] lg:max-h-none">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-800">
               Danh sách nhân sự

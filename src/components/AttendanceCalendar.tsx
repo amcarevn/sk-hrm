@@ -587,6 +587,11 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       return 'bg-slate-100 text-slate-600 ring-1 ring-slate-300';
     }
 
+    // Priority 3.6: Có chấm đủ nhưng HR chưa phân ca — màu cam viền đậm để HR thấy
+    if (day.dayStatusSummary?.summary_text === 'Thiếu phân ca') {
+      return 'bg-orange-50 text-orange-700 ring-1 ring-orange-300';
+    }
+
     // Priority 4: Late/Early badge (Yellow) - Only if not enough credit to be Green/Orange
     const late = day.engine_context?.late_minutes || 0;
     const early = day.engine_context?.early_leave_minutes || 0;
