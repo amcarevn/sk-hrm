@@ -56,7 +56,24 @@ const ShiftApproval: React.FC = () => {
       await fetchPending();
     } catch (err: any) {
       console.error('Upload ca làm failed:', err);
-      setUploadError(err?.response?.data?.detail || err?.message || 'Upload thất bại.');
+      const data = err?.response?.data;
+      let msg = 'Upload thất bại.';
+      if (typeof data === 'string') {
+        msg = data;
+      } else if (data?.detail) {
+        msg = data.detail;
+      } else if (data && typeof data === 'object') {
+        // DRF field errors: { field: ["msg"] } hoặc { non_field_errors: [...] }
+        const parts: string[] = [];
+        for (const [k, v] of Object.entries(data)) {
+          const text = Array.isArray(v) ? v.join('; ') : String(v);
+          parts.push(k === 'non_field_errors' ? text : `${k}: ${text}`);
+        }
+        if (parts.length) msg = parts.join(' | ');
+      } else if (err?.message) {
+        msg = err.message;
+      }
+      setUploadError(msg);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
