@@ -84,6 +84,19 @@ export const shiftRegistrationsAPI = {
     });
     return res.data;
   },
+
+  exportMonthly: async (params: {
+    year: number;
+    month: number;
+    department_id?: number;
+    status?: string;
+  }): Promise<Blob> => {
+    const res = await managementApi.get('/api-hrm/shift-registrations/export-monthly/', {
+      params,
+      responseType: 'blob',
+    });
+    return res.data as Blob;
+  },
 };
 
 export interface ShiftRegistrationUploadResult {
