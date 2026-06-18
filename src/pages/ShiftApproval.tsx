@@ -9,6 +9,7 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   ArrowUpTrayIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -41,6 +42,53 @@ const ShiftApproval: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<ShiftRegistrationUploadResult | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const today = new Date();
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportYear, setExportYear] = useState<number>(today.getFullYear());
+  const [exportMonth, setExportMonth] = useState<number>(today.getMonth() + 1);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const blob = await shiftRegistrationsAPI.exportMonthly({
+        year: exportYear,
+        month: exportMonth,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ca_lam_${String(exportMonth).padStart(2, '0')}_${exportYear}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setExportOpen(false);
+    } catch (err: any) {
+      console.error('Export ca làm failed:', err);
+      let msg = 'Xuất file thất bại.';
+      const data = err?.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const text = await data.text();
+          const parsed = JSON.parse(text);
+          msg = parsed?.detail || msg;
+        } catch {
+          /* ignore */
+        }
+      } else if (typeof data === 'string') {
+        msg = data;
+      } else if (data?.detail) {
+        msg = data.detail;
+      }
+      setExportError(msg);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleUploadClick = () => fileInputRef.current?.click();
 
@@ -154,6 +202,14 @@ const ShiftApproval: React.FC = () => {
           >
             <ArrowUpTrayIcon className="h-4 w-4" />
             {uploading ? 'Đang tải lên…' : 'Upload ca làm'}
+          </button>
+          <button
+            onClick={() => { setExportError(null); setExportOpen(true); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700"
+            title="Xuất danh sách ca làm theo tháng"
+          >
+            <ArrowDownTrayIcon className="h-4 w-4" />
+            Xuất ca tháng
           </button>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-700">
             <ClockIcon className="h-4 w-4" />
@@ -292,6 +348,70 @@ const ShiftApproval: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Export modal */}
+      {exportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm"
+            onClick={() => !exporting && setExportOpen(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-sm font-bold text-gray-900 mb-1">Xuất ca làm theo tháng</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Chọn tháng cần xuất. File Excel sẽ liệt kê toàn bộ ca đã duyệt của mỗi nhân viên trong tháng.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Tháng</label>
+                <select
+                  value={exportMonth}
+                  onChange={(e) => setExportMonth(Number(e.target.value))}
+                  className="input-field w-full"
+                  disabled={exporting}
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                    <option key={m} value={m}>Tháng {m}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Năm</label>
+                <select
+                  value={exportYear}
+                  onChange={(e) => setExportYear(Number(e.target.value))}
+                  className="input-field w-full"
+                  disabled={exporting}
+                >
+                  {Array.from({ length: 5 }, (_, i) => today.getFullYear() - 2 + i).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {exportError && (
+              <p className="text-xs text-red-600 mt-3">{exportError}</p>
+            )}
+            <div className="flex justify-end gap-3 mt-5">
+              <button
+                onClick={() => setExportOpen(false)}
+                disabled={exporting}
+                className="btn-secondary text-xs px-4 py-2"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+              >
+                <ArrowDownTrayIcon className="h-4 w-4" />
+                {exporting ? 'Đang tạo file…' : 'Tải xuống'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
