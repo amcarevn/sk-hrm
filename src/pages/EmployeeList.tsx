@@ -800,7 +800,7 @@ const EmployeeList: React.FC = () => {
     applyDropdown('employment_status', ['Đang làm việc', 'Tạm dừng', 'Đã nghỉ']);
     applyDropdown('rank', ['Chủ tịch', 'Giám đốc', 'Phó Giám đốc', 'Leader', 'Trưởng phòng', 'Trưởng phòng tập sự', 'Phó phòng', 'Nhân viên', 'Thực tập sinh']);
     applyDropdown('work_form', ['Toàn thời gian', 'Bán thời gian', 'Hợp đồng', 'Thực tập', 'Cộng tác viên']);
-    applyDropdown('education_level', ['Trung học phổ thông', 'Cao đẳng', 'Đại học', 'Thạc sĩ', 'Tiến sĩ', 'Khác']);
+    applyDropdown('education_level', ['Trung học phổ thông', 'Trung cấp', 'Cử nhân cao đẳng', 'Cử nhân đại học', 'Thạc sĩ', 'Tiến sĩ', 'Khác']);
     applyDropdown('gender', ['Nam', 'Nữ', 'Khác']);
     applyDropdown('marital_status', ['Độc thân', 'Đã kết hôn', 'Ly hôn', 'Góa']);
     applyDropdownRange(
@@ -850,7 +850,7 @@ const EmployeeList: React.FC = () => {
       manager: 'TA00002',
       doctor_team: '',
       work_form: 'Toàn thời gian',
-      education_level: 'Đại học',
+      education_level: 'Cử nhân đại học',
       date_of_birth: '01/01/1990',
       gender: 'Nam',
       bank_account: '1234567890',

@@ -59,8 +59,9 @@ const WORK_FORM_LABELS: Record<string, string> = {
 
 const EDUCATION_LEVEL_LABELS: Record<string, string> = {
   HIGH_SCHOOL: 'Trung học phổ thông',
-  ASSOCIATE: 'Cao đẳng',
-  BACHELOR: 'Đại học',
+  INTERMEDIATE: 'Trung cấp',
+  ASSOCIATE: 'Cử nhân cao đẳng',
+  BACHELOR: 'Cử nhân đại học',
   MASTER: 'Thạc sĩ',
   DOCTORATE: 'Tiến sĩ',
   OTHER: 'Khác',
