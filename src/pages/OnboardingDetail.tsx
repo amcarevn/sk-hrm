@@ -33,11 +33,19 @@ import {
   WORK_LOCATION_OPTIONS,
 } from '../constants/onboarding';
 
+// Trước đây map này gán SAI code cho nhãn (HIGH_SCHOOL hiển thị thành "Trung cấp" —
+// lẽ ra phải là "Trung học phổ thông") — khiến trang xem chi tiết onboarding hiển thị
+// nhầm trình độ học vấn của nhân viên. Sửa lại đúng CODE ↔ NHÃN, giữ nguyên cách gọi
+// "Cử nhân đại học"/"Cử nhân cao đẳng" theo quy ước của SK (khác nhãn "Đại học"/
+// "Cao đẳng" mặc định ở backend, nhưng đây là lựa chọn hiển thị của SK). Bổ sung luôn
+// INTERMEDIATE ("Trung cấp" — mã mới) và DOCTORATE trước đây bị thiếu hẳn.
 const EDUCATION_LEVEL_MAP: Record<string, string> = {
-  MASTER: 'Thạc sĩ',
-  BACHELOR: 'Cử nhân đại học',
+  HIGH_SCHOOL: 'Trung học phổ thông',
+  INTERMEDIATE: 'Trung cấp',
   ASSOCIATE: 'Cử nhân cao đẳng',
-  HIGH_SCHOOL: 'Trung cấp',
+  BACHELOR: 'Cử nhân đại học',
+  MASTER: 'Thạc sĩ',
+  DOCTORATE: 'Tiến sĩ',
   OTHER: 'Khác',
 };
 

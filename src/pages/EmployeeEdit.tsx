@@ -107,8 +107,9 @@ const RANK_OPTIONS = [
 
 const EDUCATION_LEVEL_OPTIONS = [
   { label: 'Trung học phổ thông', value: 'HIGH_SCHOOL' },
-  { label: 'Cao đẳng', value: 'ASSOCIATE' },
-  { label: 'Đại học', value: 'BACHELOR' },
+  { label: 'Trung cấp', value: 'INTERMEDIATE' },
+  { label: 'Cử nhân cao đẳng', value: 'ASSOCIATE' },
+  { label: 'Cử nhân đại học', value: 'BACHELOR' },
   { label: 'Thạc sĩ', value: 'MASTER' },
   { label: 'Tiến sĩ', value: 'DOCTORATE' },
   { label: 'Khác', value: 'OTHER' },
