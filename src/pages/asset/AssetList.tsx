@@ -13,6 +13,7 @@ import {
   ArrowPathRoundedSquareIcon,
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
+  DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import AssetCreateModal from './AssetCreateModal';
 import AssetEditModal from './AssetEditModal';
@@ -121,6 +122,7 @@ export default function AssetList() {
   const [feedback, setFeedback] = useState<{ variant: FeedbackVariant; title: React.ReactNode; message?: React.ReactNode } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(new Set());
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
   const [isBulkReturnModalOpen, setIsBulkReturnModalOpen] = useState(false);
@@ -303,6 +305,31 @@ export default function AssetList() {
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    setIsDownloadingTemplate(true);
+    try {
+      const blob = await assetsAPI.exportTemplate();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'mau-import-tai-san.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Download template error:', err);
+      const msg = err.response?.data?.error || err.message || 'Đã có lỗi xảy ra khi tải file mẫu.';
+      setFeedback({
+        variant: 'error',
+        title: 'Tải file mẫu thất bại',
+        message: `${msg}\n\nVui lòng thử lại hoặc liên hệ quản trị viên.`,
+      });
+    } finally {
+      setIsDownloadingTemplate(false);
+    }
+  };
+
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
@@ -472,6 +499,26 @@ export default function AssetList() {
             className="hidden"
             onChange={handleImportFile}
           />
+          <button
+            onClick={handleDownloadTemplate}
+            disabled={isDownloadingTemplate}
+            className="btn-secondary inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isDownloadingTemplate ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-primary-600" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
+                  <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                </svg>
+                Đang tải...
+              </>
+            ) : (
+              <>
+                <DocumentArrowDownIcon className="h-4 w-4" />
+                Tải file mẫu
+              </>
+            )}
+          </button>
           <button
             onClick={handleImportClick}
             disabled={isImporting}
