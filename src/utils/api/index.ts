@@ -35,6 +35,8 @@ export type {
   Asset,
   AssetAssignmentHistory,
   AssetMaintenance,
+  AssetInventoryCheck,
+  AssetInventoryCheckResult,
   AssetStats,
   CompanyConfig,
   ShiftConfig,
