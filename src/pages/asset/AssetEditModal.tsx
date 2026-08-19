@@ -369,17 +369,19 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       console.log('Data:', response);
 
       // Upload/xoá ảnh (nếu có thay đổi)
-      if (currentImageFile || purchaseImageFile || clearCurrentImage || clearPurchaseImage) {
-        try {
-          await assetsAPI.uploadImages(asset.id, {
-            current_image: currentImageFile || undefined,
-            purchase_image: purchaseImageFile || undefined,
-            clear_current_image: clearCurrentImage && !currentImageFile,
-            clear_purchase_image: clearPurchaseImage && !purchaseImageFile,
-          });
-        } catch (imgError) {
-          console.error('Error uploading asset images:', imgError);
+      try {
+        if (currentImageFile) {
+          await assetsAPI.uploadImage(asset.id, 'current', currentImageFile);
+        } else if (clearCurrentImage) {
+          await assetsAPI.clearImage(asset.id, 'current');
         }
+        if (purchaseImageFile) {
+          await assetsAPI.uploadImage(asset.id, 'purchase', purchaseImageFile);
+        } else if (clearPurchaseImage) {
+          await assetsAPI.clearImage(asset.id, 'purchase');
+        }
+      } catch (imgError) {
+        console.error('Error uploading asset images:', imgError);
       }
 
       onSuccess();

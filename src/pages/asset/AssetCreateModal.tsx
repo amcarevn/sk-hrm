@@ -279,15 +279,11 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       console.log('Data:', response);
 
       // Upload ảnh (nếu có) sau khi asset đã có id
-      if (currentImageFile || purchaseImageFile) {
-        try {
-          await assetsAPI.uploadImages(response.id, {
-            current_image: currentImageFile || undefined,
-            purchase_image: purchaseImageFile || undefined,
-          });
-        } catch (imgError) {
-          console.error('Error uploading asset images:', imgError);
-        }
+      try {
+        if (currentImageFile) await assetsAPI.uploadImage(response.id, 'current', currentImageFile);
+        if (purchaseImageFile) await assetsAPI.uploadImage(response.id, 'purchase', purchaseImageFile);
+      } catch (imgError) {
+        console.error('Error uploading asset images:', imgError);
       }
 
       onSuccess();

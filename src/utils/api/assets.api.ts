@@ -221,23 +221,25 @@ export const assetsAPI = {
     return response.data;
   },
 
-  // Upload/xoá ảnh tài sản (hiện tại / mới mua) — tách riêng khỏi create/update JSON
-  // thường vì cần multipart/form-data để gửi file lên Cloudfly S3.
-  uploadImages: async (id: number, images: {
-    current_image?: File;
-    purchase_image?: File;
-    clear_current_image?: boolean;
-    clear_purchase_image?: boolean;
-  }): Promise<Asset> => {
+  // Upload ảnh tài sản (hiện tại / mới mua) — endpoint riêng, luôn upload thẳng lên
+  // Cloudfly S3, giống ChangeAvatarView (Employee.avatar), thay vì gộp vào payload
+  // JSON của create/update.
+  uploadImage: async (id: number, imageType: 'current' | 'purchase', file: File): Promise<{
+    success: boolean;
+    current_image_url: string | null;
+    purchase_image_url: string | null;
+  }> => {
     const formData = new FormData();
-    if (images.current_image) formData.append('current_image', images.current_image);
-    if (images.purchase_image) formData.append('purchase_image', images.purchase_image);
-    if (images.clear_current_image) formData.append('clear_current_image', '1');
-    if (images.clear_purchase_image) formData.append('clear_purchase_image', '1');
-    const response: AxiosResponse<Asset> = await managementApi.patch(`/api-hrm/assets/${id}/`, formData, {
+    formData.append('image', file);
+    formData.append('image_type', imageType);
+    const response = await managementApi.post(`/api-hrm/assets/${id}/upload_image/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
+  },
+
+  clearImage: async (id: number, imageType: 'current' | 'purchase'): Promise<void> => {
+    await managementApi.post(`/api-hrm/assets/${id}/clear_image/`, { image_type: imageType });
   },
 };
 
