@@ -53,6 +53,10 @@ const REGIONS: SelectOption<string>[] = [
   { value: 'MIEN_NAM', label: 'Miền Nam' },
 ];
 
+const DEPRECIATION_METHODS: SelectOption<string>[] = [
+  { value: 'STRAIGHT_LINE', label: 'Đường thẳng' },
+];
+
 export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCreateModalProps) {
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<SelectOption<string>[]>([]);
@@ -71,6 +75,10 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     department: '',
     managed_by: '',
     description: '',
+    // Khấu hao tài sản
+    purchase_price: '',
+    depreciation_period_months: '',
+    depreciation_method: 'STRAIGHT_LINE',
     // Desktop specific fields
     cpu: '',
     mainboard: '',
@@ -91,6 +99,9 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     // OTHER specific fields
     other_type_name: '',
   });
+  // Hình ảnh tài sản — file chọn xong chỉ upload SAU KHI tạo asset thành công (cần asset.id)
+  const [currentImageFile, setCurrentImageFile] = useState<File | null>(null);
+  const [purchaseImageFile, setPurchaseImageFile] = useState<File | null>(null);
 
   /**
    * Khởi chạy khi Modal được mở, thực hiện lấy danh sách Phòng ban và Vị trí (Chức vụ)
@@ -232,7 +243,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     setLoading(true);
     try {
       // Split technical specs into a separate object if it's a Desktop
-      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, ...baseData } = formData;
+      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, purchase_price, depreciation_period_months, depreciation_method, ...baseData } = formData;
 
       let specifications = {};
       if (formData.asset_type === 'DESKTOP') {
@@ -251,6 +262,9 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         ...baseData,
         purchase_date: formData.purchase_date || null,
         warranty_period: warranty_period ? parseInt(warranty_period) : null,
+        purchase_price: purchase_price ? parseFloat(purchase_price) : null,
+        depreciation_period_months: depreciation_period_months ? parseInt(depreciation_period_months) : null,
+        depreciation_method,
         department_id: formData.department ? parseInt(formData.department) : null,
         managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
         specifications
@@ -264,8 +278,18 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       console.log('--- Phản hồi từ Server ---');
       console.log('Data:', response);
 
+      // Upload ảnh (nếu có) sau khi asset đã có id
+      try {
+        if (currentImageFile) await assetsAPI.uploadImage(response.id, 'current', currentImageFile);
+        if (purchaseImageFile) await assetsAPI.uploadImage(response.id, 'purchase', purchaseImageFile);
+      } catch (imgError) {
+        console.error('Error uploading asset images:', imgError);
+      }
+
       onSuccess();
       onClose();
+      setCurrentImageFile(null);
+      setPurchaseImageFile(null);
       // Reset form
       setFormData({
         name: '',
@@ -278,6 +302,9 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
         department: '',
         managed_by: '',
         description: '',
+        purchase_price: '',
+        depreciation_period_months: '',
+        depreciation_method: 'STRAIGHT_LINE',
         cpu: '',
         mainboard: '',
         ram: '',
@@ -605,7 +632,57 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
 
                     <hr className="border-gray-100" />
 
-                    {/* ── Section 3: Ghi chú ── */}
+                    {/* ── Section 3: Khấu hao tài sản ── */}
+                    <section>
+                      <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Khấu hao tài sản</h4>
+                      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+                        <div>
+                          <label htmlFor="purchase_price" className="block text-sm font-medium text-gray-700">Giá trị khi mua</label>
+                          <input type="number" name="purchase_price" id="purchase_price" min="0" step="1000"
+                            value={formData.purchase_price} onChange={handleChange}
+                            className="input-field mt-1" placeholder="VD: 24000000" />
+                        </div>
+                        <div>
+                          <label htmlFor="depreciation_period_months" className="block text-sm font-medium text-gray-700">Thời gian khấu hao (tháng)</label>
+                          <input type="number" name="depreciation_period_months" id="depreciation_period_months" min="0" step="1"
+                            value={formData.depreciation_period_months} onChange={handleChange}
+                            className="input-field mt-1" placeholder="VD: 36" />
+                        </div>
+                        <SelectBox
+                          label="Phương pháp khấu hao"
+                          value={formData.depreciation_method}
+                          options={DEPRECIATION_METHODS}
+                          onChange={(val) => handleSelectChange('depreciation_method', val)}
+                        />
+                      </div>
+                    </section>
+
+                    <hr className="border-gray-100" />
+
+                    {/* ── Section 4: Hình ảnh tài sản ── */}
+                    <section>
+                      <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Hình ảnh tài sản</h4>
+                      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+                        <div>
+                          <label htmlFor="purchase_image" className="block text-sm font-medium text-gray-700">Hình ảnh tài sản mới mua</label>
+                          <input type="file" accept="image/*" name="purchase_image" id="purchase_image"
+                            onChange={(e) => setPurchaseImageFile(e.target.files?.[0] || null)}
+                            className="input-field mt-1 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                          {purchaseImageFile && <p className="mt-1 text-xs text-gray-500 truncate">{purchaseImageFile.name}</p>}
+                        </div>
+                        <div>
+                          <label htmlFor="current_image" className="block text-sm font-medium text-gray-700">Hình ảnh tài sản hiện tại</label>
+                          <input type="file" accept="image/*" name="current_image" id="current_image"
+                            onChange={(e) => setCurrentImageFile(e.target.files?.[0] || null)}
+                            className="input-field mt-1 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                          {currentImageFile && <p className="mt-1 text-xs text-gray-500 truncate">{currentImageFile.name}</p>}
+                        </div>
+                      </div>
+                    </section>
+
+                    <hr className="border-gray-100" />
+
+                    {/* ── Section 5: Ghi chú ── */}
                     <section>
                       <label htmlFor="description" className="block text-sm font-medium text-gray-700">Mô tả / Ghi chú</label>
                       <textarea

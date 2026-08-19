@@ -646,6 +646,17 @@ export interface Asset {
   };
   other_details?: string;
   warranty_period?: number;
+  // Khấu hao — monthly_depreciation/accumulated_depreciation/current_value tính động
+  // ở backend (không lưu DB), luôn khớp thời điểm hiện tại.
+  depreciation_period_months?: number | null;
+  depreciation_method?: string;
+  depreciation_method_display?: string;
+  monthly_depreciation?: number | null;
+  accumulated_depreciation?: number | null;
+  current_value?: number | null;
+  // Hình ảnh — presigned URL, field ghi là multipart file 'current_image'/'purchase_image'
+  current_image_url?: string | null;
+  purchase_image_url?: string | null;
   created_at: string;
   updated_at: string;
   is_deleted?: boolean;
@@ -716,16 +727,36 @@ export interface AssetMaintenance {
   asset_name: string;
   maintenance_date: string;
   maintenance_type: string;
-  maintenance_type_display: string;
   description: string;
   performed_by?: string;
   performed_by_employee?: number;
   performed_by_employee_name?: string;
-  cost: number;
-  result: string;
-  next_maintenance_date?: string;
+  cost?: number | null;
+  result?: string;
+  next_maintenance_date?: string | null;
   created_at: string;
-  updated_at: string;
+  created_by?: number | null;
+  created_by_name?: string;
+}
+
+export type AssetInventoryCheckResult = 'MATCH' | 'MISSING' | 'DAMAGED' | 'WRONG_HOLDER' | 'OTHER';
+
+export interface AssetInventoryCheck {
+  id: number;
+  asset: number;
+  asset_code: string;
+  asset_name: string;
+  check_date: string;
+  checked_by?: number | null;
+  checked_by_name?: string;
+  actual_condition?: string;
+  actual_condition_display?: string;
+  result: AssetInventoryCheckResult;
+  result_display: string;
+  notes?: string;
+  created_at: string;
+  created_by?: number | null;
+  created_by_name?: string;
 }
 
 export interface AssetStats {
