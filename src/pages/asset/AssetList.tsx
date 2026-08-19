@@ -945,6 +945,11 @@ export default function AssetList() {
                           BH: {formatDate(asset.warranty_expiry)}
                         </div>
                       )}
+                      {asset.current_value != null && (
+                        <div className="text-xs text-emerald-600 mt-1">
+                          Giá trị hiện tại: {Number(asset.current_value).toLocaleString('vi-VN')} đ
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-[200px] truncate" title={asset.supplier || ''}>
                       {asset.supplier || '-'}
