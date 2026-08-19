@@ -124,6 +124,15 @@ export const assetsAPI = {
     return response.data;
   },
 
+  // File mẫu để nhập Excel hàng loạt (header + dropdown + 2 dòng ví dụ),
+  // không phụ thuộc dữ liệu thật — dùng cho nút "Tải file mẫu".
+  exportTemplate: async (): Promise<Blob> => {
+    const response = await managementApi.get('/api-hrm/assets/export_template/', {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
   bulkImportExcel: async (file: File): Promise<{
     sheet: string;
     data_rows: number;
