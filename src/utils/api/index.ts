@@ -77,6 +77,7 @@ export {
   assetsAPI,
   assetAssignmentsAPI,
   assetMaintenanceAPI,
+  assetInventoryChecksAPI,
 } from './assets.api';
 export { companyConfigAPI, hrmAPI, attendanceRuleAPI } from './company-config.api';
 export { shiftRegistrationsAPI } from './shift-registration.api';
@@ -106,6 +107,7 @@ import {
   assetsAPI,
   assetAssignmentsAPI,
   assetMaintenanceAPI,
+  assetInventoryChecksAPI,
 } from './assets.api';
 import { companyConfigAPI, hrmAPI, attendanceRuleAPI } from './company-config.api';
 import { shiftRegistrationsAPI } from './shift-registration.api';
@@ -130,6 +132,7 @@ export default {
   assets: assetsAPI,
   assetAssignments: assetAssignmentsAPI,
   assetMaintenance: assetMaintenanceAPI,
+  assetInventoryChecks: assetInventoryChecksAPI,
   hrm: hrmAPI,
   attendanceRule: attendanceRuleAPI,
   birthdayWishes: birthdayWishesAPI,

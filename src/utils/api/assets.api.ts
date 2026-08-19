@@ -4,6 +4,7 @@ import type {
   Asset,
   AssetAssignmentHistory,
   AssetMaintenance,
+  AssetInventoryCheck,
   AssetStats,
 } from './types';
 
@@ -201,6 +202,43 @@ export const assetsAPI = {
     }> = await managementApi.get(`/api-hrm/assets/${id}/maintenance_history/`, { params });
     return response.data;
   },
+
+  inventoryHistory: async (id: number, params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AssetInventoryCheck[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AssetInventoryCheck[];
+    }> = await managementApi.get(`/api-hrm/assets/${id}/inventory_history/`, { params });
+    return response.data;
+  },
+
+  // Upload/xoá ảnh tài sản (hiện tại / mới mua) — tách riêng khỏi create/update JSON
+  // thường vì cần multipart/form-data để gửi file lên Cloudfly S3.
+  uploadImages: async (id: number, images: {
+    current_image?: File;
+    purchase_image?: File;
+    clear_current_image?: boolean;
+    clear_purchase_image?: boolean;
+  }): Promise<Asset> => {
+    const formData = new FormData();
+    if (images.current_image) formData.append('current_image', images.current_image);
+    if (images.purchase_image) formData.append('purchase_image', images.purchase_image);
+    if (images.clear_current_image) formData.append('clear_current_image', '1');
+    if (images.clear_purchase_image) formData.append('clear_purchase_image', '1');
+    const response: AxiosResponse<Asset> = await managementApi.patch(`/api-hrm/assets/${id}/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
 };
 
 // Asset Assignment History API
@@ -327,5 +365,49 @@ export const assetMaintenanceAPI = {
   assetMaintenanceSummary: async (): Promise<any> => {
     const response: AxiosResponse<any> = await managementApi.get('/api-hrm/asset-maintenance/asset_maintenance_summary/');
     return response.data;
+  },
+};
+
+// Asset Inventory Check API (Lịch sử kiểm kê)
+export const assetInventoryChecksAPI = {
+  list: async (params?: {
+    page?: number;
+    page_size?: number;
+    asset?: number;
+    result?: string;
+    checked_by?: number;
+    search?: string;
+  }): Promise<{
+    count: number;
+    next: string | null;
+    previous: string | null;
+    results: AssetInventoryCheck[];
+  }> => {
+    const response: AxiosResponse<{
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: AssetInventoryCheck[];
+    }> = await managementApi.get('/api-hrm/asset-inventory-checks/', { params });
+    return response.data;
+  },
+
+  getById: async (id: number): Promise<AssetInventoryCheck> => {
+    const response: AxiosResponse<AssetInventoryCheck> = await managementApi.get(`/api-hrm/asset-inventory-checks/${id}/`);
+    return response.data;
+  },
+
+  create: async (data: Partial<AssetInventoryCheck> & { asset_id: number }): Promise<AssetInventoryCheck> => {
+    const response: AxiosResponse<AssetInventoryCheck> = await managementApi.post('/api-hrm/asset-inventory-checks/', data);
+    return response.data;
+  },
+
+  update: async (id: number, data: Partial<AssetInventoryCheck>): Promise<AssetInventoryCheck> => {
+    const response: AxiosResponse<AssetInventoryCheck> = await managementApi.put(`/api-hrm/asset-inventory-checks/${id}/`, data);
+    return response.data;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await managementApi.delete(`/api-hrm/asset-inventory-checks/${id}/`);
   },
 };

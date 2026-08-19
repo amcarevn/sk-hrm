@@ -1,8 +1,10 @@
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { XMarkIcon, ComputerDesktopIcon, CalendarIcon, UserIcon, BuildingOfficeIcon, ShieldCheckIcon, ShoppingBagIcon, CpuChipIcon, ServerStackIcon, Square3Stack3DIcon, CircleStackIcon, DeviceTabletIcon, BoltIcon, ArrowUturnLeftIcon, IdentificationIcon, TagIcon, BuildingStorefrontIcon, SparklesIcon, ClockIcon, UserPlusIcon, XCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { Asset, AssetAssignmentHistory, positionsAPI, assetsAPI } from '../../utils/api';
+import { XMarkIcon, ComputerDesktopIcon, CalendarIcon, UserIcon, BuildingOfficeIcon, ShieldCheckIcon, ShoppingBagIcon, CpuChipIcon, ServerStackIcon, Square3Stack3DIcon, CircleStackIcon, DeviceTabletIcon, BoltIcon, ArrowUturnLeftIcon, IdentificationIcon, TagIcon, BuildingStorefrontIcon, SparklesIcon, ClockIcon, UserPlusIcon, XCircleIcon, CheckCircleIcon, PhotoIcon, WrenchScrewdriverIcon, ClipboardDocumentCheckIcon, PlusIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { Asset, AssetAssignmentHistory, AssetMaintenance, AssetInventoryCheck, positionsAPI, assetsAPI } from '../../utils/api';
 import AssetReturnModal from './AssetReturnModal';
+import AssetMaintenanceFormModal from './AssetMaintenanceFormModal';
+import AssetInventoryCheckFormModal from './AssetInventoryCheckFormModal';
 
 interface AssetDetailModalProps {
   isOpen: boolean;
@@ -19,6 +21,12 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
   const [history, setHistory] = useState<AssetAssignmentHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [returnTarget, setReturnTarget] = useState<{ historyId: number; holderName: string; assignedQuantity: number } | null>(null);
+  const [maintenanceRecords, setMaintenanceRecords] = useState<AssetMaintenance[]>([]);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false);
+  const [showMaintenanceForm, setShowMaintenanceForm] = useState(false);
+  const [inventoryChecks, setInventoryChecks] = useState<AssetInventoryCheck[]>([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [showInventoryForm, setShowInventoryForm] = useState(false);
   const MULTI_HOLDER_TYPES = ['MONITOR', 'OTHER'];
   const isMultiHolder = MULTI_HOLDER_TYPES.includes(asset.asset_type) && (asset.total_quantity ?? 1) > 1;
   const holders = asset.holders || [];
@@ -59,6 +67,46 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
         .finally(() => setHistoryLoading(false));
     } else {
       setHistory([]);
+    }
+  }, [isOpen, asset?.id]);
+
+  const loadMaintenanceHistory = () => {
+    if (!asset?.id) return;
+    setMaintenanceLoading(true);
+    assetsAPI.maintenanceHistory(asset.id, { page_size: 50 })
+      .then((data: any) => {
+        const list = Array.isArray(data) ? data : (data?.results || []);
+        setMaintenanceRecords(list);
+      })
+      .catch((err) => {
+        console.error('Error fetching maintenance history:', err);
+        setMaintenanceRecords([]);
+      })
+      .finally(() => setMaintenanceLoading(false));
+  };
+
+  const loadInventoryHistory = () => {
+    if (!asset?.id) return;
+    setInventoryLoading(true);
+    assetsAPI.inventoryHistory(asset.id, { page_size: 50 })
+      .then((data: any) => {
+        const list = Array.isArray(data) ? data : (data?.results || []);
+        setInventoryChecks(list);
+      })
+      .catch((err) => {
+        console.error('Error fetching inventory-check history:', err);
+        setInventoryChecks([]);
+      })
+      .finally(() => setInventoryLoading(false));
+  };
+
+  useEffect(() => {
+    if (isOpen && asset?.id && isManager) {
+      loadMaintenanceHistory();
+      loadInventoryHistory();
+    } else {
+      setMaintenanceRecords([]);
+      setInventoryChecks([]);
     }
   }, [isOpen, asset?.id]);
 
@@ -674,6 +722,189 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                     </div>
                     )}
 
+                    {/* Depreciation Section — manager only */}
+                    {isManager && (asset.purchase_price != null || asset.depreciation_period_months != null) && (
+                    <div className="md:col-span-2 space-y-4 mt-2">
+                      <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2">Khấu hao tài sản</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="flex items-center space-x-3 bg-amber-50 p-3 rounded-xl border border-amber-100">
+                          <div className="bg-amber-100 p-2 rounded-lg">
+                            <BanknotesIcon className="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Giá trị khi mua</p>
+                            <p className="text-sm font-bold text-gray-900">{asset.purchase_price != null ? `${Number(asset.purchase_price).toLocaleString('vi-VN')} đ` : '-'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 bg-amber-50 p-3 rounded-xl border border-amber-100">
+                          <div className="bg-amber-100 p-2 rounded-lg">
+                            <ClockIcon className="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Thời gian khấu hao</p>
+                            <p className="text-sm font-bold text-gray-900">{asset.depreciation_period_months != null ? `${asset.depreciation_period_months} tháng` : '-'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 bg-amber-50 p-3 rounded-xl border border-amber-100">
+                          <div className="bg-amber-100 p-2 rounded-lg">
+                            <TagIcon className="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Phương pháp khấu hao</p>
+                            <p className="text-sm font-bold text-gray-900">{asset.depreciation_method_display || '-'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                          <div className="bg-emerald-100 p-2 rounded-lg">
+                            <BanknotesIcon className="h-5 w-5 text-emerald-600" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Giá trị hiện tại</p>
+                            <p className="text-sm font-bold text-gray-900">{asset.current_value != null ? `${Number(asset.current_value).toLocaleString('vi-VN')} đ` : '-'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 bg-white p-3 rounded-xl border border-gray-100">
+                          <div className="bg-gray-100 p-2 rounded-lg">
+                            <BanknotesIcon className="h-5 w-5 text-gray-500" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Mức khấu hao/tháng</p>
+                            <p className="text-sm font-bold text-gray-900">{asset.monthly_depreciation != null ? `${Number(asset.monthly_depreciation).toLocaleString('vi-VN')} đ` : '-'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    )}
+
+                    {/* Images Section — manager only */}
+                    {isManager && (asset.current_image_url || asset.purchase_image_url) && (
+                    <div className="md:col-span-2 space-y-4 mt-2">
+                      <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2 flex items-center gap-2">
+                        <PhotoIcon className="h-4 w-4" /> Hình ảnh tài sản
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {asset.purchase_image_url && (
+                          <a href={asset.purchase_image_url} target="_blank" rel="noopener noreferrer" className="block bg-gray-50 rounded-xl border border-gray-100 p-3 hover:border-primary-200 transition-colors">
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight mb-2">Hình ảnh mới mua</p>
+                            <img src={asset.purchase_image_url} alt="Ảnh mới mua" className="w-full h-40 object-cover rounded-lg" />
+                          </a>
+                        )}
+                        {asset.current_image_url && (
+                          <a href={asset.current_image_url} target="_blank" rel="noopener noreferrer" className="block bg-gray-50 rounded-xl border border-gray-100 p-3 hover:border-primary-200 transition-colors">
+                            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight mb-2">Hình ảnh hiện tại</p>
+                            <img src={asset.current_image_url} alt="Ảnh hiện tại" className="w-full h-40 object-cover rounded-lg" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    )}
+
+                    {/* Maintenance History Section — manager only */}
+                    {isManager && (
+                    <div className="md:col-span-2 space-y-4 mt-2">
+                      <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2 flex items-center gap-2">
+                        <WrenchScrewdriverIcon className="h-4 w-4" /> Lịch sử bảo trì / bảo hành
+                        {!maintenanceLoading && maintenanceRecords.length > 0 && (
+                          <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{maintenanceRecords.length} bản ghi</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setShowMaintenanceForm(true)}
+                          className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 text-[11px] font-semibold normal-case tracking-normal"
+                        >
+                          <PlusIcon className="h-3 w-3" /> Thêm bản ghi
+                        </button>
+                      </h4>
+
+                      {maintenanceLoading ? (
+                        <div className="text-center py-6 text-sm text-gray-500">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto mb-2"></div>
+                          Đang tải...
+                        </div>
+                      ) : maintenanceRecords.length === 0 ? (
+                        <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                          <WrenchScrewdriverIcon className="h-8 w-8 text-gray-300 mx-auto mb-1" />
+                          <p className="text-sm text-gray-500 italic">Chưa có bản ghi bảo trì / bảo hành</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {maintenanceRecords.map((m) => (
+                            <div key={m.id} className="bg-primary-50/40 rounded-xl border border-primary-100 p-3">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <span className="text-sm font-bold text-gray-900">{m.maintenance_type}</span>
+                                <span className="text-xs text-gray-500">{formatDate(m.maintenance_date)}</span>
+                              </div>
+                              <p className="text-sm text-gray-700 mt-1">{m.description}</p>
+                              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                                {m.performed_by && <span>Người thực hiện: <strong className="text-gray-700">{m.performed_by}</strong></span>}
+                                {m.cost != null && <span>Chi phí: <strong className="text-gray-700">{Number(m.cost).toLocaleString('vi-VN')} đ</strong></span>}
+                                {m.next_maintenance_date && <span>Bảo trì tiếp theo: <strong className="text-gray-700">{formatDate(m.next_maintenance_date)}</strong></span>}
+                              </div>
+                              {m.result && <p className="mt-1 text-xs italic text-gray-600">Kết quả: {m.result}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    )}
+
+                    {/* Inventory Check History Section — manager only */}
+                    {isManager && (
+                    <div className="md:col-span-2 space-y-4 mt-2">
+                      <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2 flex items-center gap-2">
+                        <ClipboardDocumentCheckIcon className="h-4 w-4" /> Lịch sử kiểm kê
+                        {!inventoryLoading && inventoryChecks.length > 0 && (
+                          <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{inventoryChecks.length} bản ghi</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setShowInventoryForm(true)}
+                          className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 text-[11px] font-semibold normal-case tracking-normal"
+                        >
+                          <PlusIcon className="h-3 w-3" /> Thêm bản ghi
+                        </button>
+                      </h4>
+
+                      {inventoryLoading ? (
+                        <div className="text-center py-6 text-sm text-gray-500">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto mb-2"></div>
+                          Đang tải...
+                        </div>
+                      ) : inventoryChecks.length === 0 ? (
+                        <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                          <ClipboardDocumentCheckIcon className="h-8 w-8 text-gray-300 mx-auto mb-1" />
+                          <p className="text-sm text-gray-500 italic">Chưa có bản ghi kiểm kê</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {inventoryChecks.map((c) => {
+                            const resultColor =
+                              c.result === 'MATCH' ? 'bg-emerald-100 text-emerald-800'
+                              : c.result === 'MISSING' ? 'bg-red-100 text-red-800'
+                              : c.result === 'DAMAGED' ? 'bg-amber-100 text-amber-800'
+                              : c.result === 'WRONG_HOLDER' ? 'bg-violet-100 text-violet-800'
+                              : 'bg-gray-100 text-gray-700';
+                            return (
+                              <div key={c.id} className="bg-gray-50 rounded-xl border border-gray-100 p-3">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight ${resultColor}`}>
+                                    {c.result_display}
+                                  </span>
+                                  <span className="text-xs text-gray-500">{formatDate(c.check_date)}</span>
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
+                                  {c.checked_by_name && <span>Người kiểm kê: <strong className="text-gray-700">{c.checked_by_name}</strong></span>}
+                                  {c.actual_condition_display && <span>Tình trạng thực tế: <strong className="text-gray-700">{c.actual_condition_display}</strong></span>}
+                                </div>
+                                {c.notes && <p className="mt-1 text-xs italic text-gray-600">{c.notes}</p>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    )}
+
                     {/* Assignment History Section — manager only */}
                     {isManager && (
                     <div className="md:col-span-2 space-y-4 mt-2">
@@ -884,6 +1115,18 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
         holderQuantity={returnTarget.assignedQuantity}
       />
     )}
+    <AssetMaintenanceFormModal
+      isOpen={showMaintenanceForm}
+      onClose={() => setShowMaintenanceForm(false)}
+      onSuccess={loadMaintenanceHistory}
+      asset={asset}
+    />
+    <AssetInventoryCheckFormModal
+      isOpen={showInventoryForm}
+      onClose={() => setShowInventoryForm(false)}
+      onSuccess={loadInventoryHistory}
+      asset={asset}
+    />
     </>
   );
 }

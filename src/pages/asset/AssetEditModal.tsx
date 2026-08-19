@@ -74,6 +74,10 @@ const REGIONS: SelectOption<string>[] = [
   { value: 'MIEN_NAM', label: 'Miền Nam' },
 ];
 
+const DEPRECIATION_METHODS: SelectOption<string>[] = [
+  { value: 'STRAIGHT_LINE', label: 'Đường thẳng' },
+];
+
 export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: AssetEditModalProps) {
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState<SelectOption<string>[]>([]);
@@ -93,6 +97,10 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     department: '',
     managed_by: '',
     description: '',
+    // Khấu hao tài sản
+    purchase_price: '',
+    depreciation_period_months: '',
+    depreciation_method: 'STRAIGHT_LINE',
     // Desktop specific fields
     cpu: '',
     mainboard: '',
@@ -113,6 +121,16 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     // OTHER specific fields
     other_type_name: '',
   });
+  // Hình ảnh tài sản — ảnh hiện có (preview URL từ server) + file mới chọn (nếu thay ảnh) +
+  // cờ xoá ảnh (khi bấm "Xoá" mà không chọn ảnh thay thế)
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [purchaseImageUrl, setPurchaseImageUrl] = useState<string | null>(null);
+  const [currentImageFile, setCurrentImageFile] = useState<File | null>(null);
+  const [purchaseImageFile, setPurchaseImageFile] = useState<File | null>(null);
+  const [clearCurrentImage, setClearCurrentImage] = useState(false);
+  const [clearPurchaseImage, setClearPurchaseImage] = useState(false);
+  // Giá trị hiện tại/Mức khấu hao — server tính động, chỉ để hiển thị tham khảo (không gửi lên)
+  const [computedDepreciation, setComputedDepreciation] = useState<{ monthly: number | null; current: number | null }>({ monthly: null, current: null });
 
   /**
    * Khởi chạy khi Modal được mở, gán dữ liệu từ prop asset vào form
@@ -123,6 +141,16 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
       assetsAPI.getById(asset.id)
         .then((fullAsset) => {
           const specs = fullAsset.specifications || {};
+          setCurrentImageUrl(fullAsset.current_image_url || null);
+          setPurchaseImageUrl(fullAsset.purchase_image_url || null);
+          setCurrentImageFile(null);
+          setPurchaseImageFile(null);
+          setClearCurrentImage(false);
+          setClearPurchaseImage(false);
+          setComputedDepreciation({
+            monthly: fullAsset.monthly_depreciation ?? null,
+            current: fullAsset.current_value ?? null,
+          });
           setFormData({
             name: fullAsset.name || '',
             asset_type: fullAsset.asset_type || 'LAPTOP',
@@ -135,6 +163,9 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             department: fullAsset.department ? String(fullAsset.department) : '',
             managed_by: fullAsset.managed_by ? String(fullAsset.managed_by) : '',
             description: fullAsset.description || '',
+            purchase_price: fullAsset.purchase_price != null ? String(fullAsset.purchase_price) : '',
+            depreciation_period_months: fullAsset.depreciation_period_months != null ? String(fullAsset.depreciation_period_months) : '',
+            depreciation_method: fullAsset.depreciation_method || 'STRAIGHT_LINE',
             // Specs fields
             cpu: specs.cpu || '',
             mainboard: specs.mainboard || '',
@@ -168,6 +199,9 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             department: '',
             managed_by: '',
             description: asset.description || '',
+            purchase_price: asset.purchase_price != null ? String(asset.purchase_price) : '',
+            depreciation_period_months: (asset as any).depreciation_period_months != null ? String((asset as any).depreciation_period_months) : '',
+            depreciation_method: (asset as any).depreciation_method || 'STRAIGHT_LINE',
             cpu: specs.cpu || '',
             mainboard: specs.mainboard || '',
             ram: specs.ram || '',
@@ -299,7 +333,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     
     setLoading(true);
     try {
-      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, ...baseData } = formData;
+      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, purchase_price, depreciation_period_months, depreciation_method, ...baseData } = formData;
 
       let specifications = {};
       if (formData.asset_type === 'DESKTOP') {
@@ -318,19 +352,36 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
         ...baseData,
         purchase_date: formData.purchase_date || null,
         warranty_period: warranty_period ? parseInt(warranty_period) : null,
+        purchase_price: purchase_price ? parseFloat(purchase_price) : null,
+        depreciation_period_months: depreciation_period_months ? parseInt(depreciation_period_months) : null,
+        depreciation_method,
         department_id: formData.department ? parseInt(formData.department) : null,
         managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
         specifications
       };
-      
+
       console.log('--- Cập nhật tài sản ---');
       console.log('Payload:', JSON.stringify(payload, null, 2));
-      
+
       const response = await assetsAPI.update(asset.id, payload as any);
-      
+
       console.log('--- Phản hồi từ Server ---');
       console.log('Data:', response);
-      
+
+      // Upload/xoá ảnh (nếu có thay đổi)
+      if (currentImageFile || purchaseImageFile || clearCurrentImage || clearPurchaseImage) {
+        try {
+          await assetsAPI.uploadImages(asset.id, {
+            current_image: currentImageFile || undefined,
+            purchase_image: purchaseImageFile || undefined,
+            clear_current_image: clearCurrentImage && !currentImageFile,
+            clear_purchase_image: clearPurchaseImage && !purchaseImageFile,
+          });
+        } catch (imgError) {
+          console.error('Error uploading asset images:', imgError);
+        }
+      }
+
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -630,6 +681,80 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                         {formData.department && (
                           <SelectBox label="Người quản lý (Kho)" value={formData.managed_by} options={employees} onChange={(val) => handleSelectChange('managed_by', val)} placeholder="-- Chọn người quản lý --" />
                         )}
+
+                        {/* Khấu hao tài sản */}
+                        <div className="sm:col-span-2 bg-amber-50/60 p-4 rounded-xl border border-amber-100">
+                          <h4 className="text-[11px] font-semibold text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+                            Khấu hao tài sản
+                          </h4>
+                          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+                            <div>
+                              <label htmlFor="purchase_price" className="block text-sm font-medium text-gray-700">Giá trị khi mua</label>
+                              <input type="number" name="purchase_price" id="purchase_price" min="0" step="1000"
+                                value={formData.purchase_price} onChange={handleChange}
+                                className="input-field mt-1" placeholder="VD: 24000000" />
+                            </div>
+                            <div>
+                              <label htmlFor="depreciation_period_months" className="block text-sm font-medium text-gray-700">Thời gian khấu hao (tháng)</label>
+                              <input type="number" name="depreciation_period_months" id="depreciation_period_months" min="0" step="1"
+                                value={formData.depreciation_period_months} onChange={handleChange}
+                                className="input-field mt-1" placeholder="VD: 36" />
+                            </div>
+                            <SelectBox
+                              label="Phương pháp khấu hao"
+                              value={formData.depreciation_method}
+                              options={DEPRECIATION_METHODS}
+                              onChange={(val) => handleSelectChange('depreciation_method', val)}
+                            />
+                            {(computedDepreciation.monthly != null || computedDepreciation.current != null) && (
+                              <div className="flex flex-col justify-center text-xs text-gray-500 gap-0.5">
+                                {computedDepreciation.monthly != null && (
+                                  <span>Mức khấu hao/tháng: <span className="font-medium text-gray-700">{Number(computedDepreciation.monthly).toLocaleString('vi-VN')} đ</span></span>
+                                )}
+                                {computedDepreciation.current != null && (
+                                  <span>Giá trị hiện tại: <span className="font-medium text-gray-700">{Number(computedDepreciation.current).toLocaleString('vi-VN')} đ</span></span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Hình ảnh tài sản */}
+                        <div className="sm:col-span-2 bg-gray-50/60 p-4 rounded-xl border border-gray-200">
+                          <h4 className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 bg-gray-500 rounded-full"></div>
+                            Hình ảnh tài sản
+                          </h4>
+                          <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+                            <div>
+                              <label htmlFor="purchase_image" className="block text-sm font-medium text-gray-700">Hình ảnh tài sản mới mua</label>
+                              {purchaseImageUrl && !clearPurchaseImage && !purchaseImageFile && (
+                                <div className="mt-1 flex items-center gap-2">
+                                  <img src={purchaseImageUrl} alt="Ảnh mới mua" className="h-14 w-14 object-cover rounded-lg border border-gray-200" />
+                                  <button type="button" onClick={() => setClearPurchaseImage(true)} className="text-xs text-red-600 hover:underline">Xoá ảnh</button>
+                                </div>
+                              )}
+                              <input type="file" accept="image/*" name="purchase_image" id="purchase_image"
+                                onChange={(e) => { setPurchaseImageFile(e.target.files?.[0] || null); setClearPurchaseImage(false); }}
+                                className="input-field mt-1 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                              {purchaseImageFile && <p className="mt-1 text-xs text-gray-500 truncate">{purchaseImageFile.name}</p>}
+                            </div>
+                            <div>
+                              <label htmlFor="current_image" className="block text-sm font-medium text-gray-700">Hình ảnh tài sản hiện tại</label>
+                              {currentImageUrl && !clearCurrentImage && !currentImageFile && (
+                                <div className="mt-1 flex items-center gap-2">
+                                  <img src={currentImageUrl} alt="Ảnh hiện tại" className="h-14 w-14 object-cover rounded-lg border border-gray-200" />
+                                  <button type="button" onClick={() => setClearCurrentImage(true)} className="text-xs text-red-600 hover:underline">Xoá ảnh</button>
+                                </div>
+                              )}
+                              <input type="file" accept="image/*" name="current_image" id="current_image"
+                                onChange={(e) => { setCurrentImageFile(e.target.files?.[0] || null); setClearCurrentImage(false); }}
+                                className="input-field mt-1 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                              {currentImageFile && <p className="mt-1 text-xs text-gray-500 truncate">{currentImageFile.name}</p>}
+                            </div>
+                          </div>
+                        </div>
 
                         {/* Mô tả / Ghi chú */}
                         <div className="sm:col-span-2">
