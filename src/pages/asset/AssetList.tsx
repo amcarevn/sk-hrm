@@ -242,7 +242,7 @@ export default function AssetList() {
     const matchesLocation = !locationFilter || String((asset.specifications as any)?.position_id ?? '') === locationFilter;
 
     return matchesSearch && matchesStatus && matchesType && matchesCondition && matchesDateFrom && matchesDateTo && matchesLocation;
-  }).sort((a, b) => a.name.localeCompare(b.name, 'vi', { sensitivity: 'base' }));
+  }).sort((a, b) => a.asset_code.localeCompare(b.asset_code, 'vi', { numeric: true, sensitivity: 'base' }));
 
   const handleEditClick = (asset: Asset) => {
     setEditingAsset(asset);
