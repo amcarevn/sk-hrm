@@ -250,6 +250,17 @@ export const assetsAPI = {
   clearImage: async (id: number, imageType: 'current' | 'purchase'): Promise<void> => {
     await managementApi.post(`/api-hrm/assets/${id}/clear_image/`, { image_type: imageType });
   },
+
+  // Ảnh QR (PNG) generate on-the-fly, encode URL mở thẳng trang chi tiết tài
+  // sản trong HRM. Endpoint yêu cầu đăng nhập (Bearer token) nên phải fetch
+  // qua managementApi (blob) rồi tạo object URL — không dùng <img src> thẳng
+  // vào URL API được vì trình duyệt không tự đính kèm Authorization header.
+  getQrCode: async (id: number): Promise<Blob> => {
+    const response = await managementApi.get(`/api-hrm/assets/${id}/qr_code/`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 };
 
 // Asset Assignment History API
