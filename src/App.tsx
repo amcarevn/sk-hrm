@@ -688,6 +688,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* Deep-link mở thẳng chi tiết 1 tài sản — dùng cho mã QR dán trên tài sản */}
+          <Route
+            path="/dashboard/assets/:assetId"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AssetList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
           {/* My Assets Route (End-User) */}
           <Route
             path="/dashboard/assigned-assets"

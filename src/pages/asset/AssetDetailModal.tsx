@@ -1,6 +1,6 @@
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { XMarkIcon, ComputerDesktopIcon, CalendarIcon, UserIcon, BuildingOfficeIcon, ShieldCheckIcon, ShoppingBagIcon, CpuChipIcon, ServerStackIcon, Square3Stack3DIcon, CircleStackIcon, DeviceTabletIcon, BoltIcon, ArrowUturnLeftIcon, IdentificationIcon, TagIcon, BuildingStorefrontIcon, SparklesIcon, ClockIcon, UserPlusIcon, XCircleIcon, CheckCircleIcon, PhotoIcon, WrenchScrewdriverIcon, ClipboardDocumentCheckIcon, PlusIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ComputerDesktopIcon, CalendarIcon, UserIcon, BuildingOfficeIcon, ShieldCheckIcon, ShoppingBagIcon, CpuChipIcon, ServerStackIcon, Square3Stack3DIcon, CircleStackIcon, DeviceTabletIcon, BoltIcon, ArrowUturnLeftIcon, IdentificationIcon, TagIcon, BuildingStorefrontIcon, SparklesIcon, ClockIcon, UserPlusIcon, XCircleIcon, CheckCircleIcon, PhotoIcon, WrenchScrewdriverIcon, ClipboardDocumentCheckIcon, PlusIcon, BanknotesIcon, QrCodeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { Asset, AssetAssignmentHistory, AssetMaintenance, AssetInventoryCheck, positionsAPI, assetsAPI } from '../../utils/api';
 import AssetReturnModal from './AssetReturnModal';
 import AssetMaintenanceFormModal from './AssetMaintenanceFormModal';
@@ -27,6 +27,10 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
   const [inventoryChecks, setInventoryChecks] = useState<AssetInventoryCheck[]>([]);
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [showInventoryForm, setShowInventoryForm] = useState(false);
+  const [showQrCode, setShowQrCode] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
   const MULTI_HOLDER_TYPES = ['MONITOR', 'OTHER'];
   const isMultiHolder = MULTI_HOLDER_TYPES.includes(asset.asset_type) && (asset.total_quantity ?? 1) > 1;
   const holders = asset.holders || [];
@@ -46,6 +50,39 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
       setPositionName('');
     }
   }, [isOpen, asset]);
+
+  // Đóng modal (hoặc đổi asset) thì dọn state QR + blob URL, tránh rò rỉ bộ nhớ
+  // và tránh hiện nhầm QR của tài sản trước khi mở tài sản khác.
+  useEffect(() => {
+    if (!isOpen) {
+      setShowQrCode(false);
+      setQrError(null);
+      setQrCodeUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    }
+  }, [isOpen, asset?.id]);
+
+  const handleToggleQrCode = async () => {
+    if (showQrCode) {
+      setShowQrCode(false);
+      return;
+    }
+    setShowQrCode(true);
+    if (qrCodeUrl || qrLoading) return;
+    setQrLoading(true);
+    setQrError(null);
+    try {
+      const blob = await assetsAPI.getQrCode(asset.id);
+      setQrCodeUrl(URL.createObjectURL(blob));
+    } catch (err) {
+      console.error('Error fetching QR code:', err);
+      setQrError('Không thể tạo mã QR. Vui lòng thử lại.');
+    } finally {
+      setQrLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen && asset?.id) {
@@ -205,20 +242,62 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     {/* General Info Section */}
                     {/* Header Identity Section - High prominence for the TA Code */}
-                     <div className="md:col-span-2 bg-gradient-to-r from-primary-50 to-white p-5 rounded-2xl border border-primary-100 flex items-center justify-between shadow-sm">
-                      <div className="flex items-center space-x-4">
-                        <div className="bg-primary-600 p-3 rounded-xl shadow-lg shadow-primary-200">
-                          <IdentificationIcon className="h-7 w-7 text-white" />
+                     <div className="md:col-span-2 bg-gradient-to-r from-primary-50 to-white p-5 rounded-2xl border border-primary-100 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="bg-primary-600 p-3 rounded-xl shadow-lg shadow-primary-200">
+                            <IdentificationIcon className="h-7 w-7 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-primary-500 uppercase tracking-[0.2em] mb-0.5">Mã thiết bị dán nhãn</p>
+                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">{asset.name}</h2>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-primary-500 uppercase tracking-[0.2em] mb-0.5">Mã thiết bị dán nhãn</p>
-                          <h2 className="text-2xl font-black text-gray-900 tracking-tight">{asset.name}</h2>
+                        <div className="flex items-center gap-3">
+                          {isManager && (
+                            <button
+                              type="button"
+                              onClick={handleToggleQrCode}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-primary-700 bg-white border border-primary-200 rounded-xl hover:bg-primary-50 transition-colors"
+                            >
+                              <QrCodeIcon className="h-4 w-4" />
+                              Mã QR
+                            </button>
+                          )}
+                          <div className="text-right hidden sm:block">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">ID Hệ thống</p>
+                            <code className="text-xs font-mono bg-white px-2 py-1 rounded border border-gray-100 text-gray-500">{asset.asset_code}</code>
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right hidden sm:block">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">ID Hệ thống</p>
-                        <code className="text-xs font-mono bg-white px-2 py-1 rounded border border-gray-100 text-gray-500">{asset.asset_code}</code>
-                      </div>
+
+                      {showQrCode && (
+                        <div className="mt-4 pt-4 border-t border-primary-100 flex items-center gap-4">
+                          {qrLoading ? (
+                            <p className="text-xs text-gray-500">Đang tạo mã QR...</p>
+                          ) : qrError ? (
+                            <p className="text-xs text-red-600">{qrError}</p>
+                          ) : qrCodeUrl ? (
+                            <>
+                              <img src={qrCodeUrl} alt={`QR tài sản ${asset.asset_code}`} className="w-28 h-28 rounded-lg border border-gray-200 bg-white p-1" />
+                              <div className="flex flex-col gap-2">
+                                <p className="text-xs text-gray-500 max-w-xs">
+                                  Dán mã này lên tài sản — quét bằng camera điện thoại sẽ mở đúng
+                                  trang chi tiết tài sản này trong HRM (cần đăng nhập để xem).
+                                </p>
+                                <a
+                                  href={qrCodeUrl}
+                                  download={`qr-${asset.asset_code}.png`}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors w-fit"
+                                >
+                                  <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                                  Tải mã QR (.png)
+                                </a>
+                              </div>
+                            </>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
 
                     {/* General Specifications Grid */}

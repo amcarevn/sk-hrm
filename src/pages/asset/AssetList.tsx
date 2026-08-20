@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { assetsAPI, positionsAPI } from '../../utils/api';
 import {
@@ -129,6 +130,11 @@ export default function AssetList() {
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
+  // Deep-link mở thẳng 1 tài sản (VD quét mã QR dán trên tài sản → /dashboard/assets/:assetId)
+  const { assetId } = useParams<{ assetId: string }>();
+  const navigate = useNavigate();
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
+
 
   useEffect(() => {
     const anyOpen = isDeleteDialogOpen || isBulkDeleteDialogOpen;
@@ -145,6 +151,27 @@ export default function AssetList() {
       );
     }).catch(() => {});
   }, []);
+
+  // Nếu vào bằng deep-link /dashboard/assets/:assetId (quét mã QR) — tự fetch
+  // đúng tài sản đó (có thể không nằm trong trang đầu của danh sách phân trang)
+  // và mở modal chi tiết luôn.
+  useEffect(() => {
+    if (!assetId) return;
+    const id = Number(assetId);
+    if (!Number.isFinite(id)) {
+      setDeepLinkError('Mã tài sản không hợp lệ.');
+      return;
+    }
+    setDeepLinkError(null);
+    assetsAPI.getById(id)
+      .then((asset) => {
+        setSelectedAsset(asset);
+        setIsDetailModalOpen(true);
+      })
+      .catch(() => {
+        setDeepLinkError('Không tìm thấy tài sản này hoặc bạn không có quyền xem.');
+      });
+  }, [assetId]);
 
   const fetchAssets = async () => {
     try {
@@ -483,6 +510,17 @@ export default function AssetList() {
 
   return (
     <div className="space-y-6">
+      {deepLinkError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 flex items-center justify-between">
+          <span>{deepLinkError}</span>
+          <button
+            onClick={() => { setDeepLinkError(null); navigate('/dashboard/assets'); }}
+            className="text-red-600 hover:text-red-800 font-medium text-xs"
+          >
+            Về danh sách tài sản
+          </button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -1111,6 +1149,9 @@ export default function AssetList() {
         onClose={() => {
           setIsDetailModalOpen(false);
           setSelectedAsset(null);
+          // Vào bằng deep-link QR thì đóng modal xong quay lại danh sách bình
+          // thường, tránh mở lại modal cũ khi component re-render với :assetId cũ.
+          if (assetId) navigate('/dashboard/assets');
         }}
         asset={selectedAsset}
         viewMode="manager"
