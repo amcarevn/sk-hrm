@@ -240,6 +240,21 @@ export const employeesAPI = {
     });
     return response.data;
   },
+
+  // Đổi quản lý trực tiếp hàng loạt — dùng khi 1 quản lý offboard, chuyển toàn
+  // bộ nhân viên đang report cho họ sang quản lý mới trong 1 lần submit.
+  changeManager: async (oldManagerId: number, newManagerId: number): Promise<{
+    success: boolean;
+    message: string;
+    count: number;
+    employees: Array<{ id: number; employee_id: string; full_name: string }>;
+  }> => {
+    const response = await managementApi.post('/api-hrm/employees/change_manager/', {
+      old_manager_id: oldManagerId,
+      new_manager_id: newManagerId,
+    });
+    return response.data;
+  },
 };
 
 // Departments API
