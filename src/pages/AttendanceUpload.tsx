@@ -477,7 +477,6 @@ const AttendanceUpload: React.FC = () => {
     ['Tổng giờ', 'Tổng giờ làm'],
     ['Tăng ca', 'Số giờ tăng ca'],
     ['Tổng toàn bộ', 'Tổng giờ toàn bộ'],
-    ['Ca', 'Ca làm việc'],
   ];
 
   /* ═══ No permission ═══ */
@@ -663,6 +662,15 @@ const AttendanceUpload: React.FC = () => {
                   <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
                 </div>
               ))}
+            </div>
+            <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+              <InformationCircleIcon className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-700 leading-relaxed">
+                File chấm công không cần (và hệ thống sẽ không đọc) cột Ca làm — ca của
+                từng nhân viên theo từng ngày được lấy tự động từ ca đã được duyệt ở mục{' '}
+                <span className="font-medium">Đăng ký ca làm</span>. Nếu ngày chấm công
+                chưa có ca được duyệt, bản ghi vẫn được nhập nhưng sẽ không tính đi muộn/về sớm.
+              </p>
             </div>
           </div>
         </div>

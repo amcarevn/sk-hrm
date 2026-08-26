@@ -42,6 +42,14 @@ const EmployeeList: React.FC = () => {
     summary: { total: number; created: number; updated: number; failed: number };
     errors: Array<{ row: number; employee_id?: string; warnings?: string[]; errors?: string[] }>;
   } | null>(null);
+  // Đổi quản lý trực tiếp hàng loạt — dùng khi 1 quản lý offboard
+  const [showChangeManagerDialog, setShowChangeManagerDialog] = useState(false);
+  const [managerOptions, setManagerOptions] = useState<Employee[]>([]);
+  const [loadingManagerOptions, setLoadingManagerOptions] = useState(false);
+  const [oldManagerId, setOldManagerId] = useState('');
+  const [newManagerId, setNewManagerId] = useState('');
+  const [isChangingManager, setIsChangingManager] = useState(false);
+  const [changeManagerResult, setChangeManagerResult] = useState<{ count: number; message: string } | null>(null);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
   const isSuperUser = user?.is_superuser === true || user?.is_super_admin === true;
 
@@ -123,6 +131,7 @@ const EmployeeList: React.FC = () => {
 
   // Chặn scroll khi mở dialog import
   useLockBodyScroll(showImportDialog);
+  useLockBodyScroll(showChangeManagerDialog);
 
   // Khởi tạo cooldown từ localStorage và đếm ngược
   useEffect(() => {
@@ -1020,6 +1029,49 @@ const EmployeeList: React.FC = () => {
     }
   };
 
+  const handleOpenChangeManagerDialog = async () => {
+    setShowChangeManagerDialog(true);
+    setOldManagerId('');
+    setNewManagerId('');
+    setChangeManagerResult(null);
+    if (managerOptions.length === 0) {
+      setLoadingManagerOptions(true);
+      try {
+        // include_inactive=false (mặc định) — chỉ chọn quản lý đang làm việc
+        const response = await employeesAPI.list({ page_size: 2000 });
+        setManagerOptions(
+          (response.results || []).slice().sort((a, b) => a.full_name.localeCompare(b.full_name, 'vi'))
+        );
+      } catch (err) {
+        console.error('Error fetching employees for change-manager dialog:', err);
+      } finally {
+        setLoadingManagerOptions(false);
+      }
+    }
+  };
+
+  const handleCloseChangeManagerDialog = () => {
+    setShowChangeManagerDialog(false);
+    setOldManagerId('');
+    setNewManagerId('');
+    setChangeManagerResult(null);
+  };
+
+  const handleChangeManagerSubmit = async () => {
+    if (!oldManagerId || !newManagerId) return;
+    setIsChangingManager(true);
+    setChangeManagerResult(null);
+    try {
+      const res = await employeesAPI.changeManager(Number(oldManagerId), Number(newManagerId));
+      setChangeManagerResult({ count: res.count, message: res.message });
+      fetchEmployees(searchTerm, statusFilter, departmentFilter, currentPage, itemsPerPage, contractTypeFilter, expiringSoonFilter);
+    } catch (err: any) {
+      alert('Đổi quản lý trực tiếp thất bại: ' + (err.response?.data?.error || err.message || 'Lỗi không xác định'));
+    } finally {
+      setIsChangingManager(false);
+    }
+  };
+
   const getStatusBadge = (status: string, isActive?: boolean) => {
     if (isActive === false) {
       return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-600">Vô hiệu hoá</span>;
@@ -1236,6 +1288,17 @@ const EmployeeList: React.FC = () => {
                   </svg>
                   Nhập từ file
                 </button>
+              {(isAdmin || isSuperUser) && (
+                <button
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors flex items-center"
+                  onClick={handleOpenChangeManagerDialog}
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-5.13a4 4 0 11-4-4 4 4 0 014 4zm6 4a4 4 0 10-4-4" />
+                  </svg>
+                  Đổi quản lý trực tiếp
+                </button>
+              )}
               <button
                 className="bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors flex items-center"
                 onClick={handleExport}
@@ -1605,6 +1668,94 @@ const EmployeeList: React.FC = () => {
                 </>
               ) : (
                 'Bắt đầu import'
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Change Manager Dialog */}
+    {showChangeManagerDialog && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">Đổi quản lý trực tiếp hàng loạt</h2>
+            <button
+              onClick={handleCloseChangeManagerDialog}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
+            <p className="text-xs text-gray-500 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+              Dùng khi 1 quản lý nghỉ việc/offboard — chọn quản lý cũ và quản lý mới, hệ thống sẽ
+              tự động chuyển <strong>toàn bộ nhân viên</strong> đang có quản lý trực tiếp là quản lý cũ
+              sang quản lý mới.
+            </p>
+
+            {loadingManagerOptions ? (
+              <div className="text-center py-8 text-sm text-gray-500">Đang tải danh sách nhân viên...</div>
+            ) : (
+              <>
+                <SelectBox<string>
+                  label="Quản lý cũ"
+                  value={oldManagerId}
+                  options={managerOptions.map((e) => ({ value: String(e.id), label: `${e.full_name} (${e.employee_id})` }))}
+                  onChange={(v) => { setOldManagerId(v); setChangeManagerResult(null); }}
+                  searchable
+                />
+                <SelectBox<string>
+                  label="Quản lý mới"
+                  value={newManagerId}
+                  options={managerOptions
+                    .filter((e) => String(e.id) !== oldManagerId)
+                    .map((e) => ({ value: String(e.id), label: `${e.full_name} (${e.employee_id})` }))}
+                  onChange={(v) => { setNewManagerId(v); setChangeManagerResult(null); }}
+                  searchable
+                />
+              </>
+            )}
+
+            {changeManagerResult && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                <p className="text-sm text-emerald-800">{changeManagerResult.message}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t">
+            <button
+              onClick={handleCloseChangeManagerDialog}
+              className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              Đóng
+            </button>
+            <button
+              onClick={handleChangeManagerSubmit}
+              disabled={!oldManagerId || !newManagerId || isChangingManager}
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-xl transition-colors ${
+                !oldManagerId || !newManagerId || isChangingManager
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+              }`}
+            >
+              {isChangingManager ? (
+                <>
+                  <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Đang đổi...
+                </>
+              ) : (
+                'Xác nhận đổi'
               )}
             </button>
           </div>
