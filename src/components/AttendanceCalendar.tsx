@@ -39,6 +39,9 @@ export interface AttendanceDay {
     live_sessions: number;
     late_minutes: number;
     early_leave_minutes: number;
+    // Số phút tăng ca hệ thống TỰ ĐỘNG phát hiện từ checkout thực tế muộn hơn
+    // giờ kết thúc ca > 30' (không cần đơn tăng ca thủ công).
+    auto_overtime_minutes?: number;
     rules_applied: string[];
   };
   shifts: Array<{
@@ -48,6 +51,8 @@ export interface AttendanceDay {
     check_out: string | null;
     status: string;
     status_color: string;
+    // Gắn vào đúng ca có checkout phát sinh tăng ca tự động (phút).
+    overtime_minutes?: number;
   }>;
   registrations: any[];
   raw_checkin_checkout?: Array<{
@@ -1051,6 +1056,26 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               </div>
             )}
 
+            {/* Tăng ca tự động (checkout muộn hơn giờ kết thúc ca > 30 phút) */}
+            {Number(day.engine_context?.auto_overtime_minutes) > 0 && (
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tăng ca</p>
+                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 text-green-800 font-semibold">
+                      <ClockIcon className="h-4 w-4 text-green-500" /> Tăng ca tự động
+                    </div>
+                    <span className="font-bold text-green-900 bg-green-100 px-2 py-0.5 rounded-lg text-xs">
+                      {day.engine_context.auto_overtime_minutes} phút
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-700 mt-1.5">
+                    Checkout muộn hơn giờ kết thúc ca &gt; 30 phút — hệ thống tự động ghi nhận, không cần tạo đơn tăng ca.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* All requests submitted this day */}
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
@@ -1360,15 +1385,25 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     >
                       {day.date.getDate()}
                     </span>
-                    {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border ${
-                        day.engine_context.work_credit >= 1.0 
-                          ? 'text-green-600 bg-green-50 border-green-100/50' 
-                          : 'text-orange-600 bg-orange-50 border-orange-100/50'
-                      }`}>
-                        {day.engine_context.work_credit} công
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {Number(day.engine_context?.auto_overtime_minutes) > 0 && (
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border text-blue-600 bg-blue-50 border-blue-100/50"
+                          title="Tăng ca tự động (checkout muộn hơn giờ kết thúc ca > 30 phút)"
+                        >
+                          +{day.engine_context!.auto_overtime_minutes}p TC
+                        </span>
+                      )}
+                      {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border ${
+                          day.engine_context.work_credit >= 1.0
+                            ? 'text-green-600 bg-green-50 border-green-100/50'
+                            : 'text-orange-600 bg-orange-50 border-orange-100/50'
+                        }`}>
+                          {day.engine_context.work_credit} công
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {hasData ? (
