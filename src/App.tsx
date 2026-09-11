@@ -46,9 +46,6 @@ import DepartmentList from './pages/DepartmentList';
 import DepartmentCreate from './pages/DepartmentCreate';
 import DepartmentEdit from './pages/DepartmentEdit';
 import DepartmentEmployees from './pages/DepartmentEmployees';
-import SectionList from './pages/SectionList';
-import SectionCreate from './pages/SectionCreate';
-import SectionEdit from './pages/SectionEdit';
 import PositionList from './pages/PositionList';
 import PositionCreate from './pages/PositionCreate';
 import PositionEdit from './pages/PositionEdit';
@@ -494,37 +491,6 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <DepartmentEmployees />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          {/* Section Management Routes */}
-          <Route
-            path="/dashboard/sections"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <SectionList />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/sections/create"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <SectionCreate />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/sections/:id/edit"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <SectionEdit />
                 </Layout>
               </ProtectedRoute>
             }

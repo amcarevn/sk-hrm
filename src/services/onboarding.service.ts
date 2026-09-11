@@ -38,7 +38,6 @@ export interface OnboardingProcess {
   start_date: string;
   expected_end_date?: string;
   rank?: string;
-  section?: string;
   doctor_team?: string;
 
   // Contract

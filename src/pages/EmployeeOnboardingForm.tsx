@@ -8,7 +8,7 @@ import { API_BASE_URL } from '../utils/api';
 import { useParams } from 'react-router-dom';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
-  ETHNICITY_OPTIONS, NATIONALITY_OPTIONS, SECTION_OPTIONS, WORK_FORM_OPTIONS, WORK_LOCATION_OPTIONS,
+  ETHNICITY_OPTIONS, NATIONALITY_OPTIONS, WORK_FORM_OPTIONS, WORK_LOCATION_OPTIONS,
   CITIZEN_ID_ISSUE_PLACE_OPTIONS, EDUCATION_LEVEL_OPTIONS, RANK_OPTIONS,
   REGION_OPTIONS, BLOCK_OPTIONS, SUB_DEPARTMENT_OPTIONS, POSITION_OPTIONS,
   GENDER_OPTIONS, PROBATION_MONTHS_OPTIONS, PROBATION_RATE_OPTIONS,
@@ -59,7 +59,6 @@ interface FormValues {
   region: string;
   block: string;
   sub_department: string;
-  section: string;
   position: string;
   job_rank: string;
   ethnicity: string;
@@ -223,13 +222,12 @@ export const EmployeeOnboardingForm: React.FC = () => {
   const [companyUnits, setCompanyUnits] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
-  const [sections, setSections] = useState<any[]>([]);
 
   const [values, setValues] = useState<FormValues>({
     candidate_name: '', candidate_email: '', candidate_phone: '',
     date_of_birth: '', gender: 'M', education_level: '', facebook_link: '',
     start_date: new Date().toISOString().slice(0, 10), region: '', block: '', sub_department: '',
-    section: '', position: '', job_rank: '', ethnicity: '', birth_place: '', nationality: '', doctor_team: '', work_form: '',
+    position: '', job_rank: '', ethnicity: '', birth_place: '', nationality: '', doctor_team: '', work_form: '',
     work_location: '', probation_rate: '',
     citizen_id: '', citizen_id_issue_date: '', citizen_id_issue_place: '',
     old_id_number: '', permanent_address: '', current_address: '',
@@ -268,17 +266,14 @@ export const EmployeeOnboardingForm: React.FC = () => {
       fetchPublic('/api-hrm/company-units/?active_only=true'),
       fetchPublic('/api-hrm/departments/?page_size=1000'),
       fetchPublic('/api-hrm/positions/?page_size=1000'),
-      fetchPublic('/api-hrm/sections/?page_size=1000'),
-    ]).then(([cuList, deptList, posList, secList]) => {
+    ]).then(([cuList, deptList, posList]) => {
       setCompanyUnits(cuList);
       setDepartments(deptList);
       setPositions(posList);
-      setSections(secList);
     }).catch(() => {
       setCompanyUnits([]);
       setDepartments([]);
       setPositions([]);
-      setSections([]);
     });
   }, []);
 
@@ -565,7 +560,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
       ap('region', values.region);
       ap('block', values.block);
       ap('sub_department', values.sub_department);
-      ap('section', values.section);
       ap('position', values.position);
       ap('job_rank', values.job_rank);
       ap('doctor_team', values.doctor_team);
@@ -711,9 +705,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SF label="Phòng/Ban" value={values.sub_department} onChange={handleSelect('sub_department')} options={departments.length > 0 ? departments.map(d => ({ value: d.name, label: d.name })) : SUB_DEPARTMENT_OPTIONS} searchable />
-            <SF label="Bộ phận" value={values.section} onChange={handleSelect('section')} options={sections.length > 0 ? sections.map(s => ({ value: s.name, label: s.name })) : SECTION_OPTIONS} searchable />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SF label="Vị trí" value={values.position} onChange={handleSelect('position')} options={positions.length > 0 ? positions.map(p => ({ value: p.title, label: p.title })) : POSITION_OPTIONS} searchable />
             <SF label="Cấp bậc" value={values.job_rank} onChange={handleSelect('job_rank')} options={RANK_OPTIONS} required />
           </div>
@@ -903,7 +894,6 @@ export const EmployeeOnboardingForm: React.FC = () => {
             ['Vùng/Miền', values.region],
             ['Khối', values.block],
             ['Phòng/Ban', values.sub_department],
-            ['Bộ phận', values.section || null],
             ['Vị trí', values.position],
             ['Cấp bậc', values.job_rank],
             ['Team Bác sĩ', values.doctor_team],

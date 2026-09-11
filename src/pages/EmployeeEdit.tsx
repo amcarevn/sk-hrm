@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   employeesAPI,
   departmentsAPI,
-  sectionsAPI,
   positionsAPI,
   companyUnitsAPI,
 } from '../utils/api';
@@ -165,7 +164,6 @@ const EmployeeEdit: React.FC = () => {
   const [citizenIdFile, setCitizenIdFile] = useState<File | null>(null);
   const [citizenIdCurrentUrl, setCitizenIdCurrentUrl] = useState<string | null>(null);
   const [departments, setDepartments] = useState<any[]>([]);
-  const [sections, setSections] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [companyUnits, setCompanyUnits] = useState<any[]>([]);
@@ -194,7 +192,6 @@ const EmployeeEdit: React.FC = () => {
     department_id: undefined,
     manager_id: undefined,
     rank: '',
-    section: '',
     doctor_team: '',
     work_form: '',
     official_start_date: '',
@@ -261,7 +258,6 @@ const EmployeeEdit: React.FC = () => {
     if (id) {
       loadEmployee(parseInt(id));
       loadDepartments();
-      loadSections();
       loadPositions();
       loadEmployees();
       loadCompanyUnits();
@@ -302,7 +298,6 @@ const EmployeeEdit: React.FC = () => {
         department_id: e.department?.id,
         manager_id: typeof e.manager === 'number' ? e.manager : (e.manager?.id ?? null),
         rank: e.rank || '',
-        section: e.section || '',
         doctor_team: e.doctor_team || '',
         work_form: e.work_form || '',
         official_start_date: toDisplayDate(e.official_start_date),
@@ -382,13 +377,6 @@ const EmployeeEdit: React.FC = () => {
     } catch (err) { console.error('Failed to load departments:', err); }
   };
   
-  const loadSections = async () => {
-    try {
-      const response = await sectionsAPI.list();
-      setSections(response.results);
-    } catch (err) { console.error('Failed to load sections:', err); }
-  };
-
   const loadPositions = async () => {
     try {
       const response = await positionsAPI.list();
@@ -484,7 +472,6 @@ const EmployeeEdit: React.FC = () => {
       add('department_id', formData.department_id);
       if (formData.manager_id !== undefined) payload['manager_id'] = formData.manager_id;
       add('rank', formData.rank?.trim());
-      add('section', formData.section?.trim());
       add('doctor_team', formData.doctor_team?.trim());
       add('work_form', formData.work_form);
       add('work_location', formData.work_location);
@@ -752,15 +739,6 @@ const EmployeeEdit: React.FC = () => {
               placeholder="Chọn cấp bậc"
               options={[{ value: '', label: 'Không có' }, ...RANK_OPTIONS]}
               onChange={(v) => handleSelect('rank', v)}
-            />
-
-            <SelectBox
-              label="Bộ phận"
-              value={formData.section}
-              placeholder="Chọn bộ phận"
-              searchable={true}
-              options={sections.map((s) => ({ label: s.name, value: s.name }))}
-              onChange={(v) => handleSelect('section', v)}
             />
 
             <Field label="Team Bác sĩ">
