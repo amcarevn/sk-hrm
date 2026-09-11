@@ -62,33 +62,6 @@ export const NATIONALITY_OPTIONS = [
   'Quần đảo Solomon', 'Kiribati', 'Palau',
 ];
 
-export const SECTION_OPTIONS = [
-  { value: 'ADS', label: 'ADS' },
-  { value: 'BENH_VIEN_HA_THANH', label: 'Bệnh viện Hà Thành' },
-  { value: 'BENH_VIEN_30_4', label: 'Bệnh viện 30/4' },
-  { value: 'BENH_VIEN_AN_VIET', label: 'Bệnh viện An Việt' },
-  { value: 'BENH_VIEN_HONG_HA', label: 'Bệnh viện Hồng Hà' },
-  { value: 'BENH_VIEN_TAN_HUNG', label: 'Bệnh Viện Tân Hưng' },
-  { value: 'BENH_VIEN_SAO_HAN', label: 'Bệnh viện Sao Hàn' },
-  { value: 'BENH_VIEN_VAN_HANH', label: 'Bệnh viện Vạn Hạnh' },
-  { value: 'CHECK_PAGE', label: 'Check page' },
-  { value: 'XAY_GROUP', label: 'Xây Group' },
-  { value: 'TIKTOK', label: 'Tiktok' },
-  { value: 'GIAM_SAT_CHAT_LUONG', label: 'Giám sát chất lượng' },
-  { value: 'GIAM_SAT_NOI_BO', label: 'Giám sát nội bộ' },
-  { value: 'MEDIA', label: 'Media' },
-  { value: 'NOI_DUNG_01', label: 'Nội dung 01' },
-  { value: 'PHONG_HCNS', label: 'Phòng HCNS' },
-  { value: 'PHONG_KE_TOAN', label: 'Phòng kế toán' },
-  { value: 'PHONG_TTTH', label: 'Phòng TTTH' },
-  { value: 'KINH_DOANH_VP_MIEN_BAC', label: 'Kinh doanh - VP miền Bắc' },
-  { value: 'KINH_DOANH_VP_MIEN_NAM', label: 'Kinh doanh - VP miền Nam' },
-  { value: 'PHAP_CHE', label: 'Pháp chế' },
-  { value: 'MUA_HANG', label: 'Mua hàng' },
-  { value: 'BO_PHAN_AI', label: 'Bộ phận AI' },
-  { value: 'BO_PHAN_IT', label: 'Bộ phận IT' },
-];
-
 export const WORK_FORM_OPTIONS = [
   { value: 'FULL_TIME', label: 'Full-time' },
   { value: 'PART_TIME', label: 'Part-time' },

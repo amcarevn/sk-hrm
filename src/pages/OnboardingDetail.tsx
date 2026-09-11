@@ -24,7 +24,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import FeedbackDialog from '../components/FeedbackDialog';
 import DocumentsSection from './DocumentsSection';
 import { useAuth } from '../contexts/AuthContext';
-import { employeesAPI, departmentsAPI, sectionsAPI, positionsAPI, companyUnitsAPI } from '../utils/api';
+import { employeesAPI, departmentsAPI, positionsAPI, companyUnitsAPI } from '../utils/api';
 import type { SuperAdminEmployee, Department, Position, CompanyUnit } from '../utils/api';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
@@ -126,7 +126,6 @@ type OnboardingDetail = {
   contract_type: string;
   probation_period_months?: number;
   rank?: string;
-  section?: string;
   doctor_team?: string;
   birth_place?: string;
   ethnicity?: string;
@@ -396,7 +395,6 @@ const OnboardingDetail: React.FC = () => {
   }, [editSection]);
   const [allDepartments, setAllDepartments] = useState<Department[]>([]);
   const [allPositions, setAllPositions] = useState<Position[]>([]);
-  const [allSections, setAllSections] = useState<Department[]>([]);
   const [allCompanyUnits, setAllCompanyUnits] = useState<CompanyUnit[]>([]);
 
   // Stable handler — prevents EditField re-mount on every keystroke
@@ -576,7 +574,6 @@ const OnboardingDetail: React.FC = () => {
         if ('department_id' in editData && editData.department_id) onboardingData.department = Number(editData.department_id);
         if ('position_id' in editData && editData.position_id) onboardingData.position = Number(editData.position_id);
         if ('rank' in editData) onboardingData.rank = editData.rank;
-        if ('section' in editData) onboardingData.section = editData.section;
         if ('doctor_team' in editData) onboardingData.doctor_team = editData.doctor_team;
         if ('work_form' in editData) onboardingData.work_form = editData.work_form;
         if ('region' in editData) onboardingData.region = editData.region;
@@ -587,7 +584,6 @@ const OnboardingDetail: React.FC = () => {
         if ('department_id' in editData && editData.department_id) employeeData.department_id = Number(editData.department_id);
         if ('position_id' in editData && editData.position_id) employeeData.position_id = Number(editData.position_id);
         if ('rank' in editData) employeeData.rank = editData.rank;
-        if ('section' in editData) employeeData.section = editData.section;
         if ('doctor_team' in editData) employeeData.doctor_team = editData.doctor_team;
         if ('work_form' in editData) employeeData.work_form = editData.work_form;
         if ('region' in editData) employeeData.region = editData.region;
@@ -862,17 +858,15 @@ const OnboardingDetail: React.FC = () => {
   useEffect(() => {
     const loadMasterData = async () => {
       try {
-        const [deptRes, posRes, secRes, cuRes] = await Promise.all([
+        const [deptRes, posRes, cuRes] = await Promise.all([
           departmentsAPI.list({ page_size: 1000 }),
           positionsAPI.list({ page_size: 1000 }),
-          sectionsAPI.list({ page_size: 1000 }),
           companyUnitsAPI.list({ active_only: true, page_size: 100 }),
         ]);
         setAllDepartments(deptRes.results || []);
         setAllPositions(posRes.results || []);
-        setAllSections(secRes.results || []);
         setAllCompanyUnits(cuRes.results || []);
-        console.log('[MasterData] Departments:', deptRes.results?.length, 'Positions:', posRes.results?.length, 'Sections:', secRes.results?.length, 'CompanyUnits:', cuRes.results?.length);
+        console.log('[MasterData] Departments:', deptRes.results?.length, 'Positions:', posRes.results?.length, 'CompanyUnits:', cuRes.results?.length);
       } catch (e) {
         console.warn('Could not load master data:', e);
       }
@@ -982,7 +976,6 @@ const OnboardingDetail: React.FC = () => {
             position_id: (employeeProfile as any)?.position?.id ? String((employeeProfile as any).position.id) : (onboarding.position?.id ? String(onboarding.position.id) : ''),
             position_title: (employeeProfile as any)?.position?.title ?? onboarding.position?.title ?? '',
             rank: employeeProfile?.rank ?? onboarding.rank ?? '',
-            section: employeeProfile?.section ?? onboarding.section ?? '',
             doctor_team: employeeProfile?.doctor_team ?? onboarding.doctor_team ?? '',
             work_form: employeeProfile?.work_form ?? onboarding.work_form ?? '',
             region: employeeProfile?.region ?? onboarding.region ?? '',
@@ -1005,7 +998,6 @@ const OnboardingDetail: React.FC = () => {
             <InfoField label="Phòng ban" value={safeDisplay((employeeProfile as any)?.department?.name || onboarding.department?.name)} />
             <InfoField label="Vị trí" value={safeDisplay((employeeProfile as any)?.position?.title || onboarding.position?.title)} />
             <InfoField label="Cấp bậc" value={safeDisplay(employeeProfile?.rank || onboarding.rank)} />
-            <InfoField label="Bộ phận" value={safeDisplay(employeeProfile?.section || onboarding.section)} />
             <InfoField label="Quản lý" value={safeDisplay(onboarding.direct_manager?.full_name)} />
             <InfoField label="Team bác sĩ" value={safeDisplay(employeeProfile?.doctor_team || onboarding.doctor_team)} />
             <InfoField label="Ngày bắt đầu" value={employeeProfile?.start_date ? formatDate(employeeProfile.start_date) : formatDate(onboarding.start_date)} />
@@ -1475,7 +1467,6 @@ const OnboardingDetail: React.FC = () => {
                 {ef('Cấp bậc', 'rank')}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {ef('Bộ phận', 'section', undefined, withCurrentOption(allSections.map(s => ({ value: s.name, label: s.name })), editData.section))}
                 {ef('Team Bác sĩ', 'doctor_team')}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

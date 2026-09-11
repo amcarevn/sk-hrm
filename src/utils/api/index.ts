@@ -69,7 +69,6 @@ export { healthAPI, facebookAPI, dashboardAPI, publicStatsAPI } from './system.a
 export {
   employeesAPI,
   departmentsAPI,
-  sectionsAPI,
   positionsAPI,
   sendAccountEmailsAPI,
   birthdayWishesAPI,
@@ -99,7 +98,6 @@ import { healthAPI, facebookAPI, dashboardAPI } from './system.api';
 import {
   employeesAPI,
   departmentsAPI,
-  sectionsAPI,
   positionsAPI,
   sendAccountEmailsAPI,
   birthdayWishesAPI,
@@ -129,7 +127,6 @@ export default {
   domains: domainsAPI,
   employees: employeesAPI,
   departments: departmentsAPI,
-  sections: sectionsAPI,
   positions: positionsAPI,
   assets: assetsAPI,
   assetAssignments: assetAssignmentsAPI,
