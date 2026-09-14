@@ -930,7 +930,7 @@ const EmployeeEdit: React.FC = () => {
             <Field label="Chi nhánh">
               <input type="text" name="bank_branch" value={formData.bank_branch}
                 onChange={handleInput} placeholder="Hà Nội" className={inputClass} />
-              <p className="text-xs text-gray-400 mt-1">* Trong trường hợp không phải Ngân hàng ACB</p>
+              <p className="text-xs text-gray-400 mt-1">* Trong trường hợp không phải Ngân hàng PVCombank</p>
             </Field>
           </div>
         </div>

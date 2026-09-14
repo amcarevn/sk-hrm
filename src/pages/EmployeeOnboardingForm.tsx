@@ -858,7 +858,7 @@ export const EmployeeOnboardingForm: React.FC = () => {
             </div>
             <div>
               <TF label="Chi nhánh" value={values.bank_branch} onChange={handleChange('bank_branch')} placeholder="Chi nhánh Hà Nội, TP.HCM..." />
-              <p className="text-xs text-gray-400 mt-1 px-1">* Trong trường hợp không phải Ngân hàng ACB</p>
+              <p className="text-xs text-gray-400 mt-1 px-1">* Trong trường hợp không phải Ngân hàng PVCombank</p>
             </div>
           </div>
         </div>
