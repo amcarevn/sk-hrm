@@ -660,37 +660,38 @@ const Approvals: React.FC = () => {
   const canApproveExplanation = (explanation: any): boolean => {
     if (!currentEmployee) return false;
 
-    // Người tạo đơn không thể duyệt đơn của chính mình
-    if (explanation.employee_id === currentEmployee.id) {
-      return false;
-    }
-
-    // QUAN TRỌNG: Nếu người làm đơn là HR, chỉ quản lý trực tiếp mới được duyệt
-    const employeeIsHR = explanation.employee_is_hr || false;
-
     // Kiểm tra quyền dựa trên vai trò và cấp bậc
     const isAdminUser =
       currentEmployee.user?.is_staff ||
       currentEmployee.user?.is_superuser ||
       (user as any)?.is_superuser ||
       (user as any)?.is_staff;
+
+    // Admin có toàn quyền duyệt/từ chối BẤT KỲ đơn giải trình/nghỉ phép nào
+    // của BẤT KỲ nhân sự nào — kể cả đơn của CHÍNH MÌNH, và kể cả khi QLTT
+    // chưa duyệt bước 1. Đặt TRƯỚC check "không tự duyệt" ngay dưới đây —
+    // check đó chỉ áp dụng cho người dùng KHÔNG PHẢI admin (quy tắc phân
+    // quyền/tách biệt trách nhiệm bình thường). Giống hệt quy tắc đã áp dụng
+    // cho đơn tăng ca/làm online (canApproveRequest, dòng ~830ish: "if
+    // (isAdminUser) return !hr_approved").
+    if (isAdminUser) {
+      return !explanation.hr_approved;
+    }
+
+    // Người tạo đơn không thể duyệt đơn của chính mình (không áp dụng cho
+    // admin — đã return ở trên).
+    if (explanation.employee_id === currentEmployee.id) {
+      return false;
+    }
+
+    // QUAN TRỌNG: Nếu người làm đơn là HR, chỉ quản lý trực tiếp mới được duyệt
+    const employeeIsHR = explanation.employee_is_hr || false;
     // Chỉ dùng cờ is_hr
     const isHRUser = currentEmployee.is_hr === true;
 
     // Kiểm tra quyền can_approve_attendance từ permissions
     const hasApprovalPermission =
       currentEmployee.permissions?.can_approve_attendance || false;
-
-    // Admin có toàn quyền duyệt/từ chối BẤT KỲ đơn giải trình/nghỉ phép nào,
-    // kể cả khi QLTT chưa duyệt bước 1 — không cần đợi qua các nhánh cấp bậc
-    // bên dưới. Giống hệt quy tắc đã áp dụng cho đơn tăng ca/làm online
-    // (canApproveRequest, dòng ~818: "if (isAdminUser) return !hr_approved").
-    // Trước fix này, admin duyệt đơn của nhân viên KHÔNG PHẢI HR mà QLTT
-    // chưa duyệt sẽ rơi vào nhánh "return false" phía dưới — mất nút Phê
-    // duyệt/Từ chối dù đã là admin.
-    if (isAdminUser) {
-      return !explanation.hr_approved;
-    }
 
     // Nếu người làm đơn là HR
     if (employeeIsHR) {
@@ -807,13 +808,12 @@ const Approvals: React.FC = () => {
     }
 
     // ==================== TWO-STEP WORKFLOW (ONLINE WORK / REGISTRATION) ====================
-    // Creator cannot approve their own request
-    if (request.employee_id === currentEmployee.id) {
-      return false;
-    }
-
     // Check user roles
-    const isAdminUser = currentEmployee.user?.is_staff || currentEmployee.user?.is_superuser;
+    const isAdminUser =
+      currentEmployee.user?.is_staff ||
+      currentEmployee.user?.is_superuser ||
+      (user as any)?.is_superuser ||
+      (user as any)?.is_staff;
     // Chỉ dùng cờ is_hr
     const isHRUser = currentEmployee.is_hr === true;
     const isDirectManager = request.employee_manager_id === currentEmployee.id;
@@ -824,7 +824,16 @@ const Approvals: React.FC = () => {
       return false;
     }
 
+    // Admin duyệt được đơn tăng ca/làm online của BẤT KỲ ai, kể cả đơn của
+    // CHÍNH MÌNH — đặt TRƯỚC check "không tự duyệt" ngay dưới đây (check đó
+    // chỉ áp dụng cho người dùng không phải admin).
     if (isAdminUser) return !request.hr_approved;
+
+    // Creator cannot approve their own request (không áp dụng cho admin — đã
+    // return ở trên).
+    if (request.employee_id === currentEmployee.id) {
+      return false;
+    }
 
     const requesterIsHR = request.employee_is_hr || request.is_hr || false;
 
