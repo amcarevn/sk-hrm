@@ -89,6 +89,111 @@ const AttendanceManagement: React.FC = () => {
     leaveRequests: [],
   });
   const [historyActiveTab, setHistoryActiveTab] = useState<'all' | 'explanation' | 'registration' | 'online_work' | 'leave'>('all');
+
+  // Sửa/Huỷ đơn chờ duyệt của chính mình (trang này luôn hiển thị đơn của
+  // currentEmployee — không có bộ chọn xem NV khác — nên không cần kiểm tra
+  // quyền sở hữu ở FE, chỉ cần khớp điều kiện backend cho phép: đơn còn
+  // PENDING/DRAFT và CHƯA có ai phê duyệt bước nào).
+  const [editRequestTarget, setEditRequestTarget] = useState<any>(null);
+  const [editReasonText, setEditReasonText] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [cancelRequestTarget, setCancelRequestTarget] = useState<any>(null);
+  const [cancelReasonText, setCancelReasonText] = useState('');
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
+  // Đơn còn được phép user tự sửa/thu hồi hay không (phải khớp đúng điều
+  // kiện backend áp cho chủ đơn, xem hrm/taodon_views.py và
+  // hrm/registration_views.py update()/destroy()).
+  const canEditOrCancelRequest = (item: any) => {
+    const st = (item?.status || '').toUpperCase();
+    if (st !== 'PENDING' && st !== 'DRAFT') return false;
+    if (item?.direct_manager_approved || item?.hr_approved) return false;
+    return true;
+  };
+
+  // Map 1 item trong "Lịch sử đơn trong tháng" (_type + explanation_type) về
+  // đúng cặp service update/delete tương ứng loại đơn.
+  const getRequestActions = (item: any): { update: (id: number, data: { reason: string }) => Promise<any>; remove: (id: number, reason?: string) => Promise<any> } | null => {
+    if (item._type === 'explanation') {
+      if (item.explanation_type === 'LEAVE') {
+        return {
+          update: (id, data) => attendanceService.updateMonthlyLeaveRequest(id, data),
+          remove: (id, reason) => attendanceService.deleteMonthlyLeaveRequest(id, reason),
+        };
+      }
+      return {
+        update: (id, data) => attendanceService.updateAttendanceExplanation(id, data),
+        remove: (id, reason) => attendanceService.deleteAttendanceExplanation(id, reason),
+      };
+    }
+    if (item._type === 'registration') {
+      return {
+        update: (id, data) => attendanceService.updateRegistrationRequest(id, data),
+        remove: (id, reason) => attendanceService.deleteRegistrationRequest(id, reason),
+      };
+    }
+    if (item._type === 'online_work') {
+      return {
+        update: (id, data) => attendanceService.updateOnlineWorkRequest(id, data),
+        remove: (id, reason) => attendanceService.deleteOnlineWorkRequest(id, reason),
+      };
+    }
+    return null;
+  };
+
+  const openEditRequest = (item: any) => {
+    setEditRequestTarget(item);
+    setEditReasonText(item.reason || '');
+  };
+
+  const submitEditRequest = async () => {
+    if (!editRequestTarget) return;
+    const actions = getRequestActions(editRequestTarget);
+    if (!actions || !editRequestTarget.id) {
+      showNotify('error', 'Không thể sửa đơn', 'Thiếu thông tin đơn để cập nhật.');
+      return;
+    }
+    if (!editReasonText.trim()) {
+      showNotify('error', 'Không thể sửa đơn', 'Vui lòng nhập lý do.');
+      return;
+    }
+    setEditSubmitting(true);
+    try {
+      await actions.update(editRequestTarget.id, { reason: editReasonText.trim() });
+      setEditRequestTarget(null);
+      showNotify('success', 'Đã cập nhật', 'Đã lưu thay đổi lý do đơn.');
+      await refreshAllData();
+    } catch (e: any) {
+      showNotify('error', 'Sửa đơn thất bại', e?.response?.data?.error || e?.message || 'Đã có lỗi xảy ra.');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const openCancelRequest = (item: any) => {
+    setCancelRequestTarget(item);
+    setCancelReasonText('');
+  };
+
+  const submitCancelRequest = async () => {
+    if (!cancelRequestTarget) return;
+    const actions = getRequestActions(cancelRequestTarget);
+    if (!actions || !cancelRequestTarget.id) {
+      showNotify('error', 'Không thể thu hồi đơn', 'Thiếu thông tin đơn để thu hồi.');
+      return;
+    }
+    setCancelSubmitting(true);
+    try {
+      await actions.remove(cancelRequestTarget.id, cancelReasonText.trim() || undefined);
+      setCancelRequestTarget(null);
+      showNotify('success', 'Đã thu hồi đơn', 'Đơn đã được thu hồi. Bạn có thể tạo lại đơn mới nếu cần.');
+      await refreshAllData();
+    } catch (e: any) {
+      showNotify('error', 'Thu hồi đơn thất bại', e?.response?.data?.error || e?.message || 'Đã có lỗi xảy ra.');
+    } finally {
+      setCancelSubmitting(false);
+    }
+  };
   const [notification, setNotification] = useState<{
     show: boolean;
     type: 'success' | 'error' | 'warning';
@@ -723,8 +828,12 @@ const AttendanceManagement: React.FC = () => {
         const type = (r.event_type || '').toUpperCase();
         // Fallback or use event_date from data, or day.date as fallback
         const details = r.data || r;
-        
-        const item = { ...details };
+
+        // r.id là PK thật của EmployeeEvent (dùng cho PATCH/DELETE) — details
+        // (== r.data, JSON tự do lưu trên event) KHÔNG có key 'id' riêng, nên
+        // phải gán đè sau khi spread, nếu không mọi item trong panel "Lịch sử
+        // đơn trong tháng" sẽ có id=undefined và không thể sửa/huỷ được.
+        const item = { ...details, id: r.id };
         if (!item.created_at && day.date) {
             item.created_at = new Date(day.date).toISOString(); // fake created_at for sorting if missing
         }
@@ -5080,6 +5189,24 @@ const AttendanceManagement: React.FC = () => {
                                       </div>
                                     )}
                                   </div>
+
+                                  {/* Sửa / Huỷ đơn — chỉ hiện khi đơn còn PENDING/DRAFT và chưa ai phê duyệt */}
+                                  {canEditOrCancelRequest(item) && (
+                                    <div className="flex items-center gap-2 pt-1">
+                                      <button
+                                        onClick={() => openEditRequest(item)}
+                                        className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors"
+                                      >
+                                        Sửa lý do
+                                      </button>
+                                      <button
+                                        onClick={() => openCancelRequest(item)}
+                                        className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                      >
+                                        Thu hồi đơn
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -5109,6 +5236,96 @@ const AttendanceManagement: React.FC = () => {
           </div>
         )
       }
+
+      {/* Sửa lý do đơn (chờ duyệt) */}
+      {editRequestTarget && (
+        <div className="fixed inset-0 z-[100] overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => !editSubmitting && setEditRequestTarget(null)}
+            ></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full sm:p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Sửa lý do đơn</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Chỉ sửa được khi đơn còn chờ duyệt và chưa ai phê duyệt bước nào. Các thông tin khác (ngày, ca, loại đơn...) không đổi được — nếu cần thay đổi, hãy thu hồi đơn và tạo đơn mới.
+              </p>
+              <textarea
+                value={editReasonText}
+                onChange={(e) => setEditReasonText(e.target.value)}
+                rows={4}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                placeholder="Nhập lý do..."
+                disabled={editSubmitting}
+              />
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditRequestTarget(null)}
+                  disabled={editSubmitting}
+                  className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="button"
+                  onClick={submitEditRequest}
+                  disabled={editSubmitting}
+                  className="flex-1 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {editSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Xác nhận thu hồi đơn */}
+      {cancelRequestTarget && (
+        <div className="fixed inset-0 z-[100] overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+              onClick={() => !cancelSubmitting && setCancelRequestTarget(null)}
+            ></div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full sm:p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Thu hồi đơn?</h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Đơn sẽ chuyển sang trạng thái "Đã huỷ" và không còn chờ duyệt nữa. Bạn có thể tạo lại đơn mới sau khi thu hồi.
+              </p>
+              <textarea
+                value={cancelReasonText}
+                onChange={(e) => setCancelReasonText(e.target.value)}
+                rows={3}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                placeholder="Lý do thu hồi (không bắt buộc)..."
+                disabled={cancelSubmitting}
+              />
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCancelRequestTarget(null)}
+                  disabled={cancelSubmitting}
+                  className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="button"
+                  onClick={submitCancelRequest}
+                  disabled={cancelSubmitting}
+                  className="flex-1 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {cancelSubmitting ? 'Đang thu hồi...' : 'Xác nhận thu hồi'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification Dialog */}
 

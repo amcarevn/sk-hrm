@@ -658,12 +658,28 @@ class AttendanceService {
   /**
    * Xóa đơn nghỉ phép tháng
    */
-  async deleteMonthlyLeaveRequest(leaveId: number): Promise<any> {
+  async deleteMonthlyLeaveRequest(leaveId: number, reason?: string): Promise<any> {
     try {
-      const response = await managementApi.delete(`/api-hrm/monthly-leave-requests/${leaveId}/`);
+      const response = await managementApi.delete(`/api-hrm/monthly-leave-requests/${leaveId}/`, {
+        data: reason ? { reason } : undefined,
+      });
       return response.data;
     } catch (error) {
       console.error('Error deleting monthly leave request:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sửa/bổ sung lý do đơn nghỉ phép tháng (chỉ khi đơn còn PENDING và
+   * chưa ai phê duyệt — backend tự kiểm tra và trả lỗi nếu không đủ điều kiện).
+   */
+  async updateMonthlyLeaveRequest(leaveId: number, data: { reason: string }): Promise<any> {
+    try {
+      const response = await managementApi.patch(`/api-hrm/monthly-leave-requests/${leaveId}/`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating monthly leave request:', error);
       throw error;
     }
   }
@@ -780,12 +796,28 @@ class AttendanceService {
   /**
    * Xóa giải trình chấm công
    */
-  async deleteAttendanceExplanation(explanationId: number): Promise<any> {
+  async deleteAttendanceExplanation(explanationId: number, reason?: string): Promise<any> {
     try {
-      const response = await managementApi.delete(`/api-hrm/attendance-explanations/${explanationId}/`);
+      const response = await managementApi.delete(`/api-hrm/attendance-explanations/${explanationId}/`, {
+        data: reason ? { reason } : undefined,
+      });
       return response.data;
     } catch (error) {
       console.error('Error deleting attendance explanation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sửa/bổ sung lý do giải trình chấm công (chỉ khi đơn còn PENDING và
+   * chưa ai phê duyệt — backend tự kiểm tra và trả lỗi nếu không đủ điều kiện).
+   */
+  async updateAttendanceExplanation(explanationId: number, data: { reason: string }): Promise<any> {
+    try {
+      const response = await managementApi.patch(`/api-hrm/attendance-explanations/${explanationId}/`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating attendance explanation:', error);
       throw error;
     }
   }
@@ -884,12 +916,28 @@ class AttendanceService {
   /**
    * Xóa đơn làm việc online
    */
-  async deleteOnlineWorkRequest(id: number): Promise<any> {
+  async deleteOnlineWorkRequest(id: number, reason?: string): Promise<any> {
     try {
-      const response = await managementApi.delete(`/api-hrm/online-work-requests/${id}/`);
+      const response = await managementApi.delete(`/api-hrm/online-work-requests/${id}/`, {
+        data: reason ? { reason } : undefined,
+      });
       return response.data;
     } catch (error) {
       console.error(`Error deleting online work request ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sửa/bổ sung lý do đơn làm việc online (chỉ khi đơn còn PENDING và
+   * chưa ai phê duyệt — backend tự kiểm tra và trả lỗi nếu không đủ điều kiện).
+   */
+  async updateOnlineWorkRequest(id: number, data: { reason: string }): Promise<any> {
+    try {
+      const response = await managementApi.patch(`/api-hrm/online-work-requests/${id}/`, data);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating online work request ${id}:`, error);
       throw error;
     }
   }
@@ -941,12 +989,28 @@ class AttendanceService {
   /**
    * Xóa đơn đăng ký công
    */
-  async deleteRegistrationRequest(id: number): Promise<any> {
+  async deleteRegistrationRequest(id: number, reason?: string): Promise<any> {
     try {
-      const response = await managementApi.delete(`/api-hrm/registration-requests/${id}/`);
+      const response = await managementApi.delete(`/api-hrm/registration-requests/${id}/`, {
+        data: reason ? { reason } : undefined,
+      });
       return response.data;
     } catch (error) {
       console.error(`Error deleting registration request ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sửa/bổ sung lý do đơn đăng ký công (tăng ca, làm thêm giờ, trực tối, live...)
+   * — chỉ khi đơn còn PENDING và chưa ai phê duyệt.
+   */
+  async updateRegistrationRequest(id: number, data: { reason: string }): Promise<any> {
+    try {
+      const response = await managementApi.patch(`/api-hrm/registration-requests/${id}/`, data);
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating registration request ${id}:`, error);
       throw error;
     }
   }
