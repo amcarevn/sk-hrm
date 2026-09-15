@@ -1002,10 +1002,12 @@ class AttendanceService {
   }
 
   /**
-   * Sửa/bổ sung lý do đơn đăng ký công (tăng ca, làm thêm giờ, trực tối, live...)
-   * — chỉ khi đơn còn PENDING và chưa ai phê duyệt.
+   * Sửa/bổ sung lý do (và số giờ/số ca nếu có) đơn đăng ký công — tăng ca,
+   * làm thêm giờ (hours), trực tối/live (sessions) — chỉ khi đơn còn PENDING
+   * và chưa ai phê duyệt. `hours`/`sessions` chỉ áp dụng đúng loại đơn tương
+   * ứng, backend bỏ qua field không thuộc loại đơn đang sửa.
    */
-  async updateRegistrationRequest(id: number, data: { reason: string }): Promise<any> {
+  async updateRegistrationRequest(id: number, data: { reason?: string; hours?: number; sessions?: number }): Promise<any> {
     try {
       const response = await managementApi.patch(`/api-hrm/registration-requests/${id}/`, data);
       return response.data;

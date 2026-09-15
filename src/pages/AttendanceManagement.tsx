@@ -96,6 +96,7 @@ const AttendanceManagement: React.FC = () => {
   // PENDING/DRAFT và CHƯA có ai phê duyệt bước nào).
   const [editRequestTarget, setEditRequestTarget] = useState<any>(null);
   const [editReasonText, setEditReasonText] = useState('');
+  const [editNumericValue, setEditNumericValue] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [cancelRequestTarget, setCancelRequestTarget] = useState<any>(null);
   const [cancelReasonText, setCancelReasonText] = useState('');
@@ -113,16 +114,16 @@ const AttendanceManagement: React.FC = () => {
 
   // Map 1 item trong "Lịch sử đơn trong tháng" (_type + explanation_type) về
   // đúng cặp service update/delete tương ứng loại đơn.
-  const getRequestActions = (item: any): { update: (id: number, data: { reason: string }) => Promise<any>; remove: (id: number, reason?: string) => Promise<any> } | null => {
+  const getRequestActions = (item: any): { update: (id: number, data: { reason?: string; hours?: number; sessions?: number }) => Promise<any>; remove: (id: number, reason?: string) => Promise<any> } | null => {
     if (item._type === 'explanation') {
       if (item.explanation_type === 'LEAVE') {
         return {
-          update: (id, data) => attendanceService.updateMonthlyLeaveRequest(id, data),
+          update: (id, data) => attendanceService.updateMonthlyLeaveRequest(id, { reason: data.reason || '' }),
           remove: (id, reason) => attendanceService.deleteMonthlyLeaveRequest(id, reason),
         };
       }
       return {
-        update: (id, data) => attendanceService.updateAttendanceExplanation(id, data),
+        update: (id, data) => attendanceService.updateAttendanceExplanation(id, { reason: data.reason || '' }),
         remove: (id, reason) => attendanceService.deleteAttendanceExplanation(id, reason),
       };
     }
@@ -134,9 +135,32 @@ const AttendanceManagement: React.FC = () => {
     }
     if (item._type === 'online_work') {
       return {
-        update: (id, data) => attendanceService.updateOnlineWorkRequest(id, data),
+        update: (id, data) => attendanceService.updateOnlineWorkRequest(id, { reason: data.reason || '' }),
         remove: (id, reason) => attendanceService.deleteOnlineWorkRequest(id, reason),
       };
+    }
+    return null;
+  };
+
+  // Đơn đăng ký (registration) nào có thêm 1 field số cho phép sửa cùng lý
+  // do — chỉ 4 loại này có khái niệm "số giờ"/"số ca" (xem
+  // hrm/registration_serializers.py: HOURS_BASED_TYPES / SESSION_BASED_TYPES).
+  // OFF_DUTY (Vào/Ra trực) không có field số cho user chỉnh — số ca luôn
+  // ngầm định 1, không hỏi khi tạo đơn nên cũng không cho sửa riêng ở đây.
+  const getEditableNumericField = (
+    item: any
+  ): { field: 'hours' | 'sessions'; label: string; step: string; min: string; max?: string } | null => {
+    if (item?._type !== 'registration') return null;
+    const regType = (item.registration_type || '').toUpperCase();
+    if (regType === 'OVERTIME' || regType === 'EXTRA_HOURS') {
+      // Khớp giới hạn 8h/ngày ở RegistrationRequestCreateSerializer.MAX_OVERTIME_HOURS_PER_DAY
+      return { field: 'hours', label: 'Số giờ', step: '0.5', min: '0.5', max: '8' };
+    }
+    if (regType === 'NIGHT_SHIFT') {
+      return { field: 'sessions', label: 'Số ca trực', step: '0.5', min: '0.5' };
+    }
+    if (regType === 'LIVE') {
+      return { field: 'sessions', label: 'Số buổi Live', step: '0.5', min: '0.5' };
     }
     return null;
   };
@@ -144,6 +168,8 @@ const AttendanceManagement: React.FC = () => {
   const openEditRequest = (item: any) => {
     setEditRequestTarget(item);
     setEditReasonText(item.reason || '');
+    const numField = getEditableNumericField(item);
+    setEditNumericValue(numField ? String(item[numField.field] ?? '') : '');
   };
 
   const submitEditRequest = async () => {
@@ -157,11 +183,28 @@ const AttendanceManagement: React.FC = () => {
       showNotify('error', 'Không thể sửa đơn', 'Vui lòng nhập lý do.');
       return;
     }
+
+    const payload: { reason: string; hours?: number; sessions?: number } = { reason: editReasonText.trim() };
+    const numField = getEditableNumericField(editRequestTarget);
+    if (numField) {
+      const numValue = parseFloat(editNumericValue);
+      const maxValue = numField.max ? parseFloat(numField.max) : undefined;
+      if (!editNumericValue.trim() || Number.isNaN(numValue) || numValue <= 0 || (maxValue !== undefined && numValue > maxValue)) {
+        showNotify(
+          'error',
+          'Không thể sửa đơn',
+          `Vui lòng nhập ${numField.label.toLowerCase()} hợp lệ${maxValue !== undefined ? ` (0 - ${maxValue})` : ' (lớn hơn 0)'}.`
+        );
+        return;
+      }
+      payload[numField.field] = numValue;
+    }
+
     setEditSubmitting(true);
     try {
-      await actions.update(editRequestTarget.id, { reason: editReasonText.trim() });
+      await actions.update(editRequestTarget.id, payload);
       setEditRequestTarget(null);
-      showNotify('success', 'Đã cập nhật', 'Đã lưu thay đổi lý do đơn.');
+      showNotify('success', 'Đã cập nhật', 'Đã lưu thay đổi đơn.');
       await refreshAllData();
     } catch (e: any) {
       showNotify('error', 'Sửa đơn thất bại', e?.response?.data?.error || e?.message || 'Đã có lỗi xảy ra.');
@@ -5197,7 +5240,7 @@ const AttendanceManagement: React.FC = () => {
                                         onClick={() => openEditRequest(item)}
                                         className="flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors"
                                       >
-                                        Sửa lý do
+                                        Sửa đơn
                                       </button>
                                       <button
                                         onClick={() => openCancelRequest(item)}
@@ -5247,10 +5290,35 @@ const AttendanceManagement: React.FC = () => {
             ></div>
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
             <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full sm:p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Sửa lý do đơn</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Sửa đơn</h3>
               <p className="text-sm text-gray-500 mb-4">
                 Chỉ sửa được khi đơn còn chờ duyệt và chưa ai phê duyệt bước nào. Các thông tin khác (ngày, ca, loại đơn...) không đổi được — nếu cần thay đổi, hãy thu hồi đơn và tạo đơn mới.
               </p>
+              {(() => {
+                const numField = getEditableNumericField(editRequestTarget);
+                if (!numField) return null;
+                return (
+                  <div className="mb-3 text-left">
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">
+                      {numField.label}
+                    </label>
+                    <input
+                      type="number"
+                      value={editNumericValue}
+                      onChange={(e) => setEditNumericValue(e.target.value)}
+                      step={numField.step}
+                      min={numField.min}
+                      max={numField.max}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+                      placeholder={numField.label}
+                      disabled={editSubmitting}
+                    />
+                  </div>
+                );
+              })()}
+              <label className="block text-xs font-semibold text-gray-600 mb-1 text-left">
+                Lý do
+              </label>
               <textarea
                 value={editReasonText}
                 onChange={(e) => setEditReasonText(e.target.value)}
