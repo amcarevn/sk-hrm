@@ -39,9 +39,14 @@ export interface AttendanceDay {
     live_sessions: number;
     late_minutes: number;
     early_leave_minutes: number;
-    // Số phút tăng ca hệ thống TỰ ĐỘNG phát hiện từ checkout thực tế muộn hơn
-    // giờ kết thúc ca > 30' (không cần đơn tăng ca thủ công).
+    // Số phút tăng ca THÔ hệ thống TỰ ĐỘNG phát hiện từ checkout thực tế muộn
+    // hơn giờ kết thúc ca > 30' (không cần đơn tăng ca thủ công) — chỉ để
+    // debug/tra cứu, KHÔNG hiển thị trực tiếp (xem auto_overtime_hours).
     auto_overtime_minutes?: number;
+    // Số GIỜ tăng ca tự động đã quy đổi/làm tròn theo "Quy định bổ sung về
+    // làm thêm giờ" (hiệu lực 01/10/2024: <30p→0, 30-59p→0.5h, 1h-1h29→1h...)
+    // — dùng số này để hiển thị badge trên bảng công.
+    auto_overtime_hours?: number;
     rules_applied: string[];
   };
   shifts: Array<{
@@ -51,8 +56,10 @@ export interface AttendanceDay {
     check_out: string | null;
     status: string;
     status_color: string;
-    // Gắn vào đúng ca có checkout phát sinh tăng ca tự động (phút).
+    // Gắn vào đúng ca có checkout phát sinh tăng ca tự động (phút thô — debug).
     overtime_minutes?: number;
+    // Số giờ đã quy đổi/làm tròn tương ứng — dùng để hiển thị.
+    overtime_hours?: number;
   }>;
   registrations: any[];
   raw_checkin_checkout?: Array<{
@@ -1057,7 +1064,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             )}
 
             {/* Tăng ca tự động (checkout muộn hơn giờ kết thúc ca > 30 phút) */}
-            {Number(day.engine_context?.auto_overtime_minutes) > 0 && (
+            {Number(day.engine_context?.auto_overtime_hours) > 0 && (
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tăng ca</p>
                 <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
@@ -1066,11 +1073,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                       <ClockIcon className="h-4 w-4 text-green-500" /> Tăng ca tự động
                     </div>
                     <span className="font-bold text-green-900 bg-green-100 px-2 py-0.5 rounded-lg text-xs">
-                      {day.engine_context.auto_overtime_minutes} phút
+                      {day.engine_context.auto_overtime_hours} giờ
                     </span>
                   </div>
                   <p className="text-xs text-green-700 mt-1.5">
-                    Checkout muộn hơn giờ kết thúc ca &gt; 30 phút — hệ thống tự động ghi nhận, không cần tạo đơn tăng ca.
+                    Checkout muộn hơn giờ kết thúc ca &gt; 30 phút (thực tế trễ {day.engine_context.auto_overtime_minutes} phút) —
+                    quy đổi theo "Quy định bổ sung về làm thêm giờ", hệ thống tự động ghi nhận, không cần tạo đơn tăng ca.
                   </p>
                 </div>
               </div>
@@ -1386,12 +1394,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                       {day.date.getDate()}
                     </span>
                     <div className="flex items-center gap-1">
-                      {Number(day.engine_context?.auto_overtime_minutes) > 0 && (
+                      {Number(day.engine_context?.auto_overtime_hours) > 0 && (
                         <span
                           className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border text-blue-600 bg-blue-50 border-blue-100/50"
-                          title="Tăng ca tự động (checkout muộn hơn giờ kết thúc ca > 30 phút)"
+                          title={`Tăng ca tự động (checkout muộn hơn giờ kết thúc ca > 30 phút, đã quy đổi theo Quy định bổ sung về làm thêm giờ — thực tế trễ ${day.engine_context?.auto_overtime_minutes ?? 0} phút)`}
                         >
-                          +{day.engine_context!.auto_overtime_minutes}p TC
+                          +{day.engine_context!.auto_overtime_hours}h TC
                         </span>
                       )}
                       {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
