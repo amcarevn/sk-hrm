@@ -40,12 +40,17 @@ export interface AttendanceDay {
     late_minutes: number;
     early_leave_minutes: number;
     // Số phút tăng ca THÔ hệ thống TỰ ĐỘNG phát hiện từ checkout thực tế muộn
-    // hơn giờ kết thúc ca > 30' (không cần đơn tăng ca thủ công) — chỉ để
-    // debug/tra cứu, KHÔNG hiển thị trực tiếp (xem auto_overtime_hours).
+    // hơn giờ kết thúc ca > 30' — chỉ để debug/tra cứu, KHÔNG hiển thị trực
+    // tiếp (xem auto_overtime_hours).
     auto_overtime_minutes?: number;
-    // Số GIỜ tăng ca tự động đã quy đổi/làm tròn theo "Quy định bổ sung về
-    // làm thêm giờ" (hiệu lực 01/10/2024: <30p→0, 30-59p→0.5h, 1h-1h29→1h...)
-    // — dùng số này để hiển thị badge trên bảng công.
+    // Số GIỜ tăng ca tự động phát hiện, đã quy đổi/làm tròn theo "Quy định bổ
+    // sung về làm thêm giờ" (hiệu lực 01/10/2024: <30p→0, 30-59p→0.5h,
+    // 1h-1h29→1h...) — dùng số này để hiển thị badge trên bảng công.
+    // Từ 16/09/2026 (backend main_api._SK_AUTO_OVERTIME_APPROVAL_REQUIRED_FROM):
+    // số này KHÔNG còn nghĩa là "đã cộng công" — hệ thống chỉ TẠO ĐƠN tăng ca
+    // (PENDING) khớp số này, quản lý trực tiếp vẫn phải duyệt mới được cộng
+    // vào overtime_hours/tổng công. Ngày trước mốc đó vẫn là số đã cộng công
+    // thật (không hồi tố, xem badge dưới).
     auto_overtime_hours?: number;
     rules_applied: string[];
   };
@@ -1063,22 +1068,25 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               </div>
             )}
 
-            {/* Tăng ca tự động (checkout muộn hơn giờ kết thúc ca > 30 phút) */}
+            {/* Tăng ca tự động phát hiện (checkout muộn hơn giờ kết thúc ca > 30 phút).
+                Từ 16/09/2026: hệ thống chỉ TẠO ĐƠN chờ quản lý trực tiếp duyệt,
+                không tự cộng công nữa — xem beautycare-backend hrm/auto_overtime_sync.py. */}
             {Number(day.engine_context?.auto_overtime_hours) > 0 && (
               <div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tăng ca</p>
                 <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 text-green-800 font-semibold">
-                      <ClockIcon className="h-4 w-4 text-green-500" /> Tăng ca tự động
+                      <ClockIcon className="h-4 w-4 text-green-500" /> Tăng ca tự động phát hiện
                     </div>
                     <span className="font-bold text-green-900 bg-green-100 px-2 py-0.5 rounded-lg text-xs">
                       {day.engine_context.auto_overtime_hours} giờ
                     </span>
                   </div>
                   <p className="text-xs text-green-700 mt-1.5">
-                    Checkout muộn hơn giờ kết thúc ca &gt; 30 phút (thực tế trễ {day.engine_context.auto_overtime_minutes} phút) —
-                    quy đổi theo "Quy định bổ sung về làm thêm giờ", hệ thống tự động ghi nhận, không cần tạo đơn tăng ca.
+                    Checkout muộn hơn giờ kết thúc ca &gt; 30 phút (thực tế trễ {day.engine_context.auto_overtime_minutes} phút),
+                    quy đổi theo "Quy định bổ sung về làm thêm giờ". Xem mục Đơn đăng ký để biết đơn đã được duyệt hay
+                    còn chờ quản lý trực tiếp xử lý.
                   </p>
                 </div>
               </div>
@@ -1397,7 +1405,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                       {Number(day.engine_context?.auto_overtime_hours) > 0 && (
                         <span
                           className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border text-blue-600 bg-blue-50 border-blue-100/50"
-                          title={`Tăng ca tự động (checkout muộn hơn giờ kết thúc ca > 30 phút, đã quy đổi theo Quy định bổ sung về làm thêm giờ — thực tế trễ ${day.engine_context?.auto_overtime_minutes ?? 0} phút)`}
+                          title={`Tăng ca tự động phát hiện (checkout muộn hơn giờ kết thúc ca > 30 phút, đã quy đổi theo Quy định bổ sung về làm thêm giờ — thực tế trễ ${day.engine_context?.auto_overtime_minutes ?? 0} phút). Xem mục Đơn đăng ký để biết đã được quản lý trực tiếp duyệt hay còn chờ.`}
                         >
                           +{day.engine_context!.auto_overtime_hours}h TC
                         </span>
