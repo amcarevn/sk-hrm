@@ -97,6 +97,11 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     department: '',
     managed_by: '',
     description: '',
+    // Thông tin bổ sung: kích thước + nơi thực tế đang sử dụng
+    dimensions: '',
+    usage_area: '',
+    usage_department: '',
+    facility_code: '',
     // Khấu hao tài sản
     purchase_price: '',
     depreciation_period_months: '',
@@ -163,6 +168,10 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             department: fullAsset.department ? String(fullAsset.department) : '',
             managed_by: fullAsset.managed_by ? String(fullAsset.managed_by) : '',
             description: fullAsset.description || '',
+            dimensions: fullAsset.dimensions || '',
+            usage_area: fullAsset.usage_area || '',
+            usage_department: fullAsset.usage_department ? String(fullAsset.usage_department) : '',
+            facility_code: fullAsset.facility_code || '',
             purchase_price: fullAsset.purchase_price != null ? String(fullAsset.purchase_price) : '',
             depreciation_period_months: fullAsset.depreciation_period_months != null ? String(fullAsset.depreciation_period_months) : '',
             depreciation_method: fullAsset.depreciation_method || 'STRAIGHT_LINE',
@@ -199,6 +208,10 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
             department: '',
             managed_by: '',
             description: asset.description || '',
+            dimensions: asset.dimensions || '',
+            usage_area: asset.usage_area || '',
+            usage_department: asset.usage_department ? String(asset.usage_department) : '',
+            facility_code: asset.facility_code || '',
             purchase_price: asset.purchase_price != null ? String(asset.purchase_price) : '',
             depreciation_period_months: (asset as any).depreciation_period_months != null ? String((asset as any).depreciation_period_months) : '',
             depreciation_method: (asset as any).depreciation_method || 'STRAIGHT_LINE',
@@ -333,7 +346,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     
     setLoading(true);
     try {
-      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, purchase_price, depreciation_period_months, depreciation_method, ...baseData } = formData;
+      const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, purchase_price, depreciation_period_months, depreciation_method, usage_department, ...baseData } = formData;
 
       let specifications = {};
       if (formData.asset_type === 'DESKTOP') {
@@ -356,6 +369,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
         depreciation_period_months: depreciation_period_months ? parseInt(depreciation_period_months) : null,
         depreciation_method,
         department_id: formData.department ? parseInt(formData.department) : null,
+        usage_department_id: usage_department ? parseInt(usage_department) : null,
         managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
         specifications
       };
@@ -683,6 +697,36 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                         {formData.department && (
                           <SelectBox label="Người quản lý (Kho)" value={formData.managed_by} options={employees} onChange={(val) => handleSelectChange('managed_by', val)} placeholder="-- Chọn người quản lý --" />
                         )}
+
+                        {/* Thông tin sử dụng thực tế — khác Phòng ban quản lý (kho) ở trên */}
+                        <div className="sm:col-span-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 bg-sky-50/60 p-4 rounded-xl border border-sky-100">
+                          <div className="sm:col-span-2">
+                            <h4 className="text-[11px] font-semibold text-sky-600 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 bg-sky-500 rounded-full"></div>
+                              Thông tin sử dụng thực tế
+                            </h4>
+                          </div>
+                          <div>
+                            <label htmlFor="dimensions" className="block text-sm font-medium text-gray-700">Kích thước</label>
+                            <input type="text" name="dimensions" id="dimensions" value={formData.dimensions} onChange={handleChange} className="input-field mt-1" placeholder="VD: 120x60x75cm" />
+                          </div>
+                          <div>
+                            <label htmlFor="usage_area" className="block text-sm font-medium text-gray-700">Khu vực sử dụng</label>
+                            <input type="text" name="usage_area" id="usage_area" value={formData.usage_area} onChange={handleChange} className="input-field mt-1" placeholder="VD: Tầng 2 - Phòng khám" />
+                          </div>
+                          <SelectBox
+                            label="Phòng ban sử dụng"
+                            value={formData.usage_department}
+                            options={departments}
+                            onChange={(val) => handleSelectChange('usage_department', val)}
+                            placeholder="-- Chọn phòng ban sử dụng --"
+                            searchable
+                          />
+                          <div>
+                            <label htmlFor="facility_code" className="block text-sm font-medium text-gray-700">Mã cơ sở</label>
+                            <input type="text" name="facility_code" id="facility_code" value={formData.facility_code} onChange={handleChange} className="input-field mt-1" placeholder="VD: CS01" />
+                          </div>
+                        </div>
 
                         {/* Khấu hao tài sản */}
                         <div className="sm:col-span-2 bg-amber-50/60 p-4 rounded-xl border border-amber-100">
