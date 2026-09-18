@@ -528,6 +528,39 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                       </div>
                       )}
 
+                      {/* Thông tin sử dụng thực tế — chỉ hiện khi có ít nhất 1 field được điền */}
+                      {(asset.dimensions || asset.usage_area || asset.usage_department_name || asset.facility_code) && (
+                        <div className="bg-sky-50 rounded-xl p-4 border border-sky-100">
+                          <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest mb-2">Thông tin sử dụng thực tế</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                            {asset.dimensions && (
+                              <div>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Kích thước</p>
+                                <p className="text-gray-900">{asset.dimensions}</p>
+                              </div>
+                            )}
+                            {asset.usage_area && (
+                              <div>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Khu vực sử dụng</p>
+                                <p className="text-gray-900">{asset.usage_area}</p>
+                              </div>
+                            )}
+                            {asset.usage_department_name && (
+                              <div>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Phòng ban sử dụng</p>
+                                <p className="text-gray-900">{asset.usage_department_name}{asset.usage_department_code ? ` (${asset.usage_department_code})` : ''}</p>
+                              </div>
+                            )}
+                            {asset.facility_code && (
+                              <div>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-wide">Mã cơ sở</p>
+                                <p className="text-gray-900">{asset.facility_code}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Notes Section - Full width within this block */}
                       <div className="flex flex-col gap-4">
                         {asset.description && (

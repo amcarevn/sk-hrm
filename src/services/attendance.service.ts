@@ -1018,6 +1018,24 @@ class AttendanceService {
   }
 
   /**
+   * Xuất Excel danh sách đơn Live đã duyệt trong 1 tháng — HCNS dùng để tự
+   * tính tiền live riêng ở ngoài hệ thống cuối tháng (2026-09-18: hệ thống
+   * không còn tự động cộng phụ cấp livestream vào lương nữa).
+   */
+  async exportLiveExcel(year: number, month: number): Promise<Blob> {
+    try {
+      const response = await managementApi.get('/api-hrm/registration-requests/export_live_excel/', {
+        params: { year, month },
+        responseType: 'blob',
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error exporting live excel:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Sửa thông tin check-in/check-out của một ngày
    */
   async editAttendance(data: {

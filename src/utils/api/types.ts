@@ -615,6 +615,17 @@ export interface Asset {
   condition_display: string;
   department?: number;
   department_name?: string;
+  // Thông tin bổ sung theo yêu cầu HCNS (2026-09-18): kích thước vật lý +
+  // nơi thực tế đang sử dụng — usage_department khác `department` ở trên
+  // (department = phòng ban QUẢN LÝ trong kho, usage_department = phòng ban
+  // đang thực tế SỬ DỤNG). "Người sử dụng" dùng chung assigned_to, không có
+  // field riêng.
+  dimensions?: string;
+  usage_area?: string;
+  facility_code?: string;
+  usage_department?: number;
+  usage_department_name?: string;
+  usage_department_code?: string;
   managed_by?: number;
   managed_by_name?: string;
   managed_by_employee_id?: string;
