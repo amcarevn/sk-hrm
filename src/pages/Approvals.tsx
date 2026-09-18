@@ -52,6 +52,7 @@ const Approvals: React.FC = () => {
   const [filterMonth, setFilterMonth] = useState<number>(initialMonth);
   const [filterYear, setFilterYear] = useState<number>(initialYear);
   const [filterOnlyMine, setFilterOnlyMine] = useState(false);
+  const [isExportingLive, setIsExportingLive] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const isFetchingRef = useRef<boolean>(false);
   const lastFetchTimeRef = useRef<number>(0);
@@ -1807,6 +1808,30 @@ const Approvals: React.FC = () => {
     setFilterRegistrationSubTypes([]);
   };
 
+  /**
+   * Xuất Excel danh sách đơn Live đã duyệt trong tháng/năm đang lọc — HCNS
+   * dùng để tự tính tiền live riêng ở ngoài hệ thống cuối tháng.
+   */
+  const handleExportLiveExcel = async () => {
+    setIsExportingLive(true);
+    try {
+      const blob = await attendanceService.exportLiveExcel(filterYear, filterMonth);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `don-live-${filterYear}-${String(filterMonth).padStart(2, '0')}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Export live excel error:', err);
+      alert(err.response?.data?.error || err.message || 'Đã có lỗi xảy ra khi xuất file Excel.');
+    } finally {
+      setIsExportingLive(false);
+    }
+  };
+
   const getTotalFilteredCount = () => getTotalCount();
 
   return (
@@ -2088,6 +2113,21 @@ const Approvals: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {(isAdmin || isHR) && (
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={handleExportLiveExcel}
+                    disabled={isExportingLive}
+                    title="Xuất danh sách đơn Live đã duyệt trong tháng để tự tính tiền live"
+                    className="h-[46px] px-4 flex items-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 text-sm font-medium hover:bg-cyan-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    {isExportingLive ? 'Đang xuất...' : 'Xuất Excel Live'}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Loại đơn Chips - Premium Design - Even Display */}
