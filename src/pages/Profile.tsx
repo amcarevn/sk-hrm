@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import {
   employeesAPI,
   departmentsAPI,
@@ -16,7 +15,6 @@ import {
   EnvelopeIcon,
   CalendarIcon,
   BanknotesIcon,
-  PencilIcon,
   CheckIcon,
   XMarkIcon,
   UserGroupIcon,
@@ -40,7 +38,6 @@ import {
   KeyIcon,
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
-import { SelectBox } from '../components/LandingLayout/SelectBox';
 import { CITIZEN_ID_ISSUE_PLACE_OPTIONS } from '../constants/onboarding';
 import ChangePasswordModal from '../components/Layout/ChangePasswordModal';
 import FeedbackDialog from '../components/FeedbackDialog';
@@ -108,23 +105,6 @@ const Profile: React.FC = () => {
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Edit modal state
-  const [showEditModal, setShowEditModal] = useState(false);
-  useLockBodyScroll(showEditModal);
-  const [editSubmitting, setEditSubmitting] = useState(false);
-  const [editForm, setEditForm] = useState({
-    phone_number: '',
-    personal_email: '',
-    bank_name: '',
-    bank_account: '',
-    date_of_birth: '',
-    cccd_number: '',
-    cccd_issue_date: '',
-    cccd_issue_place: '',
-    permanent_residence: '',
-    current_address: '',
-  });
 
   // Avatar state
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -198,20 +178,6 @@ const Profile: React.FC = () => {
       } finally {
         setContractsLoading(false);
       }
-
-      // Set initial form values
-      setEditForm({
-        phone_number: emp.phone_number || '',
-        personal_email: emp.personal_email || '',
-        bank_name: emp.bank_name || '',
-        bank_account: emp.bank_account || '',
-        date_of_birth: emp.date_of_birth || '',
-        cccd_number: emp.cccd_number || '',
-        cccd_issue_date: emp.cccd_issue_date || '',
-        cccd_issue_place: emp.cccd_issue_place || '',
-        permanent_residence: emp.permanent_residence || '',
-        current_address: emp.current_address || '',
-      });
 
       // Fetch department details
       if (emp.department?.id) {
@@ -292,59 +258,6 @@ const Profile: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Edit modal handlers
-  const openEditModal = () => {
-    if (!employee) return;
-    setEditForm({
-      phone_number: employee.phone_number || '',
-      personal_email: employee.personal_email || '',
-      bank_name: employee.bank_name || '',
-      bank_account: employee.bank_account || '',
-      date_of_birth: employee.date_of_birth || '',
-      cccd_number: employee.cccd_number || '',
-      cccd_issue_date: employee.cccd_issue_date || '',
-      cccd_issue_place: employee.cccd_issue_place || '',
-      permanent_residence: employee.permanent_residence || '',
-      current_address: employee.current_address || '',
-    });
-    setShowEditModal(true);
-  };
-
-  const closeEditModal = () => {
-    setShowEditModal(false);
-  };
-
-  const handleSaveAll = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!employee) return;
-    try {
-      setEditSubmitting(true);
-      await employeesAPI.partialUpdate(employee.id, {
-        phone_number: editForm.phone_number || undefined,
-        personal_email: editForm.personal_email || undefined,
-        bank_name: editForm.bank_name || undefined,
-        bank_account: editForm.bank_account || undefined,
-        date_of_birth: editForm.date_of_birth || undefined,
-        cccd_number: editForm.cccd_number || undefined,
-        cccd_issue_date: editForm.cccd_issue_date || undefined,
-        cccd_issue_place: editForm.cccd_issue_place || undefined,
-        permanent_residence: editForm.permanent_residence || undefined,
-        current_address: editForm.current_address || undefined,
-      });
-      setEmployee(prev => prev ? { ...prev, ...editForm } : null);
-      setShowEditModal(false);
-    } catch (err: any) {
-      console.error('Error updating profile:', err);
-      alert('Cập nhật thất bại. Vui lòng thử lại sau.');
-    } finally {
-      setEditSubmitting(false);
-    }
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setEditForm(prev => ({ ...prev, [field]: value }));
   };
 
   const handleManagerSearch = (query: string) => {
@@ -520,13 +433,6 @@ const Profile: React.FC = () => {
             >
               <KeyIcon className="h-3.5 w-3.5" />
               Đổi mật khẩu
-            </button>
-            <button
-              onClick={openEditModal}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg transition-colors"
-            >
-              <PencilIcon className="h-3.5 w-3.5" />
-              Chỉnh sửa thông tin
             </button>
           </div>
         </div>
@@ -1646,194 +1552,6 @@ const Profile: React.FC = () => {
         onClose={() => setShowPasswordSuccess(false)}
       />
 
-      {/* Edit Profile Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={closeEditModal} />
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-
-              {/* Modal header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <PencilIcon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-900">Chỉnh sửa thông tin cá nhân</h3>
-                    <p className="text-xs text-gray-400">Cập nhật thông tin liên hệ, CCCD và địa chỉ</p>
-                  </div>
-                </div>
-                <button onClick={closeEditModal} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Form with scrollable body + sticky footer */}
-              <form onSubmit={handleSaveAll} className="flex flex-col flex-1 min-h-0">
-                <div className="p-6 space-y-6 overflow-y-auto flex-1">
-
-                  {/* Section 1: Thông tin liên hệ */}
-                  <div>
-                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-3">Thông tin liên hệ</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Ngày sinh</label>
-                        <input
-                          type="date"
-                          value={editForm.date_of_birth}
-                          onChange={e => handleInputChange('date_of_birth', e.target.value)}
-                          className="input-field w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Số điện thoại</label>
-                        <input
-                          type="tel"
-                          value={editForm.phone_number}
-                          onChange={e => handleInputChange('phone_number', e.target.value)}
-                          className="input-field w-full"
-                          placeholder="Nhập số điện thoại"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Email cá nhân</label>
-                        <input
-                          type="email"
-                          value={editForm.personal_email}
-                          onChange={e => handleInputChange('personal_email', e.target.value)}
-                          className="input-field w-full"
-                          placeholder="Nhập email cá nhân"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-100" />
-
-                  {/* Section 2: Thông tin ngân hàng */}
-                  <div>
-                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-3">Thông tin ngân hàng</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Tên ngân hàng</label>
-                        <input
-                          type="text"
-                          value={editForm.bank_name}
-                          onChange={e => handleInputChange('bank_name', e.target.value)}
-                          className="input-field w-full"
-                          placeholder="Ví dụ: Vietcombank"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Số tài khoản</label>
-                        <input
-                          type="text"
-                          value={editForm.bank_account}
-                          onChange={e => handleInputChange('bank_account', e.target.value)}
-                          className="input-field w-full"
-                          placeholder="Nhập số tài khoản"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-100" />
-
-                  {/* Section 3: Thông tin CCCD */}
-                  <div>
-                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-3">Căn cước công dân</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Số CCCD</label>
-                        <input
-                          type="text"
-                          value={editForm.cccd_number}
-                          onChange={e => handleInputChange('cccd_number', e.target.value)}
-                          className="input-field w-full"
-                          placeholder="Nhập số CCCD"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Ngày cấp</label>
-                        <input
-                          type="date"
-                          value={editForm.cccd_issue_date}
-                          onChange={e => handleInputChange('cccd_issue_date', e.target.value)}
-                          className="input-field w-full"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Nơi cấp</label>
-                        <SelectBox<string>
-                          label=""
-                          value={editForm.cccd_issue_place}
-                          options={CITIZEN_ID_ISSUE_PLACE_OPTIONS}
-                          onChange={v => handleInputChange('cccd_issue_place', v)}
-                          placeholder="Chọn nơi cấp..."
-                          portal
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-100" />
-
-                  {/* Section 4: Địa chỉ */}
-                  <div>
-                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-3">Địa chỉ</p>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Hộ khẩu thường trú</label>
-                        <input
-                          type="text"
-                          value={editForm.permanent_residence}
-                          onChange={e => handleInputChange('permanent_residence', e.target.value)}
-                          className="input-field w-full"
-                          placeholder="Nhập địa chỉ hộ khẩu thường trú"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">Địa chỉ hiện tại</label>
-                        <input
-                          type="text"
-                          value={editForm.current_address}
-                          onChange={e => handleInputChange('current_address', e.target.value)}
-                          className="input-field w-full"
-                          placeholder="Nhập địa chỉ hiện tại"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Modal footer inside form */}
-                <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={closeEditModal}
-                    className="btn-secondary text-xs px-4 py-2"
-                  >
-                    Huỷ
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={editSubmitting}
-                    className="btn-primary text-xs px-4 py-2 disabled:opacity-50"
-                  >
-                    {editSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
-                  </button>
-                </div>
-              </form>
-
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
