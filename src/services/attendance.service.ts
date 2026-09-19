@@ -971,11 +971,13 @@ class AttendanceService {
   async createRegistrationRequest(data: {
     employee_id: number;
     attendance_date: string;
-    registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE' | 'OFF_DUTY';
+    registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE' | 'OFF_DUTY' | 'SHIFT_CHANGE';
     start_time?: string;
     end_time?: string;
     reason: string;
     status?: string;
+    // Chỉ dùng cho SHIFT_CHANGE — ID của ShiftConfig muốn đổi sang.
+    target_shift_id?: number;
   }): Promise<RegistrationRequest> {
     try {
       const response = await managementApi.post('/api-hrm/registration-requests/', data);
@@ -1122,7 +1124,7 @@ export interface RegistrationRequest {
   employee_name: string;
   employee_id_code?: string;
   department_name?: string;
-  registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE' | 'OFF_DUTY';
+  registration_type: 'OVERTIME' | 'EXTRA_HOURS' | 'NIGHT_SHIFT' | 'LIVE' | 'OFF_DUTY' | 'SHIFT_CHANGE';
   registration_type_display: string;
   attendance_date: string;
   start_time: string | null;
@@ -1137,4 +1139,8 @@ export interface RegistrationRequest {
   hr_approved_at: string | null;
   created_at: string;
   updated_at: string;
+  // Đơn Đổi ca (SHIFT_CHANGE) — ca muốn đổi sang.
+  target_shift_id?: number | null;
+  target_shift_name?: string | null;
+  target_shift_code?: string | null;
 }

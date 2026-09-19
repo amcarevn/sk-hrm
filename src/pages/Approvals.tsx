@@ -466,6 +466,7 @@ const Approvals: React.FC = () => {
     LIVE: 'Live stream',
     LEAVE: 'Nghỉ phép tháng',
     OFF_DUTY: 'Vào/Ra trực',
+    SHIFT_CHANGE: 'Đổi ca',
   };
 
   const getExplanationTypeLabel = (type: string): string => {
@@ -528,6 +529,8 @@ const Approvals: React.FC = () => {
           return { tableCls: 'bg-rose-50 text-rose-600 border-rose-100', mobileBg: 'bg-rose-500', iconPath: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' };
         case 'OFF_DUTY':
           return { tableCls: 'bg-amber-50 text-amber-600 border-amber-100', mobileBg: 'bg-amber-500', iconPath: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' };
+        case 'SHIFT_CHANGE':
+          return { tableCls: 'bg-sky-50 text-sky-600 border-sky-100', mobileBg: 'bg-sky-500', iconPath: 'M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4' };
         default:
           return { tableCls: 'bg-primary-50 text-primary-600 border-primary-100', mobileBg: 'bg-primary-500', iconPath: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' };
       }
@@ -2266,6 +2269,7 @@ const Approvals: React.FC = () => {
                       { value: 'NIGHT_SHIFT', label: 'Trực tối', icon: 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z' },
                       { value: 'LIVE', label: 'Live stream', icon: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z' },
                       { value: 'OFF_DUTY', label: 'Vào/Ra trực', icon: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1' },
+                      { value: 'SHIFT_CHANGE', label: 'Đổi ca', icon: 'M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4' },
                     ].map(sub => {
                       const isSubActive = filterRegistrationSubTypes.includes(sub.value);
                       return (
@@ -3766,8 +3770,19 @@ const Approvals: React.FC = () => {
                                 {formatDate(selectedOnlineWorkRequest.work_date || selectedOnlineWorkRequest.attendance_date || selectedOnlineWorkRequest.registration_date || selectedOnlineWorkRequest.event_date)}
                               </span>
                             </div>
-                            {/* Giờ bắt đầu / Giờ kết thúc / Tổng thời gian — luôn hiện cho REGISTRATION */}
-                            {(selectedOnlineWorkRequest._itemType === 'REGISTRATION' || selectedOnlineWorkRequest._itemType === 'OVERTIME') && (
+                            {/* Ca muốn đổi sang — riêng cho Đơn đổi ca (SHIFT_CHANGE) */}
+                            {(selectedOnlineWorkRequest.registration_type || selectedOnlineWorkRequest.event_type || '').toUpperCase() === 'SHIFT_CHANGE' && (
+                              <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
+                                <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Ca muốn đổi sang</span>
+                                <span className="text-sm font-semibold text-sky-700 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-100 whitespace-nowrap">
+                                  {selectedOnlineWorkRequest.target_shift_name || 'N/A'}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Giờ bắt đầu / Giờ kết thúc / Tổng thời gian — luôn hiện cho REGISTRATION (trừ Đổi ca) */}
+                            {(selectedOnlineWorkRequest._itemType === 'REGISTRATION' || selectedOnlineWorkRequest._itemType === 'OVERTIME') &&
+                              (selectedOnlineWorkRequest.registration_type || selectedOnlineWorkRequest.event_type || '').toUpperCase() !== 'SHIFT_CHANGE' && (
                               <>
                                 <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
                                   <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Giờ bắt đầu</span>
