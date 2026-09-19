@@ -119,8 +119,10 @@ const ShiftRegistration: React.FC = () => {
   const pastDeadline = new Date() > deadline && !canManageLock;
   const isReadOnly =
     !!existingReg && (existingReg.status === 'PENDING' || existingReg.status === 'APPROVED');
-  // Khóa đăng ký ca có ưu tiên cao nhất, chặn trước cả hạn đăng ký — HR/Admin bypass được.
-  const isLocked = !!lockStatus?.is_locked && !canManageLock;
+  // Khóa đăng ký ca có ưu tiên cao nhất — chặn TUYỆT ĐỐI mọi user không
+  // ngoại lệ, kể cả HR/Admin (khác với hạn đăng ký ở trên, vốn có bypass
+  // riêng cho HR/Admin và chỉ áp dụng lại khi đã MỞ khóa).
+  const isLocked = !!lockStatus?.is_locked;
   const canEdit = !noProfile && !isReadOnly && !pastDeadline && !isLocked;
 
   // Load nhân viên hiện tại + danh mục ca (1 lần)
