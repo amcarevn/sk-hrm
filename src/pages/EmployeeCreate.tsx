@@ -57,7 +57,6 @@ const EmployeeCreate: React.FC = () => {
     department_id: undefined,
     manager_id: undefined,
     manager_level_2_id: undefined,
-    manager_level_3_id: undefined,
     is_hr: false,
   });
 
@@ -192,7 +191,6 @@ const EmployeeCreate: React.FC = () => {
         }),
         ...(formData.manager_id && { manager_id: Number(formData.manager_id) }),
         ...(formData.manager_level_2_id && { manager_level_2_id: Number(formData.manager_level_2_id) }),
-        ...(formData.manager_level_3_id && { manager_level_3_id: Number(formData.manager_level_3_id) }),
         is_hr: formData.is_hr,
       };
 
@@ -508,27 +506,6 @@ const EmployeeCreate: React.FC = () => {
                 ]}
                 onChange={(val) =>
                   setFormData({ ...formData, manager_level_2_id: val })
-                }
-              />
-
-              <SelectBox
-                label="Quản lý cấp 3"
-                value={formData.manager_level_3_id}
-                options={[
-                  { value: undefined, label: 'Không có' },
-                  ...employees
-                    .filter(
-                      (emp) =>
-                        positions.find((p) => p.id === emp.position?.id)
-                          ?.is_management === true
-                    )
-                    .map((emp) => ({
-                      value: emp.id,
-                      label: `${emp.full_name} (${emp.employee_id}) - ${emp.department?.name ?? 'Chưa có phòng ban'}`,
-                    })),
-                ]}
-                onChange={(val) =>
-                  setFormData({ ...formData, manager_level_3_id: val })
                 }
               />
 
