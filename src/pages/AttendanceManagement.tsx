@@ -568,11 +568,15 @@ const AttendanceManagement: React.FC = () => {
     if (reason === 'live') {
       setLiveStartTime('21:00');
     }
-    // Fetch danh sách ca có thể đổi sang (đúng phòng ban/vị trí của NV) khi chọn Đổi ca
+    // Fetch toàn bộ danh mục ca đang hoạt động khi chọn Đổi ca — KHÔNG lọc theo
+    // employee_id vì filter đó (apply_to_employees/departments/positions/is_default)
+    // dễ khiến NV không thuộc phạm vi áp dụng của ca nào bị trả về danh sách rỗng
+    // (vd chưa có ca is_default). Đổi ca thường là đổi SANG 1 ca khác ca thường
+    // ngày của mình nên không nên giới hạn theo "ca của riêng NV này".
     if (reason === 'shift_change' && currentEmployee) {
       setShiftChangeOptionsLoading(true);
       companyConfigAPI
-        .listShiftConfigs({ page_size: 200, employee_id: currentEmployee.id, is_active: true })
+        .listShiftConfigs({ page_size: 200, is_active: true })
         .then((res: any) => {
           const list = res?.results || [];
           setShiftChangeOptions(
