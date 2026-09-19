@@ -52,6 +52,7 @@ export type {
   ShiftRegistration,
   ShiftRegistrationDay,
   ShiftRegistrationStatus,
+  ShiftRegistrationLockStatus,
 } from './types';
 
 // Re-export all APIs

@@ -1,14 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { employeesAPI, companyConfigAPI, shiftRegistrationsAPI } from '../utils/api';
-import type { ShiftConfig, ShiftRegistration as ShiftRegistrationType } from '../utils/api';
+import type { ShiftConfig, ShiftRegistration as ShiftRegistrationType, ShiftRegistrationLockStatus } from '../utils/api';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
+import { useAuth } from '../contexts/AuthContext';
 import {
   ClockIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  LockClosedIcon,
+  LockOpenIcon,
 } from '@heroicons/react/24/outline';
+
+const LOCK_MANAGE_ROLES = ['ADMIN', 'HR'];
 
 const DAY_LABELS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
 
@@ -47,6 +52,9 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
 };
 
 const ShiftRegistration: React.FC = () => {
+  const { user } = useAuth();
+  const canManageLock = LOCK_MANAGE_ROLES.includes((user?.role || '').toUpperCase());
+
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const [noProfile, setNoProfile] = useState(false);
   const [shifts, setShifts] = useState<ShiftConfig[]>([]);
@@ -56,6 +64,32 @@ const ShiftRegistration: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [lockStatus, setLockStatus] = useState<ShiftRegistrationLockStatus | null>(null);
+  const [togglingLock, setTogglingLock] = useState(false);
+
+  const fetchLockStatus = () => {
+    shiftRegistrationsAPI
+      .getLockStatus()
+      .then(setLockStatus)
+      .catch((err) => console.error('Lỗi tải trạng thái khóa đăng ký ca:', err));
+  };
+
+  useEffect(() => {
+    fetchLockStatus();
+  }, []);
+
+  const handleToggleLock = async () => {
+    if (!lockStatus) return;
+    setTogglingLock(true);
+    try {
+      const next = await shiftRegistrationsAPI.toggleLock(!lockStatus.is_locked);
+      setLockStatus(next);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: extractError(err, 'Thao tác khóa/mở khóa thất bại.') });
+    } finally {
+      setTogglingLock(false);
+    }
+  };
 
   const weekDates = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekMonday, i)),
@@ -84,7 +118,9 @@ const ShiftRegistration: React.FC = () => {
   const pastDeadline = new Date() > deadline;
   const isReadOnly =
     !!existingReg && (existingReg.status === 'PENDING' || existingReg.status === 'APPROVED');
-  const canEdit = !noProfile && !isReadOnly && !pastDeadline;
+  // Khóa đăng ký ca có ưu tiên cao nhất, chặn trước cả hạn đăng ký — HR/Admin bypass được.
+  const isLocked = !!lockStatus?.is_locked && !canManageLock;
+  const canEdit = !noProfile && !isReadOnly && !pastDeadline && !isLocked;
 
   // Load nhân viên hiện tại + danh mục ca (1 lần)
   useEffect(() => {
@@ -216,14 +252,53 @@ const ShiftRegistration: React.FC = () => {
             Chọn ca làm cho từng ngày trong tuần và gửi quản lý duyệt
           </p>
         </div>
-        {statusBadge && (
-          <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusBadge.className}`}
-          >
-            {statusBadge.label}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {statusBadge && (
+            <span
+              className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusBadge.className}`}
+            >
+              {statusBadge.label}
+            </span>
+          )}
+          {canManageLock && lockStatus && (
+            <button
+              onClick={handleToggleLock}
+              disabled={togglingLock}
+              title={
+                lockStatus.is_locked
+                  ? 'Mở khóa để nhân viên có thể đăng ký ca trở lại'
+                  : 'Khóa để chặn toàn bộ đăng ký ca (ưu tiên cao hơn hạn đăng ký)'
+              }
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-60 ${
+                lockStatus.is_locked
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {lockStatus.is_locked ? (
+                <LockClosedIcon className="h-4 w-4" />
+              ) : (
+                <LockOpenIcon className="h-4 w-4" />
+              )}
+              {togglingLock
+                ? 'Đang xử lý...'
+                : lockStatus.is_locked
+                ? 'Đang khóa đăng ký ca'
+                : 'Khóa đăng ký ca'}
+            </button>
+          )}
+        </div>
       </div>
+
+      {lockStatus?.is_locked && (
+        <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+          <LockClosedIcon className="h-4 w-4 flex-shrink-0" />
+          <span>
+            Đăng ký ca làm đang tạm khóa{lockStatus.locked_by ? ` bởi ${lockStatus.locked_by}` : ''}.
+            {!canManageLock && ' Vui lòng liên hệ HCNS để biết chi tiết.'}
+          </span>
+        </div>
+      )}
 
       {noProfile ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">

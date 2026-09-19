@@ -871,7 +871,14 @@ export type ShiftRegistrationStatus =
 export interface ShiftRegistration {
   id: number;
   employee: number;
-  employee_detail?: { id: number; employee_id: string; full_name: string } | null;
+  employee_detail?: {
+    id: number;
+    employee_id: string;
+    full_name: string;
+    department_id?: number | null;
+    department_name?: string | null;
+    position_name?: string | null;
+  } | null;
   week_start_date: string;
   week_end_date: string;
   status: ShiftRegistrationStatus;
@@ -881,12 +888,25 @@ export interface ShiftRegistration {
   approved_by?: number | null;
   approved_by_detail?: { id: number; employee_id: string; full_name: string } | null;
   reject_reason?: string;
+  direct_manager_approved?: boolean;
+  direct_manager_approved_at?: string | null;
+  direct_manager_approved_by?: number | null;
+  direct_manager_approved_by_detail?: { id: number; employee_id: string; full_name: string } | null;
   days: ShiftRegistrationDay[];
   registration_deadline: string;
   is_past_deadline: boolean;
   is_editable: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface ShiftRegistrationLockStatus {
+  is_locked: boolean;
+  locked_by: string | null;
+  locked_at: string | null;
+  unlocked_by: string | null;
+  unlocked_at: string | null;
+  note: string;
 }
 
 export interface HolidayConfig {

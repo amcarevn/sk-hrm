@@ -1,15 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { shiftRegistrationsAPI } from '../utils/api';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { employeesAPI, shiftRegistrationsAPI } from '../utils/api';
 import type { ShiftRegistration as ShiftRegistrationType } from '../utils/api';
 import type { ShiftRegistrationUploadResult } from '../utils/api/shift-registration.api';
+import { useAuth } from '../contexts/AuthContext';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 import {
   CheckCircleIcon,
   XMarkIcon,
   UserGroupIcon,
-  ClockIcon,
   ExclamationTriangleIcon,
   ArrowUpTrayIcon,
   ArrowDownTrayIcon,
+  ChevronDownIcon,
+  MagnifyingGlassIcon,
+  BuildingOffice2Icon,
 } from '@heroicons/react/24/outline';
 
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -31,24 +35,137 @@ const fmtRange = (start: string, end: string): string => {
 
 const fmtTime = (t?: string): string => (t ? t.slice(0, 5) : '');
 
+const TABS: Array<{ key: 'PENDING' | 'APPROVED' | 'REJECTED'; label: string }> = [
+  { key: 'PENDING', label: 'Chờ duyệt' },
+  { key: 'APPROVED', label: 'Đã duyệt' },
+  { key: 'REJECTED', label: 'Từ chối' },
+];
+
+const DEPT_FALLBACK = 'Chưa xác định phòng ban';
+
 const ShiftApproval: React.FC = () => {
+  const { user } = useAuth();
+  const [currentEmployee, setCurrentEmployee] = useState<any>(null);
+
+  const isAdmin =
+    (user as any)?.is_superuser ||
+    (user as any)?.is_staff ||
+    user?.role?.toUpperCase() === 'ADMIN';
+  const isHR = currentEmployee?.is_hr === true || user?.role?.toUpperCase() === 'HR';
+  const isManagement =
+    currentEmployee?.is_manager === true ||
+    currentEmployee?.position?.is_management === true ||
+    (currentEmployee?.department?.manager_id != null &&
+      currentEmployee.department.manager_id === currentEmployee?.id);
+  const isPrivileged = isAdmin || isHR; // có thể duyệt bước HCNS
+  const hasBulkApprovePermission = isAdmin || isHR || isManagement;
+
+  useEffect(() => {
+    employeesAPI
+      .me()
+      .then(setCurrentEmployee)
+      .catch((err) => console.error('Lỗi tải hồ sơ nhân viên hiện tại:', err));
+  }, []);
+
+  const [activeTab, setActiveTab] = useState<'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING');
   const [items, setItems] = useState<ShiftRegistrationType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [bulkProcessingDept, setBulkProcessingDept] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<ShiftRegistrationType | null>(null);
   const [rejectReason, setRejectReason] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
+
+  const [filterName, setFilterName] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('');
+  const today = new Date();
+  const [filterMonth, setFilterMonth] = useState<number>(today.getMonth() + 1);
+  const [filterYear, setFilterYear] = useState<number>(today.getFullYear());
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<ShiftRegistrationUploadResult | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const today = new Date();
   const [exportOpen, setExportOpen] = useState(false);
   const [exportYear, setExportYear] = useState<number>(today.getFullYear());
   const [exportMonth, setExportMonth] = useState<number>(today.getMonth() + 1);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+
+  const fetchItems = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await shiftRegistrationsAPI.pendingApprovals({
+        status: activeTab,
+        year: filterYear,
+        month: filterMonth,
+      });
+      setItems(data);
+    } catch (err) {
+      console.error('Lỗi tải danh sách đăng ký ca:', err);
+      setError('Không thể tải danh sách đơn.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, filterMonth, filterYear]);
+
+  const filteredItems = useMemo(() => {
+    const q = filterName.trim().toLowerCase();
+    return items.filter((r) => {
+      if (q) {
+        const name = r.employee_detail?.full_name?.toLowerCase() || '';
+        const code = r.employee_detail?.employee_id?.toLowerCase() || '';
+        if (!name.includes(q) && !code.includes(q)) return false;
+      }
+      if (filterDepartment && (r.employee_detail?.department_name || DEPT_FALLBACK) !== filterDepartment) {
+        return false;
+      }
+      return true;
+    });
+  }, [items, filterName, filterDepartment]);
+
+  const deptOptions = useMemo(() => {
+    const names = Array.from(
+      new Set(items.map((r) => r.employee_detail?.department_name || DEPT_FALLBACK))
+    ).sort();
+    return [{ value: '', label: 'Tất cả phòng ban' }, ...names.map((n) => ({ value: n, label: n }))];
+  }, [items]);
+
+  const groupedByDept = useMemo(() => {
+    const groups: Record<string, ShiftRegistrationType[]> = {};
+    filteredItems.forEach((r) => {
+      const dept = r.employee_detail?.department_name || DEPT_FALLBACK;
+      if (!groups[dept]) groups[dept] = [];
+      groups[dept].push(r);
+    });
+    return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [filteredItems]);
+
+  const toggleDept = (dept: string) =>
+    setExpandedDepartments((prev) =>
+      prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]
+    );
+
+  // Bước hiện tại của đơn (chỉ có ý nghĩa khi PENDING)
+  const stageLabel = (reg: ShiftRegistrationType): { text: string; className: string } =>
+    reg.direct_manager_approved
+      ? { text: 'Chờ HCNS duyệt', className: 'bg-sky-100 text-sky-700' }
+      : { text: 'Chờ QLTT duyệt', className: 'bg-amber-100 text-amber-700' };
+
+  // Người xem hiện tại có còn việc phải làm trên đơn này không (PENDING tab)
+  const canApproveNow = (reg: ShiftRegistrationType): boolean => {
+    if (isAdmin) return true;
+    if (isPrivileged) return !!reg.direct_manager_approved; // HR chỉ duyệt được sau khi QLTT xong
+    return !reg.direct_manager_approved; // Quản lý thường: chỉ còn việc khi họ chưa duyệt bước 1
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -101,7 +218,7 @@ const ShiftApproval: React.FC = () => {
     try {
       const res = await shiftRegistrationsAPI.upload(f);
       setUploadResult(res);
-      await fetchPending();
+      await fetchItems();
     } catch (err: any) {
       console.error('Upload ca làm failed:', err);
       const data = err?.response?.data;
@@ -111,7 +228,6 @@ const ShiftApproval: React.FC = () => {
       } else if (data?.detail) {
         msg = data.detail;
       } else if (data && typeof data === 'object') {
-        // DRF field errors: { field: ["msg"] } hoặc { non_field_errors: [...] }
         const parts: string[] = [];
         for (const [k, v] of Object.entries(data)) {
           const text = Array.isArray(v) ? v.join('; ') : String(v);
@@ -128,29 +244,11 @@ const ShiftApproval: React.FC = () => {
     }
   };
 
-  const fetchPending = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await shiftRegistrationsAPI.pendingApprovals();
-      setItems(data);
-    } catch (err) {
-      console.error('Lỗi tải danh sách chờ duyệt:', err);
-      setError('Không thể tải danh sách đơn chờ duyệt.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPending();
-  }, []);
-
   const handleApprove = async (reg: ShiftRegistrationType) => {
     setProcessingId(reg.id);
     try {
       await shiftRegistrationsAPI.approve(reg.id);
-      setItems((prev) => prev.filter((r) => r.id !== reg.id));
+      await fetchItems();
     } catch (err: any) {
       alert(err?.response?.data?.detail || 'Duyệt thất bại. Vui lòng thử lại.');
     } finally {
@@ -167,14 +265,45 @@ const ShiftApproval: React.FC = () => {
     setProcessingId(rejectTarget.id);
     try {
       await shiftRegistrationsAPI.reject(rejectTarget.id, rejectReason.trim());
-      setItems((prev) => prev.filter((r) => r.id !== rejectTarget.id));
       setRejectTarget(null);
       setRejectReason('');
+      await fetchItems();
     } catch (err: any) {
       alert(err?.response?.data?.detail || 'Từ chối thất bại. Vui lòng thử lại.');
     } finally {
       setProcessingId(null);
     }
+  };
+
+  const handleBulkApprove = async (dept: string, regs: ShiftRegistrationType[]) => {
+    const ids = regs.filter(canApproveNow).map((r) => r.id);
+    if (ids.length === 0) return;
+    setBulkProcessingDept(dept);
+    try {
+      const res = await shiftRegistrationsAPI.bulkApprove(ids);
+      if (res.error_count > 0) {
+        alert(
+          `Đã duyệt ${res.success_count}/${ids.length} đơn. ${res.error_count} đơn lỗi:\n` +
+            res.errors.map((e) => `#${e.id}: ${e.error}`).join('\n')
+        );
+      }
+      await fetchItems();
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Duyệt nhanh thất bại. Vui lòng thử lại.');
+    } finally {
+      setBulkProcessingDept(null);
+    }
+  };
+
+  const statusBadgeForTab = (reg: ShiftRegistrationType) => {
+    if (reg.status === 'APPROVED') {
+      return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Đã duyệt</span>;
+    }
+    if (reg.status === 'REJECTED') {
+      return <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Bị từ chối</span>;
+    }
+    const stage = stageLabel(reg);
+    return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${stage.className}`}>{stage.text}</span>;
   };
 
   return (
@@ -183,7 +312,7 @@ const ShiftApproval: React.FC = () => {
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Duyệt ca làm</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Duyệt đăng ký ca làm theo tuần của nhân viên cấp dưới
+            Duyệt đăng ký ca làm theo tuần — 2 cấp: Quản lý trực tiếp (QLTT) rồi đến HCNS
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -204,17 +333,16 @@ const ShiftApproval: React.FC = () => {
             {uploading ? 'Đang tải lên…' : 'Upload ca làm'}
           </button>
           <button
-            onClick={() => { setExportError(null); setExportOpen(true); }}
+            onClick={() => {
+              setExportError(null);
+              setExportOpen(true);
+            }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700"
             title="Xuất danh sách ca làm theo tháng"
           >
             <ArrowDownTrayIcon className="h-4 w-4" />
             Xuất ca tháng
           </button>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-700">
-            <ClockIcon className="h-4 w-4" />
-            {items.length} chờ duyệt
-          </span>
         </div>
       </div>
 
@@ -263,6 +391,66 @@ const ShiftApproval: React.FC = () => {
         </div>
       )}
 
+      {/* Tabs */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+        <div className="flex items-center gap-1 px-3 pt-3">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+                activeTab === t.key
+                  ? 'border-primary-600 text-primary-700'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              {t.label}
+              {t.key === activeTab && (
+                <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full text-xs bg-primary-100 text-primary-700">
+                  {filteredItems.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Bộ lọc */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 px-5 py-4 border-t border-gray-100">
+          <div className="relative">
+            <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              placeholder="Tìm tên hoặc mã nhân viên..."
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <SelectBox
+            label=""
+            value={filterDepartment}
+            options={deptOptions}
+            onChange={setFilterDepartment}
+            placeholder="Tất cả phòng ban"
+          />
+          <SelectBox
+            label=""
+            value={filterMonth.toString()}
+            options={Array.from({ length: 12 }, (_, i) => ({ value: (i + 1).toString(), label: `Tháng ${i + 1}` }))}
+            onChange={(v) => setFilterMonth(parseInt(v, 10))}
+          />
+          <SelectBox
+            label=""
+            value={filterYear.toString()}
+            options={Array.from({ length: 5 }, (_, i) => today.getFullYear() - 2 + i).map((y) => ({
+              value: y.toString(),
+              label: y.toString(),
+            }))}
+            onChange={(v) => setFilterYear(parseInt(v, 10))}
+          />
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
@@ -272,82 +460,131 @@ const ShiftApproval: React.FC = () => {
         <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-8 text-center">
           <ExclamationTriangleIcon className="mx-auto h-10 w-10 text-red-500 mb-3" />
           <p className="text-sm text-red-600">{error}</p>
-          <button onClick={fetchPending} className="btn-primary text-xs px-4 py-2 mt-4">
+          <button onClick={fetchItems} className="btn-primary text-xs px-4 py-2 mt-4">
             Thử lại
           </button>
         </div>
-      ) : items.length === 0 ? (
+      ) : groupedByDept.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center">
           <UserGroupIcon className="mx-auto h-12 w-12 text-gray-300 mb-3" />
-          <p className="text-sm font-semibold text-gray-500">Không có đơn chờ duyệt</p>
-          <p className="text-xs text-gray-400 mt-1">
-            Các đăng ký ca của cấp dưới sẽ hiển thị ở đây khi cần duyệt.
+          <p className="text-sm font-semibold text-gray-500">
+            {activeTab === 'PENDING' ? 'Không có đơn chờ duyệt' : activeTab === 'APPROVED' ? 'Chưa có đơn nào được duyệt' : 'Chưa có đơn nào bị từ chối'}
           </p>
+          <p className="text-xs text-gray-400 mt-1">Thử đổi bộ lọc tháng/năm hoặc phòng ban.</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {items.map((reg) => (
-            <div key={reg.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {reg.employee_detail?.full_name || `NV #${reg.employee}`}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {reg.employee_detail?.employee_id ? `${reg.employee_detail.employee_id} · ` : ''}
-                    Tuần {fmtRange(reg.week_start_date, reg.week_end_date)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
+          {groupedByDept.map(([dept, regs]) => {
+            const isExpanded = expandedDepartments.includes(dept);
+            const actionableCount = activeTab === 'PENDING' ? regs.filter(canApproveNow).length : 0;
+            return (
+              <div key={dept} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-gray-50/60 border-b border-gray-100">
                   <button
-                    onClick={() => {
-                      setRejectTarget(reg);
-                      setRejectReason('');
-                    }}
-                    disabled={processingId === reg.id}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                    onClick={() => toggleDept(dept)}
+                    className="flex items-center gap-2.5 min-w-0 flex-1"
                   >
-                    <XMarkIcon className="h-4 w-4" />
-                    Từ chối
+                    <ChevronDownIcon
+                      className={`h-4 w-4 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                    />
+                    <BuildingOffice2Icon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <span className="text-sm font-bold text-gray-800 truncate">{dept}</span>
+                    <span className="text-xs text-gray-400 flex-shrink-0">{regs.length} đơn</span>
                   </button>
-                  <button
-                    onClick={() => handleApprove(reg)}
-                    disabled={processingId === reg.id}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50"
-                  >
-                    <CheckCircleIcon className="h-4 w-4" />
-                    {processingId === reg.id ? 'Đang xử lý...' : 'Duyệt'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                {reg.days
-                  .slice()
-                  .sort((a, b) => a.date.localeCompare(b.date))
-                  .map((day) => (
-                    <div
-                      key={day.date}
-                      className="border border-gray-100 rounded-xl px-3 py-2 text-center"
+                  {hasBulkApprovePermission && activeTab === 'PENDING' && actionableCount > 0 && (
+                    <button
+                      onClick={() => handleBulkApprove(dept, regs)}
+                      disabled={bulkProcessingDept === dept}
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white text-xs font-semibold rounded-lg border border-emerald-200 transition-colors disabled:opacity-50"
+                      title={`Duyệt nhanh ${actionableCount} đơn của phòng ${dept}`}
                     >
-                      <p className="text-xs text-gray-400">{fmtDate(day.date)}</p>
-                      {day.shift_detail ? (
-                        <>
-                          <p className="text-sm font-medium text-gray-900 mt-1 truncate">
-                            {day.shift_detail.name}
-                          </p>
-                          <p className="text-[11px] text-gray-400">
-                            {fmtTime(day.shift_detail.start_time)}–{fmtTime(day.shift_detail.end_time)}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-sm font-medium text-gray-400 mt-1">Nghỉ</p>
-                      )}
-                    </div>
-                  ))}
+                      <CheckCircleIcon className="h-3.5 w-3.5" />
+                      {bulkProcessingDept === dept ? 'Đang xử lý...' : `Duyệt nhanh ${actionableCount} đơn`}
+                    </button>
+                  )}
+                </div>
+
+                {isExpanded && (
+                  <div className="p-4 space-y-3">
+                    {regs.map((reg) => (
+                      <div key={reg.id} className="border border-gray-100 rounded-xl p-4">
+                        <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-gray-900">
+                                {reg.employee_detail?.full_name || `NV #${reg.employee}`}
+                              </p>
+                              {statusBadgeForTab(reg)}
+                            </div>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {reg.employee_detail?.employee_id ? `${reg.employee_detail.employee_id} · ` : ''}
+                              {reg.employee_detail?.position_name ? `${reg.employee_detail.position_name} · ` : ''}
+                              Tuần {fmtRange(reg.week_start_date, reg.week_end_date)}
+                            </p>
+                            {reg.status === 'REJECTED' && reg.reject_reason && (
+                              <p className="text-xs text-red-600 mt-1">Lý do từ chối: {reg.reject_reason}</p>
+                            )}
+                          </div>
+                          {activeTab === 'PENDING' && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setRejectTarget(reg);
+                                  setRejectReason('');
+                                }}
+                                disabled={processingId === reg.id}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50"
+                              >
+                                <XMarkIcon className="h-4 w-4" />
+                                Từ chối
+                              </button>
+                              {canApproveNow(reg) ? (
+                                <button
+                                  onClick={() => handleApprove(reg)}
+                                  disabled={processingId === reg.id}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                                >
+                                  <CheckCircleIcon className="h-4 w-4" />
+                                  {processingId === reg.id ? 'Đang xử lý...' : isPrivileged && reg.direct_manager_approved ? 'Duyệt (HCNS)' : 'Duyệt'}
+                                </button>
+                              ) : (
+                                <span className="text-xs text-gray-400 italic px-2">
+                                  {isPrivileged ? 'Chờ QLTT duyệt trước' : 'Bạn đã duyệt — chờ HCNS'}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                          {reg.days
+                            .slice()
+                            .sort((a, b) => a.date.localeCompare(b.date))
+                            .map((day) => (
+                              <div key={day.date} className="border border-gray-100 rounded-xl px-3 py-2 text-center">
+                                <p className="text-xs text-gray-400">{fmtDate(day.date)}</p>
+                                {day.shift_detail ? (
+                                  <>
+                                    <p className="text-sm font-medium text-gray-900 mt-1 truncate">
+                                      {day.shift_detail.name}
+                                    </p>
+                                    <p className="text-[11px] text-gray-400">
+                                      {fmtTime(day.shift_detail.start_time)}–{fmtTime(day.shift_detail.end_time)}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-sm font-medium text-gray-400 mt-1">Nghỉ</p>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

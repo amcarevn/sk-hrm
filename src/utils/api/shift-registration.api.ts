@@ -1,5 +1,5 @@
 import { managementApi } from './client';
-import type { ShiftRegistration } from './types';
+import type { ShiftRegistration, ShiftRegistrationLockStatus } from './types';
 
 export interface ShiftRegistrationDayInput {
   date: string; // YYYY-MM-DD
@@ -69,11 +69,40 @@ export const shiftRegistrationsAPI = {
 
   pendingApprovals: async (params?: {
     week_start_date?: string;
+    status?: string;
+    year?: number;
+    month?: number;
+    department_id?: number;
+    search?: string;
+    page_size?: number;
   }): Promise<ShiftRegistration[]> => {
     const res = await managementApi.get('/api-hrm/shift-registrations/pending-approvals/', {
-      params,
+      params: { page_size: 1000, ...params },
     });
     return unwrapList<ShiftRegistration>(res.data);
+  },
+
+  bulkApprove: async (ids: number[]): Promise<{
+    success_count: number;
+    error_count: number;
+    results: number[];
+    errors: Array<{ id: number; error: string }>;
+  }> => {
+    const res = await managementApi.post('/api-hrm/shift-registrations/bulk-approve/', { ids });
+    return res.data;
+  },
+
+  getLockStatus: async (): Promise<ShiftRegistrationLockStatus> => {
+    const res = await managementApi.get('/api-hrm/shift-registrations/lock-status/');
+    return res.data;
+  },
+
+  toggleLock: async (is_locked: boolean, note?: string): Promise<ShiftRegistrationLockStatus> => {
+    const res = await managementApi.post('/api-hrm/shift-registrations/lock-toggle/', {
+      is_locked,
+      note,
+    });
+    return res.data;
   },
 
   upload: async (file: File): Promise<ShiftRegistrationUploadResult> => {
