@@ -115,15 +115,15 @@ const ShiftRegistration: React.FC = () => {
     return fri;
   }, [existingReg, weekMonday]);
 
-  // HR/Admin bypass hạn đăng ký (khớp _can_manage_all ở BE — xem shift_views.py).
-  const pastDeadline = new Date() > deadline && !canManageLock;
+  // Hạn đăng ký giờ CHỈ mang tính hiển thị/tham khảo — không còn chặn thao
+  // tác (khớp BE 2026-09-19: mở khóa thì bypass luôn hạn đăng ký). Chỉ còn
+  // khóa (ShiftRegistrationLock) mới thực sự chặn, và khóa chặn TUYỆT ĐỐI
+  // mọi user không ngoại lệ, kể cả HR/Admin.
+  const pastDeadline = new Date() > deadline;
   const isReadOnly =
     !!existingReg && (existingReg.status === 'PENDING' || existingReg.status === 'APPROVED');
-  // Khóa đăng ký ca có ưu tiên cao nhất — chặn TUYỆT ĐỐI mọi user không
-  // ngoại lệ, kể cả HR/Admin (khác với hạn đăng ký ở trên, vốn có bypass
-  // riêng cho HR/Admin và chỉ áp dụng lại khi đã MỞ khóa).
   const isLocked = !!lockStatus?.is_locked;
-  const canEdit = !noProfile && !isReadOnly && !pastDeadline && !isLocked;
+  const canEdit = !noProfile && !isReadOnly && !isLocked;
 
   // Load nhân viên hiện tại + danh mục ca (1 lần)
   useEffect(() => {
@@ -362,9 +362,9 @@ const ShiftRegistration: React.FC = () => {
                     : 'Đơn đã được duyệt — không thể chỉnh sửa.'}
                 </div>
               )}
-              {!isReadOnly && pastDeadline && (
+              {!isReadOnly && pastDeadline && !isLocked && (
                 <div className="mx-5 mt-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                  Đã quá hạn đăng ký cho tuần này (hạn: hết Thứ 6 tuần trước).
+                  Đã quá hạn đăng ký cho tuần này (hạn: hết Thứ 6 tuần trước) — vẫn có thể đăng ký nhưng nên nộp sớm hơn để quản lý kịp duyệt.
                 </div>
               )}
               {message && (
