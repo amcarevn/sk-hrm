@@ -34,7 +34,8 @@ import {
   ComputerDesktopIcon,
   BanknotesIcon,
 } from '@heroicons/react/24/outline';
-import { Employee, employeesAPI } from '@/utils/api';
+import { Employee, employeesAPI, companyConfigAPI } from '@/utils/api';
+import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const AttendanceManagement: React.FC = () => {
   const { user } = useAuth();
@@ -288,6 +289,7 @@ const AttendanceManagement: React.FC = () => {
     LEAVE: 'Đơn nghỉ phép tháng',
     ONLINE_WORK: 'Đơn làm việc online',
     OFF_DUTY: 'Đơn đăng ký Vào/Ra trực',
+    SHIFT_CHANGE: 'Đơn đổi ca',
     ABSENT: 'Vắng mặt',
     FULL_DAY: 'Cả ngày',
   };
@@ -320,7 +322,7 @@ const AttendanceManagement: React.FC = () => {
     | 'first_day'
     | 'business_trip'
     | 'incomplete_attendance';
-  type RegistrationReason = 'overtime' | 'extra_hours' | 'night_shift' | 'live' | 'off_duty';
+  type RegistrationReason = 'overtime' | 'extra_hours' | 'night_shift' | 'live' | 'off_duty' | 'shift_change';
   type OnlineWorkReason = 'morning' | 'afternoon' | 'full_day' | 'checkpage';
   type LeaveReason = 'morning' | 'afternoon' | 'full_day';
   type ReasonType = ExplanationReason | RegistrationReason | OnlineWorkReason | LeaveReason | null;
@@ -347,6 +349,11 @@ const AttendanceManagement: React.FC = () => {
   // Live state - for TikTok department
   const [liveStartTime, setLiveStartTime] = useState('');
   const [liveEndTime, setLiveEndTime] = useState('');
+
+  // Shift Change (Đổi ca) state — chọn 1 ca có sẵn để đổi sang cho ngày đang thao tác
+  const [shiftChangeTargetShiftId, setShiftChangeTargetShiftId] = useState('');
+  const [shiftChangeOptions, setShiftChangeOptions] = useState<{ value: string; label: string }[]>([]);
+  const [shiftChangeOptionsLoading, setShiftChangeOptionsLoading] = useState(false);
 
   // Incomplete Attendance (Quên chấm công) state
   const [forgotPunchType, setForgotPunchType] = useState<'checkin' | 'checkout' | 'both'>('checkin');
@@ -441,6 +448,8 @@ const AttendanceManagement: React.FC = () => {
         );
       case 'live':
         return !!(liveStartTime && liveEndTime) && liveDuration >= MIN_HOURS;
+      case 'shift_change':
+        return !!shiftChangeTargetShiftId;
       default:
         return true;
     }
@@ -506,6 +515,7 @@ const AttendanceManagement: React.FC = () => {
       { id: 'night_shift', label: 'Trực tối', icon: 'moon' },
       { id: 'live', label: 'Live', icon: 'video' },
       { id: 'off_duty', label: 'Vào/Ra trực', icon: 'briefcase' },
+      { id: 'shift_change', label: 'Đổi ca', icon: 'swap' },
     ];
 
   const onlineWorkReasons: {
@@ -558,6 +568,29 @@ const AttendanceManagement: React.FC = () => {
     if (reason === 'live') {
       setLiveStartTime('21:00');
     }
+    // Fetch danh sách ca có thể đổi sang (đúng phòng ban/vị trí của NV) khi chọn Đổi ca
+    if (reason === 'shift_change' && currentEmployee) {
+      setShiftChangeOptionsLoading(true);
+      companyConfigAPI
+        .listShiftConfigs({ page_size: 200, employee_id: currentEmployee.id, is_active: true })
+        .then((res: any) => {
+          const list = res?.results || [];
+          setShiftChangeOptions(
+            list.map((s: any) => ({
+              value: String(s.id),
+              label: `${s.name} (${(s.start_time || '').substring(0, 5)}–${(s.end_time || '').substring(0, 5)})`,
+            }))
+          );
+        })
+        .catch((err) => {
+          console.error('Lỗi khi tải danh sách ca làm việc:', err);
+          setShiftChangeOptions([]);
+        })
+        .finally(() => setShiftChangeOptionsLoading(false));
+    }
+    if (reason !== 'shift_change') {
+      setShiftChangeTargetShiftId('');
+    }
     // Auto-detect ca bị quên chấm công từ shifts[] của ngày đang chọn
     if (reason === 'incomplete_attendance' && selectedDayData?.shifts?.length) {
       const incompleteShifts = (selectedDayData.shifts as any[]).filter(
@@ -608,6 +641,8 @@ const AttendanceManagement: React.FC = () => {
     setForgotPunchType('checkin');
     setForgotCheckinTime(null);
     setForgotCheckoutTime(null);
+    setShiftChangeTargetShiftId('');
+    setShiftChangeOptions([]);
   };
 
   // Icon render helper
@@ -633,6 +668,8 @@ const AttendanceManagement: React.FC = () => {
         return <ComputerDesktopIcon className={iconClass} />;
       case 'briefcase':
         return <BriefcaseIcon className={iconClass} />;
+      case 'swap':
+        return <ArrowsRightLeftIcon className={iconClass} />;
       default:
         return null;
     }
@@ -1077,7 +1114,7 @@ const AttendanceManagement: React.FC = () => {
           for (const existing of pendingRequests) {
             const modelId = existing.data?.id || existing.id;
             const existingType = (existing.event_type || '').toLowerCase();
-            const isExistingReg = ['overtime', 'extra_hours', 'night_shift', 'live', 'off_duty'].includes(existingType);
+            const isExistingReg = ['overtime', 'extra_hours', 'night_shift', 'live', 'off_duty', 'shift_change'].includes(existingType);
 
             // A. Nếu đang gửi Nghỉ phép tháng: Xóa hết
             if (selectedContext === 'monthly_leave') {
@@ -1361,6 +1398,19 @@ const AttendanceManagement: React.FC = () => {
           result = await attendanceService.createRegistrationRequest(extraHoursData);
           await refreshAllData();
           showNotify('success', 'Thành công', 'Đơn làm thêm giờ đã được gửi thành công!');
+        } else if (selectedReason === 'shift_change') {
+          // 2b. Đơn Đổi ca — không tính giờ/buổi, chỉ mang theo ca muốn đổi sang
+          const shiftChangeData: any = {
+            employee_id: currentEmployee.id,
+            attendance_date: dateStr,
+            registration_type: 'SHIFT_CHANGE' as const,
+            reason: finalReason,
+            status: 'PENDING' as const,
+            target_shift_id: parseInt(shiftChangeTargetShiftId, 10),
+          };
+          result = await attendanceService.createRegistrationRequest(shiftChangeData);
+          await refreshAllData();
+          showNotify('success', 'Thành công', 'Đơn đổi ca đã được gửi thành công!');
         } else {
           // 3. Các loại đăng ký khác (Trực tối, Live, Ra trực)
           const otherRegMap: Record<string, 'NIGHT_SHIFT' | 'LIVE' | 'OFF_DUTY'> = {
@@ -2637,7 +2687,7 @@ const AttendanceManagement: React.FC = () => {
                     const isApproved = (ev: AttendanceEvent) => {
                       if (
                         (ev.event_type === 'explanation' ||
-                          ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty'].includes(ev.event_type) ||
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty', 'shift_change'].includes(ev.event_type) ||
                           ev.event_type === 'registration_approval') &&
                         ev.data?.status === 'APPROVED'
                       )
@@ -2653,7 +2703,7 @@ const AttendanceManagement: React.FC = () => {
                     const isRejected = (ev: AttendanceEvent) => {
                       if (
                         (ev.event_type === 'explanation' ||
-                          ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty', 'request_approval', 'registration_approval'].includes(ev.event_type)) &&
+                          ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty', 'shift_change', 'request_approval', 'registration_approval'].includes(ev.event_type)) &&
                         ev.data?.status === 'REJECTED'
                       )
                         return true;
@@ -2727,7 +2777,7 @@ const AttendanceManagement: React.FC = () => {
                                         ? 'bg-primary-100 text-primary-800'
                                         : ev.event_type === 'explanation' || (ev.event_type === 'explanation_approval' && (ev.recordStatus === 'LEAVE' || ev.data?.explanation_type === 'LEAVE'))
                                           ? 'bg-primary-100 text-primary-800'
-                                          : ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty'].includes(ev.event_type) || ev.event_type === 'registration_approval' || ev.event_type === 'request_approval'
+                                          : ['overtime', 'extra_hours', 'night_shift', 'live', 'online_work', 'off_duty', 'shift_change'].includes(ev.event_type) || ev.event_type === 'registration_approval' || ev.event_type === 'request_approval'
                                             ? 'bg-violet-100 text-violet-800'
                                             : 'bg-gray-100 text-gray-800'
                                         }`}
@@ -2872,12 +2922,17 @@ const AttendanceManagement: React.FC = () => {
                                       )}
                                     </div>
                                   )}
-                                  {['overtime', 'extra_hours', 'night_shift', 'live', 'off_duty', 'online_work'].includes(ev.event_type) && (
+                                  {['overtime', 'extra_hours', 'night_shift', 'live', 'off_duty', 'online_work', 'shift_change'].includes(ev.event_type) && (
                                     <div className="text-xs text-gray-600 space-y-0.5">
-                                      {!['online_work'].includes(ev.event_type) && (ev.check_in || ev.check_out || ev.data?.start_time || ev.data?.end_time) && (
+                                      {!['online_work', 'shift_change'].includes(ev.event_type) && (ev.check_in || ev.check_out || ev.data?.start_time || ev.data?.end_time) && (
                                         <p>
                                           Thời gian: {ev.check_in || ev.data?.start_time || '--'} —{' '}
                                           {ev.check_out || ev.data?.end_time || '--'}
+                                        </p>
+                                      )}
+                                      {ev.event_type === 'shift_change' && ev.data?.target_shift_name && (
+                                        <p className="text-gray-900 font-medium">
+                                          Ca muốn đổi sang: {ev.data.target_shift_name}
                                         </p>
                                       )}
                                        {ev.event_type === 'online_work' || ev.event_type === 'night_shift' ? (
@@ -4337,6 +4392,52 @@ const AttendanceManagement: React.FC = () => {
                         </div>
                       )}
 
+                    {/* === Đổi ca === */}
+                    {selectedContext === 'registration' &&
+                      selectedReason === 'shift_change' && (
+                        <div className="space-y-4 mb-6 animate-fadeIn">
+                          <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                            Đổi ca làm việc
+                          </h3>
+
+                          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                            <label className="block text-xs font-medium text-gray-500 uppercase mb-2">
+                              Ca muốn đổi sang
+                            </label>
+                            <SelectBox
+                              label=""
+                              value={shiftChangeTargetShiftId}
+                              options={shiftChangeOptions}
+                              onChange={setShiftChangeTargetShiftId}
+                              placeholder={
+                                shiftChangeOptionsLoading
+                                  ? 'Đang tải danh sách ca...'
+                                  : '-- Chọn ca --'
+                              }
+                              searchable
+                            />
+
+                            {/* Note input for Shift Change */}
+                            <div className="mt-4 space-y-2">
+                              <label
+                                htmlFor="shift-change-note"
+                                className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                              >
+                                Lý do đổi ca (bắt buộc)
+                              </label>
+                              <textarea
+                                id="shift-change-note"
+                                rows={3}
+                                value={formNote}
+                                onChange={(e) => setFormNote(e.target.value)}
+                                placeholder="Nhập lý do muốn đổi ca..."
+                                className="block w-full rounded-xl border-2 border-gray-100 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm p-3 transition-colors duration-200 resize-none placeholder:text-gray-300"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                     {/* === Note Input for First Day === */}
                     {selectedContext === 'explanation' &&
                       selectedReason === 'first_day' && (
@@ -4882,6 +4983,23 @@ const AttendanceManagement: React.FC = () => {
                         })}
                       </span>
                     </div>
+
+                    {/* Row: Target Shift (for Shift Change) */}
+                    {selectedContext === 'registration' &&
+                      selectedReason === 'shift_change' &&
+                      shiftChangeTargetShiftId && (
+                        <div className="flex justify-between items-center p-2 bg-violet-50 rounded-xl">
+                          <div className="flex items-center text-violet-700">
+                            <ArrowsRightLeftIcon className="w-4 h-4 mr-2" />
+                            <span className="text-[10px] uppercase font-bold tracking-wider">
+                              Ca muốn đổi sang
+                            </span>
+                          </div>
+                          <span className="text-sm font-black text-violet-800">
+                            {shiftChangeOptions.find((o) => o.value === shiftChangeTargetShiftId)?.label || ''}
+                          </span>
+                        </div>
+                      )}
 
                     {/* Row: Time Range (for Overtime, Extra Hours, Night Shift, Live) */}
                     {selectedContext === 'registration' &&
