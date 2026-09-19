@@ -276,6 +276,8 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Vị trí" value={employee.position?.title} />
             <InfoField label="Cấp bậc" value={emp.rank ? (RANK_LABELS[emp.rank] ?? emp.rank) : undefined} />
             <InfoField label="Quản lý trực tiếp" value={employee.manager_name} />
+            <InfoField label="Quản lý cấp 2" value={employee.manager_level_2_name} />
+            <InfoField label="Quản lý cấp 3" value={employee.manager_level_3_name} />
             <InfoField label="Team Bác sĩ" value={emp.doctor_team} />
             <InfoField label="Hình thức làm việc" value={emp.work_form ? (WORK_FORM_LABELS[emp.work_form] || emp.work_form) : null} />
             <InfoField label="Địa điểm làm việc" value={emp.work_location ? (WORK_LOCATION_OPTIONS.find(o => o.value === emp.work_location)?.label || emp.work_location) : null} />
