@@ -115,7 +115,8 @@ const ShiftRegistration: React.FC = () => {
     return fri;
   }, [existingReg, weekMonday]);
 
-  const pastDeadline = new Date() > deadline;
+  // HR/Admin bypass hạn đăng ký (khớp _can_manage_all ở BE — xem shift_views.py).
+  const pastDeadline = new Date() > deadline && !canManageLock;
   const isReadOnly =
     !!existingReg && (existingReg.status === 'PENDING' || existingReg.status === 'APPROVED');
   // Khóa đăng ký ca có ưu tiên cao nhất, chặn trước cả hạn đăng ký — HR/Admin bypass được.
