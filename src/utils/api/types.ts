@@ -458,6 +458,7 @@ export interface Employee {
   // HR employee flag
   is_hr?: boolean;
   manager_name: string;
+  manager_level_2_name?: string | null;
   created_at: string;
   updated_at: string;
 
@@ -563,6 +564,7 @@ export interface EmployeeCreateData {
   position_id?: number;
   department_id?: number;
   manager_id?: number;
+  manager_level_2_id?: number | null;
   is_hr?: boolean;
 }
 
@@ -589,6 +591,7 @@ export interface EmployeeUpdateData {
   position_id?: number;
   department_id?: number;
   manager_id?: number;
+  manager_level_2_id?: number | null;
   is_hr?: boolean;
   marital_status?: string | null;
   file_status?: string;

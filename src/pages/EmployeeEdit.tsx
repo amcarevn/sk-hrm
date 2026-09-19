@@ -191,6 +191,7 @@ const EmployeeEdit: React.FC = () => {
     position_id: undefined,
     department_id: undefined,
     manager_id: undefined,
+    manager_level_2_id: undefined,
     rank: '',
     doctor_team: '',
     work_form: '',
@@ -297,6 +298,7 @@ const EmployeeEdit: React.FC = () => {
         position_id: e.position?.id,
         department_id: e.department?.id,
         manager_id: typeof e.manager === 'number' ? e.manager : (e.manager?.id ?? null),
+        manager_level_2_id: typeof e.manager_level_2 === 'number' ? e.manager_level_2 : (e.manager_level_2?.id ?? null),
         rank: e.rank || '',
         doctor_team: e.doctor_team || '',
         work_form: e.work_form || '',
@@ -471,6 +473,7 @@ const EmployeeEdit: React.FC = () => {
       add('position_id', formData.position_id);
       add('department_id', formData.department_id);
       if (formData.manager_id !== undefined) payload['manager_id'] = formData.manager_id;
+      if (formData.manager_level_2_id !== undefined) payload['manager_level_2_id'] = formData.manager_level_2_id;
       add('rank', formData.rank?.trim());
       add('doctor_team', formData.doctor_team?.trim());
       add('work_form', formData.work_form);
@@ -731,6 +734,23 @@ const EmployeeEdit: React.FC = () => {
                   })),
               ]}
               onChange={(v) => handleSelect('manager_id', v ?? undefined)}
+            />
+
+            <SelectBox
+              label="Quản lý cấp 2"
+              value={formData.manager_level_2_id}
+              placeholder="Chọn quản lý cấp 2"
+              searchable={true}
+              options={[
+                { label: 'Không có', value: null },
+                ...employees
+                  .filter((emp) => emp.id !== parseInt(id!))
+                  .map((emp) => ({
+                    label: `${emp.full_name} (${emp.employee_id})`,
+                    value: emp.id,
+                  })),
+              ]}
+              onChange={(v) => handleSelect('manager_level_2_id', v ?? undefined)}
             />
 
             <SelectBox

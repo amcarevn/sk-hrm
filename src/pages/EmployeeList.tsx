@@ -501,7 +501,7 @@ const EmployeeList: React.FC = () => {
           })(),
           education_level: emp.education_level || '',
           manager: emp.manager?.full_name || emp.manager_name || '',
-          manager_level_2: emp.manager_level_2?.full_name || '',
+          manager_level_2: emp.manager_level_2?.full_name || emp.manager_level_2_name || '',
           manager_level_3: emp.manager_level_3?.full_name || '',
           employment_status: getStatusLabel(emp.employment_status),
           employment_status_notes: emp.employment_status_notes || '',
