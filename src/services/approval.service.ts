@@ -465,9 +465,12 @@ class ApprovalService {
         online_work_requests.push(item);
       } else if (
         eventType === 'overtime' || eventType === 'extrahours' || eventType === 'nightshift' ||
-        eventType === 'live' || eventType === 'offduty' || eventType === 'requestapproval'
+        eventType === 'live' || eventType === 'offduty' || eventType === 'requestapproval' ||
+        eventType === 'shiftchange'
       ) {
-        // API trả về event_type: "overtime", "extra_hours", "night_shift", "live", "off_duty", "request_approval"
+        // API trả về event_type: "overtime", "extra_hours", "night_shift", "live", "off_duty",
+        // "request_approval", "shift_change" — thiếu "shift_change" ở đây khiến đơn Đổi ca bị rơi
+        // xuống fallback bên dưới và bị gộp nhầm vào leave_requests (không có chỗ duyệt).
         registration_requests.push(item);
       } else {
         // Fallback: phân loại dựa trên các trường của item khi request_type không xác định
