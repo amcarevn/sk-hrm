@@ -78,6 +78,7 @@ import LeavePolicyCreate from './pages/LeavePolicyCreate';
 import { EmployeeOnboardingForm } from "./pages/EmployeeOnboardingForm";
 import WorkFinalization from './pages/WorkFinalization';
 import WorkFinalizationApprovals from './pages/WorkFinalizationApprovals';
+import HolidayManagement from './pages/HolidayManagement';
 import ContractTemplates from './pages/ContractTemplates';
 import DocumentTemplates from './pages/DocumentTemplates';
 import PasswordReset from './pages/PasswordReset';
@@ -992,6 +993,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <ShiftApproval />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/holidays"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <HolidayManagement />
                 </Layout>
               </ProtectedRoute>
             }

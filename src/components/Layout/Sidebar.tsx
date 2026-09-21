@@ -31,6 +31,7 @@ import {
   MagnifyingGlassIcon,
   MegaphoneIcon,
   ExclamationCircleIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavigationItem {
@@ -185,6 +186,12 @@ const navigationItems: NavigationItem[] = [
         name: 'Duyệt ca làm',
         href: '/dashboard/shift-approval',
         icon: CheckCircleIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Quản lý công lễ',
+        href: '/dashboard/holidays',
+        icon: CalendarDaysIcon,
         roles: ['ADMIN', 'HR'],
       },
     ],
