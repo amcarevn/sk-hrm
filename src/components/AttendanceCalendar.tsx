@@ -235,6 +235,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       case 'LIVESTREAM':
         return 'livestream';
       case 'OFF_DUTY': return 'ra trực';
+      case 'SHIFT_CHANGE': return 'đổi ca';
       default: return 'đơn';
     }
   };
@@ -377,7 +378,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         const approvedRegistrations = registrations
           .filter((r: any) => {
             const t = (r.event_type || '').toUpperCase();
-            return ['OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM', 'ONLINE_WORK', 'OFF_DUTY'].includes(t) && r.data?.status === 'APPROVED';
+            return ['OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM', 'ONLINE_WORK', 'OFF_DUTY', 'SHIFT_CHANGE'].includes(t) && r.data?.status === 'APPROVED';
           })
           .map((r: any) => r);
 
@@ -389,7 +390,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         const hasApprovedRegistration = approvedRegistrations.length > 0;
         const pendingRequests = registrations.filter((r: any) => {
           const t = (r.event_type || '').toUpperCase();
-          return ['EXPLANATION', 'OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM', 'ONLINE_WORK', 'LEAVE', 'OFF_DUTY'].includes(t) &&
+          return ['EXPLANATION', 'OVERTIME', 'EXTRA_HOURS', 'NIGHT_SHIFT', 'LIVE', 'LIVESTREAM', 'ONLINE_WORK', 'LEAVE', 'OFF_DUTY', 'SHIFT_CHANGE'].includes(t) &&
                  r.data?.status === 'PENDING';
         });
 
@@ -779,6 +780,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       ONLINE_WORK:{ title: 'Làm việc online',   icon: '💻', color: 'teal'  },
       LEAVE:      { title: 'Nghỉ phép tháng',   icon: '📅', color: 'green'  },
       OFF_DUTY:   { title: 'Ra trực',           icon: '🏃', color: 'green'  },
+      SHIFT_CHANGE:{ title: 'Đổi ca',           icon: '🔁', color: 'sky'    },
     };
     return typeMap[regType] || { title: 'Đơn', icon: '📄', color: 'gray' };
   };
@@ -853,7 +855,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       const t = (r.event_type || '').toUpperCase();
       return [
         'EXPLANATION','OVERTIME','EXTRA_HOURS','NIGHT_SHIFT',
-        'LIVE','LIVESTREAM','ONLINE_WORK','LEAVE','OFF_DUTY',
+        'LIVE','LIVESTREAM','ONLINE_WORK','LEAVE','OFF_DUTY','SHIFT_CHANGE',
       ].includes(t);
     });
 
