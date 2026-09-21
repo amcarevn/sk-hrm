@@ -4586,74 +4586,145 @@ const AttendanceManagement: React.FC = () => {
                             })}
                           </div>
 
-                          {/* Bước 2a: Chọn giờ check-in */}
-                          {(forgotPunchType === 'checkin' || forgotPunchType === 'both') && (
-                            <div className="rounded-2xl border border-violet-100 overflow-hidden">
-                              <div className="bg-violet-600 px-4 py-2.5 flex items-center gap-2">
-                                <svg className="w-4 h-4 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5-4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                                </svg>
-                                <span className="text-xs font-bold text-white tracking-wide uppercase">Giờ check-in bị quên</span>
-                              </div>
-                              <div className="bg-violet-50 p-3 flex gap-2">
-                                {[
-                                  { value: '07:30', label: '7h30', desc: 'Sáng' },
-                                  { value: '08:00', label: '8h00', desc: 'Sáng' },
-                                  { value: '08:30', label: '8h30', desc: 'Sáng' },
-                                  { value: '09:00', label: '9h00', desc: 'Sáng' },
-                                  { value: '13:00', label: '13h00', desc: 'Chiều' },
-                                  { value: '17:30', label: '17h30', desc: 'Tối' },
-                                ].map((opt) => {
-                                  const sel = forgotCheckinTime === opt.value;
-                                  return (
-                                    <button
-                                      key={opt.value}
-                                      type="button"
-                                      onClick={() => setForgotCheckinTime(sel ? null : opt.value)}
-                                      className={`flex-1 flex flex-col items-center py-2.5 rounded-xl border-2 transition-all duration-150 ${sel ? 'bg-violet-600 border-violet-600 shadow-md scale-[1.04]' : 'bg-white border-violet-200 hover:border-violet-400 hover:bg-violet-50'}`}
-                                    >
-                                      <span className={`text-sm font-extrabold ${sel ? 'text-white' : 'text-violet-700'}`}>{opt.label}</span>
-                                      <span className={`text-[10px] mt-0.5 font-medium ${sel ? 'text-violet-200' : 'text-gray-400'}`}>{opt.desc}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
+                          {(() => {
+                            // Giờ vào/ra của (các) ca thực tế được xếp cho ngày này (ShiftConfig)
+                            // → luôn hiển thị đúng ca của nhân viên, không phụ thuộc 1 danh sách giờ cố định
+                            const dayShifts: any[] = selectedDayData?.shifts || [];
 
-                          {/* Bước 2b: Chọn giờ check-out */}
-                          {(forgotPunchType === 'checkout' || forgotPunchType === 'both') && (
-                            <div className="rounded-2xl border border-amber-100 overflow-hidden">
-                              <div className="bg-amber-500 px-4 py-2.5 flex items-center gap-2">
-                                <svg className="w-4 h-4 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
-                                <span className="text-xs font-bold text-white tracking-wide uppercase">Giờ check-out bị quên</span>
-                              </div>
-                              <div className="bg-amber-50 p-3 flex gap-2">
-                                {[
-                                  { value: '12:00', label: '12h00', desc: 'Trưa' },
-                                  { value: '16:30', label: '16h30', desc: 'Chiều' },
-                                  { value: '17:00', label: '17h00', desc: 'Chiều' },
-                                  { value: '17:30', label: '17h30', desc: 'Chiều' },
-                                  { value: '21:00', label: '21h00', desc: 'Tối' },
-                                ].map((opt) => {
-                                  const sel = forgotCheckoutTime === opt.value;
-                                  return (
-                                    <button
-                                      key={opt.value}
-                                      type="button"
-                                      onClick={() => setForgotCheckoutTime(sel ? null : opt.value)}
-                                      className={`flex-1 flex flex-col items-center py-2.5 rounded-xl border-2 transition-all duration-150 ${sel ? 'bg-amber-500 border-amber-500 shadow-md scale-[1.04]' : 'bg-white border-amber-200 hover:border-amber-400 hover:bg-amber-50'}`}
-                                    >
-                                      <span className={`text-sm font-extrabold ${sel ? 'text-white' : 'text-amber-600'}`}>{opt.label}</span>
-                                      <span className={`text-[10px] mt-0.5 font-medium ${sel ? 'text-amber-200' : 'text-gray-400'}`}>{opt.desc}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
+                            const fmtLabel = (hhmm: string) => {
+                              const [h, m] = hhmm.split(':');
+                              const hNum = parseInt(h, 10);
+                              return m === '00' ? `${hNum}h00` : `${hNum}h${m}`;
+                            };
+                            const periodDesc = (hhmm: string) => {
+                              const h = parseInt(hhmm.split(':')[0], 10);
+                              if (h < 11) return 'Sáng';
+                              if (h < 14) return 'Trưa';
+                              if (h < 18) return 'Chiều';
+                              return 'Tối';
+                            };
+                            const dedupe = (arr: { value: string; label: string; desc: string }[]) => {
+                              const seen = new Set<string>();
+                              return arr.filter((o) => {
+                                if (seen.has(o.value)) return false;
+                                seen.add(o.value);
+                                return true;
+                              });
+                            };
+
+                            const shiftCheckinOptions = dayShifts
+                              .filter((s) => s.scheduled_start)
+                              .map((s) => ({
+                                value: s.scheduled_start as string,
+                                label: fmtLabel(s.scheduled_start),
+                                desc: s.shift_label || periodDesc(s.scheduled_start),
+                              }));
+                            const shiftCheckoutOptions = dayShifts
+                              .filter((s) => s.scheduled_end)
+                              .map((s) => ({
+                                value: s.scheduled_end as string,
+                                label: fmtLabel(s.scheduled_end),
+                                desc: s.shift_label || periodDesc(s.scheduled_end),
+                              }));
+
+                            const commonCheckinOptions = [
+                              { value: '07:30', label: '7h30', desc: 'Sáng' },
+                              { value: '08:00', label: '8h00', desc: 'Sáng' },
+                              { value: '08:30', label: '8h30', desc: 'Sáng' },
+                              { value: '09:00', label: '9h00', desc: 'Sáng' },
+                              { value: '13:00', label: '13h00', desc: 'Chiều' },
+                              { value: '17:30', label: '17h30', desc: 'Tối' },
+                            ];
+                            const commonCheckoutOptions = [
+                              { value: '12:00', label: '12h00', desc: 'Trưa' },
+                              { value: '16:30', label: '16h30', desc: 'Chiều' },
+                              { value: '17:00', label: '17h00', desc: 'Chiều' },
+                              { value: '17:30', label: '17h30', desc: 'Chiều' },
+                              { value: '21:00', label: '21h00', desc: 'Tối' },
+                            ];
+
+                            // Giờ của ca thực tế được ưu tiên hiển thị trước, sau đó mới đến các mốc phổ biến
+                            const checkinOptions = dedupe([...shiftCheckinOptions, ...commonCheckinOptions]);
+                            const checkoutOptions = dedupe([...shiftCheckoutOptions, ...commonCheckoutOptions]);
+
+                            return (
+                              <>
+                                {/* Bước 2a: Chọn giờ check-in */}
+                                {(forgotPunchType === 'checkin' || forgotPunchType === 'both') && (
+                                  <div className="rounded-2xl border border-violet-100 overflow-hidden">
+                                    <div className="bg-violet-600 px-4 py-2.5 flex items-center gap-2">
+                                      <svg className="w-4 h-4 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5-4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                      </svg>
+                                      <span className="text-xs font-bold text-white tracking-wide uppercase">Giờ check-in bị quên</span>
+                                    </div>
+                                    <div className="bg-violet-50 p-3 flex flex-wrap gap-2">
+                                      {checkinOptions.map((opt) => {
+                                        const sel = forgotCheckinTime === opt.value;
+                                        return (
+                                          <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => setForgotCheckinTime(sel ? null : opt.value)}
+                                            className={`flex flex-col items-center py-2.5 px-2 min-w-[68px] rounded-xl border-2 transition-all duration-150 ${sel ? 'bg-violet-600 border-violet-600 shadow-md scale-[1.04]' : 'bg-white border-violet-200 hover:border-violet-400 hover:bg-violet-50'}`}
+                                          >
+                                            <span className={`text-sm font-extrabold ${sel ? 'text-white' : 'text-violet-700'}`}>{opt.label}</span>
+                                            <span className={`text-[10px] mt-0.5 font-medium truncate max-w-[80px] ${sel ? 'text-violet-200' : 'text-gray-400'}`}>{opt.desc}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                    <div className="bg-violet-50 px-3 pb-3 flex items-center gap-2">
+                                      <span className="text-[11px] font-medium text-violet-700 shrink-0">Giờ khác:</span>
+                                      <input
+                                        type="time"
+                                        value={forgotCheckinTime ? forgotCheckinTime.substring(0, 5) : ''}
+                                        onChange={(e) => setForgotCheckinTime(e.target.value || null)}
+                                        className="text-sm rounded-lg border-2 border-violet-200 focus:border-violet-500 focus:ring-violet-500 py-1.5 px-2"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Bước 2b: Chọn giờ check-out */}
+                                {(forgotPunchType === 'checkout' || forgotPunchType === 'both') && (
+                                  <div className="rounded-2xl border border-amber-100 overflow-hidden">
+                                    <div className="bg-amber-500 px-4 py-2.5 flex items-center gap-2">
+                                      <svg className="w-4 h-4 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                      </svg>
+                                      <span className="text-xs font-bold text-white tracking-wide uppercase">Giờ check-out bị quên</span>
+                                    </div>
+                                    <div className="bg-amber-50 p-3 flex flex-wrap gap-2">
+                                      {checkoutOptions.map((opt) => {
+                                        const sel = forgotCheckoutTime === opt.value;
+                                        return (
+                                          <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => setForgotCheckoutTime(sel ? null : opt.value)}
+                                            className={`flex flex-col items-center py-2.5 px-2 min-w-[68px] rounded-xl border-2 transition-all duration-150 ${sel ? 'bg-amber-500 border-amber-500 shadow-md scale-[1.04]' : 'bg-white border-amber-200 hover:border-amber-400 hover:bg-amber-50'}`}
+                                          >
+                                            <span className={`text-sm font-extrabold ${sel ? 'text-white' : 'text-amber-600'}`}>{opt.label}</span>
+                                            <span className={`text-[10px] mt-0.5 font-medium truncate max-w-[80px] ${sel ? 'text-amber-200' : 'text-gray-400'}`}>{opt.desc}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                    <div className="bg-amber-50 px-3 pb-3 flex items-center gap-2">
+                                      <span className="text-[11px] font-medium text-amber-700 shrink-0">Giờ khác:</span>
+                                      <input
+                                        type="time"
+                                        value={forgotCheckoutTime ? forgotCheckoutTime.substring(0, 5) : ''}
+                                        onChange={(e) => setForgotCheckoutTime(e.target.value || null)}
+                                        className="text-sm rounded-lg border-2 border-amber-200 focus:border-amber-500 focus:ring-amber-500 py-1.5 px-2"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
 
                         </div>
                       )}
