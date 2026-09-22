@@ -11,29 +11,34 @@ interface AssetCreateModalProps {
   onSuccess: () => void;
 }
 
-const ASSET_TYPES: SelectOption<string>[] = [
-  { value: 'LAPTOP', label: 'Laptop' },
-  { value: 'DESKTOP', label: 'Máy tính để bàn' },
-  { value: 'MONITOR', label: 'Màn hình' },
-  { value: 'SIM', label: 'Sim' },
-  { value: 'PHONE', label: 'Điện thoại' },
-  { value: 'TABLET', label: 'Máy tính bảng' },
-  { value: 'PRINTER', label: 'Máy in' },
-  { value: 'SCANNER', label: 'Máy scan' },
-  { value: 'NETWORK', label: 'Thiết bị mạng' },
-  { value: 'SERVER', label: 'Máy chủ' },
-  { value: 'FURNITURE', label: 'Nội thất' },
-  { value: 'VEHICLE', label: 'Phương tiện' },
-  { value: 'OTHER', label: 'Khác' },
-];
+// "Phân loại" và "Tình trạng vật lý" không còn dropdown cố định (SK yêu cầu
+// 2026-09-22, đồng bộ với Excel import/export) — 2 danh sách dưới đây KHÔNG
+// còn dùng để giới hạn lựa chọn, chỉ giữ lại vì các field spec theo loại
+// (CPU/RAM, Sim, Số lượng...) bên dưới đang bị comment tạm thời, có thể cần
+// tham chiếu lại khi khôi phục.
+// const ASSET_TYPES: SelectOption<string>[] = [
+//   { value: 'LAPTOP', label: 'Laptop' },
+//   { value: 'DESKTOP', label: 'Máy tính để bàn' },
+//   { value: 'MONITOR', label: 'Màn hình' },
+//   { value: 'SIM', label: 'Sim' },
+//   { value: 'PHONE', label: 'Điện thoại' },
+//   { value: 'TABLET', label: 'Máy tính bảng' },
+//   { value: 'PRINTER', label: 'Máy in' },
+//   { value: 'SCANNER', label: 'Máy scan' },
+//   { value: 'NETWORK', label: 'Thiết bị mạng' },
+//   { value: 'SERVER', label: 'Máy chủ' },
+//   { value: 'FURNITURE', label: 'Nội thất' },
+//   { value: 'VEHICLE', label: 'Phương tiện' },
+//   { value: 'OTHER', label: 'Khác' },
+// ];
 
-const ASSET_CONDITIONS: SelectOption<string>[] = [
-  { value: 'EXCELLENT', label: 'Mới 100%' },
-  { value: 'GOOD', label: 'Cũ (Chất lượng tốt)' },
-  { value: 'FAIR', label: 'Cũ (Trầy xước / Cấn móp)' },
-  { value: 'POOR', label: 'Cũ (Kém / Lỗi chức năng)' },
-  { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
-];
+// const ASSET_CONDITIONS: SelectOption<string>[] = [
+//   { value: 'EXCELLENT', label: 'Mới 100%' },
+//   { value: 'GOOD', label: 'Cũ (Chất lượng tốt)' },
+//   { value: 'FAIR', label: 'Cũ (Trầy xước / Cấn móp)' },
+//   { value: 'POOR', label: 'Cũ (Kém / Lỗi chức năng)' },
+//   { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
+// ];
 
 const NETWORK_PROVIDERS: SelectOption<string>[] = [
   { value: 'VIETTEL', label: 'Viettel' },
@@ -66,9 +71,9 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    asset_type: 'LAPTOP',
+    asset_type: '',
     model: '',
-    condition: 'EXCELLENT',
+    condition: '',
     purchase_date: '',
     warranty_period: '12',
     supplier: '',
@@ -223,14 +228,9 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
    * Hiện tại chỉ yêu cầu Mã tài sản (asset_code)
    */
   const isFormValid = () => {
-    let isValid = formData.name.trim() !== '';
-
-    if (formData.asset_type === 'SIM') {
-      const phone = formData.phone_number || '';
-      isValid = isValid && /^\d{10}$/.test(phone.trim());
-    }
-
-    return isValid;
+    // "Phân loại" giờ là text tự do — bỏ điều kiện validate riêng cho SIM
+    // (field Số điện thoại đang comment tạm thời cùng khối spec theo loại).
+    return formData.name.trim() !== '';
   };
 
   /**
@@ -247,21 +247,24 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
     e.preventDefault();
     setLoading(true);
     try {
-      // Split technical specs into a separate object if it's a Desktop
+      // "Phân loại" giờ là text tự do nên không còn field spec theo loại
+      // (CPU/RAM, Sim, Số lượng...) — các field này bị comment tạm thời ở
+      // JSX bên dưới, giữ nguyên trong formData/destructuring để dễ khôi
+      // phục sau nhưng không còn gửi lên specifications nữa.
       const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, purchase_price, depreciation_period_months, depreciation_method, usage_department, ...baseData } = formData;
 
-      let specifications = {};
-      if (formData.asset_type === 'DESKTOP') {
-        specifications = { cpu, mainboard, ram, storage, vga, power_supply };
-      } else if (formData.asset_type === 'MONITOR') {
-        specifications = { quantity: parseInt(monitor_quantity) || 0 };
-      } else if (formData.asset_type === 'SIM') {
-        const positionTitle = positions.find(p => p.value === formData.position_id)?.label || '';
-        const simCompanyName = companyUnits.find(c => c.value === sim_company)?.label || '';
-        specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type, sim_company, sim_company_name: simCompanyName };
-      } else if (formData.asset_type === 'OTHER') {
-        specifications = { type_name: other_type_name, quantity: parseInt(monitor_quantity) || 0 };
-      }
+      const specifications = {};
+      // if (formData.asset_type === 'DESKTOP') {
+      //   specifications = { cpu, mainboard, ram, storage, vga, power_supply };
+      // } else if (formData.asset_type === 'MONITOR') {
+      //   specifications = { quantity: parseInt(monitor_quantity) || 0 };
+      // } else if (formData.asset_type === 'SIM') {
+      //   const positionTitle = positions.find(p => p.value === formData.position_id)?.label || '';
+      //   const simCompanyName = companyUnits.find(c => c.value === sim_company)?.label || '';
+      //   specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type, sim_company, sim_company_name: simCompanyName };
+      // } else if (formData.asset_type === 'OTHER') {
+      //   specifications = { type_name: other_type_name, quantity: parseInt(monitor_quantity) || 0 };
+      // }
 
       const payload = {
         ...baseData,
@@ -299,9 +302,9 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
       // Reset form
       setFormData({
         name: '',
-        asset_type: 'LAPTOP',
+        asset_type: '',
         model: '',
-        condition: 'EXCELLENT',
+        condition: '',
         purchase_date: '',
         warranty_period: '12',
         supplier: '',
@@ -404,21 +407,43 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                           />
                         </div>
 
-                        <SelectBox
-                          label="Phân loại"
-                          value={formData.asset_type}
-                          options={ASSET_TYPES}
-                          onChange={(val) => handleSelectChange('asset_type', val)}
-                        />
+                        <div>
+                          <label htmlFor="asset_type" className="block text-sm font-medium text-gray-700">
+                            Phân loại
+                          </label>
+                          <input
+                            type="text"
+                            name="asset_type"
+                            id="asset_type"
+                            value={formData.asset_type}
+                            onChange={handleChange}
+                            className="input-field mt-1"
+                            placeholder="VD: Laptop, Máy tính để bàn, Sim..."
+                            maxLength={20}
+                          />
+                        </div>
 
-                        <SelectBox
-                          label="Tình trạng"
-                          value={formData.condition}
-                          options={ASSET_CONDITIONS}
-                          onChange={(val) => handleSelectChange('condition', val)}
-                        />
+                        <div>
+                          <label htmlFor="condition" className="block text-sm font-medium text-gray-700">
+                            Tình trạng
+                          </label>
+                          <input
+                            type="text"
+                            name="condition"
+                            id="condition"
+                            value={formData.condition}
+                            onChange={handleChange}
+                            className="input-field mt-1"
+                            placeholder="VD: Mới 100%, Cũ (Chất lượng tốt)..."
+                            maxLength={20}
+                          />
+                        </div>
 
-                        {/* Màn hình / Khác: Số lượng */}
+                        {/* Các field spec theo loại (Số lượng/Sim/Khác/Desktop) tạm thời
+                            comment lại (SK yêu cầu 2026-09-22): "Phân loại" giờ là text tự
+                            do nên không còn đáng tin cậy để tự động hiện đúng field theo
+                            loại thiết bị như trước (dropdown cũ). Giữ nguyên code để dễ
+                            khôi phục sau nếu cần.
                         {['MONITOR', 'OTHER'].includes(formData.asset_type) && (
                           <div className="sm:col-span-2 bg-violet-50/60 p-4 rounded-xl border border-violet-100">
                             <h4 className="text-[11px] font-semibold text-violet-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
@@ -437,7 +462,6 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                           </div>
                         )}
 
-                        {/* SIM: Thông tin chi tiết */}
                         {formData.asset_type === 'SIM' && (
                           <div className="sm:col-span-2 bg-emerald-50/60 p-4 rounded-xl border border-emerald-100">
                             <h4 className="text-[11px] font-semibold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
@@ -499,7 +523,6 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                           </div>
                         )}
 
-                        {/* OTHER: Thông tin chi tiết */}
                         {formData.asset_type === 'OTHER' && (
                           <div className="sm:col-span-2 bg-gray-50/60 p-4 rounded-xl border border-gray-200">
                             <h4 className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
@@ -517,7 +540,6 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                           </div>
                         )}
 
-                        {/* Desktop: Cấu hình chi tiết inline */}
                         {formData.asset_type === 'DESKTOP' && (
                           <div className="sm:col-span-2 bg-primary-50/60 p-4 rounded-xl border border-primary-100">
                             <h4 className="text-[11px] font-semibold text-primary-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
@@ -564,6 +586,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                             </div>
                           </div>
                         )}
+                        */}
 
                         {!['SIM', 'FURNITURE'].includes(formData.asset_type) && (
                           <div>
