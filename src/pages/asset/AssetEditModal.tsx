@@ -12,29 +12,34 @@ interface AssetEditModalProps {
   asset: Asset | null;
 }
 
-const ASSET_TYPES: SelectOption<string>[] = [
-  { value: 'LAPTOP', label: 'Laptop' },
-  { value: 'DESKTOP', label: 'Máy tính để bàn' },
-  { value: 'MONITOR', label: 'Màn hình' },
-  { value: 'SIM', label: 'Sim' },
-  { value: 'PHONE', label: 'Điện thoại' },
-  { value: 'TABLET', label: 'Máy tính bảng' },
-  { value: 'PRINTER', label: 'Máy in' },
-  { value: 'SCANNER', label: 'Máy scan' },
-  { value: 'NETWORK', label: 'Thiết bị mạng' },
-  { value: 'SERVER', label: 'Máy chủ' },
-  { value: 'FURNITURE', label: 'Nội thất' },
-  { value: 'VEHICLE', label: 'Phương tiện' },
-  { value: 'OTHER', label: 'Khác' },
-];
+// "Phân loại" và "Tình trạng vật lý" không còn dropdown cố định (SK yêu cầu
+// 2026-09-22, đồng bộ với Excel import/export) — 2 danh sách dưới đây KHÔNG
+// còn dùng để giới hạn lựa chọn, chỉ giữ lại vì các field spec theo loại
+// (CPU/RAM, Sim, Số lượng...) bên dưới đang bị comment tạm thời, có thể cần
+// tham chiếu lại khi khôi phục.
+// const ASSET_TYPES: SelectOption<string>[] = [
+//   { value: 'LAPTOP', label: 'Laptop' },
+//   { value: 'DESKTOP', label: 'Máy tính để bàn' },
+//   { value: 'MONITOR', label: 'Màn hình' },
+//   { value: 'SIM', label: 'Sim' },
+//   { value: 'PHONE', label: 'Điện thoại' },
+//   { value: 'TABLET', label: 'Máy tính bảng' },
+//   { value: 'PRINTER', label: 'Máy in' },
+//   { value: 'SCANNER', label: 'Máy scan' },
+//   { value: 'NETWORK', label: 'Thiết bị mạng' },
+//   { value: 'SERVER', label: 'Máy chủ' },
+//   { value: 'FURNITURE', label: 'Nội thất' },
+//   { value: 'VEHICLE', label: 'Phương tiện' },
+//   { value: 'OTHER', label: 'Khác' },
+// ];
 
-const ASSET_CONDITIONS: SelectOption<string>[] = [
-  { value: 'EXCELLENT', label: 'Mới 100%' },
-  { value: 'GOOD', label: 'Cũ (Chất lượng tốt)' },
-  { value: 'FAIR', label: 'Cũ (Trầy xước / Cấn móp)' },
-  { value: 'POOR', label: 'Cũ (Kém / Lỗi chức năng)' },
-  { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
-];
+// const ASSET_CONDITIONS: SelectOption<string>[] = [
+//   { value: 'EXCELLENT', label: 'Mới 100%' },
+//   { value: 'GOOD', label: 'Cũ (Chất lượng tốt)' },
+//   { value: 'FAIR', label: 'Cũ (Trầy xước / Cấn móp)' },
+//   { value: 'POOR', label: 'Cũ (Kém / Lỗi chức năng)' },
+//   { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
+// ];
 
 const ASSET_STATUSES: SelectOption<string>[] = [
   { value: 'NEW', label: 'Sẵn dùng (Mới 100%)' },
@@ -87,10 +92,10 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    asset_type: 'LAPTOP',
+    asset_type: '',
     model: '',
     status: 'NEW',
-    condition: 'EXCELLENT',
+    condition: '',
     purchase_date: '',
     warranty_period: '12',
     supplier: '',
@@ -158,10 +163,10 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
           });
           setFormData({
             name: fullAsset.name || '',
-            asset_type: fullAsset.asset_type || 'LAPTOP',
+            asset_type: fullAsset.asset_type || '',
             model: fullAsset.model || '',
             status: fullAsset.status || 'NEW',
-            condition: fullAsset.condition || 'EXCELLENT',
+            condition: fullAsset.condition || '',
             purchase_date: fullAsset.purchase_date || '',
             warranty_period: fullAsset.warranty_period ? String(fullAsset.warranty_period) : '12',
             supplier: fullAsset.supplier || '',
@@ -198,10 +203,10 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
           const specs = asset.specifications || {};
           setFormData({
             name: asset.name || '',
-            asset_type: asset.asset_type || 'LAPTOP',
+            asset_type: asset.asset_type || '',
             model: asset.model || '',
             status: asset.status || 'NEW',
-            condition: asset.condition || 'EXCELLENT',
+            condition: asset.condition || '',
             purchase_date: asset.purchase_date || '',
             warranty_period: (asset as any).warranty_period ? String((asset as any).warranty_period) : '12',
             supplier: asset.supplier || '',
@@ -323,14 +328,9 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
   };
 
   const isFormValid = () => {
-    let isValid = formData.name && formData.name.trim() !== '';
-    
-    if (formData.asset_type === 'SIM') {
-      const phone = (formData as any).phone_number || '';
-      isValid = isValid && /^\d{10}$/.test(phone.trim());
-    }
-    
-    return isValid;
+    // "Phân loại" giờ là text tự do — bỏ điều kiện validate riêng cho SIM
+    // (field Số điện thoại đang comment tạm thời cùng khối spec theo loại).
+    return !!(formData.name && formData.name.trim() !== '');
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -348,18 +348,24 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
     try {
       const { cpu, mainboard, ram, storage, vga, power_supply, monitor_quantity, phone_number, network_provider, doctor, region, position_id, sim_type, sim_company, other_type_name, warranty_period, purchase_price, depreciation_period_months, depreciation_method, usage_department, ...baseData } = formData;
 
-      let specifications = {};
-      if (formData.asset_type === 'DESKTOP') {
-        specifications = { cpu, mainboard, ram, storage, vga, power_supply };
-      } else if (formData.asset_type === 'MONITOR') {
-        specifications = { quantity: parseInt(monitor_quantity) || 0 };
-      } else if (formData.asset_type === 'SIM') {
-        const positionTitle = positions.find(p => p.value === formData.position_id)?.label || '';
-        const simCompanyName = companyUnits.find(c => c.value === sim_company)?.label || '';
-        specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type, sim_company, sim_company_name: simCompanyName };
-      } else if (formData.asset_type === 'OTHER') {
-        specifications = { type_name: other_type_name, quantity: parseInt(monitor_quantity) || 0 };
-      }
+      // "Phân loại" giờ là text tự do nên không còn field spec theo loại
+      // (CPU/RAM, Sim, Số lượng...) — các field này bị comment tạm thời ở
+      // JSX bên dưới. KHÔNG gửi "specifications" trong payload PUT (thay vì
+      // gửi {} rỗng) để giữ nguyên specs đã lưu trước đó của asset (PUT vẫn
+      // giữ nguyên field không có trong payload nếu field đó not required —
+      // gửi {} sẽ XOÁ MẤT specs cũ của mọi asset, kể cả asset có sẵn CPU/RAM
+      // hay Sim data từ trước khi có fix này).
+      // if (formData.asset_type === 'DESKTOP') {
+      //   specifications = { cpu, mainboard, ram, storage, vga, power_supply };
+      // } else if (formData.asset_type === 'MONITOR') {
+      //   specifications = { quantity: parseInt(monitor_quantity) || 0 };
+      // } else if (formData.asset_type === 'SIM') {
+      //   const positionTitle = positions.find(p => p.value === formData.position_id)?.label || '';
+      //   const simCompanyName = companyUnits.find(c => c.value === sim_company)?.label || '';
+      //   specifications = { phone_number, network_provider, doctor, region, position_id, position_title: positionTitle, sim_type, sim_company, sim_company_name: simCompanyName };
+      // } else if (formData.asset_type === 'OTHER') {
+      //   specifications = { type_name: other_type_name, quantity: parseInt(monitor_quantity) || 0 };
+      // }
 
       const payload = {
         ...baseData,
@@ -371,7 +377,6 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
         department_id: formData.department ? parseInt(formData.department) : null,
         usage_department_id: usage_department ? parseInt(usage_department) : null,
         managed_by_id: formData.managed_by ? parseInt(formData.managed_by) : null,
-        specifications
       };
 
       console.log('--- Cập nhật tài sản ---');
@@ -464,21 +469,39 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           <input type="text" name="name" id="name" value={formData.name} onChange={handleChange} className="input-field mt-1" placeholder="Nhập mã thiết bị (VD: TA0123...)" />
                         </div>
 
-                        {/* Phân loại asset */}
-                        <SelectBox
-                          label="Phân loại"
-                          value={formData.asset_type}
-                          options={ASSET_TYPES}
-                          onChange={(val) => handleSelectChange('asset_type', val)}
-                        />
+                        {/* Phân loại asset — text tự do (SK yêu cầu 2026-09-22) */}
+                        <div>
+                          <label htmlFor="asset_type" className="block text-sm font-medium text-gray-700">
+                            Phân loại
+                          </label>
+                          <input
+                            type="text"
+                            name="asset_type"
+                            id="asset_type"
+                            value={formData.asset_type}
+                            onChange={handleChange}
+                            className="input-field mt-1"
+                            placeholder="VD: Laptop, Máy tính để bàn, Sim..."
+                            maxLength={20}
+                          />
+                        </div>
 
-                        {/* Tình trạng (Vật lý) — SIM dùng chung choices với asset khác */}
-                        <SelectBox
-                          label="Tình trạng (Vật lý)"
-                          value={formData.condition}
-                          options={ASSET_CONDITIONS}
-                          onChange={(val) => handleSelectChange('condition', val)}
-                        />
+                        {/* Tình trạng (Vật lý) — text tự do (SK yêu cầu 2026-09-22) */}
+                        <div>
+                          <label htmlFor="condition" className="block text-sm font-medium text-gray-700">
+                            Tình trạng (Vật lý)
+                          </label>
+                          <input
+                            type="text"
+                            name="condition"
+                            id="condition"
+                            value={formData.condition}
+                            onChange={handleChange}
+                            className="input-field mt-1"
+                            placeholder="VD: Mới 100%, Cũ (Chất lượng tốt)..."
+                            maxLength={20}
+                          />
+                        </div>
 
                         {/* Trạng thái — chỉ hiện ở outer grid khi KHÔNG phải SIM (SIM có trạng thái riêng trong SIM section) */}
                         {formData.asset_type !== 'SIM' && (
@@ -490,8 +513,13 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           />
                         )}
 
-                        {/* Desktop Specific Fields (CPU, MAIN, RAM, Ổ CỨNG, VGA, NGUỒN) */}
-                        {formData.asset_type === 'DESKTOP' && (
+                        {/* Desktop Specific Fields (CPU, MAIN, RAM, Ổ CỨNG, VGA, NGUỒN) —
+                            tạm thời disable (SK yêu cầu 2026-09-22): "Phân loại" giờ là
+                            text tự do nên không còn đáng tin cậy để tự động hiện đúng field
+                            theo loại thiết bị như trước (dropdown cũ). Dùng cờ false thay vì
+                            comment JSX bao ngoài vì bên trong có nhiều comment con lồng
+                            nhau, comment ngoài sẽ bị đóng sớm ngay tại comment con đầu tiên. */}
+                        {false && formData.asset_type === 'DESKTOP' && (
                           <div className="sm:col-span-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 bg-primary-50/50 p-4 rounded-xl border border-primary-100 mb-4">
                             <div className="sm:col-span-2">
                               <h4 className="text-sm font-semibold text-primary-900 flex items-center gap-2">
@@ -538,8 +566,8 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           </div>
                         )}
 
-                        {/* MONITOR Specific Fields (Số lượng) */}
-                        {['MONITOR', 'OTHER'].includes(formData.asset_type) && (
+                        {/* MONITOR Specific Fields (Số lượng) — tạm thời disable, xem comment ở khối DESKTOP phía trên */}
+                        {false && ['MONITOR', 'OTHER'].includes(formData.asset_type) && (
                           <div className="sm:col-span-2 bg-violet-50/60 p-4 rounded-xl border border-violet-100 mb-4">
                             <h4 className="text-xs font-semibold uppercase tracking-wide text-violet-500 mb-3 flex items-center gap-1.5">
                               <div className="w-1.5 h-1.5 bg-violet-500 rounded-full"></div>
@@ -557,8 +585,8 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           </div>
                         )}
 
-                        {/* SIM Specific Fields (Số điện thoại, Nhà mạng) */}
-                        {formData.asset_type === 'SIM' && (
+                        {/* SIM Specific Fields (Số điện thoại, Nhà mạng) — tạm thời disable, xem comment ở khối DESKTOP phía trên */}
+                        {false && formData.asset_type === 'SIM' && (
                           <div className="sm:col-span-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100 mb-4">
                             <div className="sm:col-span-2">
                               <h4 className="text-sm font-semibold text-emerald-900 flex items-center gap-2">
@@ -630,8 +658,8 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           </div>
                         )}
 
-                        {/* OTHER Specific Fields (Tên loại chi tiết) */}
-                        {formData.asset_type === 'OTHER' && (
+                        {/* OTHER Specific Fields (Tên loại chi tiết) — tạm thời disable, xem comment ở khối DESKTOP phía trên */}
+                        {false && formData.asset_type === 'OTHER' && (
                           <div className="sm:col-span-2 grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 bg-gray-50/50 p-4 rounded-xl border border-gray-200 mb-4">
                             <div className="sm:col-span-2">
                               <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-1">
