@@ -108,9 +108,9 @@ const OvertimeExclusionTab: React.FC = () => {
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
         <p className="text-sm font-medium text-amber-800">Loại trừ tăng ca</p>
         <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
-          Nhân viên/vị trí/phòng ban được chọn bên dưới sẽ KHÔNG được tính tăng ca (kể cả tăng ca
-          tự động phát hiện lẫn tự tạo đơn) — chọn phòng ban sẽ loại trừ TẤT CẢ nhân viên trong
-          phòng ban đó, bao gồm cả trưởng phòng.
+          Nhân viên/vị trí/phòng ban được chọn bên dưới sẽ KHÔNG được tính tăng ca tự động phát
+          hiện — vẫn có thể tự tạo đơn tăng ca để quản lý trực tiếp và HR duyệt. Chọn phòng ban sẽ
+          loại trừ TẤT CẢ nhân viên trong phòng ban đó, bao gồm cả trưởng phòng.
         </p>
       </div>
 
