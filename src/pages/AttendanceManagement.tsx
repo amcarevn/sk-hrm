@@ -1167,11 +1167,39 @@ const AttendanceManagement: React.FC = () => {
                   }
                }
             }
-            // D. Nếu đang gửi Đăng ký (OT, Trực...): 
+            // D. Nếu đang gửi Đăng ký (OT, Trực...):
             else if (selectedContext === 'registration') {
-              // Xóa đơn Đăng ký cũ (Chỉ giữ 1 đơn Đăng ký 1 ngày)
-              if (isExistingReg) {
-                await attendanceService.deleteRegistrationRequest(modelId);
+              // Không bao giờ xoá đơn tăng ca do hệ thống TỰ ĐỘNG phát hiện
+              // (auto_created) chỉ vì nhân viên gửi thêm 1 đơn đăng ký khác trong
+              // cùng ngày — đơn này phản ánh dữ kiện chấm công thực tế (checkout
+              // muộn) và KHÔNG thể tự tạo lại nếu bị huỷ nhầm (xem auto_overtime_sync.py).
+              const isAutoCreatedOvertime = existingType === 'overtime' && existing.data?.auto_created === true;
+
+              // Chỉ xóa đơn Đăng ký cũ CÙNG LOẠI VÀ CÙNG KHUNG GIỜ (tức đang gửi
+              // lại/sửa đúng đơn cũ). Nếu khung giờ khác thì đây là 1 đơn khác trong
+              // cùng ngày (VD: tăng ca tự động phát hiện buổi tối + tăng ca không
+              // nghỉ trưa buổi trưa) — phải giữ cả 2, không được xoá đơn cũ chỉ vì
+              // cùng loại "overtime".
+              if (isExistingReg && !isAutoCreatedOvertime && existingType === selectedReason) {
+                const newStartTime = selectedReason === 'overtime' ? overtimeStartTime
+                  : selectedReason === 'extra_hours' ? extraHoursStartTime
+                  : selectedReason === 'night_shift' ? nightShiftStartTime
+                  : selectedReason === 'live' ? liveStartTime
+                  : selectedReason === 'off_duty' ? '08:30'
+                  : null;
+                const newEndTime = selectedReason === 'overtime' ? overtimeEndTime
+                  : selectedReason === 'extra_hours' ? extraHoursEndTime
+                  : selectedReason === 'night_shift' ? nightShiftEndTime
+                  : selectedReason === 'live' ? liveEndTime
+                  : selectedReason === 'off_duty' ? '17:30'
+                  : null;
+                const existingStartTime = existing.start_time ?? existing.data?.start_time ?? null;
+                const existingEndTime = existing.end_time ?? existing.data?.end_time ?? null;
+                const isSameTimeWindow = (existingStartTime || null) === (newStartTime || null)
+                  && (existingEndTime || null) === (newEndTime || null);
+                if (isSameTimeWindow) {
+                  await attendanceService.deleteRegistrationRequest(modelId);
+                }
               }
               // Nếu đăng ký mới là "Vào/Ra trực": Xóa Online, Nghỉ phép
               if (selectedReason === 'off_duty') {
