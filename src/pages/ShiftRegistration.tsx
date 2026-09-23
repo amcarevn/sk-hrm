@@ -358,7 +358,9 @@ const ShiftRegistration: React.FC = () => {
               {isReadOnly && (
                 <div className="mx-5 mt-4 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
                   {existingReg?.status === 'PENDING'
-                    ? 'Đơn đang chờ quản lý duyệt — không thể chỉnh sửa.'
+                    ? existingReg?.direct_manager_approved
+                      ? 'Quản lý trực tiếp đã duyệt — đơn đang chờ HCNS duyệt lần cuối, không thể chỉnh sửa.'
+                      : 'Đơn đang chờ quản lý trực tiếp duyệt — không thể chỉnh sửa.'
                     : 'Đơn đã được duyệt — không thể chỉnh sửa.'}
                 </div>
               )}
