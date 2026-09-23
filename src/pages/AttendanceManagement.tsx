@@ -3382,10 +3382,29 @@ const AttendanceManagement: React.FC = () => {
                                   });
                                   if (isAlreadyApproved) return false;
 
+                                  // 1b. Ẩn nếu loại này đã hết hạn mức riêng trong tháng (Đi muộn/Về
+                                  // sớm/Quên chấm công mỗi loại 1 lần/tháng độc lập, 2026-09-23 — xem
+                                  // get_explanation_quota_by_type() bên BE).
+                                  const quotaByType = attendanceStats?.explanation_quota_by_type;
+                                  const quotaTypeMap: Record<string, string> = {
+                                    late_minutes: 'LATE',
+                                    early_leave_minutes: 'EARLY_LEAVE',
+                                    incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
+                                  };
+                                  const quotaKey = quotaTypeMap[reason.id];
+                                  if (quotaKey && quotaByType?.[quotaKey] && quotaByType[quotaKey].remaining <= 0) {
+                                    return false;
+                                  }
+
                                   // 2. Các logic lọc theo dữ liệu thực tế (giữ nguyên logic cũ nhưng làm gọn hơn)
                                   const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
-                                  if (reason.id === 'late_minutes') return !isIncomplete && (detail?.late_minutes || 0) > 0;
-                                  if (reason.id === 'early_leave_minutes') return !isIncomplete && (detail?.early_leave_minutes || 0) > 0;
+                                  const maxMinutes = quotaByType?.max_minutes ?? 30;
+                                  if (reason.id === 'late_minutes') {
+                                    return !isIncomplete && (detail?.late_minutes || 0) > 0 && (detail?.late_minutes || 0) <= maxMinutes;
+                                  }
+                                  if (reason.id === 'early_leave_minutes') {
+                                    return !isIncomplete && (detail?.early_leave_minutes || 0) > 0 && (detail?.early_leave_minutes || 0) <= maxMinutes;
+                                  }
                                   if (reason.id === 'incomplete_attendance') return isIncomplete || detail?.status === 'ABSENT';
                                   if (reason.id === 'first_day') return !detail || detail.status === 'ABSENT' || detail?.status === 'INCOMPLETE_ATTENDANCE';
                                   if (reason.id === 'business_trip') {
