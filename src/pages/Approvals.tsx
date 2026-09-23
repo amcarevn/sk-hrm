@@ -1745,6 +1745,119 @@ const Approvals: React.FC = () => {
 
   const getGroupedRequests = () => memoizedGroupedRequests;
 
+  // Số đơn PENDING có thể duyệt theo từng cấp phòng ban/vị trí/nhân sự — tính
+  // MỘT LẦN cho toàn bộ cây khi memoizedGroupedRequests đổi, thay vì filter()
+  // lại toàn bộ danh sách con mỗi lần render (page có tháng >2000 đơn nên
+  // việc filter lặp lại ở từng node accordion trong mỗi lần render gây giật).
+  const pendingCountsMap = useMemo(() => {
+    const deptCounts: Record<string, number> = {};
+    const posCounts: Record<string, number> = {};
+    const empCounts: Record<string, number> = {};
+
+    Object.entries(memoizedGroupedRequests).forEach(([deptName, posGroups]: [string, any]) => {
+      let deptTotal = 0;
+      Object.entries(posGroups as Record<string, any>).forEach(([posName, empGroups]: [string, any]) => {
+        let posTotal = 0;
+        Object.entries(empGroups as Record<string, any>).forEach(([empName, items]: [string, any[]]) => {
+          const empPending = (items || []).filter((r: any) => r.status === 'PENDING' && canApproveRequest(r)).length;
+          empCounts[`${deptName}-${posName}-${empName}`] = empPending;
+          posTotal += empPending;
+        });
+        posCounts[`${deptName}::${posName}`] = posTotal;
+        deptTotal += posTotal;
+      });
+      deptCounts[deptName] = deptTotal;
+    });
+
+    return { deptCounts, posCounts, empCounts };
+  }, [memoizedGroupedRequests, currentEmployee, user]);
+
+  // Quota hàng tháng theo từng nhân sự (Giải trình/Nghỉ phép/Online/Đăng ký) —
+  // tính MỘT LẦN cho toàn bộ nhân sự thay vì filter() lại 4 mảng đầy đủ của
+  // cả tháng cho MỖI nhân sự hiển thị (đây là điểm gây giật nặng nhất khi số
+  // đơn trong tháng lớn: O(số nhân sự × 4 loại × tổng số đơn) mỗi lần render).
+  const employeeQuotaMap = useMemo(() => {
+    const TYPE_SOURCES: Record<string, any[]> = {
+      EXPLANATION: [...attendanceExplanations, ...approvedExplanations, ...rejectedExplanations],
+      LEAVE: [...pendingLeaveRequests, ...approvedLeaveRequests],
+      ONLINE_WORK: [...pendingOnlineWorkRequests, ...approvedOnlineWorkRequests, ...rejectedOnlineWorkRequests],
+      REGISTRATION: [...pendingRegistrations, ...approvedRegistrations, ...pendingOvertimeRequests, ...approvedOvertimeRequests],
+    };
+
+    const map = new Map<any, Record<string, number>>();
+
+    Object.entries(TYPE_SOURCES).forEach(([type, source]) => {
+      const byEmp = new Map<any, any[]>();
+      source.forEach((item: any) => {
+        const empId = item.employee_id || (typeof item.employee === 'object' ? item.employee?.id : item.employee);
+        if (empId === undefined || empId === null) return;
+        if (!byEmp.has(empId)) byEmp.set(empId, []);
+        byEmp.get(empId)!.push(item);
+      });
+
+      byEmp.forEach((items, empId) => {
+        const itemWithQuota = items.find((i: any) => i.quota_used !== undefined);
+        const value = itemWithQuota
+          ? itemWithQuota.quota_used
+          : items.filter((i: any) => i.status === 'APPROVED' || i.hr_approved === true).length;
+
+        if (!map.has(empId)) map.set(empId, {});
+        map.get(empId)![type] = value;
+      });
+    });
+
+    return map;
+  }, [
+    attendanceExplanations, approvedExplanations, rejectedExplanations,
+    pendingLeaveRequests, approvedLeaveRequests,
+    pendingOnlineWorkRequests, approvedOnlineWorkRequests, rejectedOnlineWorkRequests,
+    pendingRegistrations, approvedRegistrations, pendingOvertimeRequests, approvedOvertimeRequests,
+  ]);
+
+  // Số đơn theo từng tab loại (Giải trình/Đăng ký/Nghỉ phép/Làm online) —
+  // tính MỘT LẦN thay vì filter() lại 4 mảng đầy đủ mỗi lần gọi getTabCount()
+  // (được gọi 8 lần mỗi render cho các chip ở 2 khu vực khác nhau).
+  const tabCounts = useMemo(() => {
+    const compute = (type: string) => {
+      let requests: any[] = [];
+      if (type === 'EXPLANATION') {
+        requests = activeTab === 'pending' ? attendanceExplanations : activeTab === 'approved' ? approvedExplanations : rejectedExplanations;
+      } else if (type === 'REGISTRATION') {
+        const regs = activeTab === 'pending' ? pendingRegistrations : activeTab === 'approved' ? approvedRegistrations : rejectedRegistrations;
+        const ots = activeTab === 'pending' ? pendingOvertimeRequests : activeTab === 'approved' ? approvedOvertimeRequests : rejectedOvertimeRequests;
+        requests = [...regs, ...ots];
+      } else if (type === 'LEAVE') {
+        requests = activeTab === 'pending' ? pendingLeaveRequests : activeTab === 'approved' ? approvedLeaveRequests : rejectedLeaveRequests;
+      } else if (type === 'ONLINE_WORK') {
+        requests = activeTab === 'pending' ? pendingOnlineWorkRequests : activeTab === 'approved' ? approvedOnlineWorkRequests : rejectedOnlineWorkRequests;
+      }
+
+      let filtered = requests.filter(matchesTextFilters);
+      if (filterOnlyMine) {
+        filtered = filtered.filter(item => {
+          const itemEmpId = item.employee_id || (typeof item.employee === 'object' ? item.employee?.id : item.employee);
+          return itemEmpId === currentEmployee?.id;
+        });
+      }
+      return filtered.length;
+    };
+
+    return {
+      EXPLANATION: compute('EXPLANATION'),
+      REGISTRATION: compute('REGISTRATION'),
+      LEAVE: compute('LEAVE'),
+      ONLINE_WORK: compute('ONLINE_WORK'),
+    };
+  }, [
+    activeTab,
+    attendanceExplanations, approvedExplanations, rejectedExplanations,
+    pendingRegistrations, approvedRegistrations, rejectedRegistrations,
+    pendingOvertimeRequests, approvedOvertimeRequests, rejectedOvertimeRequests,
+    pendingLeaveRequests, approvedLeaveRequests, rejectedLeaveRequests,
+    pendingOnlineWorkRequests, approvedOnlineWorkRequests, rejectedOnlineWorkRequests,
+    debouncedFilterName, filterDepartment, filterOnlyMine, currentEmployee,
+  ]);
+
   const getTotalCount = () => {
     const groups = getGroupedRequests();
     let count = 0;
@@ -1757,31 +1870,6 @@ const Approvals: React.FC = () => {
     });
     return count;
   };
-
-  const getTabCount = (type: string) => {
-    let requests: any[] = [];
-    if (type === 'EXPLANATION') {
-      requests = activeTab === 'pending' ? attendanceExplanations : activeTab === 'approved' ? approvedExplanations : rejectedExplanations;
-    } else if (type === 'REGISTRATION') {
-      const regs = activeTab === 'pending' ? pendingRegistrations : activeTab === 'approved' ? approvedRegistrations : rejectedRegistrations;
-      const ots = activeTab === 'pending' ? pendingOvertimeRequests : activeTab === 'approved' ? approvedOvertimeRequests : rejectedOvertimeRequests;
-      requests = [...regs, ...ots];
-    } else if (type === 'LEAVE') {
-      requests = activeTab === 'pending' ? pendingLeaveRequests : activeTab === 'approved' ? approvedLeaveRequests : rejectedLeaveRequests;
-    } else if (type === 'ONLINE_WORK') {
-      requests = activeTab === 'pending' ? pendingOnlineWorkRequests : activeTab === 'approved' ? approvedOnlineWorkRequests : rejectedOnlineWorkRequests;
-    }
-
-    let filtered = requests.filter(matchesTextFilters);
-    if (filterOnlyMine) {
-      filtered = filtered.filter(item => {
-        const itemEmpId = item.employee_id || (typeof item.employee === 'object' ? item.employee?.id : item.employee);
-        return itemEmpId === currentEmployee?.id;
-      });
-    }
-    return filtered.length;
-  };
-
 
   const now = new Date();
   const isEarly = now.getDate() <= 15;
@@ -1959,10 +2047,10 @@ const Approvals: React.FC = () => {
         {/* Thẻ Thống kê - Responsive Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6 mb-8">
           {[
-            { type: 'EXPLANATION', label: 'Giải trình', fullLabel: 'Giải trình', count: getTabCount('EXPLANATION'), color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-            { type: 'REGISTRATION', label: 'Đăng ký', fullLabel: 'Đăng ký', count: getTabCount('REGISTRATION'), color: 'primary', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
-            { type: 'LEAVE', label: 'Nghỉ phép', fullLabel: 'Nghỉ phép', count: getTabCount('LEAVE'), color: 'primary', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-            { type: 'ONLINE_WORK', label: 'Làm online', fullLabel: 'Làm online', count: getTabCount('ONLINE_WORK'), color: 'emerald', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' }
+            { type: 'EXPLANATION', label: 'Giải trình', fullLabel: 'Giải trình', count: tabCounts.EXPLANATION, color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+            { type: 'REGISTRATION', label: 'Đăng ký', fullLabel: 'Đăng ký', count: tabCounts.REGISTRATION, color: 'primary', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
+            { type: 'LEAVE', label: 'Nghỉ phép', fullLabel: 'Nghỉ phép', count: tabCounts.LEAVE, color: 'primary', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+            { type: 'ONLINE_WORK', label: 'Làm online', fullLabel: 'Làm online', count: tabCounts.ONLINE_WORK, color: 'emerald', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' }
           ].map((item) => (
             <div
               key={item.type}
@@ -2182,10 +2270,10 @@ const Approvals: React.FC = () => {
 
                   {/* Use a fixed height and whitespace-nowrap to ensure equality */}
                   {[
-                    { value: 'EXPLANATION', label: 'Giải trình', count: getTabCount('EXPLANATION'), color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-                    { value: 'REGISTRATION', label: 'Đăng ký', count: getTabCount('REGISTRATION'), color: 'primary', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
-                    { value: 'LEAVE', label: 'Nghỉ phép tháng', count: getTabCount('LEAVE'), color: 'primary', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-                    { value: 'ONLINE_WORK', label: 'Làm việc online', count: getTabCount('ONLINE_WORK'), color: 'emerald', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+                    { value: 'EXPLANATION', label: 'Giải trình', count: tabCounts.EXPLANATION, color: 'amber', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+                    { value: 'REGISTRATION', label: 'Đăng ký', count: tabCounts.REGISTRATION, color: 'primary', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
+                    { value: 'LEAVE', label: 'Nghỉ phép tháng', count: tabCounts.LEAVE, color: 'primary', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+                    { value: 'ONLINE_WORK', label: 'Làm việc online', count: tabCounts.ONLINE_WORK, color: 'emerald', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
                   ].map(opt => {
                     const isActive = filterTypes.includes(opt.value);
                     return (
@@ -2363,7 +2451,7 @@ const Approvals: React.FC = () => {
                 acc.concat(...Object.values(empGroup as Record<string, any>)), []
               );
 
-              const pendingInDept = allItemsInDept.filter((r: any) => r.status === 'PENDING' && canApproveRequest(r)).length;
+              const pendingInDept = pendingCountsMap.deptCounts[deptName] || 0;
 
               return (
                 <div key={deptName} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-3">
@@ -2425,7 +2513,7 @@ const Approvals: React.FC = () => {
                     <div className="p-2 sm:p-4 space-y-6 bg-gray-50/30">
                       {Object.entries(posGroups as Record<string, any>).map(([posName, empGroups]: [string, any]) => {
                         const allItemsInPos = ([] as any[]).concat(...Object.values(empGroups as Record<string, any>));
-                        const pendingInPos = allItemsInPos.filter((r: any) => r.status === 'PENDING' && canApproveRequest(r)).length;
+                        const pendingInPos = pendingCountsMap.posCounts[`${deptName}::${posName}`] || 0;
 
                         return (
                           <div key={posName} className="bg-white border border-gray-100 rounded-lg shadow-sm overflow-hidden border-l-4 border-l-primary-500">
@@ -2465,7 +2553,7 @@ const Approvals: React.FC = () => {
                               {Object.entries(empGroups as Record<string, any>).map(([empName, items]: [string, any[]]) => {
                                 const accordionKey = `${deptName}-${posName}-${empName}`;
                                 const isEmpExpanded = expandedEmployees.includes(accordionKey);
-                                const pendingInEmp = (items || []).filter((r: any) => r.status === 'PENDING' && canApproveRequest(r)).length;
+                                const pendingInEmp = pendingCountsMap.empCounts[accordionKey] || 0;
                                 const firstItem = items[0];
 
                                 return (
@@ -2537,25 +2625,9 @@ const Approvals: React.FC = () => {
                                           {(() => {
                                             const empId = firstItem?.employee_id || (typeof firstItem?.employee === 'object' ? firstItem?.employee?.id : firstItem?.employee);
 
-                                            const getMonthlyQuota = (type: string) => {
-                                              const getAllTypedItems = () => {
-                                                if (type === 'EXPLANATION') return [...attendanceExplanations, ...approvedExplanations, ...rejectedExplanations];
-                                                if (type === 'LEAVE') return [...pendingLeaveRequests, ...approvedLeaveRequests];
-                                                if (type === 'ONLINE_WORK') return [...pendingOnlineWorkRequests, ...approvedOnlineWorkRequests, ...rejectedOnlineWorkRequests];
-                                                if (type === 'REGISTRATION') return [...pendingRegistrations, ...approvedRegistrations, ...pendingOvertimeRequests, ...approvedOvertimeRequests];
-                                                return [];
-                                              };
-
-                                              const allOfThisType = getAllTypedItems().filter(i => {
-                                                const iEmpId = i.employee_id || (typeof i.employee === 'object' ? i.employee?.id : i.employee);
-                                                return iEmpId === empId;
-                                              });
-
-                                              if (allOfThisType.length === 0) return null;
-                                              const itemWithQuota = allOfThisType.find(i => i.quota_used !== undefined);
-                                              if (itemWithQuota && itemWithQuota.quota_used !== undefined) return itemWithQuota.quota_used;
-                                              return allOfThisType.filter(i => (i.status === 'APPROVED' || i.hr_approved === true)).length;
-                                            };
+                                            const empQuotas = employeeQuotaMap.get(empId);
+                                            const getMonthlyQuota = (type: string): number | null =>
+                                              empQuotas && type in empQuotas ? empQuotas[type] : null;
 
                                             const quotas = [
                                               { id: 'exp', label: 'Giải trình', value: getMonthlyQuota('EXPLANATION'), max: 3, color: 'amber', bg: 'bg-amber-50/70', text: 'text-amber-700', border: 'border-amber-200' },
