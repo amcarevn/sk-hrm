@@ -1277,63 +1277,44 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         ))}
       </div>
 
-      {/* Explanation Quota Info - Professional Display */}
-      {engineSummary && engineSummary.explanation_quota_max !== undefined && (
-        <div className="px-2.5 py-2.5 md:px-6 md:py-3 border-b border-gray-100 bg-amber-50/30 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2 md:gap-3">
+      {/* Explanation Quota Info - hạn mức riêng theo từng loại (2026-09-23):
+          Đi muộn/Về sớm/Quên chấm công mỗi loại 1 lượt/tháng độc lập, không
+          còn gộp chung 1 hạn mức 3 lượt như trước — xem
+          get_explanation_quota_by_type() (hrm/stats_utils.py). */}
+      {engineSummary && engineSummary.explanation_quota_by_type && (
+        <div className="px-2.5 py-2.5 md:px-6 md:py-3 border-b border-gray-100 bg-amber-50/30">
+          <div className="flex items-center gap-2 md:gap-3 mb-2">
             <div className="p-1.5 md:p-2 bg-amber-100 rounded-xl text-amber-600 shadow-sm border border-amber-200">
               <BoltIcon className="h-4 w-4 md:h-5 md:w-5" />
             </div>
-            <div>
-              <p className="text-[9px] md:text-[11px] font-black text-amber-800 uppercase tracking-widest leading-tight">Hạn mức giải trình tháng {currentDate.getMonth() + 1}</p>
-              <div className="flex items-center gap-1.5 md:gap-2 mt-0.5">
-                <span className="text-base md:text-xl font-black text-amber-900 leading-none">
-                  {engineSummary.explanation_quota_used}
-                  <span className="text-xs md:text-sm font-bold text-amber-500 mx-0.5 md:mx-1">/</span>
-                  {engineSummary.explanation_quota_max}
-                </span>
-                <span className="text-[8px] md:text-[10px] font-bold text-amber-600 bg-amber-100/50 px-1.5 py-0.5 rounded-md border border-amber-200/50 leading-none">
-                  đã dùng
-                </span>
-              </div>
-            </div>
+            <p className="text-[9px] md:text-[11px] font-black text-amber-800 uppercase tracking-widest leading-tight">
+              Hạn mức giải trình tháng {currentDate.getMonth() + 1}
+            </p>
           </div>
-
-          <div className="flex items-center gap-3 md:gap-4">
-            <div className="flex flex-col items-end">
-              <span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.1em] md:tracking-[0.2em] leading-tight">Còn lại</span>
-              <span className={`text-sm md:text-lg font-black mt-0.5 leading-none ${
-                engineSummary.explanation_quota_remaining > 0 
-                ? 'text-green-600' 
-                : 'text-red-500'
-              }`}>
-                {engineSummary.explanation_quota_remaining} lượt
-              </span>
-            </div>
-            <div className="w-10 h-10 md:w-14 md:h-14 flex items-center justify-center rounded-xl md:rounded-2xl bg-white shadow-sm border border-slate-100 ring-1 ring-slate-200/50">
-              <div className="relative w-7 h-7 md:w-10 md:h-10">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                  <circle
-                    cx="50" cy="50" r="40"
-                    className="stroke-amber-100 fill-none"
-                    strokeWidth="8"
-                    pathLength="100"
-                  />
-                  <circle
-                    cx="50" cy="50" r="40"
-                    className={`${engineSummary.explanation_quota_remaining > 0 ? 'stroke-amber-500' : 'stroke-red-500'} fill-none transition-all duration-1000 ease-out`}
-                    strokeWidth="8"
-                    strokeDasharray="100"
-                    strokeDashoffset={Math.max(0, 100 - ((engineSummary.explanation_quota_used / engineSummary.explanation_quota_max) * 100))}
-                    strokeLinecap="round"
-                    pathLength="100"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center text-[8px] md:text-[10px] font-black text-amber-700">
-                  {Math.min(100, Math.round((engineSummary.explanation_quota_used / engineSummary.explanation_quota_max) * 100))}%
+          <div className="flex flex-wrap gap-2 md:gap-2.5 pl-0.5">
+            {([
+              { key: 'EARLY_LEAVE', label: 'Về sớm', capMinutes: true },
+              { key: 'LATE', label: 'Đi muộn', capMinutes: true },
+              { key: 'INCOMPLETE_ATTENDANCE', label: 'Quên chấm công', capMinutes: false },
+            ] as const).map((row) => {
+              const q = engineSummary.explanation_quota_by_type?.[row.key] || { used: 0, max: 1, remaining: 1 };
+              const maxMinutes = engineSummary.explanation_quota_by_type?.max_minutes ?? 30;
+              const isExhausted = q.remaining <= 0;
+              return (
+                <div
+                  key={row.key}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] md:text-xs font-semibold ${
+                    isExhausted ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-amber-200 text-amber-800'
+                  }`}
+                >
+                  <span>{row.label}:</span>
+                  <span className="font-black">{q.used}/{q.max} lần</span>
+                  {row.capMinutes && (
+                    <span className="text-[9px] md:text-[10px] font-normal text-gray-400">(không quá {maxMinutes}p)</span>
+                  )}
                 </div>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
       )}
