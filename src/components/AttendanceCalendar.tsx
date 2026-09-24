@@ -790,6 +790,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       case 'APPROVED': return { label: 'Đã duyệt', cls: 'bg-green-100 text-green-700 border border-green-200' };
       case 'PENDING':  return { label: 'Chờ duyệt', cls: 'bg-yellow-100 text-yellow-700 border border-yellow-200' };
       case 'REJECTED': return { label: 'Bị từ chối', cls: 'bg-red-100 text-red-700 border border-red-200' };
+      case 'CANCELLED': return { label: 'Đã huỷ', cls: 'bg-gray-200 text-gray-700 border border-gray-300' };
       default:         return { label: status || '—', cls: 'bg-gray-100 text-gray-600 border border-gray-200' };
     }
   };
@@ -1163,6 +1164,17 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                             {data.approved_by_name && (
                               <p className="text-green-700"><span className="font-semibold">Duyệt bởi:</span> {data.approved_by_name}</p>
                             )}
+                            {/* Người huỷ đơn — deleted_by_name do soft_cancel_request() (hrm/models.py)
+                                ghi lại khi chủ đơn tự huỷ; deleted_by_name=None (chỉ có 'Hệ thống tự huỷ'
+                                trong reason) nghĩa là hệ thống tự huỷ (vd auto-overtime hết checkout muộn),
+                                không phải người dùng — trước đây không hiển thị gì nên dễ nhầm là do hệ
+                                thống tự huỷ dù thực chất là nhân sự tự huỷ (xem case SK00643 2026-09-24). */}
+                            {data.status?.toUpperCase() === 'CANCELLED' && (
+                              <p className="text-gray-600">
+                                <span className="font-semibold">Huỷ bởi:</span>{' '}
+                                {data.deleted_by_name || 'Hệ thống tự động'}
+                              </p>
+                            )}
                           </div>
                           
                           {/* Long Text Blocks */}
@@ -1192,6 +1204,12 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                               <div className="bg-red-50/50 border border-red-100 rounded-md p-2 text-xs">
                                 <span className="font-semibold text-red-700 block mb-0.5">Lý do từ chối:</span>
                                 <p className="text-red-700 italic leading-relaxed">{data.rejected_reason}</p>
+                              </div>
+                            )}
+                            {data.cancel_reason && (
+                              <div className="bg-gray-100/70 border border-gray-200 rounded-md p-2 text-xs">
+                                <span className="font-semibold text-gray-700 block mb-0.5">Lý do huỷ:</span>
+                                <p className="text-gray-600 italic leading-relaxed">{data.cancel_reason}</p>
                               </div>
                             )}
                           </div>
