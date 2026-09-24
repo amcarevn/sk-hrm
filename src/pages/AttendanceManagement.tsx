@@ -1347,6 +1347,10 @@ const AttendanceManagement: React.FC = () => {
 
       let result;
       if (selectedContext === 'online_work') {
+        // half_day_period: cho engine chấm công biết buổi nào (sáng/chiều) đã
+        // làm online, để loại trừ đúng buổi đó khỏi kiểm tra đi muộn/vắng mặt
+        // của ca chấm công tại viện — trước đây chỉ có trong text "reason" tự
+        // do nên backend không đọc được (xem _evaluate_morning_shift_rule).
         const onlineWorkData = {
           employee_id: currentEmployee.id,
           work_date: dateStr, // Sử dụng work_date thay vì attendance_date
@@ -1354,6 +1358,9 @@ const AttendanceManagement: React.FC = () => {
           reason: finalReason,
           status: 'PENDING',
           expected_status: expectedStatus, // Thêm expected_status
+          ...(expectedStatus === 'HALF_DAY' && (selectedReason === 'morning' || selectedReason === 'afternoon')
+            ? { half_day_period: selectedReason.toUpperCase() }
+            : {}),
         };
 
         console.log(

@@ -882,6 +882,12 @@ class AttendanceService {
     work_date: string;
     reason: string;
     work_plan?: string;
+    status?: string;
+    expected_status?: string;
+    // Buổi làm online khi expected_status='HALF_DAY' ('MORNING'/'AFTERNOON') —
+    // cho attendance engine loại trừ đúng buổi đó khỏi kiểm tra đi muộn/vắng
+    // mặt của ca chấm công tại viện.
+    half_day_period?: string;
   }): Promise<any> {
     try {
       const response = await managementApi.post('/api-hrm/online-work-requests/', data);
