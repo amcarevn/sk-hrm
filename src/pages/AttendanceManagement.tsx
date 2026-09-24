@@ -2718,7 +2718,24 @@ const AttendanceManagement: React.FC = () => {
                       APPROVED: 'Đã duyệt',
                       REJECTED: 'Từ chối',
                       PENDING: 'Chờ duyệt',
+                      CANCELLED: 'Đã huỷ',
                     };
+                    // Hiển thị "Huỷ bởi ai/lúc nào/lý do gì" trong Lịch sử sự kiện —
+                    // dữ liệu do soft_cancel_request() (hrm/models.py) ghi vào
+                    // event.data khi huỷ qua .../cancel/ hoặc DELETE tự phục vụ.
+                    // deleted_by_name rỗng (chỉ có cancel_reason "Hệ thống tự huỷ:
+                    // ...") nghĩa là HỆ THỐNG tự huỷ (vd auto-overtime hết checkout
+                    // muộn), không phải người dùng — trước đây không hiển thị gì nên
+                    // dễ nhầm mọi đơn CANCELLED là do hệ thống (xem case SK00643
+                    // 2026-09-24: tự huỷ đơn của chính mình, không phải hệ thống).
+                    const renderCancelInfo = (d: any) =>
+                      d?.status === 'CANCELLED' && (d?.deleted_by_name || d?.cancel_reason) ? (
+                        <p className="text-gray-500">
+                          Huỷ bởi: {d.deleted_by_name || 'Không rõ (huỷ trước khi có log)'}
+                          {d.deleted_at && ` lúc ${new Date(d.deleted_at).toLocaleString('vi-VN')}`}
+                          {d.cancel_reason && ` — "${d.cancel_reason}"`}
+                        </p>
+                      ) : null;
                     const approvalLevelLabel: Record<string, string> = {
                       DIRECT_MANAGER: 'Quản lý trực tiếp',
                       HR: 'HR',
@@ -2916,6 +2933,7 @@ const AttendanceManagement: React.FC = () => {
                                             ev.data.status}
                                         </p>
                                       )}
+                                      {renderCancelInfo(ev.data)}
                                       {ev.data?.request_code && (
                                         <p className="font-mono text-gray-500">
                                           {ev.data.request_code}
@@ -2959,6 +2977,7 @@ const AttendanceManagement: React.FC = () => {
                                             ev.data.status}
                                         </p>
                                       )}
+                                      {renderCancelInfo(ev.data)}
                                     </div>
                                   )}
                                   {['overtime', 'extra_hours', 'night_shift', 'live', 'off_duty', 'online_work', 'shift_change'].includes(ev.event_type) && (
@@ -2997,6 +3016,7 @@ const AttendanceManagement: React.FC = () => {
                                             ev.data.status}
                                         </p>
                                       )}
+                                      {renderCancelInfo(ev.data)}
                                       {ev.data?.request_code && (
                                         <p className="font-mono text-gray-500">
                                           {ev.data.request_code}

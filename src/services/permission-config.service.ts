@@ -84,3 +84,36 @@ export async function updateOnlineWorkQuotaOverride(
 export async function deleteOnlineWorkQuotaOverride(id: number): Promise<void> {
   await managementApi.delete(`/api-hrm/online-work-quota-overrides/${id}/`);
 }
+
+// ─────────────────────────────────────────────────────────────
+// Hạn mức giải trình gộp cấp Trưởng phòng (ManagerExplanationQuotaConfig —
+// bản ghi đơn/singleton, HR tự chọn từng người)
+// ─────────────────────────────────────────────────────────────
+
+export interface ManagerExplanationQuotaEmployeeDetail {
+  id: number;
+  employee_id: string;
+  full_name: string;
+  department_name: string | null;
+  position_title: string | null;
+}
+
+export interface ManagerExplanationQuotaConfig {
+  id: number;
+  eligible_employees: number[];
+  eligible_employees_detail: ManagerExplanationQuotaEmployeeDetail[];
+  max_explanations: number;
+  updated_at: string;
+}
+
+export async function getManagerExplanationQuotaConfig(): Promise<ManagerExplanationQuotaConfig> {
+  const response = await managementApi.get('/api-hrm/manager-explanation-quota-config/');
+  return response.data;
+}
+
+export async function updateManagerExplanationQuotaConfig(data: {
+  eligible_employees: number[];
+}): Promise<ManagerExplanationQuotaConfig> {
+  const response = await managementApi.put('/api-hrm/manager-explanation-quota-config/', data);
+  return response.data;
+}
