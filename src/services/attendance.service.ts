@@ -1156,4 +1156,10 @@ export interface RegistrationRequest {
   old_shift_code?: string | null;
   actual_check_in?: string | null;
   actual_check_out?: string | null;
+  // Giờ quy định (start/end) của ca cũ + ca muốn đổi sang — chỉ mã ca không
+  // đủ để QLTT biết ca đó quy định giờ vào/ra bao nhiêu.
+  old_shift_start_time?: string | null;
+  old_shift_end_time?: string | null;
+  target_shift_start_time?: string | null;
+  target_shift_end_time?: string | null;
 }

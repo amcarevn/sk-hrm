@@ -4051,12 +4051,18 @@ const Approvals: React.FC = () => {
                                   <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Ca đang đăng ký</span>
                                   <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100 whitespace-nowrap">
                                     {selectedOnlineWorkRequest.old_shift_name || 'Chưa đăng ký'}
+                                    {selectedOnlineWorkRequest.old_shift_start_time && selectedOnlineWorkRequest.old_shift_end_time && (
+                                      <span className="text-gray-400 font-normal"> ({selectedOnlineWorkRequest.old_shift_start_time} - {selectedOnlineWorkRequest.old_shift_end_time})</span>
+                                    )}
                                   </span>
                                 </div>
                                 <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
                                   <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Ca muốn đổi sang</span>
                                   <span className="text-sm font-semibold text-sky-700 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-100 whitespace-nowrap">
                                     {selectedOnlineWorkRequest.target_shift_name || 'N/A'}
+                                    {selectedOnlineWorkRequest.target_shift_start_time && selectedOnlineWorkRequest.target_shift_end_time && (
+                                      <span className="text-sky-500 font-normal"> ({selectedOnlineWorkRequest.target_shift_start_time} - {selectedOnlineWorkRequest.target_shift_end_time})</span>
+                                    )}
                                   </span>
                                 </div>
                                 <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
