@@ -1072,27 +1072,27 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             )}
 
             {/* Tăng ca tự động phát hiện (checkout muộn hơn giờ kết thúc ca > 30 phút) —
-                CHỈ LÀ GỢI Ý HIỂN THỊ, không tự tạo đơn/cộng công. Từ 2026-09-24 đã bỏ
-                hẳn cơ chế tự động tạo đơn tăng ca (xem hoangph-sk: fix(sk) loại bỏ chức
-                năng tự động tạo đơn tăng ca) — nhân viên phải tự vào mục Đơn đăng ký để
-                tạo đơn Tăng ca thủ công thì mới được quản lý trực tiếp duyệt và tính công. */}
+                2026-09-25: chỉ hiển thị khi ngày đó ĐÃ có đơn Tăng ca được duyệt (xem
+                has_approved_overtime_request, hrm/attendance_views.py). Trước đây hiển thị
+                cho MỌI ngày checkout muộn kể cả chưa có đơn nào, khiến HCNS dễ nhầm là đơn
+                đã tồn tại khi duyệt, có nguy cơ duyệt trùng — nay chỉ còn vai trò đối chiếu
+                số liệu checkout thực tế với đơn đã duyệt. */}
             {Number(day.engine_context?.auto_overtime_hours) > 0 && (
               <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tăng ca (gợi ý)</p>
-                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tăng ca</p>
+                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-blue-800 font-semibold">
-                      <ClockIcon className="h-4 w-4 text-blue-500" /> Gợi ý tăng ca — chưa tính vào tổng
+                    <div className="flex items-center gap-2 text-green-800 font-semibold">
+                      <ClockIcon className="h-4 w-4 text-green-500" /> Khớp với đơn Tăng ca đã duyệt
                     </div>
-                    <span className="font-bold text-blue-900 bg-blue-100 px-2 py-0.5 rounded-lg text-xs">
-                      ~{day.engine_context.auto_overtime_hours} giờ
+                    <span className="font-bold text-green-900 bg-green-100 px-2 py-0.5 rounded-lg text-xs">
+                      {day.engine_context.auto_overtime_hours} giờ
                     </span>
                   </div>
-                  <p className="text-xs text-blue-700 mt-1.5">
+                  <p className="text-xs text-green-700 mt-1.5">
                     Checkout muộn hơn giờ kết thúc ca &gt; 30 phút (thực tế trễ {day.engine_context.auto_overtime_minutes} phút),
-                    quy đổi theo "Quy định bổ sung về làm thêm giờ". Đây chỉ là số gợi ý — hệ thống KHÔNG tự tạo đơn hay
-                    tự cộng vào tổng Tăng ca; nhân viên cần tự tạo đơn Tăng ca thủ công ở mục Đơn đăng ký để được quản lý
-                    trực tiếp duyệt.
+                    quy đổi theo "Quy định bổ sung về làm thêm giờ" — khớp với đơn Tăng ca đã được quản lý trực tiếp duyệt
+                    cho ngày này (xem mục Đơn đăng ký bên dưới).
                   </p>
                 </div>
               </div>
@@ -1409,10 +1409,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     <div className="flex items-center gap-1">
                       {Number(day.engine_context?.auto_overtime_hours) > 0 && (
                         <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border text-blue-600 bg-blue-50 border-blue-100/50"
-                          title={`Gợi ý tăng ca (checkout muộn hơn giờ kết thúc ca > 30 phút, đã quy đổi theo Quy định bổ sung về làm thêm giờ — thực tế trễ ${day.engine_context?.auto_overtime_minutes ?? 0} phút). CHƯA được tính vào tổng Tăng ca — nhân viên phải tự tạo đơn Tăng ca thủ công để quản lý trực tiếp duyệt.`}
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border text-green-600 bg-green-50 border-green-100/50"
+                          title={`Đã có đơn Tăng ca được duyệt, khớp với checkout muộn hơn giờ kết thúc ca > 30 phút (thực tế trễ ${day.engine_context?.auto_overtime_minutes ?? 0} phút, quy đổi theo Quy định bổ sung về làm thêm giờ).`}
                         >
-                          ~{day.engine_context!.auto_overtime_hours}h TC?
+                          +{day.engine_context!.auto_overtime_hours}h TC
                         </span>
                       )}
                       {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
