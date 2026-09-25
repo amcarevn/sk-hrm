@@ -2858,6 +2858,13 @@ const Approvals: React.FC = () => {
                                                             {calculateDuration(item.start_time, item.end_time)}
                                                           </span>
                                                         )}
+                                                        {/* Đổi ca: hiện gọn "Ca cũ -> Ca mới" ngay ở bảng danh sách, không cần
+                                                            mở Chi tiết mới biết — case thực tế SK00288 "sai cc". */}
+                                                        {(item.registration_type || item.event_type || '').toUpperCase() === 'SHIFT_CHANGE' && (
+                                                          <span className="text-xs font-medium text-sky-600 bg-sky-50 px-2 py-0.5 rounded border border-sky-100 w-fit">
+                                                            {item.old_shift_name || 'Chưa ĐK'} → {item.target_shift_name || 'N/A'}
+                                                          </span>
+                                                        )}
                                                         {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (
                                                           (() => {
                                                             const checkIn = item.actual_check_in || item.forgot_checkin_time;
@@ -4034,14 +4041,31 @@ const Approvals: React.FC = () => {
                                 {formatDate(selectedOnlineWorkRequest.work_date || selectedOnlineWorkRequest.attendance_date || selectedOnlineWorkRequest.registration_date || selectedOnlineWorkRequest.event_date)}
                               </span>
                             </div>
-                            {/* Ca muốn đổi sang — riêng cho Đơn đổi ca (SHIFT_CHANGE) */}
+                            {/* Đơn đổi ca (SHIFT_CHANGE): ca ĐANG đăng ký (trước khi đổi) + ca muốn đổi
+                                sang + giờ chấm công thực tế của đúng ngày làm đơn — để QLTT/HR đối
+                                chiếu, tránh duyệt nhầm khi đơn thiếu/sai dữ liệu (case thực tế SK00288
+                                "sai cc", trước đây modal chỉ có "ca muốn đổi sang"). */}
                             {(selectedOnlineWorkRequest.registration_type || selectedOnlineWorkRequest.event_type || '').toUpperCase() === 'SHIFT_CHANGE' && (
-                              <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
-                                <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Ca muốn đổi sang</span>
-                                <span className="text-sm font-semibold text-sky-700 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-100 whitespace-nowrap">
-                                  {selectedOnlineWorkRequest.target_shift_name || 'N/A'}
-                                </span>
-                              </div>
+                              <>
+                                <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
+                                  <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Ca đang đăng ký</span>
+                                  <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100 whitespace-nowrap">
+                                    {selectedOnlineWorkRequest.old_shift_name || 'Chưa đăng ký'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
+                                  <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Ca muốn đổi sang</span>
+                                  <span className="text-sm font-semibold text-sky-700 bg-sky-50 px-3 py-1.5 rounded-full border border-sky-100 whitespace-nowrap">
+                                    {selectedOnlineWorkRequest.target_shift_name || 'N/A'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center py-2.5 border-b border-gray-50 gap-4">
+                                  <span className="text-sm font-bold text-gray-400 uppercase tracking-tight shrink-0 whitespace-nowrap">Giờ chấm công thực tế</span>
+                                  <span className="text-sm font-semibold text-gray-700 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100 whitespace-nowrap">
+                                    {selectedOnlineWorkRequest.actual_check_in || '--:--'} — {selectedOnlineWorkRequest.actual_check_out || '--:--'}
+                                  </span>
+                                </div>
+                              </>
                             )}
 
                             {/* Giờ bắt đầu / Giờ kết thúc / Tổng thời gian — luôn hiện cho REGISTRATION (trừ Đổi ca) */}
