@@ -1316,7 +1316,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               { key: 'INCOMPLETE_ATTENDANCE', label: 'Quên chấm công', capMinutes: false },
             ] as const).map((row) => {
               const q = engineSummary.explanation_quota_by_type?.[row.key] || { used: 0, max: 1, remaining: 1 };
-              const maxMinutes = engineSummary.explanation_quota_by_type?.max_minutes ?? 30;
+              const maxMinutes = engineSummary.explanation_quota_by_type?.max_minutes;
+              const noMinutesCap = engineSummary.explanation_quota_by_type?.is_manager_combined_quota === true;
               const isExhausted = q.remaining <= 0;
               return (
                 <div
@@ -1327,8 +1328,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 >
                   <span>{row.label}:</span>
                   <span className="font-black">{q.used}/{q.max} lần</span>
-                  {row.capMinutes && (
-                    <span className="text-[9px] md:text-[10px] font-normal text-gray-400">(không quá {maxMinutes}p)</span>
+                  {row.capMinutes && !noMinutesCap && (
+                    <span className="text-[9px] md:text-[10px] font-normal text-gray-400">(không quá {maxMinutes ?? 30}p)</span>
                   )}
                 </div>
               );

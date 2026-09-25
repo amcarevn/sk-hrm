@@ -3425,12 +3425,15 @@ const AttendanceManagement: React.FC = () => {
 
                                   // 2. Các logic lọc theo dữ liệu thực tế (giữ nguyên logic cũ nhưng làm gọn hơn)
                                   const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
+                                  // NV thuộc rổ gộp Trưởng phòng: BE trả max_minutes=null (không giới
+                                  // hạn số phút lệch) — xem get_explanation_quota_by_type().
                                   const maxMinutes = quotaByType?.max_minutes ?? 30;
+                                  const noMinutesCap = quotaByType?.is_manager_combined_quota === true;
                                   if (reason.id === 'late_minutes') {
-                                    return !isIncomplete && (detail?.late_minutes || 0) > 0 && (detail?.late_minutes || 0) <= maxMinutes;
+                                    return !isIncomplete && (detail?.late_minutes || 0) > 0 && (noMinutesCap || (detail?.late_minutes || 0) <= maxMinutes);
                                   }
                                   if (reason.id === 'early_leave_minutes') {
-                                    return !isIncomplete && (detail?.early_leave_minutes || 0) > 0 && (detail?.early_leave_minutes || 0) <= maxMinutes;
+                                    return !isIncomplete && (detail?.early_leave_minutes || 0) > 0 && (noMinutesCap || (detail?.early_leave_minutes || 0) <= maxMinutes);
                                   }
                                   if (reason.id === 'incomplete_attendance') return isIncomplete || detail?.status === 'ABSENT';
                                   if (reason.id === 'first_day') return !detail || detail.status === 'ABSENT' || detail?.status === 'INCOMPLETE_ATTENDANCE';
