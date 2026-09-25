@@ -1149,4 +1149,11 @@ export interface RegistrationRequest {
   target_shift_id?: number | null;
   target_shift_name?: string | null;
   target_shift_code?: string | null;
+  // Đơn Đổi ca (SHIFT_CHANGE) — ca ĐANG đăng ký trước khi đổi + giờ chấm
+  // công thực tế của đúng ngày làm đơn, giúp QLTT/HR đối chiếu lúc duyệt.
+  old_shift_id?: number | null;
+  old_shift_name?: string | null;
+  old_shift_code?: string | null;
+  actual_check_in?: string | null;
+  actual_check_out?: string | null;
 }
