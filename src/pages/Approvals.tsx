@@ -160,17 +160,19 @@ const Approvals: React.FC = () => {
   // States cho Duyệt hàng loạt (Bulk Action)
   const [bulkActionResult, setBulkActionResult] = useState<{ success: number; error: number; groupName: string; approvalItems: any[]; rejectionItems: any[] } | null>(null);
   const [bulkConfirmModal, setBulkConfirmModal] = useState<{ items: any[]; name: string } | null>(null);
+  // States cho Từ chối hàng loạt (Bulk Reject) — cạnh nút "Duyệt nhanh"
+  const [bulkRejectConfirmModal, setBulkRejectConfirmModal] = useState<{ items: any[]; name: string } | null>(null);
 
   // Lock body scroll khi modal mở
   useEffect(() => {
-    const anyModalOpen = actionModalOpen || deleteModalOpen || errorModalOpen || !!bulkConfirmModal || !!bulkActionResult || showDetailModal || showWfDetailModal;
+    const anyModalOpen = actionModalOpen || deleteModalOpen || errorModalOpen || !!bulkConfirmModal || !!bulkActionResult || !!bulkRejectConfirmModal || showDetailModal || showWfDetailModal;
     if (anyModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [actionModalOpen, deleteModalOpen, errorModalOpen, bulkConfirmModal, bulkActionResult, showDetailModal, showWfDetailModal]);
+  }, [actionModalOpen, deleteModalOpen, errorModalOpen, bulkConfirmModal, bulkActionResult, bulkRejectConfirmModal, showDetailModal, showWfDetailModal]);
 
   const currentItem = selectedExplanation || selectedOnlineWorkRequest;
   const isViewingExp = currentItem?._itemType === 'EXPLANATION' || (!currentItem?._itemType && currentItem?.explanation_type && currentItem?.explanation_type !== 'LEAVE');
@@ -1246,6 +1248,67 @@ const Approvals: React.FC = () => {
       const msg = error.response?.status === 423 && error.response?.data?.error === 'FINALIZATION_LOCKED'
         ? error.response.data.message || 'Tháng này đã đóng chốt công. Không thể phê duyệt. Vui lòng liên hệ HCNS để biết chi tiết.'
         : `Lỗi khi duyệt hàng loạt ${groupName}: ` + (error.response?.data?.error || error.message);
+      setErrorMessage(msg);
+      setErrorModalOpen(true);
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  };
+
+  // Từ chối nhanh hàng loạt — mở modal xác nhận trước, không tự thực thi
+  // ngay (khác "Duyệt nhanh" là hành động khó hoàn tác hơn cho nhân sự).
+  const handleBulkRejectItems = (items: any[], groupName: string) => {
+    const rejectableItems = items.filter(item => item.status === 'PENDING' && canApproveRequest(item));
+
+    if (rejectableItems.length === 0) {
+      setErrorMessage(`Không có đơn nào trong ${groupName} đủ điều kiện để bạn từ chối nhanh.`);
+      setErrorModalOpen(true);
+      return;
+    }
+
+    setBulkRejectConfirmModal({ items: rejectableItems, name: groupName });
+  };
+
+  const executeBulkReject = async () => {
+    if (!bulkRejectConfirmModal) return;
+    const { items, name: groupName } = bulkRejectConfirmModal;
+    setBulkRejectConfirmModal(null);
+
+    try {
+      setIsBulkProcessing(true);
+      const note = 'Từ chối nhanh hàng loạt';
+
+      const explanations = items.filter(i => i._itemType === 'EXPLANATION');
+      const leaveRequests = items.filter(i => i._itemType === 'LEAVE');
+      const registrations = items.filter(i => i._itemType === 'REGISTRATION' || i._itemType === 'OVERTIME');
+      const onlineWorks = items.filter(i => i._itemType === 'ONLINE_WORK');
+
+      const promises = [];
+      if (explanations.length > 0) promises.push(approvalService.bulkRejectAttendanceExplanations(explanations.map(i => i.id), note));
+      if (leaveRequests.length > 0) promises.push(approvalService.bulkRejectMonthlyLeaveRequests(leaveRequests.map(i => i.id), note));
+      if (registrations.length > 0) promises.push(approvalService.bulkRejectRegistrationRequests(registrations.map(i => i.id), note));
+      if (onlineWorks.length > 0) promises.push(approvalService.bulkRejectOnlineWorkRequests(onlineWorks.map(i => i.id), note));
+
+      const results = await Promise.all(promises);
+      let totalSuccess = 0;
+      let totalError = 0;
+      results.forEach(res => {
+        totalSuccess += (res.success_count || 0);
+        totalError += (res.error_count || 0);
+      });
+
+      setErrorMessage(
+        totalError > 0
+          ? `Đã từ chối ${totalSuccess} đơn tại ${groupName}. ${totalError} đơn không thể từ chối (có thể đã được xử lý bởi người khác).`
+          : `Đã từ chối ${totalSuccess} đơn tại ${groupName}.`
+      );
+      setErrorModalOpen(true);
+      fetchAllData(true);
+    } catch (error: any) {
+      console.error(`Error bulk rejecting ${groupName}:`, error);
+      const msg = error.response?.status === 423 && error.response?.data?.error === 'FINALIZATION_LOCKED'
+        ? error.response.data.message || 'Tháng này đã đóng chốt công. Không thể từ chối. Vui lòng liên hệ HCNS để biết chi tiết.'
+        : `Lỗi khi từ chối hàng loạt ${groupName}: ` + (error.response?.data?.error || error.message);
       setErrorMessage(msg);
       setErrorModalOpen(true);
     } finally {
@@ -2653,6 +2716,20 @@ const Approvals: React.FC = () => {
                         </button>
                       )}
 
+                      {hasBulkApprovePermission && activeTab === 'pending' && pendingInDept > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBulkRejectItems(allItemsInDept, `phòng ${deptName}`);
+                          }}
+                          className="hidden sm:flex items-center gap-2 h-9 px-4 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-md transition-colors"
+                          title={`Từ chối nhanh tất cả đơn của phòng ${deptName}`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                          <span>Từ chối nhanh</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => toggleDepartmentGroup(deptName)}
                         className={`p-2 hover:bg-gray-200 rounded-full transition-transform duration-300 ${isDeptExpanded ? 'rotate-180' : ''}`}
@@ -2691,17 +2768,30 @@ const Approvals: React.FC = () => {
                               </div>
 
                               {hasBulkApprovePermission && activeTab === 'pending' && pendingInPos > 0 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleBulkApproveItems(allItemsInPos, `vị trí ${posName}`);
-                                  }}
-                                  className="hidden sm:flex items-center gap-2 h-8 px-4 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white text-xs font-medium rounded-md border border-emerald-200 transition-colors"
-                                  title={`Duyệt nhanh tất cả đơn của vị trí ${posName}`}
-                                >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                  <span>Duyệt nhanh {pendingInPos} đơn</span>
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleBulkApproveItems(allItemsInPos, `vị trí ${posName}`);
+                                    }}
+                                    className="hidden sm:flex items-center gap-2 h-8 px-4 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white text-xs font-medium rounded-md border border-emerald-200 transition-colors"
+                                    title={`Duyệt nhanh tất cả đơn của vị trí ${posName}`}
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                    <span>Duyệt nhanh {pendingInPos} đơn</span>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleBulkRejectItems(allItemsInPos, `vị trí ${posName}`);
+                                    }}
+                                    className="hidden sm:flex items-center gap-2 h-8 px-4 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white text-xs font-medium rounded-md border border-rose-200 transition-colors"
+                                    title={`Từ chối nhanh tất cả đơn của vị trí ${posName}`}
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    <span>Từ chối nhanh</span>
+                                  </button>
+                                </div>
                               )}
                             </div>
 
@@ -3125,7 +3215,17 @@ const Approvals: React.FC = () => {
                                           - Quản lý (Manager) thông thường KHÔNG được sử dụng nút này để buộc phải xem chi tiết hoặc duyệt theo nhóm lớn hơn.
                                         */}
                                         {hasBulkApprovePermission && activeTab === 'pending' && pendingInEmp > 0 && (
-                                          <div className="p-4 flex justify-end bg-gray-50/30 border-t border-gray-50">
+                                          <div className="p-4 flex justify-end gap-3 bg-gray-50/30 border-t border-gray-50">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleBulkRejectItems(items, `nhân viên ${empName}`);
+                                              }}
+                                              className="flex items-center gap-2 h-10 px-6 bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold rounded-lg shadow-lg shadow-rose-100 transition-all uppercase tracking-wider"
+                                            >
+                                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                              Từ chối nhanh tất cả đơn
+                                            </button>
                                             <button
                                               onClick={(e) => {
                                                 e.stopPropagation();
@@ -4388,6 +4488,44 @@ const Approvals: React.FC = () => {
                 {isProcessing ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : 'Đồng ý xóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2b. Modal Xác nhận Từ chối nhanh hàng loạt */}
+      {bulkRejectConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]">
+          <div className="bg-white rounded-lg shadow-lg max-w-sm w-full overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Xác nhận từ chối nhanh?</h3>
+              <p className="text-base text-gray-500 leading-relaxed">
+                Bạn đang chuẩn bị từ chối <span className="font-bold text-gray-800">{bulkRejectConfirmModal.items.length} đơn</span> đang chờ duyệt tại <br />
+                <span className="font-bold text-gray-800">{bulkRejectConfirmModal.name}</span>.
+                <br />
+                Hành động này <span className="text-rose-600 font-bold underline">không thể hoàn tác</span>.
+              </p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 flex flex-col sm:flex-row gap-3">
+              <button
+                disabled={isBulkProcessing}
+                onClick={() => setBulkRejectConfirmModal(null)}
+                className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold rounded-lg hover:bg-gray-100 transition-all text-base order-last sm:order-first"
+              >
+                Hủy
+              </button>
+              <button
+                disabled={isBulkProcessing}
+                onClick={executeBulkReject}
+                className="flex-1 w-full sm:w-auto px-4 py-2.5 bg-rose-600 text-white font-bold rounded-lg hover:bg-rose-700 transition-all text-base flex items-center justify-center gap-2 shadow-lg shadow-rose-200/50 disabled:bg-gray-400 disabled:shadow-none"
+              >
+                {isBulkProcessing ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : 'Đồng ý từ chối'}
               </button>
             </div>
           </div>
