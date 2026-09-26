@@ -742,6 +742,62 @@ class ApprovalService {
       throw error;
     }
   }
+
+  // Từ chối hàng loạt giải trình chấm công
+  async bulkRejectAttendanceExplanations(ids: number[], note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/attendance-explanations/bulk_reject/', {
+        ids,
+        approval_note: note || 'Từ chối nhanh hàng loạt'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in bulk rejecting attendance explanations:', error);
+      throw error;
+    }
+  }
+
+  // Từ chối hàng loạt đơn nghỉ phép tháng
+  async bulkRejectMonthlyLeaveRequests(ids: number[], note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/monthly-leave-requests/bulk_reject/', {
+        ids,
+        approval_note: note || 'Từ chối nhanh hàng loạt'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in bulk rejecting monthly leave requests:', error);
+      throw error;
+    }
+  }
+
+  // Từ chối hàng loạt đơn đăng ký
+  async bulkRejectRegistrationRequests(ids: number[], note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/registration-requests/bulk_reject/', {
+        ids,
+        approval_note: note || 'Từ chối nhanh hàng loạt'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in bulk rejecting registration requests:', error);
+      throw error;
+    }
+  }
+
+  // Từ chối hàng loạt đơn làm việc online
+  async bulkRejectOnlineWorkRequests(ids: number[], note?: string): Promise<any> {
+    try {
+      const response = await managementApi.post('/api-hrm/online-work-requests/bulk_reject/', {
+        ids,
+        approval_note: note || 'Từ chối nhanh hàng loạt'
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error in bulk rejecting online work requests:', error);
+      throw error;
+    }
+  }
 }
 
 export const approvalService = new ApprovalService();
