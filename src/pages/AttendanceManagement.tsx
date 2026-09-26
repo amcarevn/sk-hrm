@@ -3452,14 +3452,21 @@ const AttendanceManagement: React.FC = () => {
                                 return reasons.filter(r => {
                                   // 1. Ẩn Vào/Ra trực nếu đã có đơn Online
                                   if (r.id === 'off_duty' && hasOnline) return false;
-                                  
+
+                                  // Tăng ca: nhân sự được tạo NHIỀU đơn tăng ca trong cùng 1 ngày (vd
+                                  // khung giờ trưa + khung giờ tối) — BE cộng dồn giờ cho từng đơn,
+                                  // không giới hạn 1 đơn/ngày như các loại đăng ký khác bên dưới. Không
+                                  // áp dụng luật "ẩn nếu đã có đơn cùng loại được duyệt" cho riêng loại
+                                  // này, nếu không đơn tăng ca thứ 2 trong ngày sẽ không tạo được nữa.
+                                  if (r.id === 'overtime') return true;
+
                                   // 2. Ẩn nếu đã có đơn cùng loại được PHÊ DUYỆT
                                   const isAlreadyApproved = (selectedDayData?.registrations || []).some((reg: any) => {
                                     if (reg.status?.toUpperCase() !== 'APPROVED') return false;
                                     const regType = (reg.event_type || '').toLowerCase();
-                                    return regType === r.id; 
+                                    return regType === r.id;
                                   });
-                                  
+
                                   return !isAlreadyApproved;
                                 });
                               }
