@@ -394,7 +394,18 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                  r.data?.status === 'PENDING';
         });
 
-        const pendingRequestLabels = Array.from(new Set(pendingRequests.map((r: any) => getRequestTypeLabel(r))));
+        // Đếm theo label để giữ được số lượng đơn CÙNG LOẠI trong ngày (vd 2
+        // đơn tăng ca: trưa + tối) — trước đây dùng Set nên 2 đơn cùng loại
+        // bị gộp thành 1 label, khiến badge trên ô lịch không phân biệt được
+        // với chỉ 1 đơn, dù Day-Detail vẫn liệt kê đủ cả 2.
+        const pendingTypeCounts: Record<string, number> = {};
+        pendingRequests.forEach((r: any) => {
+          const label = getRequestTypeLabel(r);
+          pendingTypeCounts[label] = (pendingTypeCounts[label] || 0) + 1;
+        });
+        const pendingRequestLabels = Object.entries(pendingTypeCounts).map(
+          ([label, count]) => (count > 1 ? `${label} x${count}` : label)
+        );
         const hasPendingRequest = pendingRequests.length > 0;
         const hasApprovedOnlineWork = onlineWorkRequests.length > 0;
 
@@ -695,14 +706,19 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       }
 
       // Sau đó tới các đơn đăng ký
-      const reg = (day.approvedRegistrations || [])[0];
+      const approvedRegs = day.approvedRegistrations || [];
+      const reg = approvedRegs[0];
       if (reg) {
         const type = (reg.event_type || '').toUpperCase();
         if (type === 'ONLINE_WORK' && reg.data?.expected_status === 'HALF_DAY' && !reg.data?.reason?.toLowerCase().includes('checkpage')) {
           return 'Đã duyệt làm online nửa ngày';
         }
         const label = getRequestTypeLabel(reg);
-        return 'Đã duyệt ' + label;
+        // Đếm số đơn CÙNG LOẠI đã duyệt trong ngày (vd 2 đơn tăng ca trưa +
+        // tối) — trước đây chỉ lấy đơn đầu tiên nên badge không phân biệt
+        // được với chỉ 1 đơn duy nhất.
+        const sameTypeCount = approvedRegs.filter((r: any) => getRequestTypeLabel(r) === label).length;
+        return 'Đã duyệt ' + label + (sameTypeCount > 1 ? ` x${sameTypeCount}` : '');
       }
 
       return 'Đã duyệt';
