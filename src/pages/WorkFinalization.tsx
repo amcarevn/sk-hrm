@@ -489,11 +489,13 @@ const WorkFinalization: React.FC = () => {
         { header: 'Hình Thức LV', key: 'hinh_thuc_lam_viec', width: 14 },
         { header: 'Công Thử Việc', key: 'cong_thu_viec', width: 14 },
         { header: 'Công Chính Thức', key: 'cong_chinh_thuc', width: 16 },
-        { header: 'Có Lễ', key: 'co_le', width: 10 },
+        { header: 'Công Lễ Thử Việc', key: 'co_le_thu_viec', width: 16 },
+        { header: 'Công Lễ Chính Thức', key: 'co_le_chinh_thuc', width: 18 },
         { header: 'Công Thực Tế', key: 'cong_thuc_te', width: 14 },
         { header: 'Tổng Công', key: 'tong_cong', width: 12 },
         { header: 'Nghỉ Phép', key: 'nghi_phep', width: 12 },
-        { header: 'Làm Việc Online', key: 'lam_viec_online', width: 14 },
+        { header: 'Làm Việc Online Thử Việc', key: 'lam_viec_online_thu_viec', width: 20 },
+        { header: 'Làm Việc Online Chính Thức', key: 'lam_viec_online_chinh_thuc', width: 22 },
         { header: 'Tổng Phạt', key: 'tong_phat', width: 14 },
         { header: 'Tăng Ca', key: 'tang_ca', width: 10 },
         { header: 'Tăng Ca Trước 20h', key: 'tang_ca_truoc_20h', width: 16 },
@@ -537,11 +539,13 @@ const WorkFinalization: React.FC = () => {
           hinh_thuc_lam_viec: rec.hinh_thuc_lam_viec ?? '',
           cong_thu_viec: rec.cong_thu_viec,
           cong_chinh_thuc: rec.cong_chinh_thuc,
-          co_le: rec.co_le ?? '',
+          co_le_thu_viec: rec.co_le_thu_viec ?? '',
+          co_le_chinh_thuc: rec.co_le_chinh_thuc ?? '',
           cong_thuc_te: rec.cong_thuc_te,
           tong_cong: rec.tong_cong,
           nghi_phep: rec.nghi_phep,
-          lam_viec_online:rec.lam_viec_online,
+          lam_viec_online_thu_viec: rec.lam_viec_online_thu_viec ?? '',
+          lam_viec_online_chinh_thuc: rec.lam_viec_online_chinh_thuc ?? '',
           tong_phat: rec.tong_phat,
           tang_ca: rec.tang_ca,
           tang_ca_truoc_20h: rec.tang_ca_truoc_20h ?? '',
@@ -1312,7 +1316,8 @@ const WorkFinalization: React.FC = () => {
                       { label: 'Công thực tế', value: `${finalizedRec.cong_thuc_te} công`, cardCls: 'bg-emerald-50', labelCls: 'text-emerald-700', valCls: 'text-emerald-800 font-bold' },
                       { label: 'Tổng công', value: `${finalizedRec.tong_cong} công`, cardCls: 'bg-emerald-50', labelCls: 'text-emerald-700', valCls: 'text-emerald-800 font-extrabold' },
                       { label: 'Nghỉ phép tháng', value: `${finalizedRec.nghi_phep} ngày`, cardCls: 'bg-primary-50/50', labelCls: 'text-primary-700', valCls: 'text-primary-800 font-bold' },
-                      { label: 'Làm việc online', value: `${finalizedRec.lam_viec_online ?? 0} ngày`, cardCls: 'bg-primary-50', labelCls: 'text-primary-700', valCls: 'text-primary-800 font-bold' },
+                      { label: 'Online thử việc', value: `${finalizedRec.lam_viec_online_thu_viec ?? 0} ngày`, cardCls: 'bg-primary-50', labelCls: 'text-primary-700', valCls: 'text-primary-800 font-bold' },
+                      { label: 'Online chính thức', value: `${finalizedRec.lam_viec_online_chinh_thuc ?? 0} ngày`, cardCls: 'bg-primary-50', labelCls: 'text-primary-700', valCls: 'text-primary-800 font-bold' },
                       { label: 'Tăng ca', value: `${finalizedRec.tang_ca} giờ`, cardCls: 'bg-amber-50', labelCls: 'text-amber-700', valCls: 'text-amber-800 font-bold' },
                       { label: 'Trực tối', value: `${finalizedRec.truc_toi} buổi`, cardCls: 'bg-violet-50', labelCls: 'text-violet-700', valCls: 'text-violet-800 font-bold' },
                       { label: 'Làm thêm giờ', value: `${finalizedRec.lam_them_gio} giờ`, cardCls: 'bg-amber-50', labelCls: 'text-amber-700', valCls: 'text-amber-800 font-bold' },
@@ -1369,9 +1374,11 @@ const WorkFinalization: React.FC = () => {
                       'STT', 'Mã NV', 'Họ và Tên', 'Phòng Ban', 'Vị Trí',
                       'Bác Sĩ', 'Ngày BĐ Làm Việc', 'Ngày KT Thử Việc',
                       'ON/OFF', 'Ngày Nghỉ Việc', 'Hình Thức LV',
-                      'Công Thử Việc', 'Công Chính Thức', 'Có Lễ',
+                      'Công Thử Việc', 'Công Chính Thức',
+                      'Công Lễ Thử Việc', 'Công Lễ Chính Thức',
                       'Công Thực Tế', 'Tổng Công', 'Nghỉ Phép',
-                      'Làm Việc Online', 'Tổng Phạt', 'Tăng Ca',
+                      'Làm Việc Online Thử Việc', 'Làm Việc Online Chính Thức',
+                      'Tổng Phạt', 'Tăng Ca',
                       'Làm Tối', 'Trực Tối', 'Làm Thêm Giờ', 'Live',
                       'Phụ Cấp Gửi Xe',
                     ].map((h) => (
@@ -1402,11 +1409,13 @@ const WorkFinalization: React.FC = () => {
                         <td className="px-3 py-1.5 text-center whitespace-nowrap border border-gray-200">{rec.hinh_thuc_lam_viec ?? '—'}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.cong_thu_viec}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.cong_chinh_thuc}</td>
-                        <td className="px-3 py-1.5 text-center border border-gray-200">{rec.co_le ?? '—'}</td>
+                        <td className="px-3 py-1.5 text-center border border-gray-200">{rec.co_le_thu_viec ?? '—'}</td>
+                        <td className="px-3 py-1.5 text-center border border-gray-200">{rec.co_le_chinh_thuc ?? '—'}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.cong_thuc_te}</td>
                         <td className="px-3 py-1.5 text-right font-semibold border border-gray-200">{rec.tong_cong}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.nghi_phep}</td>
-                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.lam_viec_online ?? 0}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.lam_viec_online_thu_viec ?? 0}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.lam_viec_online_chinh_thuc ?? 0}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(rec.tong_phat)}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.tang_ca}</td>
                         <td className="px-3 py-1.5 text-center border border-gray-200">{rec.lam_toi ?? '—'}</td>
