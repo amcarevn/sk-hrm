@@ -27,6 +27,10 @@ export interface WorkFinalizationRecord {
   cong_thu_viec: number;
   cong_chinh_thuc: number;
   co_le: number | null;
+  /** Công lễ của giai đoạn thử việc (ngày <= ngày KT thử việc). */
+  co_le_thu_viec?: number | null;
+  /** Công lễ của giai đoạn chính thức (ngày > ngày KT thử việc). */
+  co_le_chinh_thuc?: number | null;
   cong_thuc_te: number;
   tong_cong: number;
   tong_phat: number;
@@ -42,6 +46,10 @@ export interface WorkFinalizationRecord {
   phu_cap_gui_xe: number;
   nghi_phep: number;
   lam_viec_online?: number;
+  /** Làm việc online của giai đoạn thử việc — chỉ có ở bản ghi đã chốt lại sau 2026-09-28. */
+  lam_viec_online_thu_viec?: number | null;
+  /** Làm việc online của giai đoạn chính thức — chỉ có ở bản ghi đã chốt lại sau 2026-09-28. */
+  lam_viec_online_chinh_thuc?: number | null;
   year: number;
   month: number;
   finalized_at: string;
