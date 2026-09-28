@@ -1099,32 +1099,46 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               </div>
             )}
 
-            {/* Tăng ca tự động phát hiện (checkout muộn hơn giờ kết thúc ca > 30 phút) —
-                2026-09-25: chỉ hiển thị khi ngày đó ĐÃ có đơn Tăng ca được duyệt (xem
-                has_approved_overtime_request, hrm/attendance_views.py). Trước đây hiển thị
-                cho MỌI ngày checkout muộn kể cả chưa có đơn nào, khiến HCNS dễ nhầm là đơn
-                đã tồn tại khi duyệt, có nguy cơ duyệt trùng — nay chỉ còn vai trò đối chiếu
-                số liệu checkout thực tế với đơn đã duyệt. */}
-            {Number(day.engine_context?.auto_overtime_hours) > 0 && (
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tăng ca</p>
-                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-green-800 font-semibold">
-                      <ClockIcon className="h-4 w-4 text-green-500" /> Khớp với đơn Tăng ca đã duyệt
+            {/* Tăng ca — 2026-09-25: chỉ hiển thị khi ngày đó ĐÃ có đơn Tăng ca được
+                duyệt (xem has_approved_overtime_request, hrm/attendance_views.py). Trước
+                đây hiển thị cho MỌI ngày checkout muộn kể cả chưa có đơn nào, khiến HCNS
+                dễ nhầm là đơn đã tồn tại khi duyệt, có nguy cơ duyệt trùng.
+                Bug 2026-09-28 (case SK00507 16/9): auto_overtime_hours chỉ tính được khi
+                checkout thực tế muộn hơn giờ kết thúc ca > 30 phút — NV quên chấm công
+                (không có check-in bình thường) rồi tạo tay đơn Tăng ca cho khung giờ khác
+                không khớp pattern này, nên auto_overtime_hours = 0 dù đơn đã duyệt và
+                overtime_hours (tang_ca thực đã cộng) > 0 → không hiện gì cả, khiến NV
+                hiểu lầm tăng ca không được tính. Fallback dùng overtime_hours khi
+                auto_overtime_hours = 0. */}
+            {(() => {
+              const autoHours = Number(day.engine_context?.auto_overtime_hours) || 0;
+              const realHours = Number(day.engine_context?.overtime_hours) || 0;
+              const displayHours = autoHours > 0 ? autoHours : realHours;
+              if (displayHours <= 0) return null;
+              return (
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Tăng ca</p>
+                  <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 text-green-800 font-semibold">
+                        <ClockIcon className="h-4 w-4 text-green-500" />
+                        {autoHours > 0 ? 'Khớp với đơn Tăng ca đã duyệt' : 'Đơn Tăng ca đã duyệt'}
+                      </div>
+                      <span className="font-bold text-green-900 bg-green-100 px-2 py-0.5 rounded-lg text-xs">
+                        {displayHours} giờ
+                      </span>
                     </div>
-                    <span className="font-bold text-green-900 bg-green-100 px-2 py-0.5 rounded-lg text-xs">
-                      {day.engine_context.auto_overtime_hours} giờ
-                    </span>
+                    <p className="text-xs text-green-700 mt-1.5">
+                      {autoHours > 0
+                        ? <>Checkout muộn hơn giờ kết thúc ca &gt; 30 phút (thực tế trễ {day.engine_context!.auto_overtime_minutes} phút),
+                          quy đổi theo "Quy định bổ sung về làm thêm giờ" — khớp với đơn Tăng ca đã được quản lý trực tiếp duyệt
+                          cho ngày này (xem mục Đơn đăng ký bên dưới).</>
+                        : <>Đã cộng {displayHours} giờ tăng ca theo đơn đã được duyệt cho ngày này (xem mục Đơn đăng ký bên dưới).</>}
+                    </p>
                   </div>
-                  <p className="text-xs text-green-700 mt-1.5">
-                    Checkout muộn hơn giờ kết thúc ca &gt; 30 phút (thực tế trễ {day.engine_context.auto_overtime_minutes} phút),
-                    quy đổi theo "Quy định bổ sung về làm thêm giờ" — khớp với đơn Tăng ca đã được quản lý trực tiếp duyệt
-                    cho ngày này (xem mục Đơn đăng ký bên dưới).
-                  </p>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* All requests submitted this day */}
             <div>
@@ -1435,14 +1449,28 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                       {day.date.getDate()}
                     </span>
                     <div className="flex items-center gap-1">
-                      {Number(day.engine_context?.auto_overtime_hours) > 0 && (
-                        <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border text-green-600 bg-green-50 border-green-100/50"
-                          title={`Đã có đơn Tăng ca được duyệt, khớp với checkout muộn hơn giờ kết thúc ca > 30 phút (thực tế trễ ${day.engine_context?.auto_overtime_minutes ?? 0} phút, quy đổi theo Quy định bổ sung về làm thêm giờ).`}
-                        >
-                          +{day.engine_context!.auto_overtime_hours}h TC
-                        </span>
-                      )}
+                      {(() => {
+                        // Bug 2026-09-28 (case SK00507 16/9): auto_overtime_hours chỉ có
+                        // khi checkout thực tế muộn hơn giờ kết thúc ca > 30 phút. NV quên
+                        // chấm công rồi tạo tay đơn Tăng ca không khớp pattern này vẫn phải
+                        // hiện cho biết đã có tăng ca được duyệt (overtime_hours), tránh
+                        // hiểu lầm "không được tính tăng ca".
+                        const autoHours = Number(day.engine_context?.auto_overtime_hours) || 0;
+                        const realHours = Number(day.engine_context?.overtime_hours) || 0;
+                        const displayHours = autoHours > 0 ? autoHours : realHours;
+                        if (displayHours <= 0) return null;
+                        const title = autoHours > 0
+                          ? `Đã có đơn Tăng ca được duyệt, khớp với checkout muộn hơn giờ kết thúc ca > 30 phút (thực tế trễ ${day.engine_context?.auto_overtime_minutes ?? 0} phút, quy đổi theo Quy định bổ sung về làm thêm giờ).`
+                          : `Đã có đơn Tăng ca được duyệt: ${displayHours} giờ.`;
+                        return (
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border text-green-600 bg-green-50 border-green-100/50"
+                            title={title}
+                          >
+                            +{displayHours}h TC
+                          </span>
+                        );
+                      })()}
                       {day.engine_context?.work_credit !== undefined && day.engine_context.work_credit > 0 && (
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border ${
                           day.engine_context.work_credit >= 1.0
