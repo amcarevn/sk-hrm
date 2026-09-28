@@ -31,6 +31,10 @@ export interface WorkFinalizationRecord {
   tong_cong: number;
   tong_phat: number;
   tang_ca: number;
+  /** Tăng ca trước 20h — chỉ tính cho NV phòng CS Xã Đàn (PB07), vị trí Phụ tá/Lễ tân (VT50/VT53); null với NV khác. */
+  tang_ca_truoc_20h?: number | null;
+  /** Tăng ca sau 20h (được trả 200%) — cùng điều kiện với tang_ca_truoc_20h. */
+  tang_ca_sau_20h?: number | null;
   lam_toi: number | null;
   truc_toi: number;
   lam_them_gio: number;
