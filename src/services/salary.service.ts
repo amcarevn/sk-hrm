@@ -186,6 +186,28 @@ export interface BulkImportOtherAllowanceResponse {
   errors:  { employee_code: string; error: string }[];
 }
 
+export interface ParkingAllowanceOverrideRecord {
+  id: number;
+  employee: number;
+  employee_name: string;
+  employee_code: string;
+  year: number;
+  month: number;
+  amount: number;
+  notes: string;
+}
+
+export interface BulkImportParkingAllowanceRecord {
+  employee_code: string;
+  amount: number;
+  notes: string;
+}
+
+export interface BulkImportParkingAllowanceResponse {
+  success: { employee_code: string; employee_name: string; amount: number; notes: string; created: boolean }[];
+  errors:  { employee_code: string; error: string }[];
+}
+
 export interface OvertimeRateConfig {
   id: number;
   department_ids:    number[];
@@ -516,6 +538,49 @@ class SalaryService {
     records: BulkImportOtherAllowanceRecord[];
   }): Promise<BulkImportOtherAllowanceResponse> {
     const response = await managementApi.post('/api/v1/salary/other-allowances/bulk-import/', params);
+    return response.data;
+  }
+
+  async listParkingAllowanceOverrides(params: { year: number; month: number }): Promise<ParkingAllowanceOverrideRecord[]> {
+    const response = await managementApi.get('/api/v1/salary/parking-allowance-overrides/', { params: { ...params, page_size: 500 } });
+    return response.data.results ?? response.data;
+  }
+
+  async createParkingAllowanceOverride(data: {
+    employee: number;
+    year: number;
+    month: number;
+    amount: number;
+    notes?: string;
+  }): Promise<ParkingAllowanceOverrideRecord> {
+    const response = await managementApi.post('/api/v1/salary/parking-allowance-overrides/', data);
+    return response.data;
+  }
+
+  async updateParkingAllowanceOverride(id: number, data: { amount: number; notes?: string }): Promise<ParkingAllowanceOverrideRecord> {
+    const response = await managementApi.patch(`/api/v1/salary/parking-allowance-overrides/${id}/`, data);
+    return response.data;
+  }
+
+  async deleteParkingAllowanceOverride(id: number): Promise<void> {
+    await managementApi.delete(`/api/v1/salary/parking-allowance-overrides/${id}/`);
+  }
+
+  async bulkImportParkingAllowanceOverrides(params: {
+    year: number;
+    month: number;
+    records: BulkImportParkingAllowanceRecord[];
+  }): Promise<BulkImportParkingAllowanceResponse> {
+    const response = await managementApi.post('/api/v1/salary/parking-allowance-overrides/bulk-import/', params);
+    return response.data;
+  }
+
+  async fillRemainingParkingAllowanceZero(params: { year: number; month: number }): Promise<{
+    created_count: number;
+    skipped_existing_count: number;
+    errors: { employee_code: string; error: string }[];
+  }> {
+    const response = await managementApi.post('/api/v1/salary/parking-allowance-overrides/fill-remaining-zero/', params);
     return response.data;
   }
 
