@@ -42,19 +42,6 @@ export interface AttendanceDay {
     live_sessions: number;
     late_minutes: number;
     early_leave_minutes: number;
-    // Số phút tăng ca THÔ hệ thống TỰ ĐỘNG phát hiện từ checkout thực tế muộn
-    // hơn giờ kết thúc ca > 30' — chỉ để debug/tra cứu, KHÔNG hiển thị trực
-    // tiếp (xem auto_overtime_hours).
-    auto_overtime_minutes?: number;
-    // Số GIỜ tăng ca tự động phát hiện, đã quy đổi/làm tròn theo "Quy định bổ
-    // sung về làm thêm giờ" (hiệu lực 01/10/2024: <30p→0, 30-59p→0.5h,
-    // 1h-1h29→1h...) — dùng số này để hiển thị badge trên bảng công.
-    // Từ 16/09/2026 (backend main_api._SK_AUTO_OVERTIME_APPROVAL_REQUIRED_FROM):
-    // số này KHÔNG còn nghĩa là "đã cộng công" — hệ thống chỉ TẠO ĐƠN tăng ca
-    // (PENDING) khớp số này, quản lý trực tiếp vẫn phải duyệt mới được cộng
-    // vào overtime_hours/tổng công. Ngày trước mốc đó vẫn là số đã cộng công
-    // thật (không hồi tố, xem badge dưới).
-    auto_overtime_hours?: number;
     rules_applied: string[];
   };
   shifts: Array<{
@@ -64,10 +51,6 @@ export interface AttendanceDay {
     check_out: string | null;
     status: string;
     status_color: string;
-    // Gắn vào đúng ca có checkout phát sinh tăng ca tự động (phút thô — debug).
-    overtime_minutes?: number;
-    // Số giờ đã quy đổi/làm tròn tương ứng — dùng để hiển thị.
-    overtime_hours?: number;
   }>;
   registrations: any[];
   raw_checkin_checkout?: Array<{
@@ -1099,21 +1082,15 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               </div>
             )}
 
-            {/* Tăng ca — 2026-09-25: chỉ hiển thị khi ngày đó ĐÃ có đơn Tăng ca được
-                duyệt (xem has_approved_overtime_request, hrm/attendance_views.py). Trước
-                đây hiển thị cho MỌI ngày checkout muộn kể cả chưa có đơn nào, khiến HCNS
-                dễ nhầm là đơn đã tồn tại khi duyệt, có nguy cơ duyệt trùng.
-                Bug 2026-09-28 (case SK00507 16/9): auto_overtime_hours chỉ tính được khi
-                checkout thực tế muộn hơn giờ kết thúc ca > 30 phút — NV quên chấm công
-                (không có check-in bình thường) rồi tạo tay đơn Tăng ca cho khung giờ khác
-                không khớp pattern này, nên auto_overtime_hours = 0 dù đơn đã duyệt và
-                overtime_hours (tang_ca thực đã cộng) > 0 → không hiện gì cả, khiến NV
-                hiểu lầm tăng ca không được tính. Fallback dùng overtime_hours khi
-                auto_overtime_hours = 0. */}
+            {/* Tăng ca — hiển thị đúng 1 nguồn duy nhất: tổng giờ tăng ca THỰC đã
+                được duyệt (overtime_hours/tang_ca, cộng từ mọi đơn Tăng ca APPROVED
+                trong ngày). Bỏ hẳn 2026-09-30 (yêu cầu người dùng) cơ chế "tự phát
+                hiện tăng ca từ checkout muộn" (auto_overtime_hours) — cơ chế đó chỉ
+                phản ánh phần checkout-muộn của MỘT đơn nên khi ngày có nhiều hơn 1
+                đơn Tăng ca đã duyệt (vd 1 đơn khớp checkout + 1 đơn "Trực trưa"
+                không liên quan checkout), số hiển thị bị thiếu (case TA00289 3/9). */}
             {(() => {
-              const autoHours = Number(day.engine_context?.auto_overtime_hours) || 0;
-              const realHours = Number(day.engine_context?.overtime_hours) || 0;
-              const displayHours = autoHours > 0 ? autoHours : realHours;
+              const displayHours = Number(day.engine_context?.overtime_hours) || 0;
               if (displayHours <= 0) return null;
               return (
                 <div>
@@ -1122,18 +1099,14 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2 text-green-800 font-semibold">
                         <ClockIcon className="h-4 w-4 text-green-500" />
-                        {autoHours > 0 ? 'Khớp với đơn Tăng ca đã duyệt' : 'Đơn Tăng ca đã duyệt'}
+                        Đơn Tăng ca đã duyệt
                       </div>
                       <span className="font-bold text-green-900 bg-green-100 px-2 py-0.5 rounded-lg text-xs">
                         {displayHours} giờ
                       </span>
                     </div>
                     <p className="text-xs text-green-700 mt-1.5">
-                      {autoHours > 0
-                        ? <>Checkout muộn hơn giờ kết thúc ca &gt; 30 phút (thực tế trễ {day.engine_context!.auto_overtime_minutes} phút),
-                          quy đổi theo "Quy định bổ sung về làm thêm giờ" — khớp với đơn Tăng ca đã được quản lý trực tiếp duyệt
-                          cho ngày này (xem mục Đơn đăng ký bên dưới).</>
-                        : <>Đã cộng {displayHours} giờ tăng ca theo đơn đã được duyệt cho ngày này (xem mục Đơn đăng ký bên dưới).</>}
+                      Đã cộng {displayHours} giờ tăng ca theo (các) đơn đã được duyệt cho ngày này (xem mục Đơn đăng ký bên dưới).
                     </p>
                   </div>
                 </div>
@@ -1450,18 +1423,14 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     </span>
                     <div className="flex items-center gap-1">
                       {(() => {
-                        // Bug 2026-09-28 (case SK00507 16/9): auto_overtime_hours chỉ có
-                        // khi checkout thực tế muộn hơn giờ kết thúc ca > 30 phút. NV quên
-                        // chấm công rồi tạo tay đơn Tăng ca không khớp pattern này vẫn phải
-                        // hiện cho biết đã có tăng ca được duyệt (overtime_hours), tránh
-                        // hiểu lầm "không được tính tăng ca".
-                        const autoHours = Number(day.engine_context?.auto_overtime_hours) || 0;
-                        const realHours = Number(day.engine_context?.overtime_hours) || 0;
-                        const displayHours = autoHours > 0 ? autoHours : realHours;
+                        // Badge hiển thị đúng 1 nguồn duy nhất: tổng giờ tăng ca THỰC đã
+                        // được duyệt (overtime_hours/tang_ca). Bỏ hẳn 2026-09-30 cơ chế
+                        // "tự phát hiện tăng ca từ checkout muộn" (auto_overtime_hours) —
+                        // chỉ phản ánh 1 đơn nên thiếu số khi ngày có nhiều đơn Tăng ca
+                        // đã duyệt (case TA00289 3/9).
+                        const displayHours = Number(day.engine_context?.overtime_hours) || 0;
                         if (displayHours <= 0) return null;
-                        const title = autoHours > 0
-                          ? `Đã có đơn Tăng ca được duyệt, khớp với checkout muộn hơn giờ kết thúc ca > 30 phút (thực tế trễ ${day.engine_context?.auto_overtime_minutes ?? 0} phút, quy đổi theo Quy định bổ sung về làm thêm giờ).`
-                          : `Đã có đơn Tăng ca được duyệt: ${displayHours} giờ.`;
+                        const title = `Đã có đơn Tăng ca được duyệt: ${displayHours} giờ.`;
                         return (
                           <span
                             className="text-[10px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border text-green-600 bg-green-50 border-green-100/50"
