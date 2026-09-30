@@ -1109,11 +1109,18 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 không khớp pattern này, nên auto_overtime_hours = 0 dù đơn đã duyệt và
                 overtime_hours (tang_ca thực đã cộng) > 0 → không hiện gì cả, khiến NV
                 hiểu lầm tăng ca không được tính. Fallback dùng overtime_hours khi
-                auto_overtime_hours = 0. */}
+                auto_overtime_hours = 0.
+                Bug 2026-09-30 (case TA00289 3/9, báo lại lần 2): khi ngày có NHIỀU đơn
+                Tăng ca đã duyệt (vd 1 đơn khớp checkout muộn + 1 đơn khác không liên
+                quan checkout như "Trực trưa"), autoHours chỉ phản ánh phần khớp
+                checkout còn realHours (tang_ca) mới là TỔNG đã cộng — ưu tiên autoHours
+                khi > 0 khiến hiển thị thiếu phần đơn còn lại. Phải ưu tiên realHours
+                (tổng thật) và chỉ dùng autoHours làm fallback khi realHours = 0. */}
             {(() => {
               const autoHours = Number(day.engine_context?.auto_overtime_hours) || 0;
               const realHours = Number(day.engine_context?.overtime_hours) || 0;
-              const displayHours = autoHours > 0 ? autoHours : realHours;
+              const displayHours = realHours > 0 ? realHours : autoHours;
+              const isExactCheckoutMatch = autoHours > 0 && autoHours === realHours;
               if (displayHours <= 0) return null;
               return (
                 <div>
@@ -1122,18 +1129,18 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                     <div className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2 text-green-800 font-semibold">
                         <ClockIcon className="h-4 w-4 text-green-500" />
-                        {autoHours > 0 ? 'Khớp với đơn Tăng ca đã duyệt' : 'Đơn Tăng ca đã duyệt'}
+                        {isExactCheckoutMatch ? 'Khớp với đơn Tăng ca đã duyệt' : 'Đơn Tăng ca đã duyệt'}
                       </div>
                       <span className="font-bold text-green-900 bg-green-100 px-2 py-0.5 rounded-lg text-xs">
                         {displayHours} giờ
                       </span>
                     </div>
                     <p className="text-xs text-green-700 mt-1.5">
-                      {autoHours > 0
+                      {isExactCheckoutMatch
                         ? <>Checkout muộn hơn giờ kết thúc ca &gt; 30 phút (thực tế trễ {day.engine_context!.auto_overtime_minutes} phút),
                           quy đổi theo "Quy định bổ sung về làm thêm giờ" — khớp với đơn Tăng ca đã được quản lý trực tiếp duyệt
                           cho ngày này (xem mục Đơn đăng ký bên dưới).</>
-                        : <>Đã cộng {displayHours} giờ tăng ca theo đơn đã được duyệt cho ngày này (xem mục Đơn đăng ký bên dưới).</>}
+                        : <>Đã cộng {displayHours} giờ tăng ca theo (các) đơn đã được duyệt cho ngày này (xem mục Đơn đăng ký bên dưới).</>}
                     </p>
                   </div>
                 </div>
@@ -1455,11 +1462,16 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                         // chấm công rồi tạo tay đơn Tăng ca không khớp pattern này vẫn phải
                         // hiện cho biết đã có tăng ca được duyệt (overtime_hours), tránh
                         // hiểu lầm "không được tính tăng ca".
+                        // Bug 2026-09-30 (case TA00289 3/9): ngày có NHIỀU đơn Tăng ca đã
+                        // duyệt (1 đơn khớp checkout muộn + 1 đơn khác không liên quan như
+                        // "Trực trưa") thì autoHours chỉ là phần khớp checkout, không phải
+                        // tổng — phải ưu tiên realHours (tang_ca, tổng thật) như bên dưới.
                         const autoHours = Number(day.engine_context?.auto_overtime_hours) || 0;
                         const realHours = Number(day.engine_context?.overtime_hours) || 0;
-                        const displayHours = autoHours > 0 ? autoHours : realHours;
+                        const displayHours = realHours > 0 ? realHours : autoHours;
                         if (displayHours <= 0) return null;
-                        const title = autoHours > 0
+                        const isExactCheckoutMatch = autoHours > 0 && autoHours === realHours;
+                        const title = isExactCheckoutMatch
                           ? `Đã có đơn Tăng ca được duyệt, khớp với checkout muộn hơn giờ kết thúc ca > 30 phút (thực tế trễ ${day.engine_context?.auto_overtime_minutes ?? 0} phút, quy đổi theo Quy định bổ sung về làm thêm giờ).`
                           : `Đã có đơn Tăng ca được duyệt: ${displayHours} giờ.`;
                         return (
