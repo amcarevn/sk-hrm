@@ -2943,6 +2943,14 @@ const Approvals: React.FC = () => {
                                                         {item.penalty_amount > 0 && (
                                                           <span className="text-xs font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 w-fit">-{(item.penalty_amount).toLocaleString('vi-VN')} VNĐ</span>
                                                         )}
+                                                        {/* Giờ chấm công thực tế (máy chấm công) trong ngày, để QLTT/HR đối
+                                                            chiếu ngay ở bảng danh sách khi duyệt đơn đi muộn/về sớm. */}
+                                                        {(item.explanation_type === 'LATE' || item.explanation_type === 'EARLY_LEAVE' || item.explanation_type === 'LATE_EARLY')
+                                                          && (item.real_check_in || item.real_check_out) && (
+                                                          <span className="text-xs font-medium text-sky-600 bg-sky-50 px-2 py-0.5 rounded border border-sky-100 w-fit">
+                                                            {item.real_check_in ? item.real_check_in.substring(0, 5) : '--:--'} → {item.real_check_out ? item.real_check_out.substring(0, 5) : '--:--'}
+                                                          </span>
+                                                        )}
                                                         {item._itemType === 'REGISTRATION' && calculateDuration(item.start_time, item.end_time) && (
                                                           <span className="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-0.5 rounded border border-primary-100 w-fit">
                                                             {calculateDuration(item.start_time, item.end_time)}
@@ -2959,8 +2967,17 @@ const Approvals: React.FC = () => {
                                                           (() => {
                                                             const checkIn = item.actual_check_in || item.forgot_checkin_time;
                                                             const checkOut = item.actual_check_out || item.forgot_checkout_time;
+                                                            const punchType = item.forgot_punch_type;
+                                                            const forgotLabel = punchType === 'checkin' || (checkIn && !checkOut)
+                                                              ? 'Quên Check-in'
+                                                              : punchType === 'checkout' || (!checkIn && checkOut)
+                                                                ? 'Quên Check-out'
+                                                                : 'Quên cả Check-in/out';
                                                             return (
                                                               <>
+                                                                <span className="text-xs font-semibold text-violet-700 bg-violet-50 px-2 py-0.5 rounded border border-violet-100 w-fit">
+                                                                  {forgotLabel}
+                                                                </span>
                                                                 {checkIn && (
                                                                   <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 w-fit">
                                                                     Vào: {checkIn}
@@ -4063,6 +4080,24 @@ const Approvals: React.FC = () => {
                                               {(selectedExplanation.penalty_amount || 0).toLocaleString('vi-VN')}
                                             </span>
                                             <span className="text-xs font-semibold text-rose-100 uppercase tracking-tighter">VNĐ</span>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Chấm công thực tế (máy chấm công) của đúng ngày này — để QLTT/HR
+                                          đối chiếu với lý do đi muộn/về sớm mà NV nêu ra. */}
+                                      {(selectedExplanation.real_check_in || selectedExplanation.real_check_out) && (
+                                        <div className="bg-white/80 p-3 rounded-lg border border-rose-100/50 shadow-sm sm:col-span-2">
+                                          <span className="text-xs text-gray-400 font-semibold uppercase tracking-widest block mb-2">Chấm công thực tế trong ngày</span>
+                                          <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-xs font-semibold text-gray-500 uppercase">Vào:</span>
+                                              <span className="text-sm font-semibold text-gray-800">{selectedExplanation.real_check_in?.substring(0, 5) || '--:--'}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-xs font-semibold text-gray-500 uppercase">Ra:</span>
+                                              <span className="text-sm font-semibold text-gray-800">{selectedExplanation.real_check_out?.substring(0, 5) || '--:--'}</span>
+                                            </div>
                                           </div>
                                         </div>
                                       )}
