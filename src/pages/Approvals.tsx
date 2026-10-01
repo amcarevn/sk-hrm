@@ -136,6 +136,11 @@ const Approvals: React.FC = () => {
   // nhớ riêng, nếu không thì bấm đóng xong nó tự mở lại ngay.
   const [collapsedDepartments, setCollapsedDepartments] = useState<string[]>([]);
   const [collapsedEmployees, setCollapsedEmployees] = useState<string[]>([]);
+  // Khối "Đang chờ quản lý trực tiếp" ở tab Chờ duyệt của HCNS — thu gọn sẵn vì
+  // đó là việc của QLTT, HCNS chưa thao tác gì được. null = tự quyết theo dữ
+  // liệu (riêng SK: người VỪA là HCNS VỪA là QLTT của 1 số nhân viên thì khối
+  // này có việc của chính họ -> tự mở), true/false = người dùng đã bấm.
+  const [showWaitingManagerSection, setShowWaitingManagerSection] = useState<boolean | null>(null);
   const [calendarModalEmployee, setCalendarModalEmployee] = useState<{ id: number; name: string; month: number; year: number } | null>(null);
 
   // Debug log cho Quota và dữ liệu được chọn
@@ -2010,6 +2015,12 @@ const Approvals: React.FC = () => {
       level2Groups: buildDeptPosEmpGroups(level2Items),
       level1Count: level1Items.length,
       level2Count: level2Items.length,
+      // Riêng SK: số đơn Cấp 1 mà CHÍNH người xem là QLTT (người vừa là HCNS
+      // vừa quản lý trực tiếp 1 số nhân viên) — dùng để tự mở khối "Đang chờ
+      // quản lý trực tiếp" khi trong đó có việc của họ.
+      level1MineCount: level1Items.filter(item =>
+        !!currentEmployee && (item.employee_manager_id === currentEmployee.id
+          || item.employee_department_manager_id === currentEmployee.id)).length,
     };
   }, [
     activeTab,
@@ -3234,26 +3245,45 @@ const Approvals: React.FC = () => {
             // thêm đơn cấp 2 của nhân viên KHÁC không phải cấp dưới trực tiếp) — tránh
             // loạn giữa 2 loại đơn khác bản chất hành động cần làm.
             if (approvalLevelSplit) {
-              const { level1Groups, level2Groups, level1Count, level2Count } = approvalLevelSplit;
+              const { level1Groups, level2Groups, level1Count, level2Count, level1MineCount } = approvalLevelSplit;
+              const isWaitingManagerOpen = showWaitingManagerSection ?? level1MineCount > 0;
+              // Đảo thứ tự (port từ TA d43c2c7): đơn ĐÃ qua QLTT mới là việc
+              // của HCNS nên đưa lên TRƯỚC; đơn đang chờ QLTT duyệt (HCNS chưa
+              // làm gì được) xuống dưới và THU GỌN sẵn. Đổi tên theo
+              // việc-cần-làm thay vì "Cấp 1/Cấp 2" (ngôn ngữ quy trình, người
+              // dùng phải tự dịch). Dải này chỉ HCNS/Admin thấy — với QLTT
+              // approvalLevelSplit luôn null nên họ xem danh sách phẳng như cũ.
               return (
                 <>
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg uppercase tracking-wide shadow-sm shrink-0">
-                      Cấp 1 · Quản lý trực tiếp duyệt
-                    </span>
-                    <span className="text-xs text-gray-400 font-semibold shrink-0">{level1Count} đơn</span>
-                    <span className="h-[1px] flex-1 bg-gray-200"></span>
-                  </div>
-                  {Object.entries(level1Groups).map(entry => renderDeptCard(entry, level1PendingCountsMap ?? pendingCountsMap, 'L1'))}
-
-                  <div className="flex items-center gap-3 mb-3 mt-8">
                     <span className="px-3 py-1.5 bg-violet-600 text-white text-xs font-bold rounded-lg uppercase tracking-wide shadow-sm shrink-0">
-                      Cấp 2 · Nhân sự duyệt (đã qua QLTT)
+                      Cần bạn duyệt · đã qua quản lý trực tiếp
                     </span>
                     <span className="text-xs text-gray-400 font-semibold shrink-0">{level2Count} đơn</span>
                     <span className="h-[1px] flex-1 bg-gray-200"></span>
                   </div>
                   {Object.entries(level2Groups).map(entry => renderDeptCard(entry, level2PendingCountsMap ?? pendingCountsMap, 'L2'))}
+
+                  <div className="flex items-center gap-3 mb-3 mt-8">
+                    <button
+                      onClick={() => setShowWaitingManagerSection(!isWaitingManagerOpen)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white text-gray-500 border border-gray-200 text-xs font-bold rounded-lg uppercase tracking-wide hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0"
+                      title="Các đơn này đang chờ quản lý trực tiếp duyệt bước 1 — bạn chưa cần làm gì"
+                    >
+                      <svg className={`w-3.5 h-3.5 transition-transform ${isWaitingManagerOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      Đang chờ quản lý trực tiếp
+                    </button>
+                    <span className="text-xs text-gray-400 font-semibold shrink-0">
+                      {level1Count} đơn
+                      {level1MineCount > 0 && (
+                        <span className="ml-1 text-blue-600">· {level1MineCount} đơn bạn là QLTT</span>
+                      )}
+                    </span>
+                    <span className="h-[1px] flex-1 bg-gray-200"></span>
+                  </div>
+                  {isWaitingManagerOpen && Object.entries(level1Groups).map(entry => renderDeptCard(entry, level1PendingCountsMap ?? pendingCountsMap, 'L1'))}
                 </>
               );
             }
