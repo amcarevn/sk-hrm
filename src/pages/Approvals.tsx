@@ -141,6 +141,9 @@ const Approvals: React.FC = () => {
   // liệu (riêng SK: người VỪA là HCNS VỪA là QLTT của 1 số nhân viên thì khối
   // này có việc của chính họ -> tự mở), true/false = người dùng đã bấm.
   const [showWaitingManagerSection, setShowWaitingManagerSection] = useState<boolean | null>(null);
+  // Khối "Bạn đã duyệt · đang chờ HCNS" ở tab Chờ duyệt (QLTT) — đóng sẵn vì
+  // không phải việc cần làm, chỉ để QLTT theo dõi tiến độ.
+  const [showManagerApprovedSection, setShowManagerApprovedSection] = useState(false);
   const [calendarModalEmployee, setCalendarModalEmployee] = useState<{ id: number; name: string; month: number; year: number } | null>(null);
 
   // Debug log cho Quota và dữ liệu được chọn
@@ -1819,7 +1822,11 @@ const Approvals: React.FC = () => {
   // memoizedGroupedRequests để dùng lại được cho việc tách Cấp 1/Cấp 2 (chỉ
   // cần build+filter danh sách phẳng, không cần group theo phòng ban/vị trí).
   const buildFilteredCombinedList = (
-    explanations: any[], registrations: any[], leaveRequests: any[], overtimeRequests: any[], onlineWorks: any[]
+    explanations: any[], registrations: any[], leaveRequests: any[], overtimeRequests: any[], onlineWorks: any[],
+    // keepManagerApproved: GIỮ lại đơn QLTT đã duyệt (đang chờ HCNS) thay vì
+    // lọc bỏ — dùng cho khối thu gọn "Bạn đã duyệt · đang chờ HCNS" ở tab
+    // Chờ duyệt, xem memoizedManagerApprovedPending.
+    opts: { keepManagerApproved?: boolean } = {}
   ) => {
     // 2. Map and filter
     const mappedExplanations = explanations
@@ -1859,7 +1866,7 @@ const Approvals: React.FC = () => {
     // thuần tuý không cần thấy nữa (port từ TA cbba949, yêu cầu HCNS: "để cho
     // QLTT nhìn thấy cấp 1 thôi"). Chỉ áp dụng ở tab Chờ duyệt; tab Đã duyệt/
     // Từ chối vẫn hiện đủ để họ tra cứu lại.
-    if (activeTab === 'pending' && !isAdmin && !isHR) {
+    if (activeTab === 'pending' && !isAdmin && !isHR && !opts.keepManagerApproved) {
       all = all.filter(item => !item.direct_manager_approved);
     }
 
@@ -2033,6 +2040,30 @@ const Approvals: React.FC = () => {
     return finalGroups;
   };
 
+  // Đơn QLTT ĐÃ duyệt nhưng HCNS chưa duyệt nốt (port từ TA 76f78bb). Chúng
+  // bị ẩn khỏi danh sách "Chờ duyệt" (việc của QLTT xong rồi) và nằm ở tab
+  // "Đã duyệt" — đúng về logic nhưng gây hiểu nhầm nặng: QLTT mở tab Chờ
+  // duyệt thấy gần như trống rồi kết luận "không nhìn thấy đơn của cấp
+  // dưới". Nay hiện lại ngay trong tab Chờ duyệt dưới 1 khối THU GỌN, tách
+  // bạch với việc cần làm.
+  const memoizedManagerApprovedPending = useMemo(() => {
+    if (activeTab !== 'pending' || isAdmin || isHR) return null;
+    const all = buildFilteredCombinedList(
+      attendanceExplanations, pendingRegistrations, pendingLeaveRequests,
+      pendingOvertimeRequests, pendingOnlineWorkRequests,
+      { keepManagerApproved: true },
+    ).filter((item: any) => item.direct_manager_approved);
+    if (all.length === 0) return null;
+    return { groups: buildDeptPosEmpGroups(all), count: all.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activeTab, isAdmin, isHR,
+    attendanceExplanations, pendingRegistrations, pendingLeaveRequests,
+    pendingOvertimeRequests, pendingOnlineWorkRequests,
+    filterOnlyMine, filterOnlyMyDirectReports, filterTypes, filterExplanationSubTypes,
+    filterRegistrationSubTypes, debouncedFilterName, filterDepartment, currentEmployee, user,
+  ]);
+
   // Cấp 1 (direct_manager_approved chưa có -> đang chờ QLTT trực tiếp duyệt) vs Cấp 2
   // (direct_manager_approved đã có -> QLTT đã duyệt xong, đang chờ Nhân sự duyệt nốt).
   // Field direct_manager_approved có ở MỌI loại đơn hiện trong trang này (EXPLANATION,
@@ -2124,6 +2155,12 @@ const Approvals: React.FC = () => {
   const level1PendingCountsMap = useMemo(
     () => memoizedApprovalLevelSplit ? buildPendingCountsMap(memoizedApprovalLevelSplit.level1Groups) : null,
     [memoizedApprovalLevelSplit, currentEmployee, user]
+  );
+  // Map đếm riêng cho khối "Bạn đã duyệt · đang chờ HCNS" — dùng
+  // pendingCountsMap của danh sách chính sẽ cộng nhầm số đơn cùng tên phòng.
+  const managerApprovedCountsMap = useMemo(
+    () => memoizedManagerApprovedPending ? buildPendingCountsMap(memoizedManagerApprovedPending.groups) : null,
+    [memoizedManagerApprovedPending, currentEmployee, user]
   );
   const level2PendingCountsMap = useMemo(
     () => memoizedApprovalLevelSplit ? buildPendingCountsMap(memoizedApprovalLevelSplit.level2Groups) : null,
@@ -2656,7 +2693,7 @@ const Approvals: React.FC = () => {
               <SkeletonItem />
               <SkeletonItem />
             </div>
-          ) : Object.keys(getGroupedRequests()).length === 0 ? (
+          ) : Object.keys(getGroupedRequests()).length === 0 && !memoizedManagerApprovedPending ? (
             <div className="bg-white border rounded-lg overflow-hidden p-12 text-center shadow-sm">
               <div className="flex flex-col items-center justify-center">
                 <svg
@@ -2691,6 +2728,7 @@ const Approvals: React.FC = () => {
             const deptEntries = Object.entries(groupedRequests);
             const totalDepts = deptEntries.length;
             const approvalLevelSplit = memoizedApprovalLevelSplit;
+            const managerApprovedPending = memoizedManagerApprovedPending;
 
             // `levelKey` tách khoá đóng/mở của 2 dải Cấp 1 / Cấp 2 (port từ TA
             // cbba949): cùng 1 phòng ban xuất hiện ở CẢ 2 dải, trước đây dùng
@@ -3360,7 +3398,41 @@ const Approvals: React.FC = () => {
             // .map(renderDeptCard) trực tiếp SẼ SAI — Array.map truyền thêm
             // (index, array) làm tham số 2/3, đè mất giá trị mặc định của
             // countsMap (renderDeptCard nhận countsMap làm tham số thứ 2).
-            return deptEntries.map((entry) => renderDeptCard(entry));
+            return (
+              <>
+                {deptEntries.map((entry) => renderDeptCard(entry))}
+                {/* Riêng SK: danh sách chính rỗng nhưng vẫn có khối bên dưới
+                    -> báo rõ là không còn việc cần làm thay vì để trống. */}
+                {deptEntries.length === 0 && managerApprovedPending && (
+                  <div className="bg-white border rounded-lg p-6 text-center text-sm text-gray-500 shadow-sm">
+                    Không có đơn nào đang chờ bạn duyệt.
+                  </div>
+                )}
+                {/* Khối thu gọn: đơn CHÍNH MÌNH đã duyệt, đang chờ HCNS duyệt
+                    nốt. Không phải việc cần làm nữa nên để cuối và đóng sẵn,
+                    nhưng phải hiện ở đây — xem memoizedManagerApprovedPending. */}
+                {managerApprovedPending && (
+                  <>
+                    <div className="flex items-center gap-3 mb-3 mt-8">
+                      <button
+                        onClick={() => setShowManagerApprovedSection(v => !v)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-white text-gray-500 border border-gray-200 text-xs font-bold rounded-lg uppercase tracking-wide hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0"
+                        title="Bạn đã duyệt xong các đơn này, đang chờ Hành chính nhân sự duyệt nốt — bạn không cần làm gì thêm"
+                      >
+                        <svg className={`w-3.5 h-3.5 transition-transform ${showManagerApprovedSection ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                        </svg>
+                        Bạn đã duyệt · đang chờ HCNS
+                      </button>
+                      <span className="text-xs text-gray-400 font-semibold shrink-0">{managerApprovedPending.count} đơn</span>
+                      <span className="h-[1px] flex-1 bg-gray-200"></span>
+                    </div>
+                    {showManagerApprovedSection
+                      && Object.entries(managerApprovedPending.groups).map(entry => renderDeptCard(entry, managerApprovedCountsMap ?? pendingCountsMap, 'MA'))}
+                  </>
+                )}
+              </>
+            );
           })()
           }
         </div>
