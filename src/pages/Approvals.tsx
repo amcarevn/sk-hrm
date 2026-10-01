@@ -506,6 +506,16 @@ const Approvals: React.FC = () => {
         tasks.push(fetchWorkFinalizationData(emp, currentIsAdmin, currentIsHR));
       } else if (activeTab === 'approved') {
         tasks.push(fetchApprovedRequests(signal));
+        // QLTT: tab "Đã duyệt" của họ KHÔNG chỉ gồm đơn status=APPROVED — nó
+        // còn gộp các đơn họ đã duyệt nhưng HCNS chưa duyệt nốt (vẫn
+        // status=PENDING), xem pickTabSources(). Những đơn đó nằm trong mảng
+        // pending*, nên nếu tab này KHÔNG tải pending thì vào thẳng/tải lại
+        // trang khi đang ở tab "Đã duyệt" chúng biến mất khỏi CẢ HAI tab (Chờ
+        // duyệt đã lọc chúng đi). Đổi tháng/năm tại tab này cũng để lại
+        // pending của tháng cũ (port từ TA 9592464).
+        if (!currentIsAdmin && !currentIsHR) {
+          tasks.push(fetchPendingRequests(signal));
+        }
       } else if (activeTab === 'rejected') {
         tasks.push(fetchRejectedRequests(signal));
       }
