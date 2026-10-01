@@ -1814,6 +1814,14 @@ const Approvals: React.FC = () => {
       ...mappedOvertimes
     ];
 
+    // Đơn đã qua QLTT duyệt (đang chờ HCNS) là việc của HCNS/Admin — QLTT
+    // thuần tuý không cần thấy nữa (port từ TA cbba949, yêu cầu HCNS: "để cho
+    // QLTT nhìn thấy cấp 1 thôi"). Chỉ áp dụng ở tab Chờ duyệt; tab Đã duyệt/
+    // Từ chối vẫn hiện đủ để họ tra cứu lại.
+    if (activeTab === 'pending' && !isAdmin && !isHR) {
+      all = all.filter(item => !item.direct_manager_approved);
+    }
+
     if (filterOnlyMine) {
       all = all.filter(item => {
         const itemEmpId = item.employee_id || (typeof item.employee === 'object' ? item.employee?.id : item.employee);
@@ -1981,7 +1989,10 @@ const Approvals: React.FC = () => {
     });
 
     const level1Items = sorted.filter(item => !item.direct_manager_approved);
-    const level2Items = sorted.filter(item => !!item.direct_manager_approved);
+    // Cấp 2 = đơn đã qua QLTT, đang chờ HCNS duyệt -> việc của HCNS/Admin.
+    // QLTT không thấy nữa vì phần việc của họ đã xong (port từ TA cbba949).
+    const canSeeLevel2 = isAdmin || isHR;
+    const level2Items = canSeeLevel2 ? sorted.filter(item => !!item.direct_manager_approved) : [];
 
     if (level1Items.length === 0 || level2Items.length === 0) return null;
 
@@ -2664,14 +2675,19 @@ const Approvals: React.FC = () => {
             const totalDepts = deptEntries.length;
             const approvalLevelSplit = memoizedApprovalLevelSplit;
 
-            const renderDeptCard = ([deptName, posGroups]: [string, any], countsMap: typeof pendingCountsMap = pendingCountsMap) => {
+            // `levelKey` tách khoá đóng/mở của 2 dải Cấp 1 / Cấp 2 (port từ TA
+            // cbba949): cùng 1 phòng ban xuất hiện ở CẢ 2 dải, trước đây dùng
+            // chung deptName làm khoá nên đóng phòng ở Cấp 1 là đóng luôn phòng
+            // đó ở Cấp 2. countsMap vẫn tra theo deptName (map đếm riêng mỗi dải).
+            const renderDeptCard = ([deptName, posGroups]: [string, any], countsMap: typeof pendingCountsMap = pendingCountsMap, levelKey: string = '') => {
+              const deptKey = levelKey ? `${levelKey}::${deptName}` : deptName;
               // Mặc định mở sẵn khi danh sách ít (<= 3 phòng) thay vì chỉ khi
               // đúng 1 phòng như trước — trước đây cả 3 cấp đều đóng nên vào
               // trang KHÔNG thấy đơn nào, phải bấm 2 lần mới thấy dòng đầu tiên.
               // Người dùng vẫn đóng/mở tay được y như cũ.
               const isDeptExpanded =
-                expandedDepartments.includes(deptName)
-                || (totalDepts <= 3 && !collapsedDepartments.includes(deptName));
+                expandedDepartments.includes(deptKey)
+                || (totalDepts <= 3 && !collapsedDepartments.includes(deptKey));
 
               // Correctly flatten 3-level groups: posGroups -> empGroups -> items
               const allItemsInDept = Object.values(posGroups as Record<string, any>).reduce((acc: any[], empGroup: any) =>
@@ -2686,7 +2702,7 @@ const Approvals: React.FC = () => {
                   {/* Department Header */}
                   <div className={`w-full flex items-center justify-between p-3 sm:p-4 ${deptName === 'Đơn của Tôi' ? 'bg-rose-50/80 border-rose-100' : 'bg-gray-50 border-gray-200'} border-b`}>
                     <button
-                      onClick={() => toggleDepartmentGroup(deptName)}
+                      onClick={() => toggleDepartmentGroup(deptKey)}
                       className="flex items-center gap-2 sm:gap-3 text-left focus:outline-none flex-1 min-w-0"
                     >
                       <div className={`p-1.5 sm:p-2 rounded-lg ${isDeptExpanded ? 'bg-primary-600 text-white shadow-md' : 'bg-primary-50 text-primary-600'}`}>
@@ -2741,7 +2757,7 @@ const Approvals: React.FC = () => {
                       )}
 
                       <button
-                        onClick={() => toggleDepartmentGroup(deptName)}
+                        onClick={() => toggleDepartmentGroup(deptKey)}
                         className={`p-2 hover:bg-gray-200 rounded-full transition-transform duration-300 ${isDeptExpanded ? 'rotate-180' : ''}`}
                       >
                         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2810,7 +2826,10 @@ const Approvals: React.FC = () => {
                             {/* New Level: Employee Accordion */}
                             <div className="p-4 space-y-4">
                               {Object.entries(empGroups as Record<string, any>).map(([empName, items]: [string, any[]]) => {
-                                const accordionKey = `${deptName}-${posName}-${empName}`;
+                                // Khoá đóng/mở kèm cấp duyệt (deptKey); khoá tra
+                                // số đếm giữ theo deptName như buildPendingCountsMap.
+                                const accordionKey = `${deptKey}-${posName}-${empName}`;
+                                const countKey = `${deptName}-${posName}-${empName}`;
                                 // Mở sẵn nhân viên khi phòng đang mở và ít đơn
                                 // (<= 10) — xem chú thích isDeptExpanded ở trên.
                                 const isEmpExpanded =
@@ -2818,7 +2837,7 @@ const Approvals: React.FC = () => {
                                   || (isDeptExpanded
                                       && deptItemCount <= 10
                                       && !collapsedEmployees.includes(accordionKey));
-                                const pendingInEmp = countsMap.empCounts[accordionKey] || 0;
+                                const pendingInEmp = countsMap.empCounts[countKey] || 0;
                                 const firstItem = items[0];
 
                                 return (
@@ -3289,7 +3308,7 @@ const Approvals: React.FC = () => {
                     <span className="text-xs text-gray-400 font-semibold shrink-0">{level1Count} đơn</span>
                     <span className="h-[1px] flex-1 bg-gray-200"></span>
                   </div>
-                  {Object.entries(level1Groups).map(entry => renderDeptCard(entry, level1PendingCountsMap ?? pendingCountsMap))}
+                  {Object.entries(level1Groups).map(entry => renderDeptCard(entry, level1PendingCountsMap ?? pendingCountsMap, 'L1'))}
 
                   <div className="flex items-center gap-3 mb-3 mt-8">
                     <span className="px-3 py-1.5 bg-violet-600 text-white text-xs font-bold rounded-lg uppercase tracking-wide shadow-sm shrink-0">
@@ -3298,7 +3317,7 @@ const Approvals: React.FC = () => {
                     <span className="text-xs text-gray-400 font-semibold shrink-0">{level2Count} đơn</span>
                     <span className="h-[1px] flex-1 bg-gray-200"></span>
                   </div>
-                  {Object.entries(level2Groups).map(entry => renderDeptCard(entry, level2PendingCountsMap ?? pendingCountsMap))}
+                  {Object.entries(level2Groups).map(entry => renderDeptCard(entry, level2PendingCountsMap ?? pendingCountsMap, 'L2'))}
                 </>
               );
             }
