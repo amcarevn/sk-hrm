@@ -16,6 +16,10 @@ interface SelectBoxProps<T> {
   searchable?: boolean;
   size?: 'default' | 'lg';
   portal?: boolean;
+  /** Khoá ô chọn: không bấm được, hiện mờ. Dùng khi lựa chọn hiện tại khiến ô
+   *  này mất ý nghĩa (vd chọn "Tất cả tháng" thì ô Năm vô tác dụng) — khoá lại
+   *  thay vì ẩn đi, để không làm xô lệch các nút bên cạnh. */
+  disabled?: boolean;
 }
 
 function SelectBoxInner<T>({
@@ -26,6 +30,7 @@ function SelectBoxInner<T>({
   placeholder,
   searchable = false,
   size = 'default',
+  disabled = false,
 }: SelectBoxProps<T>) {
   const [query, setQuery] = useState("");
 
@@ -52,6 +57,10 @@ function SelectBoxInner<T>({
     ? "relative w-full cursor-pointer rounded-xl border-2 border-gray-200 hover:border-gray-300 bg-white py-[13px] pl-4 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-base shadow-sm transition-all"
     : "relative w-full cursor-pointer rounded-lg border border-gray-300 bg-white py-2 pl-3 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm shadow-sm";
 
+  const disabledCls = disabled
+    ? " opacity-50 cursor-not-allowed bg-gray-50 pointer-events-none"
+    : "";
+
   // COMBBOX MODE (Searchable)
   if (searchable) {
     return (
@@ -62,11 +71,13 @@ function SelectBoxInner<T>({
           onChange={(v: SelectOption<T> | null) => {
             if (v) onChange(v.value);
           }}
+          disabled={disabled}
         >
           <div className="relative">
-            <div className={wrapperCls}>
+            <div className={wrapperCls + disabledCls}>
               <Combobox.Input
                 className={inputCls}
+                disabled={disabled}
                 displayValue={(option: SelectOption<T> | null) => option?.label || ""}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={placeholder || "Tìm kiếm..."}
@@ -126,7 +137,7 @@ function SelectBoxInner<T>({
 
       <Listbox value={fallbackSelected} onChange={(v: any) => onChange(v.value)}>
         <div className="relative">
-          <Listbox.Button className={buttonCls}>
+          <Listbox.Button className={buttonCls + disabledCls} disabled={disabled}>
             <span className="block truncate">{fallbackSelected?.label || placeholder || "Chọn"}</span>
             <span className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer">
               <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
