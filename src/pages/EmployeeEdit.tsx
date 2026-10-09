@@ -472,8 +472,10 @@ const EmployeeEdit: React.FC = () => {
       payload['end_date'] = toApiDate(formData.end_date) || null;
       add('position_id', formData.position_id);
       add('department_id', formData.department_id);
-      if (formData.manager_id !== undefined) payload['manager_id'] = formData.manager_id;
-      if (formData.manager_level_2_id !== undefined) payload['manager_level_2_id'] = formData.manager_level_2_id;
+      // null = người dùng chọn "Không có" -> phải gửi 0 (quy ước xoá của backend
+      // SK); gửi null thì backend bỏ qua và giữ nguyên quản lý cũ.
+      if (formData.manager_id !== undefined) payload['manager_id'] = formData.manager_id ?? 0;
+      if (formData.manager_level_2_id !== undefined) payload['manager_level_2_id'] = formData.manager_level_2_id ?? 0;
       add('rank', formData.rank?.trim());
       add('doctor_team', formData.doctor_team?.trim());
       add('work_form', formData.work_form);
@@ -733,7 +735,7 @@ const EmployeeEdit: React.FC = () => {
                     value: emp.id,
                   })),
               ]}
-              onChange={(v) => handleSelect('manager_id', v ?? undefined)}
+              onChange={(v) => handleSelect('manager_id', v ?? null)}
             />
 
             <SelectBox
@@ -750,7 +752,7 @@ const EmployeeEdit: React.FC = () => {
                     value: emp.id,
                   })),
               ]}
-              onChange={(v) => handleSelect('manager_level_2_id', v ?? undefined)}
+              onChange={(v) => handleSelect('manager_level_2_id', v ?? null)}
             />
 
             <SelectBox
