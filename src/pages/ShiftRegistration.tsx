@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { employeesAPI, companyConfigAPI, shiftRegistrationsAPI } from '../utils/api';
 import type { ShiftConfig, ShiftRegistration as ShiftRegistrationType, ShiftRegistrationLockStatus } from '../utils/api';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
+import { shiftNote, shiftOptionLabel } from '../utils/shiftLabel';
 import { useAuth } from '../contexts/AuthContext';
 import {
   ClockIcon,
@@ -40,8 +41,6 @@ const addDays = (d: Date, n: number): Date => {
 
 const fmtDM = (d: Date): string =>
   `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-
-const fmtTime = (t?: string): string => (t ? t.slice(0, 5) : '');
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Nháp', className: 'bg-gray-100 text-gray-600' },
@@ -101,7 +100,7 @@ const ShiftRegistration: React.FC = () => {
       { value: 0, label: 'Nghỉ' },
       ...shifts.map((s) => ({
         value: s.id,
-        label: `${s.name} (${fmtTime(s.start_time)}–${fmtTime(s.end_time)})`,
+        label: shiftOptionLabel(s),
       })),
     ],
     [shifts]
@@ -416,6 +415,15 @@ const ShiftRegistration: React.FC = () => {
                               'Nghỉ'}
                           </span>
                         )}
+                        {(() => {
+                          const picked = shifts.find((s) => s.id === selections[ymd]);
+                          const note = picked ? shiftNote(picked) : '';
+                          return note ? (
+                            <p className="mt-1 text-xs font-medium text-amber-700">
+                              ⚠ Ca {picked!.name}: {note}. Chỉ chọn nếu đúng lịch làm việc thực tế của bạn.
+                            </p>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                   );

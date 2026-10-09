@@ -35,6 +35,7 @@ import {
   BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import { Employee, employeesAPI, companyConfigAPI } from '@/utils/api';
+import { shiftNote, shiftOptionLabel } from '@/utils/shiftLabel';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 
 const AttendanceManagement: React.FC = () => {
@@ -352,7 +353,7 @@ const AttendanceManagement: React.FC = () => {
 
   // Shift Change (Đổi ca) state — chọn 1 ca có sẵn để đổi sang cho ngày đang thao tác
   const [shiftChangeTargetShiftId, setShiftChangeTargetShiftId] = useState('');
-  const [shiftChangeOptions, setShiftChangeOptions] = useState<{ value: string; label: string }[]>([]);
+  const [shiftChangeOptions, setShiftChangeOptions] = useState<{ value: string; label: string; note?: string }[]>([]);
   const [shiftChangeOptionsLoading, setShiftChangeOptionsLoading] = useState(false);
 
   // Incomplete Attendance (Quên chấm công) state
@@ -582,7 +583,8 @@ const AttendanceManagement: React.FC = () => {
           setShiftChangeOptions(
             list.map((s: any) => ({
               value: String(s.id),
-              label: `${s.name} (${(s.start_time || '').substring(0, 5)}–${(s.end_time || '').substring(0, 5)})`,
+              label: shiftOptionLabel(s),
+              note: shiftNote(s),
             }))
           );
         })
@@ -4512,6 +4514,15 @@ const AttendanceManagement: React.FC = () => {
                               }
                               searchable
                             />
+                            {(() => {
+                              const picked = shiftChangeOptions.find((o) => o.value === shiftChangeTargetShiftId);
+                              return picked?.note ? (
+                                <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                                  ⚠ {picked.label.split(' · ')[0]}: {picked.note}. Chỉ chọn ca này nếu đúng lịch làm việc
+                                  thực tế của bạn — nếu chỉ làm buổi sáng/chiều, hãy chọn ca sáng/chiều tương ứng.
+                                </div>
+                              ) : null;
+                            })()}
 
                             {/* Note input for Shift Change */}
                             <div className="mt-4 space-y-2">
