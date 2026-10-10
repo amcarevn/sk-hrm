@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { employeesAPI, Employee } from '../utils/api';
 import { formatDate } from '../utils/dateUtils';
 import { WORK_LOCATION_OPTIONS } from '../constants/onboarding';
+import PdfFrame from '../components/Common/PdfFrame';
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -569,7 +570,7 @@ const EmployeeShow: React.FC = () => {
             className="relative w-full max-w-4xl h-[90vh] bg-white rounded-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <iframe src={previewPdf} className="w-full h-full" title="PDF Preview" />
+            <PdfFrame src={previewPdf} className="w-full h-full" title="PDF Preview" />
             <button
               onClick={() => setPreviewPdf(null)}
               className="absolute top-4 right-4 p-2 rounded-full bg-white/90 hover:bg-white text-gray-800"

@@ -303,6 +303,10 @@ const navigationItems: NavigationItem[] = [
         name: 'Hợp đồng hàng loạt',
         href: '/dashboard/bulk-contracts',
         icon: DocumentTextIcon,
+        // Ẩn: App.tsx không có route này và backend SK chưa có các API của tính
+        // năng (generate_and_confirm / mark_signed / cancel_contract) — chỉ bên
+        // Trung Anh làm. Bấm vào trước đây ra trang trắng.
+        hidden: true,
         roles: ['ADMIN', 'HR'],
       },
       {
@@ -429,8 +433,9 @@ export default function Sidebar({ onCollapseChange, mobileOpen: sidebarOpen, onM
     return item.roles.some(role => role.toUpperCase() === userRole);
   };
 
+  // Superadmin thấy mọi mục, TRỪ mục đã đánh dấu hidden (tính năng SK không dùng).
   const navigation = isSuperAdmin
-    ? navigationItems
+    ? navigationItems.filter(item => !item.hidden)
     : navigationItems.filter(canAccessItem);
 
   const toggleGroup = (name: string, currentlyExpanded: boolean) => {
@@ -454,7 +459,7 @@ export default function Sidebar({ onCollapseChange, mobileOpen: sidebarOpen, onM
 
   const renderNavItem = (item: NavigationItem, collapsed: boolean) => {
     if (item.children && item.children.length > 0) {
-      const visibleChildren = isSuperAdmin ? item.children : item.children.filter(canAccessItem);
+      const visibleChildren = isSuperAdmin ? item.children.filter(child => !child.hidden) : item.children.filter(canAccessItem);
       if (visibleChildren.length === 0) return null;
       const active = isGroupActive(item);
       const expanded = collapsedByUser.has(item.name) ? false : (expandedGroups.has(item.name) || active);

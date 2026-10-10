@@ -9,6 +9,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { hrmAPI } from '@/utils/api';
 import { useNotificationDrawer } from '@/contexts/NotificationDrawerContext';
+import { userDisplayName } from '@/utils/userName';
 
 const PRIORITY_BORDER: Record<string, string> = {
   URGENT: 'border-red-500',
@@ -262,7 +263,7 @@ export default function Header({ onOpenMobileNav }: HeaderProps) {
                   <div className="absolute right-0 z-20 mt-2.5 w-56 max-w-[calc(100vw-1.5rem)] origin-top-right rounded-lg bg-white py-1 shadow-lg ring-1 ring-gray-900/5">
                     <div className="px-4 py-3 border-b border-gray-100">
                       <div className="font-medium text-sm text-gray-900 break-words">
-                        {user?.firstName} {user?.lastName}
+                        {userDisplayName(user)}
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5 break-all">{user?.email}</div>
                     </div>

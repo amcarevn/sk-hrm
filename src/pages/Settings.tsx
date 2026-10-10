@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../utils/api';
+import { userDisplayName } from '../utils/userName';
 import {
   UserCircleIcon,
   EnvelopeIcon,
@@ -169,9 +170,7 @@ export default function Settings() {
                         Họ và tên
                       </label>
                       <span className="text-gray-900">
-                        {user?.firstName && user?.lastName
-                          ? `${user.firstName} ${user.lastName}`
-                          : 'Chưa cập nhật'}
+                        {userDisplayName(user) || 'Chưa cập nhật'}
                       </span>
                     </div>
 

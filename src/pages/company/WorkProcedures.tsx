@@ -24,8 +24,10 @@ const WorkProcedures: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch work procedures (document_type = 'WORK_PROCEDURE')
-      const response = await companyDocumentAPI.getByType('WORK_PROCEDURE', {
+      // Fetch work procedures (document_type = 'PROCEDURE' — đúng mã COMPANY_DOCUMENT_TYPE
+      // của backend; trước đây gửi 'WORK_PROCEDURE' nên backend trả 400 và trang luôn
+      // báo "Lỗi tải dữ liệu")
+      const response = await companyDocumentAPI.getByType('PROCEDURE', {
         page_size: 50
       });
       

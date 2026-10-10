@@ -21,6 +21,7 @@ import {
 import onboardingService from '../services/onboarding.service';
 import TasksSection from './TasksSection';
 import ConfirmDialog from '../components/ConfirmDialog';
+import PdfFrame from '../components/Common/PdfFrame';
 import FeedbackDialog from '../components/FeedbackDialog';
 import DocumentsSection from './DocumentsSection';
 import { useAuth } from '../contexts/AuthContext';
@@ -2131,7 +2132,7 @@ const OnboardingDetail: React.FC = () => {
                   className="max-w-full max-h-full object-contain"
                 />
               ) : (
-                <iframe
+                <PdfFrame
                   src={previewFile.url}
                   title={previewFile.label}
                   className="w-full h-full min-h-[70vh]"

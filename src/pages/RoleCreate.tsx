@@ -8,10 +8,16 @@ import {
 } from '@heroicons/react/24/outline';
 import { employeePermissionService, EmployeePermission } from '../services/employee-permission.service';
 import { employeesAPI } from '../utils/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const RoleCreate: React.FC = () => {
   const navigate = useNavigate();
+  // Trang này dùng cho cả tạo mới (/dashboard/roles/create) lẫn sửa
+  // (/dashboard/employee-permissions/:id/edit). Trước đây chỉ có tạo mới:
+  // chọn nhân viên đã có phân quyền rồi bấm lưu thì backend báo "Permission
+  // already exists" — tức là không sửa được phân quyền nào.
+  const { id } = useParams<{ id?: string }>();
+  const [existingPermissionId, setExistingPermissionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +50,57 @@ const RoleCreate: React.FC = () => {
     loadEmployees();
   }, []);
 
+  useEffect(() => {
+    if (id) {
+      loadPermissionById(parseInt(id));
+    }
+  }, [id]);
+
+  const loadPermissionById = async (permissionId: number) => {
+    try {
+      const permission = await employeePermissionService.getEmployeePermissionById(permissionId);
+      // `employee` có thể là ID thô hoặc object lồng tuỳ serializer — xử lý cả hai.
+      const emp: any = permission.employee;
+      const employeeId = typeof emp === 'object' && emp ? emp.id : emp;
+      const employeeOption = typeof emp === 'object' && emp
+        ? emp
+        : { id: employeeId, employee_id: (permission as any).employee_code, full_name: (permission as any).employee_name };
+      // Ô chọn chỉ liệt kê NV phòng HCNS; phân quyền đang sửa có thể của NV
+      // phòng khác — thêm vào để ô chọn hiện đúng người.
+      setEmployees(prev => (prev.some(e => e.id === employeeId) ? prev : [...prev, employeeOption]));
+
+      setFormData(prev => ({
+        ...prev,
+        employee_id: String(employeeId ?? ''),
+        can_approve_attendance: permission.can_approve_attendance,
+        can_create_employee: permission.can_create_employee,
+        can_manage_attendance: permission.can_manage_attendance,
+        can_manage_assets: permission.can_manage_assets,
+        can_approve_leave: permission.can_approve_leave,
+        can_approve_overtime: permission.can_approve_overtime,
+        can_view_all_employees: permission.can_view_all_employees,
+        can_manage_departments: permission.can_manage_departments,
+        can_manage_positions: permission.can_manage_positions,
+        can_manage_company_config: permission.can_manage_company_config,
+        can_manage_attendance_rules: permission.can_manage_attendance_rules,
+        can_manage_leave_policies: permission.can_manage_leave_policies,
+        can_view_reports: permission.can_view_reports,
+        can_export_reports: permission.can_export_reports,
+        notes: permission.notes || '',
+      }));
+      setExistingPermissionId(permission.id);
+    } catch (err) {
+      console.error('Failed to load permission by id:', err);
+      setError('Không tìm thấy phân quyền hoặc đã xảy ra lỗi khi tải dữ liệu');
+    }
+  };
+
   const loadEmployees = async () => {
     try {
       // Only load employees from HR department (Hành chính nhân sự)
       // We need to filter by department. First, let's get all employees and filter client-side
       // or we could add department filter to API call if supported
-      const response = await employeesAPI.list({ page_size: 100 });
+      const response = await employeesAPI.list({ page_size: 1000 });
       
       // Filter employees to only include those from HR department
       // Assuming HR department has name containing "Hành chính" or "Nhân sự"
@@ -61,7 +112,8 @@ const RoleCreate: React.FC = () => {
                deptName.includes('human resource');
       });
       
-      setEmployees(hrEmployees);
+      // Giữ lại NV của phân quyền đang sửa nếu đã được thêm trước (loadPermissionById)
+      setEmployees(prev => [...hrEmployees, ...prev.filter(p => !hrEmployees.some(h => h.id === p.id))]);
       
       if (hrEmployees.length === 0) {
         setError('Không tìm thấy nhân viên nào thuộc phòng Hành chính Nhân sự');
@@ -200,6 +252,7 @@ const RoleCreate: React.FC = () => {
         can_export_reports: permission.can_export_reports,
         notes: permission.notes || '',
       }));
+      setExistingPermissionId(permission.id);
 
       setSuccess(`Đã tải quyền hiện có của nhân viên`);
     } catch (error: any) {
@@ -223,6 +276,7 @@ const RoleCreate: React.FC = () => {
           can_export_reports: false,
           notes: '',
         }));
+        setExistingPermissionId(null);
         setSuccess('Nhân viên chưa có quyền nào. Bạn có thể tạo quyền mới.');
       } else {
         console.error('Failed to load employee permissions:', error);
@@ -269,17 +323,21 @@ const RoleCreate: React.FC = () => {
         notes: formData.notes,
       };
 
-      await employeePermissionService.createEmployeePermission(permissionData);
-
-      setSuccess('Tạo phân quyền thành công!');
+      if (existingPermissionId) {
+        await employeePermissionService.updateEmployeePermission(existingPermissionId, permissionData as any);
+        setSuccess('Cập nhật phân quyền thành công!');
+      } else {
+        await employeePermissionService.createEmployeePermission(permissionData);
+        setSuccess('Tạo phân quyền thành công!');
+      }
 
       // Redirect after 2 seconds
       setTimeout(() => {
         navigate('/dashboard/roles');
       }, 2000);
     } catch (err: any) {
-      console.error('Failed to create permission:', err);
-      setError(err.response?.data?.message || err.message || 'Lỗi khi tạo phân quyền');
+      console.error('Failed to save permission:', err);
+      setError(err.response?.data?.message || err.message || 'Lỗi khi lưu phân quyền');
     } finally {
       setLoading(false);
     }
@@ -353,7 +411,7 @@ const RoleCreate: React.FC = () => {
             </button>
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Thêm phân quyền mới
+                {existingPermissionId ? 'Sửa phân quyền' : 'Thêm phân quyền mới'}
               </h1>
               <p className="mt-2 text-gray-600">
                 Phân quyền cho nhân viên: phê duyệt công, tạo nhân viên, quản lý chấm công, quản lý tài sản, v.v.
@@ -540,6 +598,8 @@ const RoleCreate: React.FC = () => {
                       </svg>
                       Đang xử lý...
                     </span>
+                  ) : existingPermissionId ? (
+                    'Lưu thay đổi'
                   ) : (
                     'Tạo phân quyền'
                   )}

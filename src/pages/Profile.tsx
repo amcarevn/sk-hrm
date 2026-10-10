@@ -41,6 +41,7 @@ import { useNavigate } from 'react-router-dom';
 import { CITIZEN_ID_ISSUE_PLACE_OPTIONS } from '../constants/onboarding';
 import ChangePasswordModal from '../components/Layout/ChangePasswordModal';
 import FeedbackDialog from '../components/FeedbackDialog';
+import PdfFrame from '../components/Common/PdfFrame';
 
 interface TeamMember {
   id: number;
@@ -97,6 +98,10 @@ const getContractDisplayStatus = (contract: MyContract): { label: string; classN
 
 const Profile: React.FC = () => {
   const { user, updateUser } = useAuth();
+  // Đổi quản lý trực tiếp chỉ dành cho HCNS/Admin — backend /set-manager/ cũng
+  // chặn nhân viên thường (quản lý trực tiếp là người duyệt đơn của họ).
+  const canEditManager =
+    ['admin', 'hr'].includes(String(user?.role || '').toLowerCase()) || !!(user as any)?.is_super_admin;
   const navigate = useNavigate();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [department, setDepartment] = useState<Department | null>(null);
@@ -675,6 +680,7 @@ const Profile: React.FC = () => {
                 <p className="text-xs text-gray-400">Người quản lý</p>
               </div>
             </div>
+            {canEditManager && (
             <div className="flex items-center gap-2 mb-4">
               <button
                 onClick={() => setShowManagerModal(true)}
@@ -695,6 +701,7 @@ const Profile: React.FC = () => {
                 </button>
               )}
             </div>
+            )}
 
             {manager || employee.manager_name ? (
               <div className="space-y-4">
@@ -1463,7 +1470,7 @@ const Profile: React.FC = () => {
           onClick={() => setViewingDoc(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -1481,9 +1488,9 @@ const Profile: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex-1 overflow-hidden bg-gray-100">
+            <div className="flex-1 min-h-0 overflow-hidden bg-gray-100">
               {viewingDoc.file_url || viewingDoc.file ? (
-                <iframe
+                <PdfFrame
                   src={viewingDoc.file_url || viewingDoc.file}
                   className="w-full h-full border-0"
                   title={viewingDoc.document_name}

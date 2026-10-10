@@ -914,7 +914,9 @@ const WorkFinalization: React.FC = () => {
           {/* Nút Đóng/Mở chốt công */}
           <button
             onClick={() => {
-              setLockStartAt(toLocalInput(lockStatus?.lock_start_at ?? null) || toLocalInput(new Date().toISOString()));
+              // Chỉ điền lịch ĐANG CÓ. Trước đây không có lịch thì tự điền giờ hiện tại,
+              // làm popup hiện "Lịch đã đặt – Tự động khóa lúc <bây giờ>" dù chưa đặt gì.
+              setLockStartAt(toLocalInput(lockStatus?.lock_start_at ?? null));
               setLockNote(lockStatus?.note ?? '');
               setShowLockConfirm(true);
             }}
@@ -1049,7 +1051,9 @@ const WorkFinalization: React.FC = () => {
           </div>
           <button
             onClick={() => {
-              setLockStartAt(toLocalInput(lockStatus?.lock_start_at ?? null) || toLocalInput(new Date().toISOString()));
+              // Chỉ điền lịch ĐANG CÓ. Trước đây không có lịch thì tự điền giờ hiện tại,
+              // làm popup hiện "Lịch đã đặt – Tự động khóa lúc <bây giờ>" dù chưa đặt gì.
+              setLockStartAt(toLocalInput(lockStatus?.lock_start_at ?? null));
               setLockNote(lockStatus?.note ?? '');
               setShowLockConfirm(true);
             }}
@@ -1602,7 +1606,7 @@ const WorkFinalization: React.FC = () => {
             </div>
 
             <div className="px-4 sm:px-6 py-4 space-y-4">
-              <p className="text-sm text-gray-700">
+              <div className="text-sm text-gray-700">
                 {isLocked ? (
                   <>
                     Mở khóa sẽ cho phép <strong>tạo đơn</strong>, <strong>phê duyệt</strong> và <strong>chốt công</strong> cho tháng {selectedMonth}/{selectedYear} cho tất cả người dùng.
@@ -1626,7 +1630,7 @@ const WorkFinalization: React.FC = () => {
                     </ul>
                   </div>
                 )}
-              </p>
+              </div>
 
               {/* Đặt lịch tự động */}
               <div className="rounded-2xl border border-gray-200 overflow-hidden">
@@ -1654,7 +1658,11 @@ const WorkFinalization: React.FC = () => {
                         <ClockIcon className="w-4 h-4 text-primary-600" />
                       </div>
                       <div className="flex-1 min-w-0 text-xs">
-                        <p className="font-medium text-primary-800 mb-1">Lịch đã đặt</p>
+                        <p className="font-medium text-primary-800 mb-1">
+                          {lockStartAt === toLocalInput(lockStatus?.lock_start_at ?? null)
+                            ? 'Lịch đã đặt'
+                            : 'Lịch mới (lưu khi bấm xác nhận)'}
+                        </p>
                         <p className="text-primary-700">
                           <span className="text-primary-500">Tự động khóa lúc:</span>{' '}
                           <strong>{new Date(lockStartAt).toLocaleString('vi-VN')}</strong>

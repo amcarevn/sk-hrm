@@ -29,6 +29,7 @@ import {
 import { HeartIcon } from '@heroicons/react/24/solid';
 import onboardingService from '../services/onboarding.service';
 import { attendanceService, AttendanceRankingEntry } from '../services/attendance.service';
+import PdfFrame from '../components/Common/PdfFrame';
 
 const formatBirthDate = (dateOfBirth: string): string => {
   const parts = dateOfBirth.split('-');
@@ -1135,7 +1136,7 @@ const Home: React.FC = () => {
             {/* PDF iframe */}
             <div className="bg-gray-100 min-h-0" style={{ height: 'calc(90vh - 128px)' }}>
               {viewingDoc.file_url || viewingDoc.file ? (
-                <iframe
+                <PdfFrame
                   src={viewingDoc.file_url || viewingDoc.file}
                   className="w-full h-full border-0"
                   title={viewingDoc.document_name}

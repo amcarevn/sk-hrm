@@ -24,8 +24,10 @@ const LaborRules: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch labor rules (document_type = 'LABOR_RULE')
-      const response = await companyDocumentAPI.getByType('LABOR_RULE', {
+      // Fetch labor rules (document_type = 'REGULATION' — đúng mã COMPANY_DOCUMENT_TYPE
+      // của backend; trước đây gửi 'LABOR_RULE' nên backend trả 400 và trang luôn
+      // báo "Lỗi tải dữ liệu")
+      const response = await companyDocumentAPI.getByType('REGULATION', {
         page_size: 50
       });
       

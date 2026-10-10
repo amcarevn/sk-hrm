@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { XMarkIcon, ArrowDownTrayIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import PdfFrame from './PdfFrame';
 
 interface Props {
   open: boolean;
@@ -115,10 +116,11 @@ const PdfPreviewModal: React.FC<Props> = ({ open, title, loader, downloadFilenam
             </div>
           )}
           {pdfUrl && !loading && !error && (
-            <iframe
+            <PdfFrame
               src={pdfUrl}
               title="PDF Preview"
               className="absolute inset-0 w-full h-full border-0"
+              downloadName={downloadFilename || 'preview.pdf'}
             />
           )}
         </div>

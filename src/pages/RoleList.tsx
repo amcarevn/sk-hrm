@@ -350,7 +350,7 @@ const RoleList: React.FC = () => {
           </div>
           <button
             className="btn-primary self-start sm:self-auto whitespace-nowrap shrink-0"
-            onClick={() => navigate('/permissions/dashboard/roles/create')}
+            onClick={() => navigate('/dashboard/roles/create')}
           >
             + Thêm phân quyền
           </button>
@@ -433,14 +433,14 @@ const RoleList: React.FC = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={() => navigate(`/permissions/dashboard/roles/${perm.id}`)}
+                            onClick={() => navigate(`/dashboard/employee-permissions/${perm.id}`)}
                             className="p-1.5 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                             title="Xem"
                           >
                             <EyeIcon className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => navigate(`/permissions/dashboard/roles/${perm.id}/edit`)}
+                            onClick={() => navigate(`/dashboard/employee-permissions/${perm.id}/edit`)}
                             className="p-1.5 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                             title="Sửa"
                           >
