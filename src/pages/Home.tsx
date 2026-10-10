@@ -393,34 +393,34 @@ const Home: React.FC = () => {
         <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full bg-white/5" />
         <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-white/[0.03]" />
 
-        <div className="relative px-10 py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="flex items-center gap-5">
+        <div className="relative px-5 py-6 sm:px-10 sm:py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5 sm:gap-6">
+          <div className="flex items-center gap-4 sm:gap-5">
             {/* Avatar */}
-            <div className="h-20 w-20 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0 ring-2 ring-white/20 shadow-lg">
+            <div className="h-14 w-14 sm:h-20 sm:w-20 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0 self-start sm:self-auto ring-2 ring-white/20 shadow-lg">
               {employee?.avatar_url ? (
                 <img src={employee.avatar_url} alt="" className="h-full w-full rounded-2xl object-cover" />
               ) : (
-                <span className="text-3xl font-extrabold text-white">
+                <span className="text-2xl sm:text-3xl font-extrabold text-white">
                   {(employee?.full_name || user?.username || 'N')?.charAt(0).toUpperCase()}
                 </span>
               )}
             </div>
-            <div>
-              <p className="text-sm font-medium text-white/80 tracking-widest uppercase mb-1">Chào mừng trở lại</p>
-              <h1 className="text-3xl font-extrabold tracking-tight leading-tight">
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-white/80 tracking-widest uppercase mb-1">Chào mừng trở lại</p>
+              <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight leading-tight sm:leading-tight">
                 {employee?.full_name || user?.username || 'Nhân viên'}
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-white/90">
                 <span className="flex items-center gap-1.5">
-                  <UserIcon className="h-4 w-4 text-white/70" />
+                  <UserIcon className="h-4 w-4 text-white/70 flex-shrink-0" />
                   {user?.username || 'N/A'}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <BuildingOfficeIcon className="h-4 w-4 text-white/70" />
+                  <BuildingOfficeIcon className="h-4 w-4 text-white/70 flex-shrink-0" />
                   {loading ? 'Đang tải...' : (department?.name || employee?.department?.name || 'Chưa phân phòng')}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <CalendarIcon className="h-4 w-4 text-white/70" />
+                  <CalendarIcon className="h-4 w-4 text-white/70 flex-shrink-0" />
                   {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </span>
               </div>
@@ -428,7 +428,7 @@ const Home: React.FC = () => {
           </div>
           <button
             onClick={() => navigate('/dashboard/me')}
-            className="self-start md:self-auto inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-sm font-semibold text-white backdrop-blur transition-all duration-200 shadow-sm"
+            className="self-start md:self-auto inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-sm font-semibold text-white backdrop-blur transition-all duration-200 shadow-sm"
           >
             <UserIcon className="h-4 w-4" />
             Hồ sơ cá nhân
@@ -526,13 +526,13 @@ const Home: React.FC = () => {
       })()}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         {userStats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 border-l-4 border-l-primary-500">
-            <div className={`h-11 w-11 ${stat.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
+          <div key={index} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 flex flex-col items-start sm:flex-row sm:items-center gap-2.5 sm:gap-4 border-l-4 border-l-primary-500">
+            <div className={`h-9 w-9 sm:h-11 sm:w-11 ${stat.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
               <stat.icon className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">{stat.label}</p>
               <p className="text-2xl font-extrabold text-gray-900 mt-0.5 tracking-tight">{stat.value}</p>
             </div>
@@ -541,7 +541,7 @@ const Home: React.FC = () => {
       </div>
 
       {/* Birthday Section */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 bg-pink-100 rounded-xl flex items-center justify-center">
@@ -627,18 +627,18 @@ const Home: React.FC = () => {
       </div>
 
       {/* Attendance Ranking Section */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 bg-amber-100 rounded-xl flex items-center justify-center">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
               <TrophyIcon className="h-5 w-5 text-amber-600" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2 className="text-base font-bold text-gray-900">Bảng vinh danh đi sớm</h2>
               <p className="text-xs text-gray-400">Top 10 · tháng {rankingPeriod.month}/{rankingPeriod.year}</p>
             </div>
           </div>
-          <button onClick={() => navigate('/dashboard/attendance/ranking')} className="text-xs font-semibold text-primary-600 hover:text-primary-800 flex items-center gap-1">
+          <button onClick={() => navigate('/dashboard/attendance/ranking')} className="text-xs font-semibold text-primary-600 hover:text-primary-800 flex items-center gap-1 whitespace-nowrap flex-shrink-0">
             Xem chi tiết <ArrowRightIcon className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -699,7 +699,7 @@ const Home: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-gray-900">Thao tác nhanh</h2>
           <button onClick={() => navigate('/dashboard')} className="text-xs font-semibold text-primary-600 hover:text-primary-800 flex items-center gap-1">
@@ -711,7 +711,7 @@ const Home: React.FC = () => {
             <button
               key={index}
               onClick={() => navigate(action.path)}
-              className="flex flex-col items-center gap-3 p-4 border border-gray-100 rounded-2xl hover:border-primary-200 hover:bg-primary-50 transition-all duration-200 group"
+              className="flex flex-col items-center gap-3 p-3 sm:p-4 border border-gray-100 rounded-2xl hover:border-primary-200 hover:bg-primary-50 transition-all duration-200 group"
             >
               <div className={`h-11 w-11 ${action.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
                 <action.icon className="h-5 w-5" />
@@ -726,7 +726,7 @@ const Home: React.FC = () => {
       </div>
 
       {/* Company Information Section */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-9 w-9 bg-primary-100 rounded-xl flex items-center justify-center">
             <BuildingOfficeIcon className="h-5 w-5 text-primary-600" />
@@ -751,7 +751,7 @@ const Home: React.FC = () => {
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className="flex flex-col items-center gap-3 p-4 border border-gray-100 rounded-2xl hover:border-primary-200 hover:bg-primary-50 transition-all duration-200 group"
+              className="flex flex-col items-center gap-3 p-3 sm:p-4 border border-gray-100 rounded-2xl hover:border-primary-200 hover:bg-primary-50 transition-all duration-200 group"
             >
               <div className={`h-11 w-11 ${item.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200`}>
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">{item.icon}</svg>
@@ -930,7 +930,7 @@ const Home: React.FC = () => {
             className="fixed inset-0 z-[9998] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
             onKeyDown={(e) => { if (e.key === 'Escape') e.preventDefault(); }}
           >
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5 sm:p-6 space-y-5 max-h-[90vh] overflow-y-auto">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
                   <ExclamationTriangleIcon className="w-6 h-6 text-amber-600" />
@@ -1041,7 +1041,7 @@ const Home: React.FC = () => {
         <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/60">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
             {/* Header */}
-            <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-t-2xl px-6 py-5 flex items-start gap-4">
+            <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-t-2xl px-4 sm:px-6 py-5 flex items-start gap-3 sm:gap-4">
               <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
                 <BellAlertIcon className="w-6 h-6 text-white" />
               </div>
@@ -1063,7 +1063,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Contract list */}
-            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-2">
+            <div className="overflow-y-auto flex-1 px-4 sm:px-6 py-4 space-y-2">
               {expiringContracts.map((c) => (
                 <div
                   key={c.id}
@@ -1092,7 +1092,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Footer actions */}
-            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3">
+            <div className="px-4 sm:px-6 py-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
               <button
                 onClick={dismissContractAlert}
                 className="text-sm text-gray-500 hover:text-gray-700 underline"
@@ -1118,11 +1118,11 @@ const Home: React.FC = () => {
       {/* Modal xem tài liệu onboarding — dùng Portal để thoát Layout stacking context */}
       {viewingDoc && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50" onClick={() => setViewingDoc(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl" style={{ height: '90vh' }} onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col" style={{ height: '90vh' }} onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">{viewingDoc.document_name}</h3>
+            <div className="px-4 sm:px-6 py-4 border-b flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900">{viewingDoc.document_name}</h3>
                 {viewingDoc.description && (
                   <p className="text-xs text-gray-500 mt-0.5">{viewingDoc.description}</p>
                 )}
@@ -1133,7 +1133,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* PDF iframe */}
-            <div className="bg-gray-100" style={{ height: 'calc(90vh - 128px)' }}>
+            <div className="bg-gray-100 min-h-0" style={{ height: 'calc(90vh - 128px)' }}>
               {viewingDoc.file_url || viewingDoc.file ? (
                 <iframe
                   src={viewingDoc.file_url || viewingDoc.file}
@@ -1147,7 +1147,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between gap-3 rounded-b-2xl">
+            <div className="px-4 sm:px-6 py-4 border-t bg-gray-50 flex items-center justify-between gap-3 rounded-b-2xl">
               <p className="text-xs text-gray-500">
                 {viewingDoc.is_read ? '✓ Bạn đã đọc tài liệu này'
                   : docReadable ? '✓ Có thể xác nhận đã đọc'

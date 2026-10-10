@@ -215,7 +215,7 @@ const EmployeeShow: React.FC = () => {
           className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors">
           <ArrowLeftIcon className="w-5 h-5 mr-2" /> Quay lại danh sách
         </button>
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start sm:gap-0">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">{employee.full_name}</h1>
             <p className="text-sm text-gray-400 mt-1">
@@ -539,11 +539,11 @@ const EmployeeShow: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex justify-between items-center text-sm text-gray-500">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:items-center sm:gap-0 text-sm text-gray-500">
           <div>
             Ngày tạo: {formatDate(employee.created_at)}
             {employee.updated_at !== employee.created_at && (
-              <span className="ml-4">
+              <span className="block sm:inline sm:ml-4">
                 Cập nhật lần cuối: {formatDate(employee.updated_at)}
               </span>
             )}

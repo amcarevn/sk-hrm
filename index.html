@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon-sk.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- maximum-scale=1: chặn iPhone tự phóng to trang khi chạm vào ô nhập chữ nhỏ hơn 16px
+         (sau khi gõ xong trang bị lệch/zoom). iOS vẫn cho người dùng tự chụm 2 ngón để phóng to. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <!-- Temporarily disabled CSP for WebSocket testing -->
     <!-- <meta
       http-equiv="Content-Security-Policy"

@@ -206,7 +206,9 @@ const WorkFinalizationApprovals: React.FC = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      {/* Mobile: tiêu đề và nút "Gửi phê duyệt tất cả" xếp 2 hàng — trước đây
+          nút chiếm nửa màn hình, chữ bị bẻ 3 dòng và tiêu đề bị ép. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <div className="flex items-center">
           <div>
             <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Phê duyệt chốt công</h1>
@@ -217,7 +219,7 @@ const WorkFinalizationApprovals: React.FC = () => {
           <button
             onClick={handleSendAll}
             disabled={sendingAll || departments.length === 0}
-            className="btn-primary flex items-center gap-2 disabled:opacity-50"
+            className="btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <PaperAirplaneIcon className="w-4 h-4" />
             {sendingAll ? 'Đang gửi...' : `Gửi phê duyệt tất cả (Tháng ${selectedMonth}/${selectedYear})`}
@@ -357,9 +359,9 @@ const WorkFinalizationApprovals: React.FC = () => {
 
       {/* Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-4 sm:px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
           <span className="text-sm font-bold text-gray-900">Danh sách phê duyệt theo phòng ban</span>
-          <span className="text-xs text-gray-400">{approvals.length} bản ghi</span>
+          <span className="text-xs text-gray-400 whitespace-nowrap">{approvals.length} bản ghi</span>
         </div>
 
         {loading ? (
@@ -392,7 +394,9 @@ const WorkFinalizationApprovals: React.FC = () => {
                       key={dept.id}
                       className={`hover:bg-gray-50 transition-colors ${isMyDept && approval?.status === 'PENDING' ? 'bg-amber-50' : ''}`}
                     >
-                      <td className="table-cell">
+                      {/* Mobile: cho tên phòng xuống dòng để cột Trạng thái lộ ra
+                          ngay trong khung, không phải vuốt ngang mới thấy. */}
+                      <td className="table-cell whitespace-normal min-w-[9rem] sm:whitespace-nowrap sm:min-w-0">
                         <div className="font-medium text-gray-900">
                           {dept.name}
                           {isMyDept && (

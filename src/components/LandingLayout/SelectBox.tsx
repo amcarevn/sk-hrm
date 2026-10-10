@@ -22,6 +22,24 @@ interface SelectBoxProps<T> {
   disabled?: boolean;
 }
 
+// Danh sách thả xuống: trên điện thoại rộng bằng đúng ô chọn và cho nhãn dài
+// xuống dòng (trước đây w-max khiến danh sách tràn khỏi mép phải màn hình, nhãn
+// dài như ca D13 bị cắt). Từ sm trở lên giữ như cũ: rộng theo nhãn dài nhất.
+const OPTIONS_PANEL_CLS =
+  "absolute z-50 mt-1 max-h-60 w-full sm:w-max sm:min-w-full sm:max-w-[min(32rem,90vw)] overflow-auto";
+const OPTION_TEXT_CLS = "block break-words sm:truncate";
+// portal=true: danh sách gắn "anchor" (Headless UI) — render ra ngoài khung chứa
+// nên không bị bảng/khung cuộn cắt mất, và tự lật lên trên khi phía dưới không
+// đủ chỗ (vd các ngày cuối tuần ở Đăng ký ca trên điện thoại). Chỉ bật khi nơi
+// dùng truyền portal: modal tự bắt "bấm ra ngoài" theo DOM sẽ coi danh sách đã
+// portal là bên ngoài và tự đóng. Headless UI tự gắn max-height/max-width
+// inline theo khoảng trống còn lại, nên giới hạn cao qua --anchor-max-height và
+// giới hạn rộng bằng class !important.
+const ANCHORED_INPUT_PANEL_CLS =
+  "z-[200] [--anchor-gap:4px] [--anchor-max-height:15rem] w-[var(--input-width)] sm:w-max sm:min-w-[var(--input-width)] sm:!max-w-[min(32rem,90vw)] overflow-auto";
+const ANCHORED_BUTTON_PANEL_CLS =
+  "z-[200] [--anchor-gap:4px] [--anchor-max-height:15rem] w-[var(--button-width)] sm:w-max sm:min-w-[var(--button-width)] sm:!max-w-[min(32rem,90vw)] overflow-auto";
+
 function SelectBoxInner<T>({
   label,
   value,
@@ -30,6 +48,7 @@ function SelectBoxInner<T>({
   placeholder,
   searchable = false,
   size = 'default',
+  portal = false,
   disabled = false,
 }: SelectBoxProps<T>) {
   const [query, setQuery] = useState("");
@@ -86,7 +105,9 @@ function SelectBoxInner<T>({
                 <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
               </Combobox.Button>
             </div>
-            <Combobox.Options className="absolute z-50 mt-1 max-h-60 min-w-full w-max max-w-[min(32rem,90vw)] overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+            <Combobox.Options
+              anchor={portal ? 'bottom start' : undefined}
+              className={`${portal ? ANCHORED_INPUT_PANEL_CLS : OPTIONS_PANEL_CLS} rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm`}>
               {filteredOptions.length === 0 && query !== "" ? (
                 <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
                   Không tìm thấy kết quả.
@@ -104,7 +125,7 @@ function SelectBoxInner<T>({
                   >
                     {({ selected, active }) => (
                       <>
-                        <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                        <span className={`${OPTION_TEXT_CLS} ${selected ? "font-medium" : "font-normal"}`}>
                           {option.label}
                         </span>
                         {selected ? (
@@ -144,7 +165,10 @@ function SelectBoxInner<T>({
             </span>
           </Listbox.Button>
 
-          <Listbox.Options className="absolute z-50 mt-1 max-h-60 min-w-full w-max max-w-[min(32rem,90vw)] overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+          <Listbox.Options
+            anchor={portal ? 'bottom start' : undefined}
+            className={`${portal ? ANCHORED_BUTTON_PANEL_CLS : OPTIONS_PANEL_CLS} rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm`}
+          >
             {options.map((option) => (
               <Listbox.Option
                 key={String(option.value)}
@@ -157,7 +181,7 @@ function SelectBoxInner<T>({
               >
                 {({ selected }) => (
                   <>
-                    <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                    <span className={`${OPTION_TEXT_CLS} ${selected ? "font-medium" : "font-normal"}`}>
                       {option.label}
                     </span>
                     {selected && (
@@ -227,7 +251,7 @@ function MultiSelectBoxInner<T extends string>({
               <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
             </span>
           </Listbox.Button>
-          <Listbox.Options className="absolute z-50 mt-1 max-h-60 min-w-full w-max max-w-[min(32rem,90vw)] overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+          <Listbox.Options className={`${OPTIONS_PANEL_CLS} rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm`}>
             {/* "Tất cả" option */}
             <div
               onClick={() => onChange([])}
@@ -248,7 +272,7 @@ function MultiSelectBoxInner<T extends string>({
                   onClick={() => toggle(option.value)}
                   className={`relative cursor-pointer select-none py-2 pl-10 pr-4 hover:bg-blue-50 ${isSelected ? 'bg-blue-50 text-blue-900' : 'text-gray-900'}`}
                 >
-                  <span className={`block truncate ${isSelected ? 'font-medium' : 'font-normal'}`}>
+                  <span className={`${OPTION_TEXT_CLS} ${isSelected ? 'font-medium' : 'font-normal'}`}>
                     {option.label}
                   </span>
                   {isSelected && (

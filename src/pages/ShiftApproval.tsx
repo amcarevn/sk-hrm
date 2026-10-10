@@ -393,12 +393,12 @@ const ShiftApproval: React.FC = () => {
 
       {/* Tabs */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-1 px-3 pt-3">
+        <div className="flex items-center gap-1 px-3 pt-3 overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
-              className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+              className={`px-3 sm:px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 whitespace-nowrap shrink-0 transition-colors ${
                 activeTab === t.key
                   ? 'border-primary-600 text-primary-700'
                   : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -415,8 +415,9 @@ const ShiftApproval: React.FC = () => {
         </div>
 
         {/* Bộ lọc */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 px-5 py-4 border-t border-gray-100">
-          <div className="relative">
+        {/* Mobile: Tháng + Năm chung 1 hàng (2 cột), ô tìm kiếm/phòng ban full hàng. */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-4 sm:px-5 py-4 border-t border-gray-100">
+          <div className="relative col-span-2 md:col-span-1">
             <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -426,13 +427,15 @@ const ShiftApproval: React.FC = () => {
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
-          <SelectBox
-            label=""
-            value={filterDepartment}
-            options={deptOptions}
-            onChange={setFilterDepartment}
-            placeholder="Tất cả phòng ban"
-          />
+          <div className="col-span-2 md:col-span-1">
+            <SelectBox
+              label=""
+              value={filterDepartment}
+              options={deptOptions}
+              onChange={setFilterDepartment}
+              placeholder="Tất cả phòng ban"
+            />
+          </div>
           <SelectBox
             label=""
             value={filterMonth.toString()}
@@ -479,10 +482,12 @@ const ShiftApproval: React.FC = () => {
             const actionableCount = activeTab === 'PENDING' ? regs.filter(canApproveNow).length : 0;
             return (
               <div key={dept} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between gap-3 px-5 py-3.5 bg-gray-50/60 border-b border-gray-100">
+                {/* Mobile: có nút "Duyệt nhanh" thì tên phòng chiếm trọn hàng 1,
+                    nút xuống hàng 2 (căn phải) — trước đây tên phòng chỉ còn "Phòng...". */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-3 gap-y-2 px-4 sm:px-5 py-3.5 bg-gray-50/60 border-b border-gray-100">
                   <button
                     onClick={() => toggleDept(dept)}
-                    className="flex items-center gap-2.5 min-w-0 flex-1"
+                    className={`flex items-center gap-2.5 ${hasBulkApprovePermission && activeTab === 'PENDING' && actionableCount > 0 ? 'min-w-full' : 'min-w-0'} sm:min-w-0 flex-1`}
                   >
                     <ChevronDownIcon
                       className={`h-4 w-4 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -495,7 +500,7 @@ const ShiftApproval: React.FC = () => {
                     <button
                       onClick={() => handleBulkApprove(dept, regs)}
                       disabled={bulkProcessingDept === dept}
-                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white text-xs font-semibold rounded-lg border border-emerald-200 transition-colors disabled:opacity-50"
+                      className="flex-shrink-0 ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white text-xs font-semibold rounded-lg border border-emerald-200 transition-colors disabled:opacity-50"
                       title={`Duyệt nhanh ${actionableCount} đơn của phòng ${dept}`}
                     >
                       <CheckCircleIcon className="h-3.5 w-3.5" />
@@ -505,9 +510,9 @@ const ShiftApproval: React.FC = () => {
                 </div>
 
                 {isExpanded && (
-                  <div className="p-4 space-y-3">
+                  <div className="p-3 sm:p-4 space-y-3">
                     {regs.map((reg) => (
-                      <div key={reg.id} className="border border-gray-100 rounded-xl p-4">
+                      <div key={reg.id} className="border border-gray-100 rounded-xl p-3 sm:p-4">
                         <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
@@ -556,12 +561,12 @@ const ShiftApproval: React.FC = () => {
                           )}
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
                           {reg.days
                             .slice()
                             .sort((a, b) => a.date.localeCompare(b.date))
                             .map((day) => (
-                              <div key={day.date} className="border border-gray-100 rounded-xl px-3 py-2 text-center">
+                              <div key={day.date} className="border border-gray-100 rounded-xl px-1.5 sm:px-3 py-2 text-center min-w-0">
                                 <p className="text-xs text-gray-400">{fmtDate(day.date)}</p>
                                 {day.shift_detail ? (
                                   <>

@@ -254,7 +254,7 @@ const ShiftRegistration: React.FC = () => {
             Chọn ca làm cho từng ngày trong tuần và gửi quản lý duyệt
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {statusBadge && (
             <span
               className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusBadge.className}`}
@@ -313,14 +313,14 @@ const ShiftRegistration: React.FC = () => {
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
           {/* Week navigator */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex flex-wrap items-center justify-between gap-y-3 px-4 sm:px-5 py-4 border-b border-gray-100">
             <button
               onClick={() => setWeekMonday((w) => addDays(w, -7))}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="inline-flex items-center gap-1 px-3 py-2 sm:py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 whitespace-nowrap"
             >
               <ChevronLeftIcon className="h-4 w-4" /> Tuần trước
             </button>
-            <div className="text-center">
+            <div className="text-center order-first w-full sm:order-none sm:w-auto">
               <div className="flex items-center justify-center gap-2 text-sm font-bold text-gray-900">
                 <ClockIcon className="h-5 w-5 text-primary-600" />
                 Tuần {fmtDM(weekDates[0])} – {fmtDM(weekDates[6])}
@@ -331,7 +331,7 @@ const ShiftRegistration: React.FC = () => {
             </div>
             <button
               onClick={() => setWeekMonday((w) => addDays(w, 7))}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+              className="inline-flex items-center gap-1 px-3 py-2 sm:py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 whitespace-nowrap"
             >
               Tuần sau <ChevronRightIcon className="h-4 w-4" />
             </button>
@@ -346,7 +346,7 @@ const ShiftRegistration: React.FC = () => {
             <>
               {/* Trạng thái / thông báo */}
               {existingReg?.status === 'REJECTED' && existingReg.reject_reason && (
-                <div className="mx-5 mt-4 flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                <div className="mx-4 sm:mx-5 mt-4 flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
                   <ExclamationTriangleIcon className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   <span>
                     Đơn bị từ chối: {existingReg.reject_reason}. Vui lòng chỉnh lại và gửi duyệt
@@ -355,7 +355,7 @@ const ShiftRegistration: React.FC = () => {
                 </div>
               )}
               {isReadOnly && (
-                <div className="mx-5 mt-4 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                <div className="mx-4 sm:mx-5 mt-4 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
                   {existingReg?.status === 'PENDING'
                     ? existingReg?.direct_manager_approved
                       ? 'Quản lý trực tiếp đã duyệt — đơn đang chờ HCNS duyệt lần cuối, không thể chỉnh sửa.'
@@ -364,13 +364,13 @@ const ShiftRegistration: React.FC = () => {
                 </div>
               )}
               {!isReadOnly && pastDeadline && !isLocked && (
-                <div className="mx-5 mt-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                <div className="mx-4 sm:mx-5 mt-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
                   Đã quá hạn đăng ký cho tuần này (hạn: hết Thứ 6 tuần trước) — vẫn có thể đăng ký nhưng nên nộp sớm hơn để quản lý kịp duyệt.
                 </div>
               )}
               {message && (
                 <div
-                  className={`mx-5 mt-4 flex items-center gap-2 text-sm rounded-xl px-3 py-2 border ${
+                  className={`mx-4 sm:mx-5 mt-4 flex items-center gap-2 text-sm rounded-xl px-3 py-2 border ${
                     message.type === 'success'
                       ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
                       : 'text-red-700 bg-red-50 border-red-200'
@@ -386,7 +386,7 @@ const ShiftRegistration: React.FC = () => {
               )}
 
               {/* Lưới ngày */}
-              <div className="p-5 space-y-3">
+              <div className="p-4 sm:p-5 space-y-3">
                 {weekDates.map((d, idx) => {
                   const ymd = toYMD(d);
                   return (
@@ -394,7 +394,7 @@ const ShiftRegistration: React.FC = () => {
                       key={ymd}
                       className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border border-gray-100 rounded-xl px-4 py-3"
                     >
-                      <div className="sm:w-40 flex-shrink-0">
+                      <div className="flex items-baseline gap-2 sm:block sm:w-40 flex-shrink-0">
                         <p className="text-sm font-semibold text-gray-900">{DAY_LABELS[idx]}</p>
                         <p className="text-xs text-gray-400">{fmtDM(d)}</p>
                       </div>
@@ -432,7 +432,7 @@ const ShiftRegistration: React.FC = () => {
 
               {/* Footer actions */}
               {canEdit && (
-                <div className="flex justify-end gap-3 px-5 py-4 border-t border-gray-100">
+                <div className="flex justify-end gap-3 px-4 sm:px-5 py-4 border-t border-gray-100">
                   <button
                     onClick={handleSaveDraft}
                     disabled={saving}

@@ -59,7 +59,7 @@ export default function AIChat() {
 
       {/* Coming Soon overlay */}
       <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex flex-col items-center justify-center z-10">
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-10 py-8 flex flex-col items-center gap-4 max-w-sm w-full mx-4">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-6 sm:px-10 py-8 flex flex-col items-center gap-4 max-w-sm w-full mx-4">
           <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
             <SparklesIcon className="h-8 w-8 text-white" />
           </div>

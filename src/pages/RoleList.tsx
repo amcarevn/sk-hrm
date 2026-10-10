@@ -186,7 +186,7 @@ const RoleList: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col gap-6 flex-1 min-h-0">
+    <div className="flex flex-col gap-6 flex-none lg:flex-1 lg:min-h-0">
       {/* Page header */}
       <div className="flex items-center">
         <div>
@@ -199,12 +199,12 @@ const RoleList: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 overflow-x-auto">
         {MAIN_TABS.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-2 py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${
               activeTab === tab.key
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -217,25 +217,25 @@ const RoleList: React.FC = () => {
       </div>
 
       {activeTab === 'overtime_exclusion' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
           <OvertimeExclusionTab />
         </div>
       )}
 
       {activeTab === 'online_quota' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
           <OnlineWorkQuotaTab />
         </div>
       )}
 
       {activeTab === 'manager_explanation_quota' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
           <ManagerExplanationQuotaTab />
         </div>
       )}
 
       {activeTab === 'employees' && (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col flex-1 min-h-0 gap-6">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 flex flex-col flex-1 min-h-0 gap-6">
         {/* Statistics */}
         <div>
           <div className="flex items-center gap-2 mb-4">
@@ -343,13 +343,13 @@ const RoleList: React.FC = () => {
         </div>
 
         {/* Header + Add button */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Danh sách phân quyền</h2>
             <p className="text-xs text-gray-400 mt-0.5">Tổng số: {permissions.length} phân quyền</p>
           </div>
           <button
-            className="btn-primary"
+            className="btn-primary self-start sm:self-auto whitespace-nowrap shrink-0"
             onClick={() => navigate('/permissions/dashboard/roles/create')}
           >
             + Thêm phân quyền
@@ -378,7 +378,7 @@ const RoleList: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="border border-gray-100 rounded-2xl overflow-hidden flex-1">
+          <div className="border border-gray-100 rounded-2xl overflow-auto flex-1">
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>

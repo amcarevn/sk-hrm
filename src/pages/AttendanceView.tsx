@@ -382,7 +382,7 @@ const AttendanceView: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="sm:p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Xem chấm công</h1>
         <p className="text-gray-600 mt-2">
@@ -391,7 +391,7 @@ const AttendanceView: React.FC = () => {
       </div>
 
       {/* Filters Section */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center">
             <FunnelIcon className="h-5 w-5 text-gray-500 mr-2" />
@@ -469,7 +469,7 @@ const AttendanceView: React.FC = () => {
         {/* Selected Filters Display */}
         {(selectedEmployee || selectedDepartment) && (
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:items-center sm:gap-0">
               <div>
                 <h3 className="font-medium text-blue-900">Bộ lọc đang áp dụng:</h3>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -625,7 +625,7 @@ const AttendanceView: React.FC = () => {
       {/* Attendance Records Table */}
       {attendanceRecords.length > 0 && !loading && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Chi tiết chấm công </h2>
             <p className="text-sm text-gray-600 mt-1">
               {selectedEmployee ? `Nhân viên: ${getSelectedEmployeeName()}` : ''}
@@ -698,8 +698,8 @@ const AttendanceView: React.FC = () => {
           </div>
           
           {/* Pagination would go here in a real implementation */}
-          <div className="px-6 py-4 border-t border-gray-200">
-            <div className="flex justify-between items-center">
+          <div className="px-4 sm:px-6 py-4 border-t border-gray-200">
+            <div className="flex justify-between items-center gap-3">
               <div className="text-sm text-gray-700">
                 Hiển thị <span className="font-medium">{attendanceRecords.length}</span> bản ghi
               </div>
@@ -740,10 +740,10 @@ const AttendanceView: React.FC = () => {
       {/* Date Detail Modal */}
       {dateDetailModalOpen && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col sm:block">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Chi tiết chấm công ngày</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Chi tiết chấm công ngày</h2>
                 <p className="text-gray-600 mt-1">
                   {selectedDateDetail && formatDate(selectedDateDetail)}
                 </p>
@@ -756,7 +756,7 @@ const AttendanceView: React.FC = () => {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0 sm:max-h-[calc(90vh-120px)]">
               {dateDetailLoading ? (
                 <div className="flex justify-center items-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -1087,7 +1087,7 @@ const AttendanceView: React.FC = () => {
               )}
             </div>
             
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div className="px-4 sm:px-6 py-4 border-t border-gray-200 bg-gray-50">
               <div className="flex justify-end">
                 <button
                   onClick={closeDateDetailModal}

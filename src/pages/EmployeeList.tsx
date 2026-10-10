@@ -1119,7 +1119,7 @@ const EmployeeList: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
         {/* Statistics Section - At the top as requested */}
         <div className="mb-8">
           <h2 className="text-sm font-bold text-gray-900 mb-4">Thống kê nhân viên</h2>
@@ -1156,7 +1156,7 @@ const EmployeeList: React.FC = () => {
         </div>
 
         {/* Search and Filter Section */}
-        <div className="mb-6 bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+        <div className="mb-6 bg-gray-50/50 p-4 sm:p-5 rounded-2xl border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-gray-900">Tìm kiếm nhân viên</h3>
             <div className="flex items-center gap-3">
@@ -1236,14 +1236,14 @@ const EmployeeList: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col gap-3 mb-6 xl:flex-row xl:justify-between xl:items-center xl:gap-0">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Danh sách nhân viên</h2>
             <p className="text-gray-500 text-sm">Tổng số: {totalCount} nhân viên</p>
           </div>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2 xl:flex-nowrap xl:gap-0 xl:space-x-2">
               <button
-                  className={`px-4 py-2 rounded-xl transition-colors flex items-center ${
+                  className={`px-4 py-2 rounded-xl transition-colors flex items-center text-sm xl:text-base ${
                     isSendingEmails || emailCooldownRemaining > 0
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-primary-600 text-white hover:bg-primary-700'
@@ -1276,7 +1276,7 @@ const EmployeeList: React.FC = () => {
                   )}
                 </button>
               <button
-                  className="bg-amber-500 text-white px-4 py-2 rounded-xl hover:bg-amber-600 transition-colors flex items-center"
+                  className="bg-amber-500 text-white px-4 py-2 rounded-xl hover:bg-amber-600 transition-colors flex items-center text-sm xl:text-base"
                   onClick={() => { setShowImportDialog(true); setImportFile(null); setImportResult(null); }}
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1286,7 +1286,7 @@ const EmployeeList: React.FC = () => {
                 </button>
               {(isAdmin || isSuperUser) && (
                 <button
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors flex items-center"
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors flex items-center text-sm xl:text-base"
                   onClick={handleOpenChangeManagerDialog}
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1296,7 +1296,7 @@ const EmployeeList: React.FC = () => {
                 </button>
               )}
               <button
-                className="bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors flex items-center"
+                className="bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors flex items-center text-sm xl:text-base"
                 onClick={handleExport}
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1305,7 +1305,7 @@ const EmployeeList: React.FC = () => {
                 Xuất danh sách
               </button>
               <button
-                  className="bg-primary-700 text-white px-4 py-2 rounded-xl hover:bg-primary-800 transition-colors flex items-center"
+                  className="bg-primary-700 text-white px-4 py-2 rounded-xl hover:bg-primary-800 transition-colors flex items-center text-sm xl:text-base"
                   onClick={handleExportAll}
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1315,7 +1315,7 @@ const EmployeeList: React.FC = () => {
                 </button>
 
               <button 
-                className="btn-primary"
+                className="btn-primary text-sm xl:text-base"
                 onClick={() => navigate('/dashboard/employees/create')}
               >
                 + Thêm nhân viên
@@ -1345,7 +1345,7 @@ const EmployeeList: React.FC = () => {
             </button>
           </div>
         ) : employees.length === 0 ? (
-          <div className="border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="border border-gray-100 rounded-2xl overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -1386,7 +1386,7 @@ const EmployeeList: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="border border-gray-100 rounded-2xl overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -1587,7 +1587,7 @@ const EmployeeList: React.FC = () => {
             {importResult && (
               <div>
                 <p className="text-sm font-medium text-gray-900 mb-2">Kết quả import</p>
-                <div className="grid grid-cols-4 gap-2 mb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                   <div className="bg-gray-100 rounded-lg p-3 text-center">
                     <p className="text-xs text-gray-500">Tổng</p>
                     <p className="text-xl font-bold text-gray-800">{importResult.summary.total}</p>
