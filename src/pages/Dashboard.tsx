@@ -109,7 +109,7 @@ const DonutCard = ({
         <h3 className="text-sm font-bold text-gray-900">{title}</h3>
         {sub && <p className="text-xs text-gray-600 mt-0.5">{sub}</p>}
       </div>
-      <div className="flex items-center gap-5">
+      <div className="flex flex-col sm:flex-row items-center gap-5">
         {/* Donut */}
         <div className="flex-shrink-0">
           <ResponsiveContainer width={160} height={160}>
@@ -148,7 +148,7 @@ const DonutCard = ({
         </div>
 
         {/* Legend */}
-        <div className="flex-1 space-y-2.5 min-w-0">
+        <div className="w-full sm:w-auto sm:flex-1 space-y-2.5 min-w-0">
           {data.filter(d => d.value > 0).map((item) => {
             const pct = total > 0 ? (item.value / total) * 100 : 0;
             return (
@@ -195,7 +195,7 @@ const StatCard = ({
   trend: number | null;
 }) => {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-primary-500 shadow-sm p-5">
+    <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-primary-500 shadow-sm p-4 sm:p-5">
       <div className="flex items-start justify-between mb-3">
         <div className={`h-9 w-9 ${iconBg} rounded-xl flex items-center justify-center`}>
           <Icon className="h-5 w-5" />
@@ -210,7 +210,7 @@ const StatCard = ({
         )}
       </div>
       <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">{name}</p>
-      <p className="text-2xl font-extrabold text-gray-900 tracking-tight mt-0.5 truncate">
+      <p className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight mt-0.5 break-words sm:truncate">
         {formatter(rawValue)}
       </p>
       <p className="text-xs text-gray-600 mt-1">{subtext}</p>
@@ -322,7 +322,7 @@ const Dashboard = () => {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-lg transition-all ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 text-xs font-semibold whitespace-nowrap px-2 sm:px-4 py-2 rounded-lg transition-all ${
                 active
                   ? 'bg-white text-primary-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
@@ -338,7 +338,7 @@ const Dashboard = () => {
       {/* ── Tab: Tổng quan ── */}
       {activeTab === 'overview' && (
         <div className="flex flex-col gap-5 flex-1">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <StatCard name="Tổng nhân viên" rawValue={stats.employee_stats.total} formatter={formatNumber}
               subtext={`${formatNumber(stats.employee_stats.active)} đang làm việc`}
               icon={UsersIcon} iconBg="bg-primary-100 text-primary-600" trend={stats.trends.employee_growth} />
@@ -361,7 +361,7 @@ const Dashboard = () => {
       {/* ── Tab: Nhân viên ── */}
       {activeTab === 'employee' && (
         <div className="space-y-5">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <StatCard name="Đang làm việc" rawValue={stats.employee_stats.active} formatter={formatNumber}
               subtext={`Tổng ${formatNumber(stats.employee_stats.total)} nhân viên`}
               icon={UsersIcon} iconBg="bg-primary-100 text-primary-600" trend={stats.trends.employee_growth} />
@@ -393,7 +393,7 @@ const Dashboard = () => {
       {/* ── Tab: Tài sản ── */}
       {activeTab === 'asset' && (
         <div className="space-y-5">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <StatCard name="Đang sử dụng" rawValue={stats.asset_stats.in_use} formatter={formatNumber}
               subtext={`Tổng ${formatNumber(stats.asset_stats.total)} tài sản`}
               icon={ComputerDesktopIcon} iconBg="bg-emerald-100 text-emerald-600" trend={stats.trends.asset_growth} />

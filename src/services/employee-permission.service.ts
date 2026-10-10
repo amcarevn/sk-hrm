@@ -32,6 +32,7 @@ export interface EmployeePermission {
   can_view_reports: boolean;
   can_export_reports: boolean;
   has_any_permission: boolean;
+  permission_summary?: string;
   notes: string;
   created_at: string;
   updated_at: string;

@@ -2444,7 +2444,7 @@ const Approvals: React.FC = () => {
         <FinalizationLockBanner year={singleMonthYear} month={singleMonth} bypassRoles={['ADMIN', 'HR']} />
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-5">
         {/* Thanh tab 2 nhóm — nhóm trái là 3 trạng thái duyệt đơn từ (giữ y
             như cũ), nhóm phải là nghiệp vụ duyệt chốt công nhân viên trước
             đây xếp chồng ngay dưới danh sách đơn. Badge số để không ai bỏ sót
@@ -2509,7 +2509,7 @@ const Approvals: React.FC = () => {
         {/* Bộ lọc — gom về 1 hàng điều khiển + 2 hàng chip (port từ TA c5636a2).
             Bản cũ xếp nhiều hàng rời nhau: nhãn có icon 3x3 gần như vô hình,
             nút "Đơn của tôi" trôi sang tận mép phải. */}
-        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6 space-y-3">
+        <div className="bg-gray-50 p-3 sm:p-4 rounded-2xl border border-gray-100 mb-4 sm:mb-6 space-y-3">
           {/* Hàng 1: các ô nhập/chọn */}
           <div className="flex flex-wrap items-end gap-3">
             {(isAdmin || isHR || isManagement) && (
@@ -2551,7 +2551,7 @@ const Approvals: React.FC = () => {
               </div>
             )}
 
-            <div className="w-[120px]">
+            <div className="w-[calc(50%-0.375rem)] sm:w-[120px]">
               <label className="block text-xs font-semibold text-gray-500 mb-1">Tháng</label>
               <SelectBox
                 label=""
@@ -2569,7 +2569,7 @@ const Approvals: React.FC = () => {
             {/* Ô Năm LUÔN hiện, chỉ khoá lại khi đang chọn "Tất cả" (lúc đó
                 năm không còn ý nghĩa). Ẩn hẳn thì chọn tháng là ô này hiện ra,
                 đẩy các nút bên cạnh dịch chỗ (port từ TA 5fdff06). */}
-            <div className="w-[100px]">
+            <div className="w-[calc(50%-0.375rem)] sm:w-[100px]">
               <label className="block text-xs font-semibold text-gray-500 mb-1">Năm</label>
               <SelectBox
                 label=""
@@ -2781,10 +2781,13 @@ const Approvals: React.FC = () => {
               return (
                 <div key={deptName} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-3">
                   {/* Department Header */}
-                  <div className={`w-full flex items-center justify-between p-3 sm:p-4 ${deptName === 'Đơn của Tôi' ? 'bg-rose-50/80 border-rose-100' : 'bg-gray-50 border-gray-200'} border-b`}>
+                  {/* Mobile: khi có nút Duyệt/Từ chối nhanh thì tên phòng chiếm
+                      trọn hàng 1, cụm nút xuống hàng 2 (căn phải) — trước đây tên
+                      phòng bị nuốt chỉ còn "Ph...". Từ sm trở lên giữ 1 hàng. */}
+                  <div className={`w-full flex flex-wrap sm:flex-nowrap items-center justify-between gap-y-2 p-3 sm:p-4 ${deptName === 'Đơn của Tôi' ? 'bg-rose-50/80 border-rose-100' : 'bg-gray-50 border-gray-200'} border-b`}>
                     <button
                       onClick={() => toggleDepartmentGroup(deptKey, isDeptExpanded)}
-                      className="flex items-center gap-2 sm:gap-3 text-left focus:outline-none flex-1 min-w-0"
+                      className={`flex items-center gap-2 sm:gap-3 text-left focus:outline-none flex-1 ${hasBulkApprovePermission && activeTab === 'pending' && pendingInDept > 0 ? 'min-w-full' : 'min-w-0'} sm:min-w-0`}
                     >
                       <div className={`p-1.5 sm:p-2 rounded-lg ${isDeptExpanded ? 'bg-primary-600 text-white shadow-md' : 'bg-primary-50 text-primary-600'}`}>
                         <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2809,7 +2812,7 @@ const Approvals: React.FC = () => {
                     {/* shrink-0 + nhãn rút gọn trên mobile (port từ TA 7e93bf3): trước
                         đây cụm nút này chiếm hết chiều ngang, tên phòng ban bị nuốt
                         chỉ còn 1 mẩu icon. */}
-                    <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
+                    <div className="flex items-center gap-1.5 sm:gap-4 shrink-0 ml-auto">
                       {hasBulkApprovePermission && activeTab === 'pending' && pendingInDept > 0 && (
                         <button
                           disabled={isBulkProcessing}
@@ -2868,7 +2871,7 @@ const Approvals: React.FC = () => {
                                 (min-w-0 + truncate + shrink-0), nếu không trên điện
                                 thoại chữ vị trí bị ép xuống dòng từng chữ một. Nút
                                 cũng rút gọn nhãn trên màn hẹp. */}
-                            <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-3 sm:py-4 bg-gray-50/50 border-b border-gray-100">
+                            <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 px-3 sm:px-5 py-3 sm:py-4 bg-gray-50/50 border-b border-gray-100">
                               <div className="flex items-center gap-2.5 min-w-0">
                                 <div className="p-2 bg-primary-50 text-primary-600 rounded-lg shrink-0">
                                   <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -2882,7 +2885,7 @@ const Approvals: React.FC = () => {
                               </div>
 
                               {hasBulkApprovePermission && activeTab === 'pending' && pendingInPos > 0 && (
-                                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
                                   <button
                                     disabled={isBulkProcessing}
                                     onClick={(e) => {
@@ -2914,7 +2917,7 @@ const Approvals: React.FC = () => {
                             </div>
 
                             {/* New Level: Employee Accordion */}
-                            <div className="p-4 space-y-4">
+                            <div className="p-2 sm:p-4 space-y-4">
                               {Object.entries(empGroups as Record<string, any>).map(([empName, items]: [string, any[]]) => {
                                 // Khoá đóng/mở kèm cấp duyệt (deptKey); khoá tra
                                 // số đếm giữ theo deptName như buildPendingCountsMap.
@@ -2934,7 +2937,7 @@ const Approvals: React.FC = () => {
                                   <div key={empName} className={`border rounded-lg overflow-hidden transition-colors ${isEmpExpanded ? 'border-primary-100 shadow-sm' : 'border-gray-100 hover:border-primary-200'}`}>
                                     {/* Employee Accordion Header */}
                                     <div
-                                      className={`flex flex-col px-4 py-3 cursor-pointer transition-colors ${isEmpExpanded ? 'bg-primary-50/40' : 'bg-white hover:bg-gray-50'}`}
+                                      className={`flex flex-col px-3 sm:px-4 py-3 cursor-pointer transition-colors ${isEmpExpanded ? 'bg-primary-50/40' : 'bg-white hover:bg-gray-50'}`}
                                       onClick={() => {
                                         if (!isEmpExpanded) {
                                           setExpandedEmployees((prev: string[]) =>
@@ -3208,7 +3211,7 @@ const Approvals: React.FC = () => {
                                         </div>
 
                                         {/* Mobile Cards */}
-                                        <div className="lg:hidden p-3 space-y-2.5 bg-gray-50/50">
+                                        <div className="lg:hidden p-2 sm:p-3 space-y-2.5 bg-gray-50/50">
                                           {items.map((item) => {
                                             const itemKey = `${item._itemType}-${item.id}`;
                                             const itemTypeConfig = getItemTypeConfig(item);
@@ -3225,7 +3228,10 @@ const Approvals: React.FC = () => {
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={itemTypeConfig.iconPath} /></svg>
                                                   </div>
                                                   <div className="min-w-0 flex-1">
-                                                    <div className="flex items-start justify-between gap-2">
+                                                    {/* flex-wrap: tên loại đơn dài (vd "Đi muộn/Về sớm") không
+                                                        bị ép xuống dòng từng chữ cạnh badge trạng thái — badge
+                                                        tự xuống hàng khi không đủ chỗ. */}
+                                                    <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
                                                       <h3 className="text-sm font-semibold text-gray-900 leading-tight">
                                                         {getRequestTypeLabel(item)}
                                                       </h3>
@@ -3330,14 +3336,14 @@ const Approvals: React.FC = () => {
                                           - Quản lý (Manager) thông thường KHÔNG được sử dụng nút này để buộc phải xem chi tiết hoặc duyệt theo nhóm lớn hơn.
                                         */}
                                         {hasBulkApprovePermission && activeTab === 'pending' && pendingInEmp > 0 && (
-                                          <div className="p-4 flex justify-end gap-3 bg-gray-50/30 border-t border-gray-50">
+                                          <div className="p-3 sm:p-4 flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3 bg-gray-50/30 border-t border-gray-50">
                                             <button
                                               disabled={isBulkProcessing}
                                               onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleBulkRejectItems(items, `nhân viên ${empName}`);
                                               }}
-                                              className="flex items-center gap-2 h-10 px-6 bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold rounded-lg shadow-lg shadow-rose-100 transition-all uppercase tracking-wider disabled:opacity-50"
+                                              className="flex items-center justify-center gap-2 h-10 px-3 sm:px-6 bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold rounded-lg shadow-lg shadow-rose-100 transition-all uppercase tracking-normal sm:tracking-wider disabled:opacity-50"
                                             >
                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                                               Từ chối nhanh tất cả đơn
@@ -3348,7 +3354,7 @@ const Approvals: React.FC = () => {
                                                 e.stopPropagation();
                                                 handleBulkApproveItems(items, `nhân viên ${empName}`);
                                               }}
-                                              className="flex items-center gap-2 h-10 px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-lg shadow-emerald-100 transition-all uppercase tracking-wider disabled:opacity-50"
+                                              className="flex items-center justify-center gap-2 h-10 px-3 sm:px-6 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-lg shadow-emerald-100 transition-all uppercase tracking-normal sm:tracking-wider disabled:opacity-50"
                                             >
 
                                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
@@ -3388,8 +3394,8 @@ const Approvals: React.FC = () => {
               // approvalLevelSplit luôn null nên họ xem danh sách phẳng như cũ.
               return (
                 <>
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="px-3 py-1.5 bg-violet-600 text-white text-xs font-bold rounded-lg uppercase tracking-wide shadow-sm shrink-0">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3">
+                    <span className="px-3 py-1.5 bg-violet-600 text-white text-xs font-bold rounded-lg uppercase tracking-wide shadow-sm shrink-0 max-w-full">
                       Cần bạn duyệt · đã qua quản lý trực tiếp
                     </span>
                     <span className="text-xs text-gray-400 font-semibold shrink-0">{level2Count} đơn</span>
@@ -3397,7 +3403,7 @@ const Approvals: React.FC = () => {
                   </div>
                   {Object.entries(level2Groups).map(entry => renderDeptCard(entry, level2PendingCountsMap ?? pendingCountsMap, 'L2'))}
 
-                  <div className="flex items-center gap-3 mb-3 mt-8">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3 mt-8">
                     <button
                       onClick={() => setShowWaitingManagerSection(!isWaitingManagerOpen)}
                       className="flex items-center gap-2 px-3 py-1.5 bg-white text-gray-500 border border-gray-200 text-xs font-bold rounded-lg uppercase tracking-wide hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0"
@@ -3439,7 +3445,7 @@ const Approvals: React.FC = () => {
                     nhưng phải hiện ở đây — xem memoizedManagerApprovedPending. */}
                 {managerApprovedPending && (
                   <>
-                    <div className="flex items-center gap-3 mb-3 mt-8">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mb-3 mt-8">
                       <button
                         onClick={() => setShowManagerApprovedSection(v => !v)}
                         className="flex items-center gap-2 px-3 py-1.5 bg-white text-gray-500 border border-gray-200 text-xs font-bold rounded-lg uppercase tracking-wide hover:text-gray-700 hover:border-gray-300 transition-colors shrink-0"
@@ -3492,8 +3498,10 @@ const Approvals: React.FC = () => {
         <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
           <div className="bg-white rounded-t-3xl sm:rounded-lg shadow-lg max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="px-4 sm:px-6 py-4 border-b border-gray-100 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center gap-3">
+            {/* relative: nút ✕ (absolute trên mobile) bám góc header của sheet
+                thay vì góc màn hình (đè lên avatar ở thanh trên cùng). */}
+            <div className="relative px-4 sm:px-6 py-4 border-b border-gray-100 bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-3 pr-10 sm:pr-0">
                 <div className="w-10 h-10 rounded-lg bg-primary-600 flex items-center justify-center text-white shrink-0">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -3702,7 +3710,7 @@ const Approvals: React.FC = () => {
           <div className="fixed inset-0 bg-gray-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 transition-all duration-300">
             <div className="bg-white rounded-t-xl sm:rounded-lg shadow-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
               {/* Modal Header - Sticky */}
-              <div className="sticky top-0 z-20 px-6 py-4 border-b border-gray-100 bg-white/95 shadow-sm">
+              <div className="sticky top-0 z-20 px-4 sm:px-6 py-4 border-b border-gray-100 bg-white/95 shadow-sm">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center text-primary-600 shadow-sm">
@@ -3752,9 +3760,9 @@ const Approvals: React.FC = () => {
                 )}
 
                 {/* 2. Grid Thông tin Nhân viên & Chi tiết Đơn */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
                   {/* Cột 1: Profile Card */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
                     <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center">
                       <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                       Thông tin nhân viên
@@ -3823,7 +3831,7 @@ const Approvals: React.FC = () => {
                   </div>
 
                   {/* Cột 2: Request Info (Meta Data) */}
-                  <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 shadow-sm ring-1 ring-black/5 hover:shadow-md transition-shadow">
                     <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center">
                       <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                       Cụ thể yêu cầu
@@ -4162,7 +4170,7 @@ const Approvals: React.FC = () => {
                     <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     Quy trình duyệt
                   </h4>
-                  <div className="bg-white border border-gray-100 rounded-lg p-6 shadow-sm ring-1 ring-black/5">
+                  <div className="bg-white border border-gray-100 rounded-lg p-4 sm:p-6 shadow-sm ring-1 ring-black/5">
                     <div className="relative border-l-2 border-gray-100 ml-4 space-y-8">
                       {(() => {
                         const workflowSteps = selectedExplanation
@@ -4347,9 +4355,9 @@ const Approvals: React.FC = () => {
       {calendarModalEmployee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center text-primary-600">
+            <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 shrink-0 rounded-lg bg-primary-50 flex items-center justify-center text-primary-600">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                 </div>
                 <div>
@@ -4359,12 +4367,12 @@ const Approvals: React.FC = () => {
               </div>
               <button
                 onClick={() => setCalendarModalEmployee(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors"
+                className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <div className="overflow-y-auto flex-1 p-4">
+            <div className="overflow-y-auto flex-1 p-2 sm:p-4">
               <AttendanceCalendar
                 year={calendarModalEmployee.year}
                 month={calendarModalEmployee.month - 1}

@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Cog6ToothIcon,
   Squares2X2Icon,
   XMarkIcon,
-  Bars3Icon,
   ChevronLeftIcon,
   ChevronRightIcon,
   UserIcon,
@@ -304,6 +303,10 @@ const navigationItems: NavigationItem[] = [
         name: 'Hợp đồng hàng loạt',
         href: '/dashboard/bulk-contracts',
         icon: DocumentTextIcon,
+        // Ẩn: App.tsx không có route này và backend SK chưa có các API của tính
+        // năng (generate_and_confirm / mark_signed / cancel_contract) — chỉ bên
+        // Trung Anh làm. Bấm vào trước đây ra trang trắng.
+        hidden: true,
         roles: ['ADMIN', 'HR'],
       },
       {
@@ -362,15 +365,23 @@ const navigationItems: NavigationItem[] = [
 
 interface SidebarProps {
   onCollapseChange?: (isCollapsed: boolean) => void;
+  /** Menu trượt trên điện thoại — nút mở nằm ở Header nên state đặt ở Layout. */
+  mobileOpen: boolean;
+  onMobileOpenChange: (open: boolean) => void;
 }
 
-export default function Sidebar({ onCollapseChange }: SidebarProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+export default function Sidebar({ onCollapseChange, mobileOpen: sidebarOpen, onMobileOpenChange: setSidebarOpen }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [collapsedByUser, setCollapsedByUser] = useState<Set<string>>(new Set());
   const location = useLocation();
   const { user, loading } = useAuth();
+
+  // Điện thoại: bấm 1 mục menu xong thì đóng menu trượt để thấy trang vừa mở
+  // (trước đây menu vẫn phủ kín màn hình sau khi chuyển trang).
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname, setSidebarOpen]);
 
   if (loading) {
     return (
@@ -422,8 +433,9 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
     return item.roles.some(role => role.toUpperCase() === userRole);
   };
 
+  // Superadmin thấy mọi mục, TRỪ mục đã đánh dấu hidden (tính năng SK không dùng).
   const navigation = isSuperAdmin
-    ? navigationItems
+    ? navigationItems.filter(item => !item.hidden)
     : navigationItems.filter(canAccessItem);
 
   const toggleGroup = (name: string, currentlyExpanded: boolean) => {
@@ -447,7 +459,7 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
 
   const renderNavItem = (item: NavigationItem, collapsed: boolean) => {
     if (item.children && item.children.length > 0) {
-      const visibleChildren = isSuperAdmin ? item.children : item.children.filter(canAccessItem);
+      const visibleChildren = isSuperAdmin ? item.children.filter(child => !child.hidden) : item.children.filter(canAccessItem);
       if (visibleChildren.length === 0) return null;
       const active = isGroupActive(item);
       const expanded = collapsedByUser.has(item.name) ? false : (expandedGroups.has(item.name) || active);
@@ -546,9 +558,10 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
             />
             <button
               onClick={() => setSidebarOpen(false)}
-              className="absolute right-3 p-1 rounded-md text-primary-500 hover:text-white hover:bg-primary-800 transition-colors"
+              className="absolute right-2 p-2 rounded-md text-primary-300 hover:text-white hover:bg-primary-800 transition-colors"
             >
-              <XMarkIcon className="h-4 w-4" />
+              <span className="sr-only">Đóng menu</span>
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
           <nav className="flex-1 overflow-y-auto scrollbar-hide space-y-1 px-2 py-4">
@@ -661,24 +674,6 @@ export default function Sidebar({ onCollapseChange }: SidebarProps) {
         </div>
       </div>
 
-      {/* Mobile top bar */}
-      <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center border-b border-primary-800/60 bg-primary-900 px-4 shadow-sm lg:hidden">
-        <button
-          type="button"
-          className="p-1.5 text-primary-400 hover:text-white transition-colors"
-          onClick={() => setSidebarOpen(true)}
-        >
-          <Bars3Icon className="h-5 w-5" />
-        </button>
-        <div className="flex flex-1 items-center justify-center">
-          <img
-            src="/logo_sk.png"
-            alt="SK Dental Clinic"
-            className="h-12 w-auto max-w-[120px] object-contain brightness-[400]"
-          />
-        </div>
-        <div className="w-8" />
-      </div>
     </>
   );
 }

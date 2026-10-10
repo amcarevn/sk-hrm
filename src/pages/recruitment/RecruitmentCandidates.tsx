@@ -226,14 +226,14 @@ const RecruitmentCandidates: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center">
           <div>
             <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Ứng viên</h1>
             <p className="text-sm text-gray-900">Quản lý hồ sơ ứng viên</p>
           </div>
         </div>
-        <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+        <button onClick={openCreate} className="btn-primary flex items-center gap-2 whitespace-nowrap">
           <PlusIcon className="h-4 w-4" />
           Thêm ứng viên
         </button>
@@ -242,7 +242,7 @@ const RecruitmentCandidates: React.FC = () => {
       {/* Filter bar */}
       <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
         <div className="flex flex-wrap gap-3">
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
@@ -252,7 +252,7 @@ const RecruitmentCandidates: React.FC = () => {
               placeholder="Tìm theo tên, email, SĐT..."
             />
           </div>
-          <div className="w-48">
+          <div className="w-full sm:w-48">
             <SelectBox<string>
               label=""
               value={sourceFilter}
@@ -263,7 +263,7 @@ const RecruitmentCandidates: React.FC = () => {
               onChange={setSourceFilter}
             />
           </div>
-          <div className="w-44">
+          <div className="w-full sm:w-44">
             <SelectBox<string>
               label=""
               value={blacklistFilter}
@@ -392,7 +392,7 @@ const RecruitmentCandidates: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
               <h2 className="text-base font-bold text-gray-900">
                 {editingId ? 'Cập nhật ứng viên' : 'Thêm ứng viên mới'}
               </h2>
@@ -404,8 +404,8 @@ const RecruitmentCandidates: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Họ tên <span className="text-red-500">*</span>
@@ -429,7 +429,7 @@ const RecruitmentCandidates: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Điện thoại</label>
                   <input
@@ -453,7 +453,7 @@ const RecruitmentCandidates: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ngày sinh</label>
                   <input
@@ -476,7 +476,7 @@ const RecruitmentCandidates: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Công ty hiện tại</label>
                   <input
@@ -496,7 +496,7 @@ const RecruitmentCandidates: React.FC = () => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <SelectBox<CandidateSource>
                     label="Nguồn"
@@ -562,7 +562,7 @@ const RecruitmentCandidates: React.FC = () => {
             </form>
 
             {/* Modal footer */}
-            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+            <div className="px-4 sm:px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
@@ -609,7 +609,7 @@ const RecruitmentCandidates: React.FC = () => {
               />
             </div>
             {/* Modal footer */}
-            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+            <div className="px-4 sm:px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
               <button
                 onClick={() => setBlacklistId(null)}
                 className="btn-secondary"

@@ -608,12 +608,12 @@ export default function AssetList() {
       </div>
 
       {/* Sticky wrapper: Stats + Filters */}
-      <div className="sticky top-16 z-20 -mx-6 px-6 py-4 bg-gray-50/95 backdrop-blur space-y-4">
+      <div className="md:sticky md:top-16 md:z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-4 bg-gray-50/95 backdrop-blur space-y-4">
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center gap-4">
+          <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-5">
+              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
                 <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
                   <ComputerDesktopIcon className="h-5 w-5" />
                 </div>
@@ -624,8 +624,8 @@ export default function AssetList() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center gap-4">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-5">
+              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
                 <div className="h-9 w-9 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
                   <UserIcon className="h-5 w-5" />
                 </div>
@@ -636,8 +636,8 @@ export default function AssetList() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <div className="flex items-center gap-4">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-5">
+              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
                 <div className="h-9 w-9 bg-red-100 text-red-600 rounded-xl flex items-center justify-center flex-shrink-0">
                   <ShieldCheckIcon className="h-5 w-5" />
                 </div>
@@ -780,7 +780,7 @@ export default function AssetList() {
 
       {/* Bulk action toolbar */}
       {selectedAssetIds.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-primary-50 border border-primary-200 rounded-2xl">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 bg-primary-50 border border-primary-200 rounded-2xl">
           <span className="text-sm font-medium text-primary-800">Đã chọn {selectedAssetIds.size} tài sản</span>
           <button
             onClick={() => setIsBulkAssignModalOpen(true)}
@@ -815,7 +815,7 @@ export default function AssetList() {
       {/* Assets Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-auto max-h-[calc(100vh-16rem)]">
-          <table className="min-w-full divide-y divide-gray-100">
+          <table className="min-w-full divide-y divide-gray-100 whitespace-nowrap sm:whitespace-normal">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 <th scope="col" className="w-10 px-3 py-3 text-center">
@@ -1277,7 +1277,7 @@ export default function AssetList() {
                     </div>
                   </div>
                 </div>
-                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex flex-row-reverse gap-3">
+                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex flex-row-reverse flex-wrap gap-3">
                   <button
                     type="button"
                     disabled={isBulkDeleting}

@@ -218,14 +218,14 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <DialogPanel className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl">
+              <DialogPanel className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all w-full sm:my-8 sm:w-full sm:max-w-3xl">
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center">
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-2">
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className="h-9 w-9 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
                       <ComputerDesktopIcon className="h-5 w-5" />
                     </div>
-                    <DialogTitle as="h3" className="text-lg font-bold leading-6 text-gray-900">
+                    <DialogTitle as="h3" className="text-base sm:text-lg font-bold leading-6 text-gray-900 break-words min-w-0">
                       Chi tiết tài sản: {asset.asset_code}
                     </DialogTitle>
                   </div>
@@ -238,19 +238,19 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                   </button>
                 </div>
 
-                <div className="px-6 py-6 overflow-y-auto max-h-[80vh]">
+                <div className="px-4 py-4 sm:px-6 sm:py-6 overflow-y-auto max-h-[80vh]">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     {/* General Info Section */}
                     {/* Header Identity Section - High prominence for the TA Code */}
-                     <div className="md:col-span-2 bg-gradient-to-r from-primary-50 to-white p-5 rounded-2xl border border-primary-100 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="bg-primary-600 p-3 rounded-xl shadow-lg shadow-primary-200">
+                     <div className="md:col-span-2 bg-gradient-to-r from-primary-50 to-white p-4 sm:p-5 rounded-2xl border border-primary-100 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center sm:space-x-4 min-w-0">
+                          <div className="hidden sm:block bg-primary-600 p-3 rounded-xl shadow-lg shadow-primary-200">
                             <IdentificationIcon className="h-7 w-7 text-white" />
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <p className="text-[10px] font-bold text-primary-500 uppercase tracking-[0.2em] mb-0.5">Mã thiết bị dán nhãn</p>
-                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">{asset.name}</h2>
+                            <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight break-words">{asset.name}</h2>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -258,7 +258,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                             <button
                               type="button"
                               onClick={handleToggleQrCode}
-                              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-primary-700 bg-white border border-primary-200 rounded-xl hover:bg-primary-50 transition-colors"
+                              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-primary-700 bg-white border border-primary-200 rounded-xl hover:bg-primary-50 transition-colors whitespace-nowrap"
                             >
                               <QrCodeIcon className="h-4 w-4" />
                               Mã QR
@@ -272,7 +272,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                       </div>
 
                       {showQrCode && (
-                        <div className="mt-4 pt-4 border-t border-primary-100 flex items-center gap-4">
+                        <div className="mt-4 pt-4 border-t border-primary-100 flex flex-col items-start sm:flex-row sm:items-center gap-4">
                           {qrLoading ? (
                             <p className="text-xs text-gray-500">Đang tạo mã QR...</p>
                           ) : qrError ? (
@@ -922,7 +922,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                         <button
                           type="button"
                           onClick={() => setShowMaintenanceForm(true)}
-                          className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 text-[11px] font-semibold normal-case tracking-normal"
+                          className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 text-[11px] font-semibold normal-case tracking-normal whitespace-nowrap"
                         >
                           <PlusIcon className="h-3 w-3" /> Thêm bản ghi
                         </button>
@@ -971,7 +971,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                         <button
                           type="button"
                           onClick={() => setShowInventoryForm(true)}
-                          className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 text-[11px] font-semibold normal-case tracking-normal"
+                          className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-lg text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 text-[11px] font-semibold normal-case tracking-normal whitespace-nowrap"
                         >
                           <PlusIcon className="h-3 w-3" /> Thêm bản ghi
                         </button>
@@ -1198,7 +1198,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                   </div>
                 </div>
 
-                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl sm:flex sm:flex-row-reverse">
+                <div className="px-4 sm:px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl sm:flex sm:flex-row-reverse">
                   <button
                     type="button"
                     className="btn-primary inline-flex w-full justify-center sm:ml-3 sm:w-auto"

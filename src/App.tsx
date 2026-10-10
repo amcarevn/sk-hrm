@@ -30,6 +30,7 @@ import UserActivity from './pages/UserActivity';
 import RoleList from './pages/RoleList';
 import RoleShow from './pages/RoleShow';
 import RoleCreate from './pages/RoleCreate';
+import EmployeePermissionShow from './pages/EmployeePermissionShow';
 import LandingLayout from './components/LandingLayout/Layout';
 import TermsOfService from './pages/TermOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -369,6 +370,29 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <RoleShow />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Xem / sửa phân quyền nhân viên (EmployeePermission) — trang "Quản lý
+              phân quyền" (RoleList) trước đây dẫn tới /permissions/dashboard/roles/...
+              không tồn tại. /dashboard/roles/:id là trang role chatbot cũ. */}
+          <Route
+            path="/dashboard/employee-permissions/:id/edit"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <RoleCreate />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/employee-permissions/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <EmployeePermissionShow />
                 </Layout>
               </ProtectedRoute>
             }
