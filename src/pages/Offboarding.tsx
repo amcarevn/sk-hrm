@@ -420,6 +420,7 @@ const Offboarding: React.FC = () => {
                 { value: 'PROPOSAL', label: 'Đơn đề xuất' },
                 { value: 'CONFIRMATION', label: 'Đơn xác nhận' },
                 { value: 'COMPLAINT', label: 'Đơn khiếu nại' },
+                { value: 'SALARY_ADVANCE', label: 'Đơn tạm ứng lương' },
                 { value: 'OTHER', label: 'Đơn khác' },
               ]}
               onChange={(v) => { setFilterType(v as GenericRequestType | ''); setCurrentPage(1); }}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   PlusIcon,
   ArrowPathIcon,
@@ -17,6 +18,7 @@ import RequestDetailDialog from '../components/MyRequests/RequestDetailDialog';
 import ApprovedNotificationDialog from '../components/MyRequests/ApprovedNotificationDialog';
 import PdfPreviewModal from '../components/Common/PdfPreviewModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import PaymentDocumentsTab from '../components/PaymentDocuments/PaymentDocumentsTab';
 
 // localStorage key lưu danh sách ID đơn APPROVED mà NV đã xem thông báo
 const SEEN_APPROVED_STORAGE_KEY = 'myrequests_seen_approved_ids';
@@ -73,7 +75,8 @@ const formatDate = (s: string | null) => {
   }
 };
 
-type TabKey = 'mine' | 'to-approve';
+// 'payments' = Thanh toán & mua hàng (chỉ Admin/HCNS) — deep link ?tab=payments
+type TabKey = 'mine' | 'to-approve' | 'payments';
 
 type ConfirmAction = 'submit' | 'cancel' | 'delete' | null;
 
@@ -92,8 +95,13 @@ const MyRequests: React.FC = () => {
       !!(user as any)?.employee_profile?.is_manager ||
       !!(user as any)?.hrm_user?.is_manager) &&
     !isAdmin;
+  // Tab "Thanh toán & mua hàng": HCNS tự nhập/rà soát phiếu — chỉ Admin/HR
+  const isAdminOrHR = isAdmin || userRole === 'HR';
 
-  const [activeTab, setActiveTab] = useState<TabKey>('mine');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    searchParams.get('tab') === 'payments' ? 'payments' : 'mine'
+  );
   const [requests, setRequests] = useState<GenericRequest[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -165,6 +173,7 @@ const MyRequests: React.FC = () => {
   };
 
   useEffect(() => {
+    if (activeTab === 'payments') return;
     fetchRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, currentPage, itemsPerPage, filterType, filterStatus, filterMonth, filterYear, debouncedSearch]);
@@ -198,6 +207,18 @@ const MyRequests: React.FC = () => {
     }
   }, [isManagerForTab, activeTab]);
 
+  // Đang ở trang mà bấm link ?tab=payments (vd từ menu) → chuyển tab
+  useEffect(() => {
+    if (searchParams.get('tab') === 'payments') setActiveTab('payments');
+  }, [searchParams]);
+
+  // Không phải Admin/HR mà mở ?tab=payments → về 'mine'
+  useEffect(() => {
+    if (user && !isAdminOrHR && activeTab === 'payments') {
+      setActiveTab('mine');
+    }
+  }, [user, isAdminOrHR, activeTab]);
+
   // Detect đơn APPROVED chưa từng thông báo cho NV → mở dialog.
   // Chỉ áp dụng ở tab 'mine' (đơn của chính mình) — manager không nhận.
   useEffect(() => {
@@ -227,6 +248,11 @@ const MyRequests: React.FC = () => {
     setActiveTab(tab);
     setCurrentPage(1);
     setFilterStatus('');
+    // Giữ deep link cho tab Thanh toán & mua hàng
+    const next = new URLSearchParams(searchParams);
+    if (tab === 'payments') next.set('tab', 'payments');
+    else next.delete('tab');
+    setSearchParams(next, { replace: true });
   };
 
   const openCreate = () => {
@@ -433,9 +459,11 @@ const MyRequests: React.FC = () => {
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Yêu cầu & Đơn từ</h1>
-          <p className="text-gray-600 mt-2">
-            Tổng: <span className="font-semibold text-gray-900">{totalCount}</span> đơn
-          </p>
+          {activeTab !== 'payments' && (
+            <p className="text-gray-600 mt-2">
+              Tổng: <span className="font-semibold text-gray-900">{totalCount}</span> đơn
+            </p>
+          )}
         </div>
         {activeTab === 'mine' && (
           <button
@@ -450,7 +478,7 @@ const MyRequests: React.FC = () => {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="flex gap-6">
+        <nav className="flex gap-6 overflow-x-auto whitespace-nowrap">
           <button
             onClick={() => handleTabChange('mine')}
             className={`py-3 px-1 border-b-2 text-sm font-semibold transition-colors ${
@@ -478,9 +506,25 @@ const MyRequests: React.FC = () => {
               )}
             </button>
           )}
+          {isAdminOrHR && (
+            <button
+              onClick={() => handleTabChange('payments')}
+              className={`py-3 px-1 border-b-2 text-sm font-semibold transition-colors ${
+                activeTab === 'payments'
+                  ? 'border-primary-600 text-primary-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <span className="sm:hidden">Thanh toán</span>
+              <span className="hidden sm:inline">Thanh toán & mua hàng</span>
+            </button>
+          )}
         </nav>
       </div>
 
+      {activeTab === 'payments' && isAdminOrHR && <PaymentDocumentsTab />}
+
+      {activeTab !== 'payments' && (<>
       {/* Filter bar */}
       <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-wrap items-end gap-3">
         <div className="w-full sm:w-52">
@@ -490,6 +534,7 @@ const MyRequests: React.FC = () => {
             options={[
               { value: '', label: 'Tất cả loại đơn' },
               { value: 'RESIGNATION', label: 'Đơn xin nghỉ việc' },
+              { value: 'SALARY_ADVANCE', label: 'Đơn tạm ứng lương' },
               { value: 'PROPOSAL', label: 'Đơn đề xuất' },
               { value: 'CONFIRMATION', label: 'Đơn xác nhận' },
               { value: 'COMPLAINT', label: 'Đơn khiếu nại' },
@@ -725,6 +770,7 @@ const MyRequests: React.FC = () => {
           onItemsPerPageChange={(size: number) => { setItemsPerPage(size); setCurrentPage(1); }}
         />
       </div>
+      </>)}
 
       <RequestFormDialog
         open={showFormDialog}
