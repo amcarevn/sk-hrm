@@ -26,22 +26,7 @@ import AssetBulkReturnModal from './AssetBulkReturnModal';
 import { Asset, AssetStats } from '../../utils/api';
 import { SelectBox, SelectOption, MultiSelectBox } from '../../components/LandingLayout/SelectBox';
 import FeedbackDialog, { FeedbackVariant } from '../../components/FeedbackDialog';
-
-const ASSET_TYPE_OPTIONS: SelectOption<string>[] = [
-  { value: 'LAPTOP', label: 'Laptop' },
-  { value: 'DESKTOP', label: 'Máy tính để bàn' },
-  { value: 'MONITOR', label: 'Màn hình' },
-  { value: 'PHONE', label: 'Điện thoại' },
-  { value: 'TABLET', label: 'Máy tính bảng' },
-  { value: 'PRINTER', label: 'Máy in' },
-  { value: 'SCANNER', label: 'Máy scan' },
-  { value: 'NETWORK', label: 'Thiết bị mạng' },
-  { value: 'SERVER', label: 'Máy chủ' },
-  { value: 'SIM', label: 'Sim' },
-  { value: 'FURNITURE', label: 'Nội thất' },
-  { value: 'VEHICLE', label: 'Phương tiện' },
-  { value: 'OTHER', label: 'Khác' },
-];
+import { assetTypeOptionsFrom, isMultiHolderType } from './assetTypes';
 
 // Màu badge loại tài sản — chỉ dùng màu semantic được phép trong design system
 const ASSET_TYPE_COLOR_MAP: Record<string, string> = {
@@ -292,7 +277,7 @@ export default function AssetList() {
     setSelectedAsset(asset);
     // MONITOR single-holder: pass holder info cho ReturnModal
     const holders = asset.holders || [];
-    if (['MONITOR', 'OTHER'].includes(asset.asset_type) && holders.length === 1) {
+    if (isMultiHolderType(asset.asset_type) && holders.length === 1) {
       const h = holders[0];
       setReturnHolder({ historyId: h.history_id, holderName: h.name, holderQuantity: h.assigned_quantity });
     } else {
@@ -687,7 +672,7 @@ export default function AssetList() {
             <MultiSelectBox
               label="Loại tài sản"
               value={typeFilter}
-              options={ASSET_TYPE_OPTIONS}
+              options={assetTypeOptionsFrom(assets)}
               onChange={(val) => setTypeFilter(val)}
               allLabel="Tất cả loại"
             />
@@ -960,7 +945,7 @@ export default function AssetList() {
                     </td>
                     <td className="px-6 py-4">
                       {(() => {
-                        const isMulti = ['MONITOR', 'OTHER'].includes(asset.asset_type) && (asset.total_quantity ?? 1) > 1;
+                        const isMulti = isMultiHolderType(asset.asset_type) && (asset.total_quantity ?? 1) > 1;
                         const holders = asset.holders || [];
                         if (isMulti) {
                           const total = asset.total_quantity ?? 1;
@@ -1066,7 +1051,7 @@ export default function AssetList() {
                         {/* Row 2: Bàn giao + Thu hồi + Xóa */}
                         <div className="flex gap-1.5">
                           {(() => {
-                            const isMulti = ['MONITOR', 'OTHER'].includes(asset.asset_type) && (asset.total_quantity ?? 1) > 1;
+                            const isMulti = isMultiHolderType(asset.asset_type) && (asset.total_quantity ?? 1) > 1;
                             const canAssignMore = isMulti && (asset.remaining_quantity ?? 0) > 0;
                             const showAssign = !asset.assigned_to_name || canAssignMore;
                             const hasHolders = (asset.holders?.length ?? 0) > 0;

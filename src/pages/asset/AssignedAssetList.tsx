@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { assetTypeOptionsFrom, isMultiHolderType } from './assetTypes';
 import { assetsAPI, Asset, AssetAssignmentHistory } from '../../utils/api';
 import {
   ComputerDesktopIcon,
@@ -106,23 +107,6 @@ const CONDITION_OPTIONS = [
   { value: 'FAIR', label: 'Cũ (Trầy xước / Cấn móp)' },
   { value: 'POOR', label: 'Cũ (Kém / Lỗi chức năng)' },
   { value: 'BROKEN', label: 'Hỏng (Không hoạt động)' },
-];
-
-const TYPE_OPTIONS = [
-  { value: '', label: 'Tất cả loại' },
-  { value: 'LAPTOP', label: 'Laptop' },
-  { value: 'DESKTOP', label: 'Desktop' },
-  { value: 'MONITOR', label: 'Màn hình' },
-  { value: 'PHONE', label: 'Điện thoại' },
-  { value: 'TABLET', label: 'Máy tính bảng' },
-  { value: 'PRINTER', label: 'Máy in' },
-  { value: 'SCANNER', label: 'Máy scan' },
-  { value: 'NETWORK', label: 'Thiết bị mạng' },
-  { value: 'SERVER', label: 'Máy chủ' },
-  { value: 'SIM', label: 'SIM' },
-  { value: 'FURNITURE', label: 'Nội thất' },
-  { value: 'VEHICLE', label: 'Phương tiện' },
-  { value: 'OTHER', label: 'Khác' },
 ];
 
 export default function AssignedAssetList() {
@@ -393,7 +377,7 @@ export default function AssignedAssetList() {
               <SelectBox
                 label="Loại tài sản"
                 value={filterType}
-                options={TYPE_OPTIONS}
+                options={[{ value: '', label: 'Tất cả loại' }, ...assetTypeOptionsFrom(assets)]}
                 onChange={setFilterType}
               />
             </div>
@@ -544,7 +528,7 @@ export default function AssignedAssetList() {
                                 {h.asset_specifications.power_supply && <div><span className="text-slate-500">Nguồn:</span> <span className="font-semibold">{h.asset_specifications.power_supply}</span></div>}
                               </>
                             )}
-                            {['MONITOR', 'OTHER'].includes(h.asset_type || '') && h.assigned_quantity != null && (
+                            {isMultiHolderType(h.asset_type) && h.assigned_quantity != null && (
                               <div><span className="text-slate-500">Số lượng bàn giao:</span> <span className="font-semibold">{h.assigned_quantity}</span></div>
                             )}
                             {h.asset_type === 'SIM' && (

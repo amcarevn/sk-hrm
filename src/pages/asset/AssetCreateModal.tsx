@@ -1,4 +1,5 @@
 import React, { Fragment, useState, useEffect } from 'react';
+import AssetTypeInput from './AssetTypeInput';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { assetsAPI, departmentsAPI, employeesAPI, positionsAPI, companyUnitsAPI } from '../../utils/api';
@@ -411,16 +412,7 @@ export default function AssetCreateModal({ isOpen, onClose, onSuccess }: AssetCr
                           <label htmlFor="asset_type" className="block text-sm font-medium text-gray-700">
                             Phân loại
                           </label>
-                          <input
-                            type="text"
-                            name="asset_type"
-                            id="asset_type"
-                            value={formData.asset_type}
-                            onChange={handleChange}
-                            className="input-field mt-1"
-                            placeholder="VD: Laptop, Máy tính để bàn, Sim..."
-                            maxLength={20}
-                          />
+                          <AssetTypeInput value={formData.asset_type} onChange={handleChange} />
                         </div>
 
                         <div>
