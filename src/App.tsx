@@ -40,6 +40,7 @@ import BotPermissionCreate from './pages/BotPermissionCreate';
 import BotPermissionEdit from './pages/BotPermissionEdit';
 import RoleEdit from './pages/RoleEdit';
 import EmployeeList from './pages/EmployeeList';
+import SocialInsuranceList from './pages/SocialInsuranceList';
 import EmployeeCreate from './pages/EmployeeCreate';
 import EmployeeShow from './pages/EmployeeShow';
 import EmployeeEdit from './pages/EmployeeEdit';
@@ -445,6 +446,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <EmployeeList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/social-insurance"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+                <Layout>
+                  <SocialInsuranceList />
                 </Layout>
               </ProtectedRoute>
             }

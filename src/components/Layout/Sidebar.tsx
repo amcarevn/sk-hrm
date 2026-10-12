@@ -85,6 +85,12 @@ const navigationItems: NavigationItem[] = [
         roles: ['ADMIN', 'HR'],
       },
       {
+        name: 'Quản lý BHXH',
+        href: '/dashboard/social-insurance',
+        icon: ShieldCheckIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
         name: 'Onboard nhân sự',
         href: '/dashboard/onboarding',
         icon: UserPlusIcon,

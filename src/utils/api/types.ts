@@ -1062,3 +1062,45 @@ export interface CompanyUnit {
   created_at: string;
   updated_at: string;
 }
+
+// ── BHXH ──────────────────────────────────────────────────────
+export type SocialInsuranceStatus = 'ACTIVE' | 'RESIGNED' | 'SUSPENDED';
+
+export interface SocialInsurance {
+  id: number;
+  employee: string;         // employee_id (mã nhân viên) — dùng khi ghi
+  employee_code: string;    // read-only
+  employee_name: string;    // read-only
+  insurance_book_number: string | null;
+  insurance_number: string | null;
+  legal_entity: string | null;
+  // Mã pháp nhân ngắn (CompanyUnit.code, vd "META") do backend chuẩn hoá từ
+  // legal_entity; fallback về legal_entity nếu không khớp đơn vị nào.
+  legal_entity_code?: string;
+  start_date: string | null;
+  end_date: string | null;
+  salary_base: string | null;
+  employee_rate: string | null;
+  employer_rate: string | null;
+  contribution_rate: string | null; // backend tự tính = employee_rate + employer_rate
+  status: SocialInsuranceStatus;
+  status_display: string;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SocialInsuranceCreateData {
+  employee: string;
+  insurance_book_number?: string;
+  insurance_number?: string;
+  legal_entity?: string;
+  start_date?: string;
+  end_date?: string;
+  salary_base?: string;
+  employee_rate?: string;
+  employer_rate?: string;
+  contribution_rate?: string;
+  status: SocialInsuranceStatus;
+  note?: string;
+}
