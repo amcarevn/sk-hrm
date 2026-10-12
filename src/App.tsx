@@ -57,6 +57,7 @@ import AttendanceUpload from './pages/AttendanceUpload';
 import AttendanceView from './pages/AttendanceView';
 import Approvals from './pages/Approvals';
 import MyRequests from './pages/MyRequests';
+import SalaryAdvance from './pages/SalaryAdvance';
 import RequestTemplates from './pages/RequestTemplates';
 import Onboarding from './pages/Onboarding';
 import OnboardingDetail from './pages/OnboardingDetail';
@@ -628,6 +629,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <MyRequests />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/salary-advance"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SalaryAdvance />
                 </Layout>
               </ProtectedRoute>
             }

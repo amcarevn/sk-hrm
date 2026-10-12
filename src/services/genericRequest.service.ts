@@ -1,6 +1,6 @@
 import { managementApi } from '../utils/api/client';
 
-export type GenericRequestType = 'RESIGNATION' | 'PROPOSAL' | 'CONFIRMATION' | 'COMPLAINT' | 'OTHER';
+export type GenericRequestType = 'RESIGNATION' | 'SALARY_ADVANCE' | 'PROPOSAL' | 'CONFIRMATION' | 'COMPLAINT' | 'OTHER';
 export type GenericRequestStatus =
   | 'DRAFT'
   | 'PENDING_MANAGER'
@@ -70,6 +70,21 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+export interface SalaryAdvanceApprovalLockState {
+  is_locked: boolean;
+  updated_by_name: string | null;
+  updated_at: string | null;
+}
+
+/** Cùng hình dạng với SalaryAdvanceApprovalLockState nhưng cho rule TẠO đơn
+ * (khác rule DUYỆT ở trên) — is_locked ở đây là trạng thái HIỆU LỰC
+ * (is_effectively_locked() phía BE): mở khoá tự hết hiệu lực khi sang
+ * tháng mới, không cần Admin nhớ khoá tay lại. */
+export type SalaryAdvanceCreationLockState = SalaryAdvanceApprovalLockState & {
+  /** Đang trong khung tạo đơn mặc định (00:00 ngày 1 - 15:30 ngày 3, giờ server). */
+  window_open?: boolean;
+};
 
 class GenericRequestService {
   private base = '/api-hrm/generic-requests/';
@@ -141,6 +156,31 @@ class GenericRequestService {
       responseType: 'blob',
     });
     return URL.createObjectURL(res.data);
+  }
+
+  /** Trạng thái khoá/mở khoá rule "chỉ duyệt tạm ứng lương trong 3 ngày đầu tháng" */
+  async getApprovalLock(): Promise<SalaryAdvanceApprovalLockState> {
+    const res = await managementApi.get(`${this.base}approval-lock/`);
+    return res.data;
+  }
+
+  /** Chỉ Admin được gọi — bật/tắt rule khung ngày 1-3 cho duyệt tạm ứng lương */
+  async setApprovalLock(isLocked: boolean): Promise<SalaryAdvanceApprovalLockState> {
+    const res = await managementApi.post(`${this.base}approval-lock/`, { is_locked: isLocked });
+    return res.data;
+  }
+
+  /** Trạng thái khoá/mở khoá rule "chỉ TẠO đơn tạm ứng lương trong 3 ngày đầu tháng" */
+  async getCreationLock(): Promise<SalaryAdvanceCreationLockState> {
+    const res = await managementApi.get(`${this.base}creation-lock/`);
+    return res.data;
+  }
+
+  /** Chỉ Admin được gọi — bật/tắt rule khung ngày 1-3 cho TẠO đơn tạm ứng lương
+   * (mở khoá chỉ có hiệu lực trong tháng lúc bấm — sang tháng mới tự khoá lại) */
+  async setCreationLock(isLocked: boolean): Promise<SalaryAdvanceCreationLockState> {
+    const res = await managementApi.post(`${this.base}creation-lock/`, { is_locked: isLocked });
+    return res.data;
   }
 }
 
