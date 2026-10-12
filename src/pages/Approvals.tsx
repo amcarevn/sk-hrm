@@ -21,6 +21,7 @@ const EXPLANATION_SUB_TYPES = [
   { value: 'EARLY_LEAVE', label: 'Về sớm' },
   { value: 'LATE_EARLY', label: 'Đi muộn/Về sớm' },
   { value: 'INCOMPLETE_ATTENDANCE', label: 'Quên chấm công' },
+  { value: 'MACHINE_ERROR', label: 'Lỗi MCC' },
   { value: 'BUSINESS_TRIP', label: 'Đi công tác' },
   { value: 'FIRST_DAY', label: 'Ngày đầu đi làm' },
 ];
@@ -28,10 +29,8 @@ const EXPLANATION_SUB_TYPES = [
 // Giữ đúng danh sách loại đăng ký của SK (có "Đổi ca" — SK đang dùng).
 const REGISTRATION_SUB_TYPES = [
   { value: 'OVERTIME', label: 'Tăng ca' },
-  { value: 'NIGHT_SHIFT', label: 'Trực tối' },
-  { value: 'LIVE', label: 'Live stream' },
-  { value: 'OFF_DUTY', label: 'Vào/Ra trực' },
   { value: 'SHIFT_CHANGE', label: 'Đổi ca' },
+  // Trực tối, Live và Vào/Ra trực: SK không dùng (HCNS SK 2026-10-12)
 ];
 
 // Màu cho chip lọc loại đơn. PHẢI viết đủ chuỗi class tĩnh — trước đây dùng
@@ -140,7 +139,6 @@ const Approvals: React.FC = () => {
   // VỪA là QLTT VỪA là HR/Admin (mặc định thấy toàn công ty, khó tìm đúng
   // cấp dưới của mình).
   const [filterOnlyMyDirectReports, setFilterOnlyMyDirectReports] = useState(false);
-  const [isExportingLive, setIsExportingLive] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   const isFetchingRef = useRef<boolean>(false);
   const lastFetchTimeRef = useRef<number>(0);
@@ -596,6 +594,7 @@ const Approvals: React.FC = () => {
     EARLY_LEAVE: 'Về sớm',
     LATE_EARLY: 'Đi muộn/Về sớm',
     INCOMPLETE_ATTENDANCE: 'Quên chấm công',
+    MACHINE_ERROR: 'Lỗi MCC',
     BUSINESS_TRIP: 'Đi công tác',
     FIRST_DAY: 'Ngày đầu đi làm',
     OTHER: 'Giải trình khác',
@@ -2337,30 +2336,6 @@ const Approvals: React.FC = () => {
     setFilterYear(currentYear);
   };
 
-  /**
-   * Xuất Excel danh sách đơn Live đã duyệt trong tháng/năm đang lọc — HCNS
-   * dùng để tự tính tiền live riêng ở ngoài hệ thống cuối tháng.
-   */
-  const handleExportLiveExcel = async () => {
-    setIsExportingLive(true);
-    try {
-      const blob = await attendanceService.exportLiveExcel(singleMonthYear, singleMonth);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `don-live-${singleMonthYear}-${String(singleMonth).padStart(2, '0')}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err: any) {
-      console.error('Export live excel error:', err);
-      alert(err.response?.data?.error || err.message || 'Đã có lỗi xảy ra khi xuất file Excel.');
-    } finally {
-      setIsExportingLive(false);
-    }
-  };
-
   const getTotalFilteredCount = () => getTotalCount();
 
   // ── Cấu hình 2 nhóm tab (xem chú thích ở state `activeSection`) ──────────
@@ -2593,20 +2568,6 @@ const Approvals: React.FC = () => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
               Đơn của tôi
             </button>
-
-            {/* Xuất Excel đơn Live (riêng SK) — giữ nguyên, chỉ đưa về cùng hàng. */}
-            {(isAdmin || isHR) && (
-              <button
-                type="button"
-                onClick={handleExportLiveExcel}
-                disabled={isExportingLive}
-                title="Xuất danh sách đơn Live đã duyệt trong tháng để tự tính tiền live"
-                className="h-[42px] px-3 flex items-center gap-2 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 text-sm font-medium hover:bg-cyan-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                {isExportingLive ? 'Đang xuất...' : 'Xuất Excel Live'}
-              </button>
-            )}
 
             {/* Gom "Xoá loại đơn" + "Đặt lại tất cả" về 1 nút duy nhất. LUÔN
                 chiếm chỗ, chỉ mờ đi khi chưa lọc gì — ẩn/hiện theo
@@ -3103,16 +3064,17 @@ const Approvals: React.FC = () => {
                                                             {item.old_shift_name || 'Chưa ĐK'} → {item.target_shift_name || 'N/A'}
                                                           </span>
                                                         )}
-                                                        {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (
+                                                        {['INCOMPLETE_ATTENDANCE', 'MACHINE_ERROR'].includes(item.explanation_type) && (
                                                           (() => {
                                                             const checkIn = item.actual_check_in || item.forgot_checkin_time;
                                                             const checkOut = item.actual_check_out || item.forgot_checkout_time;
                                                             const punchType = item.forgot_punch_type;
+                                                            const word = item.explanation_type === 'MACHINE_ERROR' ? 'Máy thiếu' : 'Quên';
                                                             const forgotLabel = punchType === 'checkin' || (checkIn && !checkOut)
-                                                              ? 'Quên Check-in'
+                                                              ? `${word} Check-in`
                                                               : punchType === 'checkout' || (!checkIn && checkOut)
-                                                                ? 'Quên Check-out'
-                                                                : 'Quên cả Check-in/out';
+                                                                ? `${word} Check-out`
+                                                                : `${word} cả Check-in/out`;
                                                             return (
                                                               <>
                                                                 <span className="text-xs font-semibold text-violet-700 bg-violet-50 px-2 py-0.5 rounded border border-violet-100 w-fit">
@@ -3253,12 +3215,12 @@ const Approvals: React.FC = () => {
                                                 )}
 
                                                 {(item.late_minutes > 0 || item.early_leave_minutes > 0 || item.penalty_amount > 0
-                                                  || (item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_in || item.forgot_checkin_time || item.actual_check_out || item.forgot_checkout_time))) && (
+                                                  || (['INCOMPLETE_ATTENDANCE', 'MACHINE_ERROR'].includes(item.explanation_type) && (item.actual_check_in || item.forgot_checkin_time || item.actual_check_out || item.forgot_checkout_time))) && (
                                                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                                                     {item.late_minutes > 0 && <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[11px] font-medium rounded border border-amber-100">Muộn {item.late_minutes}m</span>}
                                                     {item.early_leave_minutes > 0 && <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[11px] font-medium rounded border border-amber-100">Về sớm {item.early_leave_minutes}m</span>}
-                                                    {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_in || item.forgot_checkin_time) && <span className="px-2 py-0.5 bg-gray-50 text-gray-600 text-[11px] font-medium rounded border border-gray-200">Vào {(item.actual_check_in || item.forgot_checkin_time)?.substring(0, 5)}</span>}
-                                                    {item.explanation_type === 'INCOMPLETE_ATTENDANCE' && (item.actual_check_out || item.forgot_checkout_time) && <span className="px-2 py-0.5 bg-gray-50 text-gray-600 text-[11px] font-medium rounded border border-gray-200">Ra {(item.actual_check_out || item.forgot_checkout_time)?.substring(0, 5)}</span>}
+                                                    {['INCOMPLETE_ATTENDANCE', 'MACHINE_ERROR'].includes(item.explanation_type) && (item.actual_check_in || item.forgot_checkin_time) && <span className="px-2 py-0.5 bg-gray-50 text-gray-600 text-[11px] font-medium rounded border border-gray-200">Vào {(item.actual_check_in || item.forgot_checkin_time)?.substring(0, 5)}</span>}
+                                                    {['INCOMPLETE_ATTENDANCE', 'MACHINE_ERROR'].includes(item.explanation_type) && (item.actual_check_out || item.forgot_checkout_time) && <span className="px-2 py-0.5 bg-gray-50 text-gray-600 text-[11px] font-medium rounded border border-gray-200">Ra {(item.actual_check_out || item.forgot_checkout_time)?.substring(0, 5)}</span>}
                                                     {item.penalty_amount > 0 && <span className="px-2 py-0.5 bg-rose-500 text-white text-[11px] font-semibold rounded">-{item.penalty_amount.toLocaleString('vi-VN')}</span>}
                                                   </div>
                                                 )}
@@ -3995,8 +3957,8 @@ const Approvals: React.FC = () => {
                                   </div>
                                 )}
 
-                                {/* Hiển thị timeline quên chấm công */}
-                                {selectedExplanation.explanation_type === 'INCOMPLETE_ATTENDANCE' && (
+                                {/* Hiển thị timeline quên chấm công / lỗi máy chấm công */}
+                                {['INCOMPLETE_ATTENDANCE', 'MACHINE_ERROR'].includes(selectedExplanation.explanation_type) && (
                                   <div className="mt-4 p-4 rounded-lg bg-primary-50/50 border border-primary-100 shadow-sm">
                                     <div className="flex items-center gap-3 mb-4">
                                       <div className="flex-shrink-0 w-9 h-9 bg-primary-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-primary-200">
