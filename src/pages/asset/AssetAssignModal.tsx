@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Fragment, useCallback, useMemo } from 'react';
+import { isMultiHolderType } from './assetTypes';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon, UserIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { Asset, assetsAPI, employeesAPI } from '../../utils/api';
@@ -37,8 +38,7 @@ export default function AssetAssignModal({ isOpen, onClose, onSuccess, asset, on
   } | null>(null);
   const [employees, setEmployees] = useState<SelectOption<string>[]>([]);
   const [quantityError, setQuantityError] = useState<string | null>(null);
-  const MULTI_HOLDER_TYPES = ['MONITOR', 'OTHER'];
-  const hasQuantity = MULTI_HOLDER_TYPES.includes(asset.asset_type);
+  const hasQuantity = isMultiHolderType(asset.asset_type);
   const isMultiHolder = hasQuantity && (asset.total_quantity ?? 1) > 1;
   const totalQty = asset.total_quantity ?? 1;
   const remainingQty = asset.remaining_quantity ?? totalQty;

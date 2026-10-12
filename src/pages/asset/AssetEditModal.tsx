@@ -1,4 +1,5 @@
 import React, { Fragment, useState, useEffect } from 'react';
+import AssetTypeInput from './AssetTypeInput';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { assetsAPI, departmentsAPI, employeesAPI, Asset, positionsAPI, companyUnitsAPI } from '../../utils/api';
@@ -163,7 +164,8 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
           });
           setFormData({
             name: fullAsset.name || '',
-            asset_type: fullAsset.asset_type || '',
+            // Hiện nhãn ("Laptop") thay vì mã ("LAPTOP"); BE gom lại về mã khi lưu.
+            asset_type: fullAsset.asset_type_display || fullAsset.asset_type || '',
             model: fullAsset.model || '',
             status: fullAsset.status || 'NEW',
             condition: fullAsset.condition || '',
@@ -203,7 +205,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
           const specs = asset.specifications || {};
           setFormData({
             name: asset.name || '',
-            asset_type: asset.asset_type || '',
+            asset_type: asset.asset_type_display || asset.asset_type || '',
             model: asset.model || '',
             status: asset.status || 'NEW',
             condition: asset.condition || '',
@@ -474,16 +476,7 @@ export default function AssetEditModal({ isOpen, onClose, onSuccess, asset }: As
                           <label htmlFor="asset_type" className="block text-sm font-medium text-gray-700">
                             Phân loại
                           </label>
-                          <input
-                            type="text"
-                            name="asset_type"
-                            id="asset_type"
-                            value={formData.asset_type}
-                            onChange={handleChange}
-                            className="input-field mt-1"
-                            placeholder="VD: Laptop, Máy tính để bàn, Sim..."
-                            maxLength={20}
-                          />
+                          <AssetTypeInput value={formData.asset_type} onChange={handleChange} />
                         </div>
 
                         {/* Tình trạng (Vật lý) — text tự do (SK yêu cầu 2026-09-22) */}

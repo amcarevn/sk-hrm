@@ -36,6 +36,13 @@ export const assetsAPI = {
     return response.data;
   },
 
+  // Các "Phân loại" đang dùng (kèm số tài sản, nhiều nhất trước) + loại chuẩn
+  // chưa dùng — gợi ý khi gõ ô Phân loại để HCNS gõ thống nhất.
+  typeOptions: async (): Promise<Array<{ value: string; label: string; count: number }>> => {
+    const response = await managementApi.get('/api-hrm/assets/type_options/');
+    return response.data;
+  },
+
   getById: async (id: number): Promise<Asset> => {
     const response: AxiosResponse<Asset> = await managementApi.get(`/api-hrm/assets/${id}/`);
     return response.data;
