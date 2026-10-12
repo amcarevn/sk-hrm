@@ -2337,10 +2337,6 @@ const Approvals: React.FC = () => {
     setFilterYear(currentYear);
   };
 
-  /**
-   * Xuất Excel danh sách đơn Live đã duyệt trong tháng/năm đang lọc — HCNS
-   * dùng để tự tính tiền live riêng ở ngoài hệ thống cuối tháng.
-   */
   const getTotalFilteredCount = () => getTotalCount();
 
   // ── Cấu hình 2 nhóm tab (xem chú thích ở state `activeSection`) ──────────
