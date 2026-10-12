@@ -21,7 +21,6 @@ import {
   BoltIcon,
   BriefcaseIcon,
   MoonIcon,
-  VideoCameraIcon,
   HeartIcon,
   ChatBubbleBottomCenterTextIcon,
   ExclamationTriangleIcon,
@@ -518,8 +517,7 @@ const AttendanceManagement: React.FC = () => {
   }[] = [
       { id: 'overtime', label: 'Tăng ca', icon: 'bolt' },
       // { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' }, // tạm ẩn vì có chức năng giống Tăng ca
-      { id: 'night_shift', label: 'Trực tối', icon: 'moon' },
-      // Live và Vào/Ra trực: SK không dùng (HCNS SK 2026-10-12) — backend cũng chặn tạo mới
+      // Trực tối, Live và Vào/Ra trực: SK không dùng (HCNS SK 2026-10-12) — backend cũng chặn tạo mới
       { id: 'shift_change', label: 'Đổi ca', icon: 'swap' },
     ];
 
@@ -2056,21 +2054,6 @@ const AttendanceManagement: React.FC = () => {
             </div>
           </div>
 
-          <div className="group bg-white p-4 rounded-xl border border-slate-100 hover:shadow-md transition-all duration-300">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-slate-50 rounded-lg">
-                <MoonIcon className="h-5 w-5 text-slate-600" />
-              </div>
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-tight">Trực tối</h3>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-slate-600">
-                {calendarSummary?.night_shift_sessions ?? 0}
-              </span>
-              <span className="text-[10px] text-slate-500 font-medium">ca</span>
-            </div>
-          </div>
-
           {/* === Hạn mức còn lại === */}
           {(() => {
             const maxMonthlyLeave = attendanceStats?.max_leave_per_month || 1;
@@ -3269,7 +3252,7 @@ const AttendanceManagement: React.FC = () => {
                                   </div>
                                   <div className="flex-1">
                                     <h4 className="text-base font-semibold text-gray-900">Đơn đăng ký</h4>
-                                    <p className="mt-1 text-sm text-gray-500">Tăng ca, trực tối, đổi ca</p>
+                                    <p className="mt-1 text-sm text-gray-500">Tăng ca, đổi ca</p>
                                   </div>
                                 </div>
                               </button>

@@ -496,7 +496,8 @@ const FormModal: React.FC<{
 // ── Import modal ──────────────────────────────────────────────
 const TEMPLATE_COLUMNS = [
   'Mã nhân viên', 'Số sổ BHXH', 'Mã số BHXH', 'Pháp nhân đóng BHXH',
-  'Ngày bắt đầu', 'Ngày dừng', 'Lương đóng BHXH', 'Tỷ lệ đóng (%)',
+  'Ngày bắt đầu', 'Ngày dừng', 'Lương đóng BHXH',
+  'Tỷ lệ NLĐ (%)', 'Tỷ lệ DN (%)', 'Tỷ lệ đóng (%)',
   'Trạng thái', 'Ghi chú',
 ];
 
@@ -528,10 +529,12 @@ const ImportModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({
         'Mã nhân viên':         'SK00001',
         'Số sổ BHXH':           'SB-001',
         'Mã số BHXH':           '0123456789',
-        'Pháp nhân đóng BHXH':  'META',
+        'Pháp nhân đóng BHXH':  'HHTN',
         'Ngày bắt đầu':         '2026-01-01',
         'Ngày dừng':            '',
         'Lương đóng BHXH':      5000000,
+        'Tỷ lệ NLĐ (%)':        10.5,
+        'Tỷ lệ DN (%)':         21.5,
         'Tỷ lệ đóng (%)':       32,
         'Trạng thái':           'Đang tham gia',
         'Ghi chú':              '',

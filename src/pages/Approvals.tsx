@@ -29,9 +29,8 @@ const EXPLANATION_SUB_TYPES = [
 // Giữ đúng danh sách loại đăng ký của SK (có "Đổi ca" — SK đang dùng).
 const REGISTRATION_SUB_TYPES = [
   { value: 'OVERTIME', label: 'Tăng ca' },
-  { value: 'NIGHT_SHIFT', label: 'Trực tối' },
   { value: 'SHIFT_CHANGE', label: 'Đổi ca' },
-  // Live và Vào/Ra trực: SK không dùng (HCNS SK 2026-10-12)
+  // Trực tối, Live và Vào/Ra trực: SK không dùng (HCNS SK 2026-10-12)
 ];
 
 // Màu cho chip lọc loại đơn. PHẢI viết đủ chuỗi class tĩnh — trước đây dùng
