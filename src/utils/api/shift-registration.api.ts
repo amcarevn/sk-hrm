@@ -4,6 +4,7 @@ import type { ShiftRegistration, ShiftRegistrationLockStatus } from './types';
 export interface ShiftRegistrationDayInput {
   date: string; // YYYY-MM-DD
   shift: number | null; // ShiftConfig id, null = Nghỉ
+  extra_shift?: number | null; // ca online thêm (vd E13), null = không
 }
 
 export interface ShiftRegistrationCreateData {

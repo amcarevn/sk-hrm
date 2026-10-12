@@ -117,3 +117,33 @@ export async function updateManagerExplanationQuotaConfig(data: {
   const response = await managementApi.put('/api-hrm/manager-explanation-quota-config/', data);
   return response.data;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Phạt thiếu công Trưởng phòng không lương cứng (MissingWorkdayPenaltyConfig —
+// singleton, HCNS tự chọn người + mốc lương)
+// ─────────────────────────────────────────────────────────────
+
+export interface MissingWorkdayPenaltyEmployeeDetail extends ManagerExplanationQuotaEmployeeDetail {
+  has_basic_salary: boolean;
+}
+
+export interface MissingWorkdayPenaltyConfig {
+  id: number;
+  eligible_employees: number[];
+  eligible_employees_detail: MissingWorkdayPenaltyEmployeeDetail[];
+  base_amount: string;
+  updated_at: string;
+}
+
+export async function getMissingWorkdayPenaltyConfig(): Promise<MissingWorkdayPenaltyConfig> {
+  const response = await managementApi.get('/api-hrm/missing-workday-penalty-config/');
+  return response.data;
+}
+
+export async function updateMissingWorkdayPenaltyConfig(data: {
+  eligible_employees: number[];
+  base_amount: number;
+}): Promise<MissingWorkdayPenaltyConfig> {
+  const response = await managementApi.put('/api-hrm/missing-workday-penalty-config/', data);
+  return response.data;
+}

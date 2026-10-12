@@ -12,6 +12,7 @@ import {
   NoSymbolIcon,
   ComputerDesktopIcon,
   DocumentTextIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import {
   employeePermissionService,
@@ -23,14 +24,16 @@ import { SelectBox } from '../components/LandingLayout/SelectBox';
 import OvertimeExclusionTab from '../components/OvertimeExclusionTab';
 import OnlineWorkQuotaTab from '../components/OnlineWorkQuotaTab';
 import ManagerExplanationQuotaTab from '../components/ManagerExplanationQuotaTab';
+import MissingWorkdayPenaltyTab from '../components/MissingWorkdayPenaltyTab';
 
-type MainTabKey = 'employees' | 'overtime_exclusion' | 'online_quota' | 'manager_explanation_quota';
+type MainTabKey = 'employees' | 'overtime_exclusion' | 'online_quota' | 'manager_explanation_quota' | 'missing_workday_penalty';
 
 const MAIN_TABS: { key: MainTabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'employees', label: 'Danh sách nhân viên', icon: ShieldCheckIcon },
   { key: 'overtime_exclusion', label: 'Loại trừ tăng ca', icon: NoSymbolIcon },
   { key: 'online_quota', label: 'Hạn mức ngày online', icon: ComputerDesktopIcon },
   { key: 'manager_explanation_quota', label: 'Hạn mức giải trình Trưởng phòng', icon: DocumentTextIcon },
+  { key: 'missing_workday_penalty', label: 'Phạt thiếu công Trưởng phòng', icon: BanknotesIcon },
 ];
 
 const RoleList: React.FC = () => {
@@ -231,6 +234,12 @@ const RoleList: React.FC = () => {
       {activeTab === 'manager_explanation_quota' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
           <ManagerExplanationQuotaTab />
+        </div>
+      )}
+
+      {activeTab === 'missing_workday_penalty' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
+          <MissingWorkdayPenaltyTab />
         </div>
       )}
 

@@ -34,6 +34,10 @@ export interface WorkFinalizationRecord {
   cong_thuc_te: number;
   tong_cong: number;
   tong_phat: number;
+  /** Phạt thiếu công — chỉ TP không lương cứng trong danh sách HCNS chọn (0 với NV khác / bản chốt cũ). */
+  cong_chuan?: number | null;
+  cong_thieu?: number | null;
+  phat_thieu_cong?: number | null;
   tang_ca: number;
   /** Tăng ca trước 20h — chỉ tính cho NV phòng CS Xã Đàn (PB07), vị trí Phụ tá/Lễ tân (VT50/VT53); null với NV khác. */
   tang_ca_truoc_20h?: number | null;

@@ -37,6 +37,8 @@ export interface AttendanceDay {
     holiday_credit?: number;
     penalty_amount: number;
     overtime_hours: number;
+    /** Giờ tăng ca/làm thêm đã duyệt nhưng không tính vì ngày đó quên chấm công. */
+    overtime_blocked_hours?: number;
     extra_hours: number;
     night_shift_sessions: number;
     live_sessions: number;
@@ -1092,6 +1094,21 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 phản ánh phần checkout-muộn của MỘT đơn nên khi ngày có nhiều hơn 1
                 đơn Tăng ca đã duyệt (vd 1 đơn khớp checkout + 1 đơn "Trực trưa"
                 không liên quan checkout), số hiển thị bị thiếu (case TA00289 3/9). */}
+            {/* Quên chấm công thì không tính tăng ca (HCNS SK 2026-10-12) — trừ khi đơn
+                Quên chấm công / Lỗi MCC của ngày đó đã được duyệt. */}
+            {(() => {
+              const blocked = Number(day.engine_context?.overtime_blocked_hours) || 0;
+              if (blocked <= 0) return null;
+              return (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                  <p className="font-semibold">Không tính {blocked} giờ tăng ca</p>
+                  <p className="mt-1">
+                    Ngày này quên chấm công nên đơn tăng ca đã duyệt không được tính. Nếu đơn giải trình
+                    Quên chấm công hoặc Lỗi MCC của ngày này được duyệt thì tăng ca sẽ được tính lại.
+                  </p>
+                </div>
+              );
+            })()}
             {(() => {
               const displayHours = Number(day.engine_context?.overtime_hours) || 0;
               if (displayHours <= 0) return null;

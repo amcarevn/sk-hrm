@@ -133,6 +133,9 @@ const EmployeeListItem = React.memo(({
         <div className="mt-2 flex gap-3 text-xs text-gray-500">
           <span>Công: <strong className="text-gray-700">{rec.tong_cong}</strong></span>
           <span>Phạt: <strong className="text-red-600">{formatNumber(rec.tong_phat)}đ</strong></span>
+          {!!rec.phat_thieu_cong && (
+            <span>Phạt thiếu công: <strong className="text-red-600">{formatNumber(rec.phat_thieu_cong)}đ</strong></span>
+          )}
         </div>
       )}
     </li>
@@ -497,6 +500,8 @@ const WorkFinalization: React.FC = () => {
         { header: 'Làm Việc Online Thử Việc', key: 'lam_viec_online_thu_viec', width: 20 },
         { header: 'Làm Việc Online Chính Thức', key: 'lam_viec_online_chinh_thuc', width: 22 },
         { header: 'Tổng Phạt', key: 'tong_phat', width: 14 },
+        { header: 'Công Thiếu (TP)', key: 'cong_thieu', width: 14 },
+        { header: 'Phạt Thiếu Công', key: 'phat_thieu_cong', width: 16 },
         { header: 'Tăng Ca', key: 'tang_ca', width: 10 },
         { header: 'Tăng Ca Trước 20h', key: 'tang_ca_truoc_20h', width: 16 },
         { header: 'Tăng Ca Sau 20h', key: 'tang_ca_sau_20h', width: 16 },
@@ -547,6 +552,8 @@ const WorkFinalization: React.FC = () => {
           lam_viec_online_thu_viec: rec.lam_viec_online_thu_viec ?? '',
           lam_viec_online_chinh_thuc: rec.lam_viec_online_chinh_thuc ?? '',
           tong_phat: rec.tong_phat,
+          cong_thieu: rec.cong_thieu ? rec.cong_thieu : '',
+          phat_thieu_cong: rec.phat_thieu_cong ? rec.phat_thieu_cong : '',
           tang_ca: rec.tang_ca,
           tang_ca_truoc_20h: rec.tang_ca_truoc_20h ?? '',
           tang_ca_sau_20h: rec.tang_ca_sau_20h ?? '',
@@ -578,7 +585,9 @@ const WorkFinalization: React.FC = () => {
 
         const tongPhatCol = headers.findIndex((h) => h.key === 'tong_phat') + 1;
         const phuCapCol = headers.findIndex((h) => h.key === 'phu_cap_gui_xe') + 1;
+        const phatThieuCongCol = headers.findIndex((h) => h.key === 'phat_thieu_cong') + 1;
         row.getCell(tongPhatCol).numFmt = '#,##0';
+        row.getCell(phatThieuCongCol).numFmt = '#,##0';
         row.getCell(phuCapCol).numFmt = '#,##0';
       });
 
@@ -1338,6 +1347,13 @@ const WorkFinalization: React.FC = () => {
                       { label: 'Live', value: `${finalizedRec.live} ca`, cardCls: 'bg-pink-50', labelCls: 'text-pink-700', valCls: 'text-pink-800 font-bold' },
                       { label: 'PC Gửi xe', value: `${formatNumber(finalizedRec.phu_cap_gui_xe)}đ`, cardCls: 'bg-emerald-50', labelCls: 'text-emerald-700', valCls: 'text-emerald-800 font-bold' },
                       { label: 'Tổng phạt', value: `${formatNumber(finalizedRec.tong_phat)}đ`, cardCls: 'bg-red-50', labelCls: 'text-red-700', valCls: 'text-red-800 font-bold' },
+                      ...(finalizedRec.phat_thieu_cong
+                        ? [{
+                            label: `Phạt thiếu công (${finalizedRec.cong_thieu}/${finalizedRec.cong_chuan} công)`,
+                            value: `${formatNumber(finalizedRec.phat_thieu_cong)}đ`,
+                            cardCls: 'bg-red-50', labelCls: 'text-red-700', valCls: 'text-red-800 font-bold',
+                          }]
+                        : []),
                     ].map((item) => (
                       <div key={item.label} className={`${item.cardCls} rounded-2xl p-3`}>
                         <p className={`text-xs font-medium ${item.labelCls}`}>{item.label}</p>
@@ -1392,7 +1408,7 @@ const WorkFinalization: React.FC = () => {
                       'Công Lễ Thử Việc', 'Công Lễ Chính Thức',
                       'Công Thực Tế', 'Tổng Công', 'Nghỉ Phép',
                       'Làm Việc Online Thử Việc', 'Làm Việc Online Chính Thức',
-                      'Tổng Phạt', 'Tăng Ca',
+                      'Tổng Phạt', 'Phạt Thiếu Công', 'Tăng Ca',
                       'Làm Tối', 'Trực Tối', 'Làm Thêm Giờ', 'Live',
                       'Phụ Cấp Gửi Xe',
                     ].map((h) => (
@@ -1431,6 +1447,7 @@ const WorkFinalization: React.FC = () => {
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.lam_viec_online_thu_viec ?? 0}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.lam_viec_online_chinh_thuc ?? 0}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(rec.tong_phat)}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.phat_thieu_cong ? formatNumber(rec.phat_thieu_cong) : '—'}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.tang_ca}</td>
                         <td className="px-3 py-1.5 text-center border border-gray-200">{rec.lam_toi ?? '—'}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.truc_toi}</td>

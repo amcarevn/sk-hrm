@@ -837,6 +837,9 @@ export interface ShiftConfig {
   working_hours: number;
   shift_type: string;
   shift_type_display: string;
+  fixed_workday?: string | number | null;
+  // Ca online không chấm công (vd E13 trực tối tại nhà) — chọn ở ô "ca tối thêm"
+  no_attendance_required?: boolean;
   apply_to_departments?: number[];
   apply_to_positions?: number[];
   apply_to_employees?: number[];
@@ -856,6 +859,15 @@ export interface ShiftRegistrationDay {
   date: string; // YYYY-MM-DD
   shift: number | null; // ShiftConfig id, null = Nghỉ
   shift_detail?: {
+    id: number;
+    code: string;
+    name: string;
+    start_time: string;
+    end_time: string;
+  } | null;
+  // Ca online thêm cùng ngày (vd E13 trực tối tại nhà, +0.5 công)
+  extra_shift?: number | null;
+  extra_shift_detail?: {
     id: number;
     code: string;
     name: string;
