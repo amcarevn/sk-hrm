@@ -318,6 +318,8 @@ export interface Employee {
   full_name: string;
   /** Chỉ có ở /employees/me/: Phụ tá / Sale tại cơ sở — tạo đơn Làm thêm giờ thay cho Tăng ca. */
   overtime_as_extra_hours?: boolean;
+  /** Chỉ có ở /employees/me/: id ca chính được đăng ký theo phòng ban (null = không giới hạn). */
+  allowed_shift_ids?: number[] | null;
   gender: 'M' | 'F' | 'O';
   date_of_birth?: string;
   phone_number?: string;
