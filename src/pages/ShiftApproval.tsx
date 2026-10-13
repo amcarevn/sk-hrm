@@ -580,6 +580,11 @@ const ShiftApproval: React.FC = () => {
                                 ) : (
                                   <p className="text-sm font-medium text-gray-400 mt-1">Nghỉ</p>
                                 )}
+                                {day.extra_shift_detail && (
+                                  <p className="text-[11px] font-medium text-primary-700 mt-0.5 truncate" title={day.extra_shift_detail.name}>
+                                    + {day.extra_shift_detail.code} {day.extra_shift_detail.name}
+                                  </p>
+                                )}
                               </div>
                             ))}
                         </div>

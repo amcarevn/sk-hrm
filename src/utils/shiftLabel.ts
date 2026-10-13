@@ -11,6 +11,7 @@ const SHIFT_TYPE_LABELS: Record<string, string> = {
   MORNING: 'Ca sáng',
   AFTERNOON: 'Ca chiều',
   FULL_DAY: 'Cả ngày',
+  EVENING: 'Ca tối',
 };
 
 type ShiftLike = {

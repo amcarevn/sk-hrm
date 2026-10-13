@@ -60,6 +60,8 @@ const ShiftRegistration: React.FC = () => {
   const [weekMonday, setWeekMonday] = useState<Date>(() => addDays(getMonday(new Date()), 7));
   const [existingReg, setExistingReg] = useState<ShiftRegistrationType | null>(null);
   const [selections, setSelections] = useState<Record<string, number>>({}); // dateYMD -> shiftId (0 = Nghỉ)
+  // Ca online thêm cùng ngày (vd E13 trực tối tại nhà): dateYMD -> shiftId (0 = không)
+  const [extraSelections, setExtraSelections] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -95,13 +97,20 @@ const ShiftRegistration: React.FC = () => {
     [weekMonday]
   );
 
+  // Ca online không chấm công (vd E13) không chọn ở ô ca chính mà bật thêm bên dưới
+  const onlineShifts = useMemo(
+    () => shifts.filter((s) => s.no_attendance_required && s.is_active !== false),
+    [shifts]
+  );
   const shiftOptions = useMemo(
     () => [
       { value: 0, label: 'Nghỉ' },
-      ...shifts.map((s) => ({
-        value: s.id,
-        label: shiftOptionLabel(s),
-      })),
+      ...shifts
+        .filter((s) => !s.no_attendance_required)
+        .map((s) => ({
+          value: s.id,
+          label: shiftOptionLabel(s),
+        })),
     ],
     [shifts]
   );
@@ -167,15 +176,19 @@ const ShiftRegistration: React.FC = () => {
       setExistingReg(reg);
 
       const sel: Record<string, number> = {};
+      const extra: Record<string, number> = {};
       weekDates.forEach((d) => {
         sel[toYMD(d)] = 0;
+        extra[toYMD(d)] = 0;
       });
       if (reg) {
         reg.days.forEach((day) => {
           sel[day.date] = day.shift ?? 0;
+          extra[day.date] = day.extra_shift ?? 0;
         });
       }
       setSelections(sel);
+      setExtraSelections(extra);
     } catch (err) {
       console.error('Lỗi tải đăng ký tuần:', err);
     } finally {
@@ -187,7 +200,8 @@ const ShiftRegistration: React.FC = () => {
     weekDates.map((d) => {
       const ymd = toYMD(d);
       const v = selections[ymd] || 0;
-      return { date: ymd, shift: v === 0 ? null : v };
+      const extra = extraSelections[ymd] || 0;
+      return { date: ymd, shift: v === 0 ? null : v, extra_shift: extra === 0 ? null : extra };
     });
 
   // Lưu (tạo mới hoặc cập nhật) — trả về bản ghi sau lưu
@@ -424,6 +438,35 @@ const ShiftRegistration: React.FC = () => {
                             </p>
                           ) : null;
                         })()}
+                        {/* Ca online thêm cùng ngày (vd E13 trực tối tại nhà) — cộng thêm công, không chấm công */}
+                        {onlineShifts.length > 0 && (canEdit ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {onlineShifts.map((os) => {
+                              const on = extraSelections[ymd] === os.id;
+                              return (
+                                <button
+                                  key={os.id}
+                                  type="button"
+                                  onClick={() => setExtraSelections((prev) => ({ ...prev, [ymd]: on ? 0 : os.id }))}
+                                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                                    on
+                                      ? 'bg-primary-600 border-primary-600 text-white'
+                                      : 'bg-white border-gray-200 text-gray-600 hover:border-primary-300'
+                                  }`}
+                                  title={shiftNote(os) || undefined}
+                                >
+                                  {on ? '✓ ' : '+ '}{os.name} ({os.code} {os.start_time.slice(0, 5)}–{os.end_time.slice(0, 5)})
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          extraSelections[ymd] ? (
+                            <p className="mt-1 text-xs text-gray-600">
+                              + {onlineShifts.find((o) => o.id === extraSelections[ymd])?.name || 'Ca online'}
+                            </p>
+                          ) : null
+                        ))}
                       </div>
                     </div>
                   );
