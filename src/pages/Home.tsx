@@ -344,10 +344,9 @@ const Home: React.FC = () => {
         if (myOb?.id) {
           const fullOb = await onboardingService.get(myOb.id);
           setOnboarding(fullOb);
-          const unread = (fullOb.documents || []).filter(
-            (d: any) => d.document_type === 'REGULATION' && d.is_required && !d.is_read
-          );
-          if (unread.length > 0) setShowDocGate(true);
+          // Tắt popup bắt buộc đọc nội quy (2026-10-13): nội quy upload dạng .docx không
+          // xem được trong trang -> không bấm "Đánh dấu đã đọc" được, cả hệ thống bị chặn.
+          // Tài liệu cần đọc vẫn hiện ở mục "Tài liệu cần đọc" trên trang chủ.
         }
       } catch (err) {
         // Không có onboarding — bỏ qua
