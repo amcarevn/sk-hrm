@@ -57,6 +57,8 @@ const ShiftRegistration: React.FC = () => {
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const [noProfile, setNoProfile] = useState(false);
   const [shifts, setShifts] = useState<ShiftConfig[]>([]);
+  // Ca chính được đăng ký theo phòng ban (HCNS SK 2026-10-13) — null = không giới hạn.
+  const [allowedShiftIds, setAllowedShiftIds] = useState<number[] | null>(null);
   const [weekMonday, setWeekMonday] = useState<Date>(() => addDays(getMonday(new Date()), 7));
   const [existingReg, setExistingReg] = useState<ShiftRegistrationType | null>(null);
   const [selections, setSelections] = useState<Record<string, number>>({}); // dateYMD -> shiftId (0 = Nghỉ)
@@ -102,18 +104,21 @@ const ShiftRegistration: React.FC = () => {
     () => shifts.filter((s) => s.no_attendance_required && s.is_active !== false),
     [shifts]
   );
-  const shiftOptions = useMemo(
-    () => [
+  const shiftOptions = useMemo(() => {
+    // Chỉ hiện ca của phòng ban; ca đã chọn sẵn từ trước (đơn cũ) vẫn giữ để hiển thị.
+    const selected = new Set(Object.values(selections));
+    const allowed = allowedShiftIds ? new Set(allowedShiftIds) : null;
+    return [
       { value: 0, label: 'Nghỉ' },
       ...shifts
         .filter((s) => !s.no_attendance_required)
+        .filter((s) => !allowed || allowed.has(s.id) || selected.has(s.id))
         .map((s) => ({
           value: s.id,
           label: shiftOptionLabel(s),
         })),
-    ],
-    [shifts]
-  );
+    ];
+  }, [shifts, allowedShiftIds, selections]);
 
   // Hạn đăng ký: hết Thứ 6 (23:59) tuần liền trước
   const deadline = useMemo(() => {
@@ -142,6 +147,7 @@ const ShiftRegistration: React.FC = () => {
           companyConfigAPI.listShiftConfigs({ page_size: 200 }),
         ]);
         setEmployeeId(me.id);
+        setAllowedShiftIds(me.allowed_shift_ids ?? null);
         setShifts(shiftRes.results || []);
       } catch (err: any) {
         if (err?.response?.status === 404) {
