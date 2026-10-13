@@ -147,3 +147,46 @@ export async function updateMissingWorkdayPenaltyConfig(data: {
   const response = await managementApi.put('/api-hrm/missing-workday-penalty-config/', data);
   return response.data;
 }
+
+// Chế độ con nhỏ (ChildCareRegime — HCNS SK 2026-10-13): người hưởng kèm khoảng ngày,
+// mỗi ngày được đi muộn tối đa 60' và về sớm tối đa 60'.
+export interface ChildCareRegime {
+  id: number;
+  employee: number;
+  employee_code: string;
+  employee_name: string;
+  department_name: string | null;
+  position_title: string | null;
+  start_date: string;
+  end_date: string | null;
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listChildCareRegimes(): Promise<ChildCareRegime[]> {
+  const response = await managementApi.get('/api-hrm/child-care-regimes/');
+  return Array.isArray(response.data) ? response.data : response.data.results ?? [];
+}
+
+export async function createChildCareRegime(data: {
+  employee: number;
+  start_date: string;
+  end_date: string | null;
+  note?: string;
+}): Promise<ChildCareRegime> {
+  const response = await managementApi.post('/api-hrm/child-care-regimes/', data);
+  return response.data;
+}
+
+export async function updateChildCareRegime(
+  id: number,
+  data: Partial<Pick<ChildCareRegime, 'start_date' | 'end_date' | 'note'>>,
+): Promise<ChildCareRegime> {
+  const response = await managementApi.patch(`/api-hrm/child-care-regimes/${id}/`, data);
+  return response.data;
+}
+
+export async function deleteChildCareRegime(id: number): Promise<void> {
+  await managementApi.delete(`/api-hrm/child-care-regimes/${id}/`);
+}

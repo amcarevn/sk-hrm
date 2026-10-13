@@ -13,6 +13,7 @@ import {
   ComputerDesktopIcon,
   DocumentTextIcon,
   BanknotesIcon,
+  HeartIcon,
 } from '@heroicons/react/24/outline';
 import {
   employeePermissionService,
@@ -25,8 +26,9 @@ import OvertimeExclusionTab from '../components/OvertimeExclusionTab';
 import OnlineWorkQuotaTab from '../components/OnlineWorkQuotaTab';
 import ManagerExplanationQuotaTab from '../components/ManagerExplanationQuotaTab';
 import MissingWorkdayPenaltyTab from '../components/MissingWorkdayPenaltyTab';
+import ChildCareRegimeTab from '../components/ChildCareRegimeTab';
 
-type MainTabKey = 'employees' | 'overtime_exclusion' | 'online_quota' | 'manager_explanation_quota' | 'missing_workday_penalty';
+type MainTabKey = 'employees' | 'overtime_exclusion' | 'online_quota' | 'manager_explanation_quota' | 'missing_workday_penalty' | 'child_care';
 
 const MAIN_TABS: { key: MainTabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'employees', label: 'Danh sách nhân viên', icon: ShieldCheckIcon },
@@ -34,6 +36,7 @@ const MAIN_TABS: { key: MainTabKey; label: string; icon: React.ComponentType<{ c
   { key: 'online_quota', label: 'Hạn mức ngày online', icon: ComputerDesktopIcon },
   { key: 'manager_explanation_quota', label: 'Hạn mức giải trình Trưởng phòng', icon: DocumentTextIcon },
   { key: 'missing_workday_penalty', label: 'Phạt thiếu công Trưởng phòng', icon: BanknotesIcon },
+  { key: 'child_care', label: 'Chế độ con nhỏ', icon: HeartIcon },
 ];
 
 const RoleList: React.FC = () => {
@@ -240,6 +243,12 @@ const RoleList: React.FC = () => {
       {activeTab === 'missing_workday_penalty' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
           <MissingWorkdayPenaltyTab />
+        </div>
+      )}
+
+      {activeTab === 'child_care' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
+          <ChildCareRegimeTab />
         </div>
       )}
 

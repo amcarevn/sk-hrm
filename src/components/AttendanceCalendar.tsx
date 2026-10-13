@@ -39,6 +39,8 @@ export interface AttendanceDay {
     overtime_hours: number;
     /** Giờ tăng ca/làm thêm đã duyệt nhưng không tính vì ngày đó quên chấm công. */
     overtime_blocked_hours?: number;
+    /** Ngày NV hưởng chế độ con nhỏ (được muộn/sớm thêm 60 phút mỗi chiều). */
+    child_care?: boolean;
     extra_hours: number;
     night_shift_sessions: number;
     live_sessions: number;
@@ -1094,6 +1096,16 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                 phản ánh phần checkout-muộn của MỘT đơn nên khi ngày có nhiều hơn 1
                 đơn Tăng ca đã duyệt (vd 1 đơn khớp checkout + 1 đơn "Trực trưa"
                 không liên quan checkout), số hiển thị bị thiếu (case TA00289 3/9). */}
+            {/* Chế độ con nhỏ (HCNS SK 2026-10-13) — HCNS chọn người ở Quản lý phân quyền. */}
+            {day.engine_context?.child_care && (
+              <div className="rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-xs text-pink-800">
+                <p className="font-semibold">Chế độ con nhỏ</p>
+                <p className="mt-1">
+                  Ngày này được đi muộn tối đa 60 phút và về sớm tối đa 60 phút mà không tính lỗi. Chỉ phần vượt
+                  60 phút mới tính là đi muộn / về sớm.
+                </p>
+              </div>
+            )}
             {/* Quên chấm công thì không tính tăng ca (HCNS SK 2026-10-12) — trừ khi đơn
                 Quên chấm công / Lỗi MCC của ngày đó đã được duyệt. */}
             {(() => {

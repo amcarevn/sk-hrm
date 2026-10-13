@@ -316,6 +316,8 @@ export interface Employee {
   id: number;
   employee_id: string;
   full_name: string;
+  /** Chỉ có ở /employees/me/: Phụ tá / Sale tại cơ sở — tạo đơn Làm thêm giờ thay cho Tăng ca. */
+  overtime_as_extra_hours?: boolean;
   gender: 'M' | 'F' | 'O';
   date_of_birth?: string;
   phone_number?: string;

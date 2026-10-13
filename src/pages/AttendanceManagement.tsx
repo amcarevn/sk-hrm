@@ -515,8 +515,12 @@ const AttendanceManagement: React.FC = () => {
     label: string;
     icon: string;
   }[] = [
-      { id: 'overtime', label: 'Tăng ca', icon: 'bolt' },
-      // { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' }, // tạm ẩn vì có chức năng giống Tăng ca
+      // Phụ tá / Sale tại cơ sở (PB05/06/07) không tính tăng ca, chỉ tính làm thêm giờ
+      // (HCNS SK 2026-10-13) — backend cũng chặn đơn Tăng ca của nhóm này. Người khác
+      // vẫn chỉ thấy Tăng ca (Làm thêm giờ ẩn vì chức năng giống Tăng ca).
+      currentEmployee?.overtime_as_extra_hours
+        ? { id: 'extra_hours', label: 'Làm thêm giờ', icon: 'clock' }
+        : { id: 'overtime', label: 'Tăng ca', icon: 'bolt' },
       // Trực tối, Live và Vào/Ra trực: SK không dùng (HCNS SK 2026-10-12) — backend cũng chặn tạo mới
       { id: 'shift_change', label: 'Đổi ca', icon: 'swap' },
     ];
@@ -2262,6 +2266,29 @@ const AttendanceManagement: React.FC = () => {
                     <div className="mb-6 p-3 bg-red-50/50 border border-red-100 rounded-xl flex items-center gap-2 text-xs text-red-700 italic">
                       <ExclamationCircleIcon className="h-4 w-4 shrink-0" />
                       Lưu ý: Số tiền phạt được hệ thống tự động tính dựa trên quy định đi muộn/về sớm của công ty.
+                    </div>
+                  )}
+
+                  {/* Chế độ con nhỏ (HCNS SK 2026-10-13) — HCNS chọn người ở Quản lý phân quyền. */}
+                  {selectedDayData?.engine_context?.child_care && (
+                    <div className="mb-4 rounded-xl border border-pink-200 bg-pink-50 px-4 py-3 text-xs text-pink-800">
+                      <p className="font-semibold">Chế độ con nhỏ</p>
+                      <p className="mt-1">
+                        Ngày này được đi muộn tối đa 60 phút và về sớm tối đa 60 phút mà không tính lỗi. Chỉ phần vượt
+                        60 phút mới tính là đi muộn / về sớm.
+                      </p>
+                    </div>
+                  )}
+                  {/* Quên chấm công thì không tính tăng ca (HCNS SK 2026-10-12). */}
+                  {Number(selectedDayData?.engine_context?.overtime_blocked_hours) > 0 && (
+                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+                      <p className="font-semibold">
+                        Không tính {Number(selectedDayData.engine_context.overtime_blocked_hours)} giờ tăng ca
+                      </p>
+                      <p className="mt-1">
+                        Ngày này quên chấm công nên đơn tăng ca đã duyệt không được tính. Nếu đơn giải trình Quên chấm
+                        công hoặc Lỗi MCC của ngày này được duyệt thì tăng ca sẽ được tính lại.
+                      </p>
                     </div>
                   )}
 
