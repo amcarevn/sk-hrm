@@ -205,7 +205,10 @@ const RoleList: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex border-b border-gray-200 overflow-x-auto">
+      {/* shrink-0: khung trang là flex-col bị giới hạn chiều cao (lg:min-h-0); thanh tab
+          có overflow-x-auto nên trình duyệt cho co về 0 khi nội dung tab dài (vd Hạn mức
+          ngày online nhiều dòng) — mất thanh tab, không chuyển tab được. */}
+      <div className="flex shrink-0 border-b border-gray-200 overflow-x-auto">
         {MAIN_TABS.map(tab => (
           <button
             key={tab.key}
