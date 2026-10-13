@@ -12,7 +12,6 @@ import {
   NoSymbolIcon,
   ComputerDesktopIcon,
   DocumentTextIcon,
-  BanknotesIcon,
   HeartIcon,
 } from '@heroicons/react/24/outline';
 import {
@@ -24,18 +23,17 @@ import { employeesAPI } from '../utils/api';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import OvertimeExclusionTab from '../components/OvertimeExclusionTab';
 import OnlineWorkQuotaTab from '../components/OnlineWorkQuotaTab';
-import ManagerExplanationQuotaTab from '../components/ManagerExplanationQuotaTab';
-import MissingWorkdayPenaltyTab from '../components/MissingWorkdayPenaltyTab';
+import ManagerPoliciesTab from '../components/ManagerPoliciesTab';
 import ChildCareRegimeTab from '../components/ChildCareRegimeTab';
 
-type MainTabKey = 'employees' | 'overtime_exclusion' | 'online_quota' | 'manager_explanation_quota' | 'missing_workday_penalty' | 'child_care';
+type MainTabKey = 'employees' | 'overtime_exclusion' | 'online_quota' | 'manager_policies' | 'child_care';
 
 const MAIN_TABS: { key: MainTabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: 'employees', label: 'Danh sách nhân viên', icon: ShieldCheckIcon },
   { key: 'overtime_exclusion', label: 'Loại trừ tăng ca', icon: NoSymbolIcon },
   { key: 'online_quota', label: 'Hạn mức ngày online', icon: ComputerDesktopIcon },
-  { key: 'manager_explanation_quota', label: 'Hạn mức giải trình Trưởng phòng', icon: DocumentTextIcon },
-  { key: 'missing_workday_penalty', label: 'Phạt thiếu công Trưởng phòng', icon: BanknotesIcon },
+  // Giải trình gộp + Phạt thiếu công: cùng là danh sách Trưởng phòng HCNS tự chọn.
+  { key: 'manager_policies', label: 'Chế độ Trưởng phòng', icon: DocumentTextIcon },
   { key: 'child_care', label: 'Chế độ con nhỏ', icon: HeartIcon },
 ];
 
@@ -237,15 +235,9 @@ const RoleList: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'manager_explanation_quota' && (
+      {activeTab === 'manager_policies' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
-          <ManagerExplanationQuotaTab />
-        </div>
-      )}
-
-      {activeTab === 'missing_workday_penalty' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
-          <MissingWorkdayPenaltyTab />
+          <ManagerPoliciesTab />
         </div>
       )}
 
