@@ -27,9 +27,19 @@ interface Props {
   downloadName?: string;
 }
 
+/** File không phải PDF (vd .docx): iframe không hiển thị được mà trình duyệt tải luôn
+ *  file về, khung để trắng và onLoad không bao giờ chạy. */
+const isNonPdfFile = (src: string): boolean => {
+  if (src.startsWith('blob:')) return false;
+  const path = src.split(/[?#]/)[0].toLowerCase();
+  const ext = path.includes('.') ? path.slice(path.lastIndexOf('.') + 1) : '';
+  return ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'rtf'].includes(ext);
+};
+
 /** Hiển thị PDF: iframe nếu trình duyệt hỗ trợ, ngược lại là nút mở tài liệu. */
 export default function PdfFrame({ src, title, className = 'w-full h-full border-0', onLoad, downloadName }: Props) {
-  if (canShowPdfInline()) {
+  const nonPdf = isNonPdfFile(src);
+  if (!nonPdf && canShowPdfInline()) {
     return <iframe src={src} title={title} className={className} onLoad={onLoad} />;
   }
 
@@ -38,7 +48,9 @@ export default function PdfFrame({ src, title, className = 'w-full h-full border
     <div className={`${className} flex flex-col items-center justify-center gap-3 p-6 text-center bg-gray-100`}>
       <DocumentTextIcon className="h-10 w-10 text-gray-400" />
       <p className="max-w-xs text-sm text-gray-600">
-        Trình duyệt trên điện thoại này không hiển thị PDF ngay trong trang. Bấm nút bên dưới để mở tài liệu.
+        {nonPdf
+          ? 'Tài liệu dạng Word/Excel không xem trực tiếp trong trang được. Bấm nút bên dưới để tải về và đọc.'
+          : 'Trình duyệt trên điện thoại này không hiển thị PDF ngay trong trang. Bấm nút bên dưới để mở tài liệu.'}
       </p>
       <a
         href={src}
@@ -49,7 +61,7 @@ export default function PdfFrame({ src, title, className = 'w-full h-full border
         className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
       >
         <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-        Mở tài liệu
+        {nonPdf ? 'Tải tài liệu về' : 'Mở tài liệu'}
       </a>
     </div>
   );
