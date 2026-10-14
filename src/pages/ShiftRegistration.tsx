@@ -105,14 +105,15 @@ const ShiftRegistration: React.FC = () => {
     [shifts]
   );
   const shiftOptions = useMemo(() => {
-    // Chỉ hiện ca của phòng ban; ca đã chọn sẵn từ trước (đơn cũ) vẫn giữ để hiển thị.
+    // Chỉ hiện ca đang áp dụng của phòng ban (ca đã ngừng — vd ca con nhỏ cũ — bị ẩn);
+    // ca đã chọn sẵn từ trước (đơn cũ) vẫn giữ để hiển thị.
     const selected = new Set(Object.values(selections));
     const allowed = allowedShiftIds ? new Set(allowedShiftIds) : null;
     return [
       { value: 0, label: 'Nghỉ' },
       ...shifts
         .filter((s) => !s.no_attendance_required)
-        .filter((s) => !allowed || allowed.has(s.id) || selected.has(s.id))
+        .filter((s) => selected.has(s.id) || (s.is_active !== false && (!allowed || allowed.has(s.id))))
         .map((s) => ({
           value: s.id,
           label: shiftOptionLabel(s),
