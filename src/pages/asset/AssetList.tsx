@@ -592,8 +592,9 @@ export default function AssetList() {
         </div>
       </div>
 
-      {/* Sticky wrapper: Stats + Filters */}
-      <div className="md:sticky md:top-16 md:z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 py-4 bg-gray-50/95 backdrop-blur space-y-4">
+      {/* Stats + Filters — KHÔNG sticky: khối này cao (thống kê + 2 hàng filter), ghim lại
+          thì cuộn xuống nó che mất phần bảng. Bảng có khung cuộn riêng + tiêu đề cột cố định. */}
+      <div className="-mx-4 px-4 sm:-mx-6 sm:px-6 py-4 space-y-4">
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
