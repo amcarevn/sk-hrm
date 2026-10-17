@@ -333,7 +333,8 @@ const AttendanceManagement: React.FC = () => {
   const [selectedContext, setSelectedContext] = useState<ContextType>(null);
   const [selectedReason, setSelectedReason] = useState<ReasonType>(null);
   const [businessTripShift, setBusinessTripShift] = useState<'morning' | 'afternoon' | 'full_day' | null>(null);
-  const [firstDayShift, setFirstDayShift] = useState<'morning' | 'afternoon' | 'full_day' | null>(null);
+  // Đơn ngày đầu đi làm: làm cả ngày (1 công) hay nửa ngày (0.5 công) — HCNS SK 2026-10-17
+  const [firstDayShift, setFirstDayShift] = useState<'full_day' | 'half_day' | null>(null);
   const [formNote, setFormNote] = useState('');
 
   // Overtime (Tăng ca) state
@@ -580,12 +581,18 @@ const AttendanceManagement: React.FC = () => {
     // dễ khiến NV không thuộc phạm vi áp dụng của ca nào bị trả về danh sách rỗng
     // (vd chưa có ca is_default). Đổi ca thường là đổi SANG 1 ca khác ca thường
     // ngày của mình nên không nên giới hạn theo "ca của riêng NV này".
+    // Nhưng vẫn khoá theo ca cố định của phòng ban như trang Đăng ký ca làm
+    // (allowed_shift_ids từ /employees/me/, null = không giới hạn); ca online cộng
+    // thêm (vd E13) không thuộc quy định phòng ban.
     if (reason === 'shift_change' && currentEmployee) {
       setShiftChangeOptionsLoading(true);
+      const allowed = currentEmployee.allowed_shift_ids ? new Set(currentEmployee.allowed_shift_ids) : null;
       companyConfigAPI
         .listShiftConfigs({ page_size: 200, is_active: true })
         .then((res: any) => {
-          const list = res?.results || [];
+          const list = (res?.results || []).filter(
+            (s: any) => s.is_active !== false && (!allowed || s.no_attendance_required || allowed.has(s.id))
+          );
           setShiftChangeOptions(
             list.map((s: any) => ({
               value: String(s.id),
@@ -1288,7 +1295,7 @@ const AttendanceManagement: React.FC = () => {
         return;
       }
       if (selectedReason === 'first_day' && !firstDayShift) {
-        showNotify('error', 'Thiếu thông tin', 'Vui lòng chọn ca (sáng/chiều/cả ngày) cho đơn ngày đầu đi làm');
+        showNotify('error', 'Thiếu thông tin', 'Vui lòng chọn làm cả ngày hay nửa ngày cho đơn ngày đầu đi làm');
         setIsSubmitting(false);
         return;
       }
@@ -1305,9 +1312,8 @@ const AttendanceManagement: React.FC = () => {
           reasonLabel = btShiftMap[businessTripShift || ''] || 'Đi công tác';
         } else if (selectedReason === 'first_day') {
           const fdShiftMap: Record<string, string> = {
-            morning: 'Ngày đầu đi làm ca sáng',
-            afternoon: 'Ngày đầu đi làm ca chiều',
             full_day: 'Ngày đầu đi làm cả ngày',
+            half_day: 'Ngày đầu đi làm nửa ngày',
           };
           reasonLabel = fdShiftMap[firstDayShift || ''] || 'Ngày đầu đi làm';
         } else {
@@ -1351,7 +1357,7 @@ const AttendanceManagement: React.FC = () => {
         else if (businessTripShift === 'morning' || businessTripShift === 'afternoon') expectedStatus = 'HALF_DAY';
       } else if (selectedReason === 'first_day') {
         if (firstDayShift === 'full_day') expectedStatus = 'ABSENT';
-        else if (firstDayShift === 'morning' || firstDayShift === 'afternoon') expectedStatus = 'HALF_DAY';
+        else if (firstDayShift === 'half_day') expectedStatus = 'HALF_DAY';
       }
 
       let result;
@@ -1518,6 +1524,10 @@ const AttendanceManagement: React.FC = () => {
           explanation_type: explanationType,
           status: 'PENDING',
         };
+        // Ngày đầu đi làm: backend tính 1 công (FULL_DAY) hoặc 0.5 công (HALF_DAY)
+        if (explanationType === 'FIRST_DAY' && firstDayShift) {
+          explanationData.work_portion = firstDayShift === 'half_day' ? 'HALF_DAY' : 'FULL_DAY';
+        }
 
         if (explanationType === 'INCOMPLETE_ATTENDANCE' || explanationType === 'MACHINE_ERROR') {
           // Validate: phải chọn giờ bị quên (Lỗi MCC: giờ đã chấm mà máy không ghi nhận)
@@ -3626,13 +3636,12 @@ const AttendanceManagement: React.FC = () => {
                     {selectedContext === 'explanation' && selectedReason === 'first_day' && (
                       <div className="space-y-3 mb-4 animate-fadeIn">
                         <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                          Chọn ca
+                          Thời gian làm việc
                         </h3>
                         <div className="flex flex-wrap gap-3">
                           {[
-                            { id: 'morning' as const, label: 'Ca sáng' },
-                            { id: 'afternoon' as const, label: 'Ca chiều' },
-                            { id: 'full_day' as const, label: 'Cả ngày' },
+                            { id: 'full_day' as const, label: 'Làm cả ngày (1 công)' },
+                            { id: 'half_day' as const, label: 'Làm nửa ngày (0.5 công)' },
                           ].map((shift) => {
                             const isSelected = firstDayShift === shift.id;
                             return (
