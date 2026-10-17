@@ -1134,9 +1134,15 @@ const AttendanceManagement: React.FC = () => {
             const modelId = existing.data?.id || existing.id;
             const existingType = (existing.event_type || '').toLowerCase();
             const isExistingReg = ['overtime', 'extra_hours', 'night_shift', 'live', 'off_duty', 'shift_change'].includes(existingType);
+            // Nghỉ phép tháng và Tăng ca / Làm thêm giờ được tồn tại song song trong cùng
+            // ngày (HCNS SK 2026-10-17: xin nghỉ rồi có việc đột xuất vẫn đi làm vài
+            // tiếng) — gửi đơn này không được tự huỷ đơn kia.
+            const isExtraWorkReg = existingType === 'overtime' || existingType === 'extra_hours';
+            const isSubmittingExtraWork = selectedReason === 'overtime' || selectedReason === 'extra_hours';
 
-            // A. Nếu đang gửi Nghỉ phép tháng: Xóa hết
+            // A. Nếu đang gửi Nghỉ phép tháng: Xóa hết (trừ Tăng ca / Làm thêm giờ)
             if (selectedContext === 'monthly_leave') {
+              if (isExtraWorkReg) continue;
               console.log(`Global Overwrite: Deleting existing pending ${existingType} due to Leave`);
               if (existingType === 'online_work') {
                 await attendanceService.deleteOnlineWorkRequest(modelId);
@@ -1225,8 +1231,9 @@ const AttendanceManagement: React.FC = () => {
                   await attendanceService.deleteMonthlyLeaveRequest(modelId);
                 }
               }
-              // Nếu đăng ký OT/Trực...: Xóa Nghỉ phép (nhưng vẫn cho phép Online)
-              else {
+              // Nếu đăng ký Trực/Live...: Xóa Nghỉ phép (nhưng vẫn cho phép Online);
+              // Tăng ca / Làm thêm giờ thì giữ nguyên Nghỉ phép.
+              else if (!isSubmittingExtraWork) {
                 if (existingType === 'explanation' && existing.data?.explanation_type === 'LEAVE') {
                   await attendanceService.deleteMonthlyLeaveRequest(modelId);
                 }
