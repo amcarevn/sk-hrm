@@ -317,10 +317,6 @@ const navigationItems: NavigationItem[] = [
         name: 'Hợp đồng hàng loạt',
         href: '/dashboard/bulk-contracts',
         icon: DocumentTextIcon,
-        // Ẩn: App.tsx không có route này và backend SK chưa có các API của tính
-        // năng (generate_and_confirm / mark_signed / cancel_contract) — chỉ bên
-        // Trung Anh làm. Bấm vào trước đây ra trang trắng.
-        hidden: true,
         roles: ['ADMIN', 'HR'],
       },
       {

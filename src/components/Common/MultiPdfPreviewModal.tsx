@@ -6,8 +6,10 @@ import {
   PrinterIcon,
   ArrowTopRightOnSquareIcon,
   CheckCircleIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { managementApi } from '../../utils/api';
+import ContractPlaceholderModal from '../../pages/ContractPlaceholderModal';
 
 export interface ContractPreviewItem {
   id: number;
@@ -29,6 +31,8 @@ const MultiPdfPreviewModal: React.FC<Props> = ({ open, contracts, onClose }) => 
   // printAll state: null = idle, number = đang tải thứ N, 'done' = xong
   const [printAllProgress, setPrintAllProgress] = useState<number | null>(null);
   const urlCache = useRef<Record<number, string>>({});
+  // ID HĐ đang được mở để chỉnh sửa trường — null nghĩa là không mở edit modal
+  const [editingContractId, setEditingContractId] = useState<number | null>(null);
 
   useEffect(() => {
     if (open && contracts.length > 0) {
@@ -93,6 +97,21 @@ const MultiPdfPreviewModal: React.FC<Props> = ({ open, contracts, onClose }) => 
       return url;
     } catch {
       return null;
+    }
+  };
+
+  // Sau khi HR sửa trường + generate lại PDF → invalidate cache + force reload PDF preview
+  const handleEditSaved = (contractId: number) => {
+    const cached = urlCache.current[contractId];
+    if (cached) {
+      URL.revokeObjectURL(cached);
+      delete urlCache.current[contractId];
+    }
+    setEditingContractId(null);
+    // Trigger reload: nếu đang chọn contract này thì re-fetch
+    if (selectedId === contractId) {
+      setSelectedId(null);
+      setTimeout(() => setSelectedId(contractId), 0);
     }
   };
 
@@ -222,15 +241,27 @@ const MultiPdfPreviewModal: React.FC<Props> = ({ open, contracts, onClose }) => 
                 <p className="text-xs text-gray-500 truncate">
                   {selected?.employee_name} — {selected?.template_name}
                 </p>
-                <a
-                  href={pdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 px-3 py-1 text-xs text-gray-600 border border-gray-300 rounded-md hover:bg-white flex-shrink-0 ml-2"
-                >
-                  <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
-                  Mở tab mới
-                </a>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                  <button
+                    type="button"
+                    onClick={() => selectedId && setEditingContractId(selectedId)}
+                    disabled={!selectedId}
+                    title="Sửa các trường rồi tạo lại PDF"
+                    className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 hover:border-amber-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <PencilSquareIcon className="w-3.5 h-3.5" />
+                    Sửa thông tin
+                  </button>
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1 text-xs text-gray-600 border border-gray-300 rounded-md hover:bg-white"
+                  >
+                    <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                    Mở tab mới
+                  </a>
+                </div>
               </div>
             )}
 
@@ -274,6 +305,15 @@ const MultiPdfPreviewModal: React.FC<Props> = ({ open, contracts, onClose }) => 
 
         </div>
       </div>
+
+      {/* Modal sửa các field placeholder → tạo lại PDF với giá trị mới */}
+      {editingContractId !== null && (
+        <ContractPlaceholderModal
+          contractId={editingContractId}
+          onClose={() => setEditingContractId(null)}
+          onSuccess={() => handleEditSaved(editingContractId)}
+        />
+      )}
     </div>
   );
 };
