@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import MultiPdfPreviewModal, { ContractPreviewItem } from '../components/Common/MultiPdfPreviewModal';
 import PdfPreviewModal from '../components/Common/PdfPreviewModal';
+import ContractPlaceholderModal from './ContractPlaceholderModal';
 import { SelectBox, MultiSelectBox, SelectOption } from '../components/LandingLayout/SelectBox';
 import ConfirmDialog from '../components/ConfirmDialog';
 
@@ -54,7 +55,12 @@ type Employee = {
   department_name: string | null;
   department: { id: number; name: string; code: string } | null;
   is_active: boolean;
+  employment_status?: 'ACTIVE' | 'SUSPENDED' | 'PAUSED' | 'INACTIVE';
 };
+
+/** Nhân viên đã nghỉ việc — không cần cảnh báo hết hạn hợp đồng. */
+const isResigned = (e: Employee): boolean =>
+  e.is_active === false || e.employment_status === 'INACTIVE';
 
 type ContractTemplate = {
   id: number;
@@ -90,7 +96,6 @@ type RowState = {
   template: ContractTemplate | null;
   start_date: string;
   end_date: string;
-  override: boolean;
 };
 
 type RowResult = 'success' | 'error' | 'pending';
@@ -118,6 +123,7 @@ const BulkContracts: React.FC = () => {
   const [showMultiPreview, setShowMultiPreview] = useState(false);
   const [showSelectedPreview, setShowSelectedPreview] = useState(false);
   const [singlePreview, setSinglePreview] = useState<{ id: number; name: string } | null>(null);
+  const [placeholderModal, setPlaceholderModal] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [signingId, setSigningId] = useState<number | null>(null);
   const [signingAll, setSigningAll] = useState(false);
@@ -129,10 +135,10 @@ const BulkContracts: React.FC = () => {
   const [bulkTemplate, setBulkTemplate] = useState<ContractTemplate | null>(null);
   const [bulkStartDate, setBulkStartDate] = useState('');
   const [bulkEndDate, setBulkEndDate] = useState('');
-  const [bulkOverride, setBulkOverride] = useState(false);
   const [filterUnit, setFilterUnit] = useState('');
   const [filterDept, setFilterDept] = useState('');
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarHeight, setToolbarHeight] = useState(0);
@@ -171,7 +177,7 @@ const BulkContracts: React.FC = () => {
         const tplList: ContractTemplate[] = Array.isArray(tplRes.data) ? tplRes.data : tplRes.data.results || [];
         setEmployees(empList);
         setTemplates(tplList);
-        setRows(empList.map((e) => ({ employeeId: e.id, selected: false, template: null, start_date: '', end_date: '', override: false })));
+        setRows(empList.map((e) => ({ employeeId: e.id, selected: false, template: null, start_date: '', end_date: '' })));
         await fetchContractsMap();
       } finally {
         setLoading(false);
@@ -181,9 +187,13 @@ const BulkContracts: React.FC = () => {
   }, [fetchContractsMap]);
 
   const selectedRows = useMemo(() => rows.filter((r) => r.selected), [rows]);
-  const canCreate = useMemo(
-    () => selectedRows.length > 0 && selectedRows.every((r) => r.template !== null),
+  const missingTemplateCount = useMemo(
+    () => selectedRows.filter((r) => r.template === null).length,
     [selectedRows]
+  );
+  const canCreate = useMemo(
+    () => selectedRows.length > 0 && missingTemplateCount === 0,
+    [selectedRows, missingTemplateCount]
   );
 
   const handleSelectAll = useCallback(
@@ -221,7 +231,9 @@ const BulkContracts: React.FC = () => {
 
       setRowResults((prev) => ({ ...prev, [row.employeeId]: 'pending' }));
       try {
-        if (row.override) {
+        // Luôn ghi đè: hủy mọi HĐ chưa CANCELLED/EXPIRED trước khi tạo HĐ mới
+        // → tránh 1 NV có nhiều HĐ hiệu lực cùng lúc
+        {
           setBatchState({ current: i + 1, total, phase: 'cancel', employeeName, successCount, errorCount });
           const existing = (contractsMap[row.employeeId] || []).filter(
             (c) => !['CANCELLED', 'EXPIRED'].includes(c.status)
@@ -314,23 +326,18 @@ const BulkContracts: React.FC = () => {
     }
   };
 
-  const handleAssignTemplate = async (contractId: number) => {
-    const edit = draftEdits[contractId];
-    if (!edit?.templateId) return;
+  // Lưu template đã chọn rồi mở modal xem trước/chỉnh sửa placeholder trước khi tạo PDF thật
+  const handleAssignTemplate = async (contractId: number, edit: { templateId: number; contractNumber: string }) => {
+    if (!edit.templateId) return;
     setAssigningTemplateId(contractId);
     try {
       await managementApi.patch(`/api-hrm/employee-contracts/${contractId}/`, {
         template: edit.templateId,
         ...(edit.contractNumber ? { contract_number: edit.contractNumber } : {}),
       });
-      try {
-        await managementApi.post(
-          `/api-hrm/employee-contracts/${contractId}/generate_and_confirm/`,
-          { overrides: {} }
-        );
-      } catch {}
       setDraftEdits((prev) => { const next = { ...prev }; delete next[contractId]; return next; });
       await fetchContractsMap();
+      setPlaceholderModal(contractId);
     } catch (e: any) {
       alert(e.response?.data?.detail || 'Không thể gán template');
     } finally {
@@ -367,11 +374,10 @@ const BulkContracts: React.FC = () => {
           ...(bulkTemplate ? { template: bulkTemplate } : {}),
           ...(bulkStartDate ? { start_date: bulkStartDate } : {}),
           ...(bulkEndDate ? { end_date: bulkEndDate } : {}),
-          override: bulkOverride,
         };
       })
     );
-  }, [bulkTemplate, bulkStartDate, bulkEndDate, bulkOverride]);
+  }, [bulkTemplate, bulkStartDate, bulkEndDate]);
 
   const multiPreviewItems = useMemo<ContractPreviewItem[]>(
     () =>
@@ -433,21 +439,26 @@ const BulkContracts: React.FC = () => {
     let noContract = 0;
     let pendingSign = 0;
     for (const emp of employees) {
+      const resigned = isResigned(emp);
       const contracts = contractsMap[emp.id] || [];
-      if (contracts.length === 0) { noContract++; continue; }
+      if (contracts.length === 0) {
+        if (!resigned) noContract++;
+        continue;
+      }
       const activeSigned = contracts.find(
         (c) => c.status === 'SIGNED' && effectiveStatus(c.status, c.end_date) === 'SIGNED'
       );
       if (activeSigned) {
         signed++;
         const days = getDaysUntilExpiry(activeSigned.end_date);
-        if (days !== null && days <= 5) expiringSoon++;
+        // Bỏ qua cảnh báo sắp hết hạn nếu NV đã nghỉ việc
+        if (!resigned && days !== null && days <= 5) expiringSoon++;
       }
-      // Hết hạn: SIGNED đã qua end_date hoặc status EXPIRED trong DB
+      // Hết hạn: SIGNED đã qua end_date hoặc status EXPIRED trong DB — bỏ qua nếu đã nghỉ việc
       const hasExpired = contracts.some(
         (c) => effectiveStatus(c.status, c.end_date) === 'EXPIRED'
       );
-      if (hasExpired && !activeSigned) alreadyExpired++;
+      if (!resigned && hasExpired && !activeSigned) alreadyExpired++;
       if (contracts.some((c) => c.status === 'PENDING_SIGN')) pendingSign++;
     }
     return { signed, expiringSoon, alreadyExpired, noContract, pendingSign };
@@ -476,11 +487,14 @@ const BulkContracts: React.FC = () => {
         if (latestUnitName !== filterUnit) return false;
       }
       if (filterStatuses.length > 0) {
+        const resigned = isResigned(e);
         const latest = (contractsMap[e.id] || [])[0];
         const latestEffective = latest ? effectiveStatus(latest.status, latest.end_date) : 'NONE';
         const days = latest ? getDaysUntilExpiry(latest.end_date) : null;
         const isExpiringSoon = latestEffective === 'SIGNED' && days !== null && days <= 5;
         const matched = filterStatuses.some((f) => {
+          // Đã nghỉ việc → không match các filter cảnh báo HĐ
+          if (resigned && (f === 'SIGNED_EXPIRING' || f === 'EXPIRED' || f === 'NONE')) return false;
           if (f === 'SIGNED_EXPIRING') return isExpiringSoon;
           if (f === 'SIGNED') return latestEffective === 'SIGNED' && !isExpiringSoon;
           return f === latestEffective;
@@ -582,22 +596,54 @@ const BulkContracts: React.FC = () => {
           onChange={(e) => setSearch(e.target.value)}
           className="input-field w-56"
         />
+        <button
+          onClick={() => setShowFilters((v) => !v)}
+          className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border transition-colors ${
+            showFilters || filterDept || filterUnit || filterStatuses.length > 0
+              ? 'border-primary-300 bg-primary-50 text-primary-700'
+              : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          Bộ lọc
+          {(filterDept ? 1 : 0) + (filterUnit ? 1 : 0) + (filterStatuses.length > 0 ? 1 : 0) > 0 && (
+            <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-primary-600 rounded-full">
+              {(filterDept ? 1 : 0) + (filterUnit ? 1 : 0) + (filterStatuses.length > 0 ? 1 : 0)}
+            </span>
+          )}
+        </button>
         <span className="text-sm text-gray-600 ml-auto">
           Đã chọn: <strong>{selectedRows.length}</strong> nhân viên
         </span>
-        <button
-          onClick={handleCreate}
-          disabled={!canCreate || creating}
-          className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {creating && (
-            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
+        <div className="flex flex-col items-end gap-0.5">
+          <button
+            onClick={handleCreate}
+            disabled={!canCreate || creating}
+            title={
+              selectedRows.length === 0
+                ? 'Chọn ít nhất 1 nhân viên trước'
+                : missingTemplateCount > 0
+                ? `Còn ${missingTemplateCount} nhân viên chưa chọn template`
+                : undefined
+            }
+            className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {creating && (
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            )}
+            Tạo hợp đồng
+          </button>
+          {!creating && selectedRows.length === 0 && (
+            <span className="text-xs text-gray-400 whitespace-nowrap">Chọn nhân viên bên dưới để bắt đầu</span>
           )}
-          Tạo hợp đồng
-        </button>
+          {!creating && selectedRows.length > 0 && missingTemplateCount > 0 && (
+            <span className="text-xs text-amber-600 whitespace-nowrap">
+              Còn {missingTemplateCount} người chưa chọn template
+            </span>
+          )}
+        </div>
         {selectedPreviewItems.length > 0 && (
           <button
             onClick={() => setShowSelectedPreview(true)}
@@ -618,50 +664,51 @@ const BulkContracts: React.FC = () => {
         )}
       </div>
 
-      {/* ── Filter bar ── */}
-      <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-wrap items-center gap-3">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Bộ lọc</span>
-        <div className="w-48">
-          <SelectBox
-            label=""
-            value={filterDept}
-            options={deptOptions}
-            onChange={setFilterDept}
-            placeholder="Tất cả phòng ban"
-            searchable
-          />
+      {/* ── Filter bar (ẩn/hiện qua nút "Bộ lọc") ── */}
+      {showFilters && (
+        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-wrap items-center gap-3">
+          <div className="w-48">
+            <SelectBox
+              label=""
+              value={filterDept}
+              options={deptOptions}
+              onChange={setFilterDept}
+              placeholder="Tất cả phòng ban"
+              searchable
+            />
+          </div>
+          <div className="w-48">
+            <SelectBox
+              label=""
+              value={filterUnit}
+              options={unitOptions}
+              onChange={setFilterUnit}
+              placeholder="Tất cả đơn vị"
+              searchable
+            />
+          </div>
+          <div className="w-52">
+            <MultiSelectBox
+              label=""
+              value={filterStatuses}
+              options={statusFilterOptions}
+              onChange={setFilterStatuses}
+              allLabel="Tất cả trạng thái"
+            />
+          </div>
+          {(filterDept || filterUnit || filterStatuses.length > 0) && (
+            <button
+              onClick={() => { setFilterDept(''); setFilterUnit(''); setFilterStatuses([]); }}
+              className="text-xs text-red-500 hover:text-red-700 underline whitespace-nowrap"
+            >
+              Xóa bộ lọc
+            </button>
+          )}
+          <span className="ml-auto text-xs text-gray-400">
+            Hiển thị {filteredEmployees.length}/{employees.length} nhân viên
+          </span>
         </div>
-        <div className="w-48">
-          <SelectBox
-            label=""
-            value={filterUnit}
-            options={unitOptions}
-            onChange={setFilterUnit}
-            placeholder="Tất cả đơn vị"
-            searchable
-          />
-        </div>
-        <div className="w-52">
-          <MultiSelectBox
-            label=""
-            value={filterStatuses}
-            options={statusFilterOptions}
-            onChange={setFilterStatuses}
-            allLabel="Tất cả trạng thái"
-          />
-        </div>
-        {(filterDept || filterUnit || filterStatuses.length > 0) && (
-          <button
-            onClick={() => { setFilterDept(''); setFilterUnit(''); setFilterStatuses([]); }}
-            className="text-xs text-red-500 hover:text-red-700 underline whitespace-nowrap"
-          >
-            Xóa bộ lọc
-          </button>
-        )}
-        <span className="ml-auto text-xs text-gray-400">
-          Hiển thị {filteredEmployees.length}/{employees.length} nhân viên
-        </span>
-      </div>
+      )}
 
       {/* ── Bulk fill bar ── */}
       {selectedRows.length > 0 && (
@@ -697,18 +744,10 @@ const BulkContracts: React.FC = () => {
               className="input-field"
             />
           </div>
-          <label className="flex items-center gap-1.5 text-sm text-amber-700 cursor-pointer select-none whitespace-nowrap border border-amber-200 bg-amber-50 rounded-lg px-3 py-1.5">
-            <input
-              type="checkbox"
-              checked={bulkOverride}
-              onChange={(e) => setBulkOverride(e.target.checked)}
-              className="rounded"
-            />
-            Ghi đè nhanh
-          </label>
           <button
             onClick={applyBulkToSelected}
-            disabled={!bulkStartDate || !bulkEndDate}
+            disabled={!bulkTemplate && !bulkStartDate && !bulkEndDate}
+            title={!bulkTemplate && !bulkStartDate && !bulkEndDate ? 'Chọn ít nhất 1 trong 3 ô trên trước' : undefined}
             className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
           >
             Áp dụng
@@ -777,11 +816,11 @@ const BulkContracts: React.FC = () => {
       {/* ── Bảng kết quả vừa tạo ── */}
       {createdContracts.length > 0 && (
         <div className="bg-white rounded-2xl border border-emerald-200 overflow-hidden">
-          <div className="px-4 py-2.5 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between gap-3">
+          <div className="px-4 py-2.5 bg-emerald-50 border-b border-emerald-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-sm font-semibold text-emerald-800">
               ✓ Hợp đồng vừa tạo ({createdContracts.length})
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <p className="text-xs text-emerald-600">
                 Bấm "Đã ký" sau khi nhân viên ký vật lý để sync vào hồ sơ
               </p>
@@ -804,6 +843,7 @@ const BulkContracts: React.FC = () => {
               )}
             </div>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
               <tr>
@@ -838,6 +878,40 @@ const BulkContracts: React.FC = () => {
                           Xem PDF
                         </button>
                       )}
+                      {!c.generated_file && (() => {
+                        const edit = draftEdits[c.id] ?? { templateId: c.template ?? 0, contractNumber: c.contract_number ?? '' };
+                        const isSaving = assigningTemplateId === c.id;
+                        return (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-40">
+                              <SelectBox<number>
+                                label=""
+                                value={edit.templateId}
+                                options={templateOptions}
+                                onChange={(id) => setDraftEdits((prev) => ({ ...prev, [c.id]: { ...edit, templateId: id } }))}
+                                placeholder="Chọn template"
+                                searchable
+                                portal
+                              />
+                            </div>
+                            <button
+                              onClick={() => handleAssignTemplate(c.id, edit)}
+                              disabled={!edit.templateId || isSaving}
+                              className="flex items-center gap-1 px-2.5 py-1 text-xs text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                            >
+                              {isSaving ? (
+                                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                </svg>
+                              ) : (
+                                <EyeIcon className="w-3.5 h-3.5" />
+                              )}
+                              Xem trước & Tạo PDF
+                            </button>
+                          </div>
+                        );
+                      })()}
                       {c.status === 'PENDING_SIGN' && (
                         <button
                           onClick={() => handleMarkSigned(c.id)}
@@ -867,6 +941,7 @@ const BulkContracts: React.FC = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -899,8 +974,6 @@ const BulkContracts: React.FC = () => {
               if (!row) return null;
               const contracts = contractsMap[emp.id] || [];
               const latestContract = contracts[0] || null;
-              // hasSigned: có hợp đồng SIGNED còn hiệu lực (end_date >= today hoặc không có end_date)
-              const hasSigned = contracts.some((c) => c.status === 'SIGNED' && effectiveStatus(c.status, c.end_date) === 'SIGNED');
               const nonFinalContracts = contracts.filter((c) => !['CANCELLED', 'EXPIRED'].includes(c.status));
               const deletableContracts = contracts.filter((c) => ['DRAFT', 'PENDING_SIGN'].includes(c.status));
               // Hợp đồng đang hiệu lực: SIGNED + chưa qua end_date
@@ -976,52 +1049,53 @@ const BulkContracts: React.FC = () => {
                     </td>
                     {/* Template */}
                     <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        <SelectBox<number>
-                          label=""
-                          value={row.template?.id ?? 0}
-                          options={templateOptions}
-                          onChange={(id) => updateRow(emp.id, { template: templates.find((t) => t.id === id) || null })}
-                          placeholder="Chọn template"
-                          searchable
-                          portal
-                        />
-                        {hasSigned && (
-                          <div className="flex items-center gap-1 text-xs text-amber-600">
-                            <ExclamationTriangleIcon className="w-3.5 h-3.5" />
-                            Đang có hợp đồng hiệu lực
-                          </div>
-                        )}
-                        {nonFinalContracts.length > 0 && (
-                          <label className="flex items-center gap-1 text-xs text-amber-600 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={row.override}
-                              onChange={(e) => updateRow(emp.id, { override: e.target.checked })}
-                              className="rounded"
-                            />
-                            Ghi đè ({nonFinalContracts.length} hợp đồng hiện có)
-                          </label>
-                        )}
-                      </div>
+                      {row.selected ? (
+                        <div className="flex flex-col gap-1">
+                          <SelectBox<number>
+                            label=""
+                            value={row.template?.id ?? 0}
+                            options={templateOptions}
+                            onChange={(id) => updateRow(emp.id, { template: templates.find((t) => t.id === id) || null })}
+                            placeholder="Chọn template"
+                            searchable
+                            portal
+                          />
+                          {nonFinalContracts.length > 0 && (
+                            <div className="flex items-center gap-1 text-xs text-amber-600">
+                              <ExclamationTriangleIcon className="w-3.5 h-3.5" />
+                              Sẽ ghi đè {nonFinalContracts.length} HĐ hiện có
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-300 italic">Tick chọn để điền</span>
+                      )}
                     </td>
                     {/* Start date */}
                     <td className="px-4 py-3">
-                      <input
-                        type="date"
-                        value={row.start_date}
-                        onChange={(e) => updateRow(emp.id, { start_date: e.target.value })}
-                        className="input-field"
-                      />
+                      {row.selected ? (
+                        <input
+                          type="date"
+                          value={row.start_date}
+                          onChange={(e) => updateRow(emp.id, { start_date: e.target.value })}
+                          className="input-field"
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
                     </td>
                     {/* End date */}
                     <td className="px-4 py-3">
-                      <input
-                        type="date"
-                        value={row.end_date}
-                        onChange={(e) => updateRow(emp.id, { end_date: e.target.value })}
-                        className="input-field"
-                      />
+                      {row.selected ? (
+                        <input
+                          type="date"
+                          value={row.end_date}
+                          onChange={(e) => updateRow(emp.id, { end_date: e.target.value })}
+                          className="input-field"
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-300">—</span>
+                      )}
                     </td>
                     {/* Result */}
                     <td className="px-4 py-3 text-center">
@@ -1135,7 +1209,7 @@ const BulkContracts: React.FC = () => {
                                         )}
                                         {isDraft && (
                                           <button
-                                            onClick={() => handleAssignTemplate(c.id)}
+                                            onClick={() => handleAssignTemplate(c.id, edit)}
                                             disabled={!edit.templateId || isSaving}
                                             className="flex items-center gap-1 px-2 py-0.5 text-white bg-primary-600 rounded hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed"
                                           >
@@ -1337,6 +1411,22 @@ const BulkContracts: React.FC = () => {
         downloadFilename={`${singlePreview?.name || 'hop-dong'}.pdf`}
         onClose={() => setSinglePreview(null)}
       />
+
+      {placeholderModal !== null && (
+        <ContractPlaceholderModal
+          contractId={placeholderModal}
+          onClose={() => setPlaceholderModal(null)}
+          onSuccess={async () => {
+            const id = placeholderModal;
+            setPlaceholderModal(null);
+            await fetchContractsMap();
+            try {
+              const { data } = await managementApi.get(`/api-hrm/employee-contracts/${id}/`);
+              setCreatedContracts((prev) => prev.map((c) => (c.id === id ? data : c)));
+            } catch {}
+          }}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDeleteId !== null}
