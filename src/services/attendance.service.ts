@@ -767,6 +767,8 @@ class AttendanceService {
       if (extendedData.forgot_punch_type) formData.append('forgot_punch_type', extendedData.forgot_punch_type);
       if (extendedData.forgot_checkin_time) formData.append('forgot_checkin_time', extendedData.forgot_checkin_time);
       if (extendedData.forgot_checkout_time) formData.append('forgot_checkout_time', extendedData.forgot_checkout_time);
+      // Đơn ngày đầu đi làm: FULL_DAY (1 công) / HALF_DAY (0.5 công)
+      if (extendedData.work_portion) formData.append('work_portion', extendedData.work_portion);
 
       const response = await managementApi.post('/api-hrm/attendance-explanations/', formData, {
         headers: {
