@@ -39,16 +39,17 @@ import FeedbackDialog, { FeedbackVariant } from '../components/FeedbackDialog';
 // ============================================================================
 // CONSTS
 // ============================================================================
-// Khung tạo đơn: 00:00 ngày 1 -> 15:30 ngày 3 hàng tháng (khớp BE,
-// GenericRequestSerializer.is_salary_advance_creation_window_open). Chỉ dùng
-// khi chưa lấy được window_open từ server.
-const CREATE_LAST_DAY = 3;
-const CREATE_CUTOFF_MINUTES = 15 * 60 + 30;
-const CREATE_WINDOW_LABEL = 'từ ngày 1 đến 15h30 ngày 3';
-const isInCreationWindow = (d: Date) =>
-  d.getDate() < CREATE_LAST_DAY ||
-  (d.getDate() === CREATE_LAST_DAY && d.getHours() * 60 + d.getMinutes() <= CREATE_CUTOFF_MINUTES);
-const MAX_AMOUNT = 5_000_000;
+// Quy định tạm ứng lương SK (HCNS SK 2026-10-21) — khớp BE
+// GenericRequestSerializer._validate_salary_advance:
+//  - Tạo/duyệt đơn từ ngày 1 đến hết ngày 5 hàng tháng (giờ server; giá trị dưới chỉ
+//    dùng khi chưa lấy được window_open từ server).
+//  - Tối đa 50% lương cơ bản.
+//  - Đơn tạo tháng X là tạm ứng lương tháng X-1, chỉ khi đã kết thúc thử việc trong
+//    hoặc trước tháng X-1 (BE trả lý do ở ineligible_reason).
+const CREATE_LAST_DAY = 5;
+const CREATE_WINDOW_LABEL = `từ ngày 1 đến hết ngày ${CREATE_LAST_DAY}`;
+const isInCreationWindow = (d: Date) => d.getDate() <= CREATE_LAST_DAY;
+const MAX_RATIO = 0.5;
 const PAGE_SIZE = 20;
 const DEFAULT_REASON = 'Đơn tạm ứng lương theo quy định công ty.';
 
@@ -273,8 +274,8 @@ const SalaryAdvance: React.FC = () => {
       variant: 'warning',
       title: nextLocked ? 'Khoá lại rule duyệt tạm ứng lương?' : 'Mở khoá duyệt tạm ứng lương?',
       message: nextLocked
-        ? 'Quản lý trực tiếp/HCNS sẽ chỉ duyệt được trong 3 ngày đầu tháng.'
-        : 'Quản lý trực tiếp/HCNS sẽ duyệt được bất kỳ lúc nào, không giới hạn 3 ngày đầu tháng.',
+        ? `Quản lý trực tiếp/HCNS sẽ chỉ duyệt được ${CREATE_WINDOW_LABEL} hàng tháng.`
+        : `Quản lý trực tiếp/HCNS sẽ duyệt được bất kỳ lúc nào, không giới hạn ${CREATE_WINDOW_LABEL}.`,
       confirmLabel: nextLocked ? 'Khoá lại' : 'Mở khoá',
       onConfirm: async () => {
         setTogglingLock(true);
@@ -297,15 +298,17 @@ const SalaryAdvance: React.FC = () => {
       variant: 'warning',
       title: nextLocked ? 'Khoá lại rule tạo đơn tạm ứng lương?' : 'Mở khoá tạo đơn tạm ứng lương?',
       message: nextLocked
-        ? 'Nhân viên sẽ chỉ tạo được đơn trong 3 ngày đầu tháng.'
-        : 'Nhân viên sẽ tạo được đơn bất kỳ lúc nào trong tháng này, không giới hạn 3 ngày đầu tháng.\nLưu ý: sang tháng sau sẽ tự động khoá lại.',
+        ? `Nhân viên sẽ chỉ tạo được đơn ${CREATE_WINDOW_LABEL} hàng tháng.`
+        : `Nhân viên sẽ tạo được đơn bất kỳ lúc nào trong tháng này, không giới hạn ${CREATE_WINDOW_LABEL}.\nLưu ý: sang tháng sau sẽ tự động khoá lại.`,
       confirmLabel: nextLocked ? 'Khoá lại' : 'Mở khoá',
       onConfirm: async () => {
         setTogglingCreationLock(true);
         try {
           const data = await genericRequestService.setCreationLock(nextLocked);
-          // POST không trả window_open — giữ giá trị server đã trả ở lần GET.
+          // POST không trả window_open / ineligible_reason... — giữ giá trị server đã
+          // trả ở lần GET.
           setCreationLockState((prev) => ({
+            ...prev,
             ...data,
             window_open: data.window_open ?? prev?.window_open,
           }));
@@ -347,7 +350,7 @@ const SalaryAdvance: React.FC = () => {
                 disabled={togglingCreationLock}
                 title={
                   creationLockState.is_locked
-                    ? 'Đang khoá: NV chỉ tạo được đơn trong 3 ngày đầu tháng. Bấm để mở khoá (chỉ áp dụng cho tháng này, tự khoá lại vào tháng sau).'
+                    ? `Đang khoá: NV chỉ tạo được đơn ${CREATE_WINDOW_LABEL} hàng tháng. Bấm để mở khoá (chỉ áp dụng cho tháng này, tự khoá lại vào tháng sau).`
                     : 'Đang mở khoá: NV tạo được đơn bất kỳ lúc nào trong tháng này. Bấm để khoá lại.'
                 }
                 className={lockBtnCls(creationLockState.is_locked)}
@@ -360,7 +363,7 @@ const SalaryAdvance: React.FC = () => {
                 {togglingCreationLock
                   ? 'Đang cập nhật...'
                   : creationLockState.is_locked
-                  ? 'Khoá tạo đơn (đúng khung ngày 1 - 15h30 ngày 3)'
+                  ? `Khoá tạo đơn (đúng khung ngày 1 - ${CREATE_LAST_DAY})`
                   : 'Đã mở khoá tạo đơn'}
               </button>
             )}
@@ -371,7 +374,7 @@ const SalaryAdvance: React.FC = () => {
                 disabled={togglingLock}
                 title={
                   lockState.is_locked
-                    ? 'Đang khoá: chỉ duyệt được trong 3 ngày đầu tháng. Bấm để mở khoá.'
+                    ? `Đang khoá: chỉ duyệt được ${CREATE_WINDOW_LABEL} hàng tháng. Bấm để mở khoá.`
                     : 'Đang mở khoá: duyệt được bất kỳ lúc nào. Bấm để khoá lại.'
                 }
                 className={lockBtnCls(lockState.is_locked)}
@@ -490,14 +493,15 @@ const MineTab: React.FC<{
   // tháng lúc mở — BE tự tính lại is_locked hiệu lực, tự khoá lại khi sang
   // tháng mới, xem SalaryAdvanceCreationLock.is_effectively_locked()).
   const creationUnlocked = !!creationLockState && !creationLockState.is_locked;
-  const canCreate = isInWindow || creationUnlocked;
+  // Chưa được tạm ứng (chưa hết thử việc / thiếu dữ liệu hồ sơ) thì khoá nút tạo đơn.
+  const ineligibleReason = creationLockState?.ineligible_reason || null;
+  const canCreate = (isInWindow || creationUnlocked) && !ineligibleReason;
   const amountInWords = useMemo(() => amountToWords(Number(amount) || 0), [amount]);
 
   const departmentName = me?.department?.name || me?.department_name || '—';
   const managerName = me?.manager?.full_name || me?.manager_name || '—';
   const basicSalary = Number(me?.basic_salary || 0);
-  const maxByPercent = Math.floor(basicSalary * 0.8);
-  const effectiveCap = Math.min(MAX_AMOUNT, maxByPercent > 0 ? maxByPercent : MAX_AMOUNT);
+  const maxByPercent = Math.floor(basicSalary * (creationLockState?.max_ratio ?? MAX_RATIO));
 
   const fetchData = async () => {
     setLoading(true);
@@ -531,12 +535,8 @@ const MineTab: React.FC<{
       setFormError('Vui lòng nhập số tiền hợp lệ.');
       return;
     }
-    if (amountNum > MAX_AMOUNT) {
-      setFormError(`Số tiền tối đa ${formatCurrency(MAX_AMOUNT)}.`);
-      return;
-    }
     if (maxByPercent > 0 && amountNum > maxByPercent) {
-      setFormError(`Không vượt quá 80% lương cơ bản (${formatCurrency(maxByPercent)}).`);
+      setFormError(`Không vượt quá 50% lương cơ bản (${formatCurrency(maxByPercent)}).`);
       return;
     }
     setSubmitting(true);
@@ -592,10 +592,10 @@ const MineTab: React.FC<{
         <InfoStat label="Quản lý trực tiếp" value={managerName} />
         <MaskedSalaryStat
           label="Có thể ứng tối đa"
-          value={effectiveCap > 0 ? formatCurrency(effectiveCap) : formatCurrency(MAX_AMOUNT)}
+          value={maxByPercent > 0 ? formatCurrency(maxByPercent) : '—'}
           masked={!showSalary}
           onToggle={() => setShowSalary((v) => !v)}
-          hint={basicSalary > 0 ? '≤ 80% lương cơ bản và ≤ 5.000.000đ' : '≤ 5.000.000đ'}
+          hint={basicSalary > 0 ? '≤ 50% lương cơ bản' : 'Chưa có lương cơ bản — liên hệ HCNS'}
           highlight="emerald"
         />
       </div>
@@ -615,8 +615,15 @@ const MineTab: React.FC<{
             ? `✅ Admin đã mở khoá tạo đơn ngoài khung ${CREATE_WINDOW_LABEL} cho tháng này — bạn vẫn tạo được đơn hôm nay (ngày ${today.getDate()}).`
             : `⚠ Chỉ nhận đơn tạm ứng lương ${CREATE_WINDOW_LABEL} hàng tháng. Hôm nay là ngày ${today.getDate()}.`}
         </p>
+        {ineligibleReason && (
+          <p className="text-sm mt-1 font-medium text-rose-700">⚠ {ineligibleReason}</p>
+        )}
         <p className="text-sm mt-1 opacity-80">
-          Điều kiện: nhân viên chính thức, không có đơn xin nghỉ việc.
+          Điều kiện: đã kết thúc thử việc trong hoặc trước tháng được tạm ứng
+          {creationLockState?.advance_month
+            ? ` (đơn tạo tháng này là tạm ứng lương tháng ${creationLockState.advance_month})`
+            : ''}
+          , tối đa 50% lương cơ bản, không có đơn xin nghỉ việc.
         </p>
       </div>
 
@@ -662,21 +669,21 @@ const MineTab: React.FC<{
             <div className="border-t border-gray-100 pt-4 space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số tiền tạm ứng (không quá {formatCurrency(MAX_AMOUNT)}){' '}
+                  Số tiền tạm ứng{maxByPercent > 0 && ` (không quá ${formatCurrency(maxByPercent)})`}{' '}
                   <span className="text-rose-600">*</span>
                 </label>
                 <input
                   type="number"
                   inputMode="numeric"
                   min={0}
-                  max={MAX_AMOUNT}
+                  max={maxByPercent > 0 ? maxByPercent : undefined}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="VD: 3000000"
                   className="input-field"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Không vượt quá 80% lương cơ bản
+                  Không vượt quá 50% lương cơ bản
                   {basicSalary > 0 && ` (${formatCurrency(maxByPercent)})`}.
                 </p>
               </div>
@@ -1023,7 +1030,7 @@ const ApprovalsTab: React.FC<{
         <div className="rounded-2xl border border-amber-200 bg-amber-50 text-amber-800 p-3 text-sm flex items-start sm:items-center gap-2">
           <LockOpenIcon className="w-4 h-4 flex-shrink-0 mt-0.5 sm:mt-0" />
           <span>
-            Admin đã <strong>mở khoá</strong> — có thể duyệt đơn tạm ứng lương bất kỳ ngày nào trong tháng, không giới hạn 3 ngày đầu tháng.
+            Admin đã <strong>mở khoá</strong> — có thể duyệt đơn tạm ứng lương bất kỳ ngày nào trong tháng, không giới hạn {CREATE_WINDOW_LABEL}.
           </span>
         </div>
       )}

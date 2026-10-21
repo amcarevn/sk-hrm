@@ -82,8 +82,16 @@ export interface SalaryAdvanceApprovalLockState {
  * (is_effectively_locked() phía BE): mở khoá tự hết hiệu lực khi sang
  * tháng mới, không cần Admin nhớ khoá tay lại. */
 export type SalaryAdvanceCreationLockState = SalaryAdvanceApprovalLockState & {
-  /** Đang trong khung tạo đơn mặc định (00:00 ngày 1 - 15:30 ngày 3, giờ server). */
+  /** Đang trong khung tạo đơn mặc định (ngày 1 - hết ngày 5, giờ server). */
   window_open?: boolean;
+  /** Ngày cuối của khung tạo/duyệt đơn (SK: 5). */
+  window_last_day?: number;
+  /** Mức tạm ứng tối đa so với lương cơ bản (SK: 0.5). */
+  max_ratio?: number;
+  /** Tháng lương được tạm ứng nếu tạo đơn hôm nay, dạng "MM/YYYY". */
+  advance_month?: string;
+  /** Lý do NV đang đăng nhập chưa được tạm ứng (ngày kết thúc thử việc / lương cơ bản). */
+  ineligible_reason?: string | null;
 };
 
 class GenericRequestService {
