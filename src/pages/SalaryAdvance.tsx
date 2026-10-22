@@ -872,10 +872,13 @@ const ApprovalsTab: React.FC<{
   // trực tiếp của vài người). Nếu chỉ chọn MỘT hàng đợi (isAdmin ? PENDING_ADMIN
   // : PENDING_MANAGER) thì đơn của cấp dưới một Admin không hiện với ai và kẹt
   // vĩnh viễn ở PENDING_MANAGER (đã xảy ra bên TA 01/10) — nên lấy cả hai.
-  const queues: Array<{ status: GenericRequestStatus; owner?: 'subordinates' }> = [
-    ...(isManager ? [{ status: 'PENDING_MANAGER' as GenericRequestStatus, owner: 'subordinates' as const }] : []),
-    ...(isAdmin ? [{ status: 'PENDING_ADMIN' as GenericRequestStatus }] : []),
-  ];
+  // SK (HCNS 22/10): Admin thấy MỌI đơn đang chờ QLTT (không chỉ cấp dưới của mình) để
+  // duyệt thay cấp 1 — BE manager_approve cho Admin duyệt luôn cả 2 cấp -> APPROVED.
+  const queues: Array<{ status: GenericRequestStatus; owner?: 'subordinates' }> = isAdmin
+    ? [{ status: 'PENDING_MANAGER' }, { status: 'PENDING_ADMIN' }]
+    : isManager
+    ? [{ status: 'PENDING_MANAGER', owner: 'subordinates' }]
+    : [];
 
   const fetchData = async () => {
     setLoading(true);
@@ -919,10 +922,13 @@ const ApprovalsTab: React.FC<{
       : genericRequestService.adminApprove(item.id);
 
   const handleApprove = (item: GenericRequest) => {
+    const skipsManager = isAdmin && item.status === 'PENDING_MANAGER';
     confirm.ask({
-      variant: 'info',
+      variant: skipsManager ? 'warning' : 'info',
       title: 'Duyệt đơn tạm ứng lương?',
-      message: `Duyệt đơn ${item.request_code || `#${item.id}`} của ${item.employee_name} (${formatCurrency((item.extra_data as any)?.amount)}).`,
+      message:
+        `Duyệt đơn ${item.request_code || `#${item.id}`} của ${item.employee_name} (${formatCurrency((item.extra_data as any)?.amount)}).` +
+        (skipsManager ? ' Đơn chưa qua Quản lý trực tiếp — Admin duyệt sẽ duyệt luôn cả 2 cấp.' : ''),
       confirmLabel: 'Duyệt',
       onConfirm: async () => {
         setActionId(item.id);
@@ -1001,7 +1007,9 @@ const ApprovalsTab: React.FC<{
     confirm.ask({
       variant: 'warning',
       title: `Duyệt ${totalItems} đơn tạm ứng lương đang chờ?`,
-      message: 'Hành động này không thể hoàn tác — hệ thống sẽ duyệt tuần tự từng đơn.',
+      message:
+        'Hành động này không thể hoàn tác — hệ thống sẽ duyệt tuần tự từng đơn.' +
+        (isAdmin ? ' Đơn còn chờ Quản lý trực tiếp cũng được duyệt luôn cả 2 cấp.' : ''),
       confirmLabel: 'Duyệt tất cả',
       onConfirm: runApproveAll,
     });
@@ -1036,10 +1044,8 @@ const ApprovalsTab: React.FC<{
       )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-sm text-gray-500">
-          {isAdmin && isManager
-            ? 'Đơn chờ bạn duyệt — gồm cả bước quản lý trực tiếp (cấp dưới của bạn) lẫn bước HCNS duyệt cuối. Nhãn trên từng dòng cho biết đơn đang ở bước nào.'
-            : isAdmin
-            ? 'Danh sách đơn chờ HCNS duyệt cuối (đã qua quản lý trực tiếp).'
+          {isAdmin
+            ? 'Tất cả đơn đang chờ duyệt — gồm cả đơn còn chờ Quản lý trực tiếp (Admin duyệt thì duyệt luôn cả 2 cấp) lẫn đơn chờ HCNS duyệt cuối. Nhãn trên từng dòng cho biết đơn đang ở bước nào.'
             : 'Danh sách đơn chờ bạn duyệt (cấp 1).'}
         </p>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:flex-shrink-0">
