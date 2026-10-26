@@ -59,6 +59,8 @@ const ShiftRegistration: React.FC = () => {
   const [shifts, setShifts] = useState<ShiftConfig[]>([]);
   // Ca chính được đăng ký theo phòng ban (HCNS SK 2026-10-13) — null = không giới hạn.
   const [allowedShiftIds, setAllowedShiftIds] = useState<number[] | null>(null);
+  // Ca online cộng thêm NV được bật (vd E13 chỉ CS Kim Mã); null = backend cũ, không lọc
+  const [allowedOnlineShiftIds, setAllowedOnlineShiftIds] = useState<number[] | null>(null);
   const [weekMonday, setWeekMonday] = useState<Date>(() => addDays(getMonday(new Date()), 7));
   const [existingReg, setExistingReg] = useState<ShiftRegistrationType | null>(null);
   const [selections, setSelections] = useState<Record<string, number>>({}); // dateYMD -> shiftId (0 = Nghỉ)
@@ -99,11 +101,16 @@ const ShiftRegistration: React.FC = () => {
     [weekMonday]
   );
 
-  // Ca online không chấm công (vd E13) không chọn ở ô ca chính mà bật thêm bên dưới
-  const onlineShifts = useMemo(
-    () => shifts.filter((s) => s.no_attendance_required && s.is_active !== false),
-    [shifts]
-  );
+  // Ca online không chấm công (vd E13) không chọn ở ô ca chính mà bật thêm bên dưới —
+  // chỉ những ca phòng ban của NV được dùng (E13 chỉ CS Kim Mã); ca đã bật sẵn từ
+  // trước vẫn hiện để không mất dữ liệu đơn cũ.
+  const onlineShifts = useMemo(() => {
+    const allowed = allowedOnlineShiftIds ? new Set(allowedOnlineShiftIds) : null;
+    const picked = new Set(Object.values(extraSelections));
+    return shifts.filter(
+      (s) => s.no_attendance_required && s.is_active !== false && (!allowed || allowed.has(s.id) || picked.has(s.id))
+    );
+  }, [shifts, allowedOnlineShiftIds, extraSelections]);
   const shiftOptions = useMemo(() => {
     // Chỉ hiện ca đang áp dụng của phòng ban (ca đã ngừng — vd ca con nhỏ cũ — bị ẩn);
     // ca đã chọn sẵn từ trước (đơn cũ) vẫn giữ để hiển thị.
@@ -149,6 +156,7 @@ const ShiftRegistration: React.FC = () => {
         ]);
         setEmployeeId(me.id);
         setAllowedShiftIds(me.allowed_shift_ids ?? null);
+        setAllowedOnlineShiftIds(me.allowed_online_shift_ids ?? null);
         setShifts(shiftRes.results || []);
       } catch (err: any) {
         if (err?.response?.status === 404) {
