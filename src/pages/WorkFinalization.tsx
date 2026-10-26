@@ -507,6 +507,7 @@ const WorkFinalization: React.FC = () => {
         { header: 'Tăng Ca Sau 20h', key: 'tang_ca_sau_20h', width: 16 },
         { header: 'Làm Tối', key: 'lam_toi', width: 10 },
         { header: 'Trực Tối', key: 'truc_toi', width: 10 },
+        { header: 'Số Buổi Làm Ca E13', key: 'ca_truc_toi_tai_nha', width: 18 },
         { header: 'Làm Thêm Giờ', key: 'lam_them_gio', width: 14 },
         { header: 'Live', key: 'live', width: 8 },
         { header: 'Phụ Cấp Gửi Xe', key: 'phu_cap_gui_xe', width: 16 },
@@ -559,6 +560,7 @@ const WorkFinalization: React.FC = () => {
           tang_ca_sau_20h: rec.tang_ca_sau_20h ?? '',
           lam_toi: rec.lam_toi ?? '',
           truc_toi: rec.truc_toi,
+          ca_truc_toi_tai_nha: rec.ca_truc_toi_tai_nha ?? 0,
           lam_them_gio: rec.lam_them_gio,
           live: rec.live,
           phu_cap_gui_xe: rec.phu_cap_gui_xe,
@@ -1343,6 +1345,7 @@ const WorkFinalization: React.FC = () => {
                       { label: 'Online chính thức', value: `${finalizedRec.lam_viec_online_chinh_thuc ?? 0} ngày`, cardCls: 'bg-primary-50', labelCls: 'text-primary-700', valCls: 'text-primary-800 font-bold' },
                       { label: 'Tăng ca', value: `${finalizedRec.tang_ca} giờ`, cardCls: 'bg-amber-50', labelCls: 'text-amber-700', valCls: 'text-amber-800 font-bold' },
                       { label: 'Trực tối', value: `${finalizedRec.truc_toi} buổi`, cardCls: 'bg-violet-50', labelCls: 'text-violet-700', valCls: 'text-violet-800 font-bold' },
+                      { label: 'Số buổi làm ca E13', value: `${finalizedRec.ca_truc_toi_tai_nha ?? 0} buổi`, cardCls: 'bg-violet-50', labelCls: 'text-violet-700', valCls: 'text-violet-800 font-bold' },
                       { label: 'Làm thêm giờ', value: `${finalizedRec.lam_them_gio} giờ`, cardCls: 'bg-amber-50', labelCls: 'text-amber-700', valCls: 'text-amber-800 font-bold' },
                       { label: 'Live', value: `${finalizedRec.live} ca`, cardCls: 'bg-pink-50', labelCls: 'text-pink-700', valCls: 'text-pink-800 font-bold' },
                       { label: 'PC Gửi xe', value: `${formatNumber(finalizedRec.phu_cap_gui_xe)}đ`, cardCls: 'bg-emerald-50', labelCls: 'text-emerald-700', valCls: 'text-emerald-800 font-bold' },
@@ -1409,7 +1412,7 @@ const WorkFinalization: React.FC = () => {
                       'Công Thực Tế', 'Tổng Công', 'Nghỉ Phép',
                       'Làm Việc Online Thử Việc', 'Làm Việc Online Chính Thức',
                       'Tổng Phạt', 'Phạt Thiếu Công', 'Tăng Ca',
-                      'Làm Tối', 'Trực Tối', 'Làm Thêm Giờ', 'Live',
+                      'Làm Tối', 'Trực Tối', 'Số Buổi Làm Ca E13', 'Làm Thêm Giờ', 'Live',
                       'Phụ Cấp Gửi Xe',
                     ].map((h) => (
                       <th
@@ -1451,6 +1454,7 @@ const WorkFinalization: React.FC = () => {
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.tang_ca}</td>
                         <td className="px-3 py-1.5 text-center border border-gray-200">{rec.lam_toi ?? '—'}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.truc_toi}</td>
+                        <td className="px-3 py-1.5 text-right border border-gray-200">{rec.ca_truc_toi_tai_nha ?? 0}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.lam_them_gio}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{rec.live}</td>
                         <td className="px-3 py-1.5 text-right border border-gray-200">{formatNumber(rec.phu_cap_gui_xe)}</td>
