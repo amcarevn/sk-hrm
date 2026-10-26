@@ -583,7 +583,10 @@ const AttendanceManagement: React.FC = () => {
     // ngày của mình nên không nên giới hạn theo "ca của riêng NV này".
     // Nhưng vẫn khoá theo ca cố định của phòng ban như trang Đăng ký ca làm
     // (allowed_shift_ids từ /employees/me/, null = không giới hạn); ca online cộng
-    // thêm (vd E13) không thuộc quy định phòng ban.
+    // thêm (vd E13) theo allowed_online_shift_ids — E13 chỉ CS Kim Mã.
+    const allowedOnline = currentEmployee?.allowed_online_shift_ids
+      ? new Set(currentEmployee.allowed_online_shift_ids)
+      : null;
     if (reason === 'shift_change' && currentEmployee) {
       setShiftChangeOptionsLoading(true);
       const allowed = currentEmployee.allowed_shift_ids ? new Set(currentEmployee.allowed_shift_ids) : null;
@@ -591,7 +594,11 @@ const AttendanceManagement: React.FC = () => {
         .listShiftConfigs({ page_size: 200, is_active: true })
         .then((res: any) => {
           const list = (res?.results || []).filter(
-            (s: any) => s.is_active !== false && (!allowed || s.no_attendance_required || allowed.has(s.id))
+            (s: any) => s.is_active !== false && (
+              s.no_attendance_required
+                ? !allowedOnline || allowedOnline.has(s.id)
+                : !allowed || allowed.has(s.id)
+            )
           );
           setShiftChangeOptions(
             list.map((s: any) => ({
