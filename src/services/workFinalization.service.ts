@@ -45,6 +45,8 @@ export interface WorkFinalizationRecord {
   tang_ca_sau_20h?: number | null;
   lam_toi: number | null;
   truc_toi: number;
+  /** Số buổi làm ca E13 "Trực tối tại nhà" (chỉ đếm, không cộng công — HCNS SK 2026-10-26). */
+  ca_truc_toi_tai_nha?: number | null;
   lam_them_gio: number;
   live: number;
   phu_cap_gui_xe: number;
