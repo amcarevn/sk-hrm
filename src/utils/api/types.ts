@@ -871,7 +871,7 @@ export interface ShiftRegistrationDay {
     start_time: string;
     end_time: string;
   } | null;
-  // Ca online thêm cùng ngày (vd E13 trực tối tại nhà, +0.5 công)
+  // Ca online thêm cùng ngày (vd E13 trực tối tại nhà 18h00–22h30, chỉ đếm buổi)
   extra_shift?: number | null;
   extra_shift_detail?: {
     id: number;

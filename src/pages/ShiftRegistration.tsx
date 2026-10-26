@@ -453,7 +453,7 @@ const ShiftRegistration: React.FC = () => {
                             </p>
                           ) : null;
                         })()}
-                        {/* Ca online thêm cùng ngày (vd E13 trực tối tại nhà) — cộng thêm công, không chấm công */}
+                        {/* Ca online thêm cùng ngày (vd E13 trực tối tại nhà) — không chấm công, E13 chỉ đếm số buổi */}
                         {onlineShifts.length > 0 && (canEdit ? (
                           <div className="mt-2 flex flex-wrap gap-2">
                             {onlineShifts.map((os) => {
