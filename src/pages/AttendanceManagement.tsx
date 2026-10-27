@@ -36,9 +36,20 @@ import {
 import { Employee, employeesAPI, companyConfigAPI } from '@/utils/api';
 import { shiftNote, shiftOptionLabel } from '@/utils/shiftLabel';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
+import TeamAttendance from './TeamAttendance';
 
 const AttendanceManagement: React.FC = () => {
   const { user } = useAuth();
+
+  // Tab "Bản thân" / "Nhân viên" (như Trung Anh) — tab "Nhân viên" cho Admin/HR/quản lý
+  // xem bảng công của cấp dưới; backend tự giới hạn đúng phạm vi người được xem.
+  const [activeTab, setActiveTab] = useState<'self' | 'team'>('self');
+  const canViewTeamAttendance =
+    (user?.role || '').toUpperCase() === 'ADMIN' ||
+    (user?.role || '').toUpperCase() === 'HR' ||
+    !!(user as any)?.is_super_admin ||
+    !!user?.is_manager;
+  const showTeam = activeTab === 'team' && canViewTeamAttendance;
 
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -1753,6 +1764,29 @@ const AttendanceManagement: React.FC = () => {
         </button>
       </div>
 
+      {canViewTeamAttendance && (
+        <div className="flex items-center gap-2 border-b border-gray-200">
+          {([['self', 'Bản thân'], ['team', 'Nhân viên']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveTab(key)}
+              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                activeTab === key
+                  ? 'border-primary-600 text-primary-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showTeam && <TeamAttendance />}
+
+      {/* Nội dung tab "Bản thân" — ẩn (không gỡ) khi xem tab Nhân viên để giữ nguyên state */}
+      <div className={showTeam ? 'hidden' : 'space-y-6'}>
       {/* Banner hạn chốt công */}
       <FinalizationLockBanner
         year={currentDate.getFullYear()}
@@ -5794,6 +5828,7 @@ const AttendanceManagement: React.FC = () => {
           </div>
         )
       }
+      </div>
     </div >
   );
 };
