@@ -322,6 +322,8 @@ export interface Employee {
   allowed_shift_ids?: number[] | null;
   /** Chỉ có ở /employees/me/: id ca online cộng thêm được bật (vd E13 chỉ CS Kim Mã). */
   allowed_online_shift_ids?: number[];
+  /** Chỉ có ở /employees/me/: có người để xem bảng công ở tab "Nhân viên" trang Chấm công. */
+  has_attendance_team?: boolean;
   gender: 'M' | 'F' | 'O';
   date_of_birth?: string;
   phone_number?: string;
@@ -871,7 +873,7 @@ export interface ShiftRegistrationDay {
     start_time: string;
     end_time: string;
   } | null;
-  // Ca online thêm cùng ngày (vd E13 trực tối tại nhà, +0.5 công)
+  // Ca online thêm cùng ngày (vd E13 trực tối tại nhà 18h00–22h30, chỉ đếm buổi)
   extra_shift?: number | null;
   extra_shift_detail?: {
     id: number;
