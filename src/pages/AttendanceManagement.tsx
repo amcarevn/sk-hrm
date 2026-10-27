@@ -44,12 +44,6 @@ const AttendanceManagement: React.FC = () => {
   // Tab "Bản thân" / "Nhân viên" (như Trung Anh) — tab "Nhân viên" cho Admin/HR/quản lý
   // xem bảng công của cấp dưới; backend tự giới hạn đúng phạm vi người được xem.
   const [activeTab, setActiveTab] = useState<'self' | 'team'>('self');
-  const canViewTeamAttendance =
-    (user?.role || '').toUpperCase() === 'ADMIN' ||
-    (user?.role || '').toUpperCase() === 'HR' ||
-    !!(user as any)?.is_super_admin ||
-    !!user?.is_manager;
-  const showTeam = activeTab === 'team' && canViewTeamAttendance;
 
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -64,6 +58,14 @@ const AttendanceManagement: React.FC = () => {
   const [attendanceStats, setAttendanceStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
+  // QLTT gồm cả người có cấp dưới mà chức vụ không gắn cờ quản lý (has_attendance_team).
+  const canViewTeamAttendance =
+    (user?.role || '').toUpperCase() === 'ADMIN' ||
+    (user?.role || '').toUpperCase() === 'HR' ||
+    !!(user as any)?.is_super_admin ||
+    !!user?.is_manager ||
+    !!currentEmployee?.has_attendance_team;
+  const showTeam = activeTab === 'team' && canViewTeamAttendance;
   const [attendanceDetails, setAttendanceDetails] = useState<
     AttendanceRecord[]
   >([]);

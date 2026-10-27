@@ -322,6 +322,8 @@ export interface Employee {
   allowed_shift_ids?: number[] | null;
   /** Chỉ có ở /employees/me/: id ca online cộng thêm được bật (vd E13 chỉ CS Kim Mã). */
   allowed_online_shift_ids?: number[];
+  /** Chỉ có ở /employees/me/: có người để xem bảng công ở tab "Nhân viên" trang Chấm công. */
+  has_attendance_team?: boolean;
   gender: 'M' | 'F' | 'O';
   date_of_birth?: string;
   phone_number?: string;
