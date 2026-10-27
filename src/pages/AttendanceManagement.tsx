@@ -3456,6 +3456,7 @@ const AttendanceManagement: React.FC = () => {
                           {/* Chip buttons - Render based on selected context */}
                           <div className="flex flex-wrap gap-3">
                             {(() => {
+                              const visibleReasons: any[] = (() => {
                               const reasons: any[] = selectedContext === 'explanation'
                                 ? explanationReasons
                                 : selectedContext === 'registration'
@@ -3561,12 +3562,27 @@ const AttendanceManagement: React.FC = () => {
                                   filtered = filtered.filter(r => r.id !== 'full_day');
                                 }
 
-                                // Kiểm tra các ca đã có dữ liệu (chính xác hơn)
+                                // Buổi đã đi làm. Có CA ĐÃ ĐĂNG KÝ cho ngày (registered_shift) thì
+                                // chỉ buổi thuộc ca mới tính là đã làm — vd ca M17 (sáng 10:00–13:30)
+                                // chấm công tới 17:58 thì buổi chiều vẫn làm online được (SK00223
+                                // 20/10: lịch 3 dòng mặc định coi cả chiều đã làm nên không còn buổi
+                                // nào để chọn, nút nộp đơn không sáng).
                                 const dayShifts = selectedDayData?.shifts || [];
-                                const isOccupied = (type: string) => dayShifts.some((s: any) => 
-                                  (s.shift_type === type || s.shift_type === 'FULL_DAY') && 
-                                  s && !['ABSENT', 'EMPTY', 'NO_DATA'].includes(s.status?.toUpperCase())
-                                );
+                                const registeredShift = (selectedDayData as any)?.registered_shift;
+                                const registeredType = String(registeredShift?.shift_type || '').toUpperCase();
+                                const hasPunch = ((selectedDayData as any)?.raw_checkin_checkout || [])
+                                  .some((p: any) => p?.check_in || p?.check_out);
+                                const isOccupied = (type: string) => {
+                                  if (['FULL_DAY', 'MORNING', 'AFTERNOON', 'EVENING'].includes(registeredType)) {
+                                    if (!hasPunch) return false;
+                                    const regSession = registeredType === 'EVENING' ? 'AFTERNOON' : registeredType;
+                                    return regSession === 'FULL_DAY' || regSession === type;
+                                  }
+                                  return dayShifts.some((s: any) =>
+                                    (s.shift_type === type || s.shift_type === 'FULL_DAY') &&
+                                    s && !['ABSENT', 'EMPTY', 'NO_DATA'].includes(s.status?.toUpperCase())
+                                  );
+                                };
 
                                 // Kiểm tra đơn đã được PHÊ DUYỆT (mới thêm)
                                 const registrations = selectedDayData?.registrations || [];
@@ -3598,7 +3614,17 @@ const AttendanceManagement: React.FC = () => {
                               }
 
                               return reasons;
-                            })().map((reason) => {
+                            })();
+                              if (visibleReasons.length === 0 && (selectedContext === 'online_work' || selectedContext === 'monthly_leave')) {
+                                return (
+                                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                    Không còn buổi nào để làm đơn{' '}
+                                    {selectedContext === 'online_work' ? 'làm việc online' : 'nghỉ phép'} cho ngày này: các buổi
+                                    thuộc ca đã có chấm công, hoặc đã có đơn được duyệt / hết lượt. Liên hệ HCNS nếu cần điều chỉnh.
+                                  </p>
+                                );
+                              }
+                              return visibleReasons.map((reason) => {
                               const isSelected = selectedReason === reason.id;
 
                               // Xác định xem lý do này có bị tính vào quota giải trình không (đối với context explanation)
@@ -3640,7 +3666,8 @@ const AttendanceManagement: React.FC = () => {
                                   )}
                                 </div>
                               );
-                            })}
+                            });
+                            })()}
                           </div>
                         </div>
                       )}
