@@ -674,6 +674,8 @@ const EmployeeList: React.FC = () => {
       { header: 'Cấp bậc', key: 'rank', width: 22 },
       { header: 'Vị trí', key: 'position', width: 25 },
       { header: 'Quản lý trực tiếp', key: 'manager', width: 16 },
+      // Mã NV quản lý cấp 2 — được xem bảng công cấp dưới (HCNS SK 2026-10-27)
+      { header: 'Quản lý cấp 2', key: 'manager_level_2', width: 16 },
       { header: 'Bác sĩ Chính', key: 'doctor_team', width: 20 },
       { header: 'Hình thức làm việc', key: 'work_form', width: 22 },
       { header: 'Trình độ học vấn', key: 'education_level', width: 20 },
@@ -852,7 +854,8 @@ const EmployeeList: React.FC = () => {
       department: 'Phòng Nhân sự',
       rank: 'Nhân viên',
       position: 'Chuyên viên nhân sự',
-      manager: 'TA00002',
+      manager: 'SK00002',
+      manager_level_2: 'SK00001',
       doctor_team: '',
       work_form: 'Toàn thời gian',
       education_level: 'Cử nhân đại học',
