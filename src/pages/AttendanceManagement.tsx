@@ -1653,13 +1653,23 @@ const AttendanceManagement: React.FC = () => {
       if (error.response?.status === 423 && error.response?.data?.error === 'FINALIZATION_LOCKED') {
         showNotify('error', 'Đã khóa chốt công', error.response.data.message || `Tháng này đã đóng chốt công. Không thể tạo đơn. Vui lòng liên hệ HCNS để biết chi tiết.`);
       } else {
+        // Backend trả lý do ở nhiều dạng: `detail` / `message`, `error` (vd chặn nhân viên
+        // thử việc làm đơn nghỉ phép) hoặc lỗi validate theo từng trường. Trước chỉ đọc hai
+        // khoá đầu nên SK00840 bị chặn vì còn hợp đồng thử việc mà chỉ thấy "thử lại".
+        const data = error.response?.data;
+        const fieldError = data && typeof data === 'object'
+          ? Object.values(data).flat().find((v): v is string => typeof v === 'string' && v.length > 0)
+          : undefined;
         const errorMessage =
-          error.response?.data?.detail ||
-          error.response?.data?.message ||
+          data?.detail ||
+          data?.message ||
+          data?.error ||
+          fieldError ||
           (selectedContext === 'online_work'
             ? 'Gửi đơn làm việc online thất bại. Vui lòng thử lại.'
             : 'Gửi đơn bổ sung công thất bại. Vui lòng thử lại.');
-        showNotify('error', 'Lỗi hệ thống', errorMessage);
+        const status = error.response?.status;
+        showNotify('error', status && status < 500 ? 'Không gửi được đơn' : 'Lỗi hệ thống', errorMessage);
       }
     } finally {
       setIsSubmitting(false);
