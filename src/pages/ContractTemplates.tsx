@@ -222,6 +222,7 @@ export default function ContractTemplates() {
     { key: '{{so_dien_thoai}}', desc: 'Số điện thoại' },
     { key: '{{email}}', desc: 'Email cá nhân' },
     { key: '{{luong_co_ban}}', desc: 'Lương cơ bản' },
+    { key: '{{luong_co_ban_bang_chu}}', desc: 'Lương cơ bản bằng chữ' },
     { key: '{{luong_thu_viec}}', desc: 'Lương thử việc' },
     { key: '{{ngay_bat_dau}}', desc: 'Ngày bắt đầu làm việc' },
     { key: '{{ngay_ky}}', desc: 'Ngày ký hợp đồng' },

@@ -11,7 +11,6 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import MultiPdfPreviewModal, { ContractPreviewItem } from '../components/Common/MultiPdfPreviewModal';
-import PdfPreviewModal from '../components/Common/PdfPreviewModal';
 import ContractPlaceholderModal from './ContractPlaceholderModal';
 import { SelectBox, MultiSelectBox, SelectOption } from '../components/LandingLayout/SelectBox';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -39,6 +38,9 @@ const effectiveStatus = (status: string, endDate: string | null | undefined): st
   }
   return status;
 };
+
+// HĐ đã ký / đã huỷ không cho "Sửa thông tin": tạo lại PDF sẽ đưa HĐ về "Chờ ký".
+const isContractEditable = (status: string) => status !== 'SIGNED' && status !== 'CANCELLED';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   DRAFT:        { label: 'Bản nháp', color: 'bg-gray-100 text-gray-700' },
@@ -122,7 +124,8 @@ const BulkContracts: React.FC = () => {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [showMultiPreview, setShowMultiPreview] = useState(false);
   const [showSelectedPreview, setShowSelectedPreview] = useState(false);
-  const [singlePreview, setSinglePreview] = useState<{ id: number; name: string } | null>(null);
+  // "Xem PDF" 1 hợp đồng — mở cùng khung xem với "Xem trước PDF vừa tạo" (có nút Sửa thông tin)
+  const [singlePreview, setSinglePreview] = useState<ContractPreviewItem | null>(null);
   const [placeholderModal, setPlaceholderModal] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [signingId, setSigningId] = useState<number | null>(null);
@@ -379,13 +382,38 @@ const BulkContracts: React.FC = () => {
     );
   }, [bulkTemplate, bulkStartDate, bulkEndDate]);
 
+  const openSinglePreview = (c: EmployeeContract, employeeName: string) =>
+    setSinglePreview({
+      id: c.id,
+      employee_name: employeeName,
+      template_name: [c.template_name, c.contract_type_display, c.contract_number].filter(Boolean).join(' · '),
+      editable: isContractEditable(c.status),
+    });
+
+  // Sau khi HR sửa trường + tạo lại PDF: tải lại danh sách HĐ và dòng tương ứng ở "Hợp đồng vừa tạo"
+  const refreshContract = async (id: number) => {
+    await fetchContractsMap();
+    try {
+      const { data } = await managementApi.get(`/api-hrm/employee-contracts/${id}/`);
+      setCreatedContracts((prev) => prev.map((c) => (c.id === id ? data : c)));
+    } catch {}
+  };
+
   const multiPreviewItems = useMemo<ContractPreviewItem[]>(
     () =>
       createdContracts
         .filter((c) => c.generated_file)
-        .map((c) => ({ id: c.id, employee_name: c.employee_name, template_name: c.template_name || '' })),
+        .map((c) => ({
+          id: c.id,
+          employee_name: c.employee_name,
+          template_name: c.template_name || '',
+          editable: isContractEditable(c.status),
+        })),
     [createdContracts]
   );
+
+  // Mảng ổn định — MultiPdfPreviewModal reset lựa chọn mỗi khi `contracts` đổi tham chiếu
+  const singlePreviewItems = useMemo(() => (singlePreview ? [singlePreview] : []), [singlePreview]);
 
   const selectedPreviewItems = useMemo<ContractPreviewItem[]>(
     () =>
@@ -398,6 +426,7 @@ const BulkContracts: React.FC = () => {
             employee_name: emp?.full_name || '',
             template_name: [c.template_name, c.contract_type_display, c.contract_number]
               .filter(Boolean).join(' · '),
+            editable: false,
           }));
       }),
     [selectedRows, employees, contractsMap]
@@ -871,7 +900,7 @@ const BulkContracts: React.FC = () => {
                     <div className="flex items-center gap-2">
                       {c.generated_file && (
                         <button
-                          onClick={() => setSinglePreview({ id: c.id, name: c.employee_name })}
+                          onClick={() => openSinglePreview(c, c.employee_name)}
                           className="flex items-center gap-1 px-2.5 py-1 text-xs text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50"
                         >
                           <EyeIcon className="w-3.5 h-3.5" />
@@ -1200,7 +1229,7 @@ const BulkContracts: React.FC = () => {
                                       <div className="flex items-center gap-2">
                                         {c.generated_file && (
                                           <button
-                                            onClick={() => setSinglePreview({ id: c.id, name: emp.full_name })}
+                                            onClick={() => openSinglePreview(c, emp.full_name)}
                                             className="flex items-center gap-1 text-primary-600 hover:underline"
                                           >
                                             <EyeIcon className="w-3.5 h-3.5" />
@@ -1288,7 +1317,7 @@ const BulkContracts: React.FC = () => {
                                       </td>
                                       <td className="py-1.5">
                                         {c.generated_file && (
-                                          <button onClick={() => setSinglePreview({ id: c.id, name: emp.full_name })} className="flex items-center gap-1 text-primary-600 hover:underline">
+                                          <button onClick={() => openSinglePreview(c, emp.full_name)} className="flex items-center gap-1 text-primary-600 hover:underline">
                                             <EyeIcon className="w-3.5 h-3.5" /> Xem PDF
                                           </button>
                                         )}
@@ -1340,7 +1369,7 @@ const BulkContracts: React.FC = () => {
                                         <div className="flex items-center gap-2">
                                           {c.generated_file && (
                                             <button
-                                              onClick={() => setSinglePreview({ id: c.id, name: emp.full_name })}
+                                              onClick={() => openSinglePreview(c, emp.full_name)}
                                               className="flex items-center gap-1 text-primary-600 hover:underline"
                                             >
                                               <EyeIcon className="w-3.5 h-3.5" /> Xem PDF
@@ -1395,21 +1424,14 @@ const BulkContracts: React.FC = () => {
         open={showMultiPreview}
         contracts={multiPreviewItems}
         onClose={() => setShowMultiPreview(false)}
+        onEdited={refreshContract}
       />
 
-      <PdfPreviewModal
+      <MultiPdfPreviewModal
         open={!!singlePreview}
-        title={singlePreview?.name}
-        loader={
-          singlePreview
-            ? () =>
-                managementApi
-                  .get(`/api-hrm/employee-contracts/${singlePreview.id}/download_file/`, { responseType: 'blob' })
-                  .then((r) => URL.createObjectURL(r.data))
-            : null
-        }
-        downloadFilename={`${singlePreview?.name || 'hop-dong'}.pdf`}
+        contracts={singlePreviewItems}
         onClose={() => setSinglePreview(null)}
+        onEdited={refreshContract}
       />
 
       {placeholderModal !== null && (
@@ -1419,11 +1441,7 @@ const BulkContracts: React.FC = () => {
           onSuccess={async () => {
             const id = placeholderModal;
             setPlaceholderModal(null);
-            await fetchContractsMap();
-            try {
-              const { data } = await managementApi.get(`/api-hrm/employee-contracts/${id}/`);
-              setCreatedContracts((prev) => prev.map((c) => (c.id === id ? data : c)));
-            } catch {}
+            await refreshContract(id);
           }}
         />
       )}
