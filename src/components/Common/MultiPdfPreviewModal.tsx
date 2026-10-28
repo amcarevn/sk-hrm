@@ -15,15 +15,19 @@ export interface ContractPreviewItem {
   id: number;
   employee_name: string;
   template_name: string;
+  /** false = ẩn nút "Sửa thông tin" (vd HĐ đã ký: tạo lại PDF sẽ đưa HĐ về "Chờ ký") */
+  editable?: boolean;
 }
 
 interface Props {
   open: boolean;
   contracts: ContractPreviewItem[];
   onClose: () => void;
+  /** Gọi sau khi HR sửa trường + tạo lại PDF — để trang cha tải lại danh sách */
+  onEdited?: (contractId: number) => void;
 }
 
-const MultiPdfPreviewModal: React.FC<Props> = ({ open, contracts, onClose }) => {
+const MultiPdfPreviewModal: React.FC<Props> = ({ open, contracts, onClose, onEdited }) => {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -36,7 +40,8 @@ const MultiPdfPreviewModal: React.FC<Props> = ({ open, contracts, onClose }) => 
 
   useEffect(() => {
     if (open && contracts.length > 0) {
-      setSelectedId(contracts[0].id);
+      // Giữ HĐ đang xem nếu vẫn còn trong danh sách (vd trang cha tải lại sau khi sửa)
+      setSelectedId((prev) => (prev && contracts.some((c) => c.id === prev) ? prev : contracts[0].id));
     }
     if (!open) {
       Object.values(urlCache.current).forEach((u) => URL.revokeObjectURL(u));
@@ -108,6 +113,7 @@ const MultiPdfPreviewModal: React.FC<Props> = ({ open, contracts, onClose }) => 
       delete urlCache.current[contractId];
     }
     setEditingContractId(null);
+    onEdited?.(contractId);
     // Trigger reload: nếu đang chọn contract này thì re-fetch
     if (selectedId === contractId) {
       setSelectedId(null);
@@ -242,16 +248,18 @@ const MultiPdfPreviewModal: React.FC<Props> = ({ open, contracts, onClose }) => 
                   {selected?.employee_name} — {selected?.template_name}
                 </p>
                 <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                  <button
-                    type="button"
-                    onClick={() => selectedId && setEditingContractId(selectedId)}
-                    disabled={!selectedId}
-                    title="Sửa các trường rồi tạo lại PDF"
-                    className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 hover:border-amber-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <PencilSquareIcon className="w-3.5 h-3.5" />
-                    Sửa thông tin
-                  </button>
+                  {selected?.editable !== false && (
+                    <button
+                      type="button"
+                      onClick={() => selectedId && setEditingContractId(selectedId)}
+                      disabled={!selectedId}
+                      title="Sửa các trường rồi tạo lại PDF"
+                      className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 hover:border-amber-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <PencilSquareIcon className="w-3.5 h-3.5" />
+                      Sửa thông tin
+                    </button>
+                  )}
                   <a
                     href={pdfUrl}
                     target="_blank"
