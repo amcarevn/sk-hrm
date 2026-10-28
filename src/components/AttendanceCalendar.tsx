@@ -1368,7 +1368,9 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
               const q = engineSummary.explanation_quota_by_type?.[row.key] || { used: 0, max: 1, remaining: 1 };
               const maxMinutes = engineSummary.explanation_quota_by_type?.max_minutes;
               const noMinutesCap = engineSummary.explanation_quota_by_type?.is_manager_combined_quota === true;
-              const isExhausted = q.remaining <= 0;
+              // CS Xã Đàn: Đi muộn không giới hạn số lần lẫn số phút (HCNS SK 2026-10-28).
+              const unlimited = (q as { unlimited?: boolean }).unlimited === true;
+              const isExhausted = !unlimited && q.remaining <= 0;
               return (
                 <div
                   key={row.key}
@@ -1377,8 +1379,8 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
                   }`}
                 >
                   <span>{row.label}:</span>
-                  <span className="font-black">{q.used}/{q.max} lần</span>
-                  {row.capMinutes && !noMinutesCap && (
+                  <span className="font-black">{unlimited ? `${q.used} lần (không giới hạn)` : `${q.used}/${q.max} lần`}</span>
+                  {row.capMinutes && !noMinutesCap && !unlimited && (
                     <span className="text-[9px] md:text-[10px] font-normal text-gray-400">(không quá {maxMinutes ?? 30}p)</span>
                   )}
                 </div>
