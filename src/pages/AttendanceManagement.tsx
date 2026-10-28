@@ -3517,8 +3517,10 @@ const AttendanceManagement: React.FC = () => {
                                   // hạn số phút lệch) — xem get_explanation_quota_by_type().
                                   const maxMinutes = quotaByType?.max_minutes ?? 30;
                                   const noMinutesCap = quotaByType?.is_manager_combined_quota === true;
+                                  // CS Xã Đàn: Đi muộn không giới hạn số phút (late_unlimited, HCNS SK 2026-10-28).
+                                  const lateNoMinutesCap = noMinutesCap || quotaByType?.late_unlimited === true;
                                   if (reason.id === 'late_minutes') {
-                                    return !isIncomplete && (detail?.late_minutes || 0) > 0 && (noMinutesCap || (detail?.late_minutes || 0) <= maxMinutes);
+                                    return !isIncomplete && (detail?.late_minutes || 0) > 0 && (lateNoMinutesCap || (detail?.late_minutes || 0) <= maxMinutes);
                                   }
                                   if (reason.id === 'early_leave_minutes') {
                                     return !isIncomplete && (detail?.early_leave_minutes || 0) > 0 && (noMinutesCap || (detail?.early_leave_minutes || 0) <= maxMinutes);
