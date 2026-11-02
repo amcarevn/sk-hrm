@@ -146,9 +146,14 @@ export const dashboardAPI = {
     return response.data.data;
   },
 
-  getHRMStats: async (): Promise<any> => {
+  getHRMStats: async (params?: {
+    start_date?: string;
+    end_date?: string;
+    department_id?: number | '';
+    all_time?: boolean;
+  }): Promise<any> => {
     const response: AxiosResponse<any> =
-      await managementApi.get('/api-hrm/dashboard/');
+      await managementApi.get('/api-hrm/dashboard/', { params });
     return response.data;
   },
 
