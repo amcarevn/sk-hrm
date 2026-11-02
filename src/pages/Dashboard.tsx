@@ -659,7 +659,8 @@ const Dashboard = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-full sm:w-fit overflow-x-auto">
+      {/* shrink-0: khung cuộn trong cột flex bị co chiều cao về 0 khi nội dung tab dài */}
+      <div className="flex shrink-0 gap-1 bg-gray-100 rounded-xl p-1 w-full sm:w-fit overflow-x-auto sm:overflow-visible">
         {visibleTabs.map(tab => {
           const Icon = tab.icon;
           const active = activeTab === tab.key;
