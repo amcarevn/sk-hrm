@@ -524,6 +524,67 @@ const AttendanceManagement: React.FC = () => {
       { id: 'first_day', label: 'Ngày đầu đi làm', icon: 'calendar' },
     ];
 
+  // Danh sách lý do giải trình còn chọn được cho 1 ngày — dùng chung cho hiện/ẩn thẻ
+  // "Đơn giải trình" (bước 1) và danh sách lý do (bước 2). Trước đây bước 1 ẩn CẢ
+  // thẻ hễ ngày đó có BẤT KỲ đơn giải trình nào đã duyệt, nên duyệt "Đi công tác"
+  // buổi sáng xong thì không giải trình được "Về sớm" buổi chiều (SK00753 28/10/2026;
+  // Trung Anh đã sửa tương tự ở 8f3eb81). Chỉ loại đúng loại đã duyệt.
+  const getAvailableExplanationReasons = (detail: any, registrations: any[]) => {
+    return explanationReasons.filter(reason => {
+      // 1. Ngăn chặn nếu đã có đơn cùng loại được PHÊ DUYỆT
+      const isAlreadyApproved = registrations.some((r: any) => {
+        if (r.status?.toUpperCase() !== 'APPROVED' || r.event_type?.toUpperCase() !== 'EXPLANATION') return false;
+        const rData = r.data || r;
+        const targetType = (({
+          late_minutes: 'LATE',
+          early_leave_minutes: 'EARLY_LEAVE',
+          incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
+          machine_error: 'MACHINE_ERROR',
+          business_trip: 'BUSINESS_TRIP',
+          first_day: 'FIRST_DAY'
+        } as Record<string, string>)[reason.id]);
+        return rData?.explanation_type?.toUpperCase() === targetType;
+      });
+      if (isAlreadyApproved) return false;
+
+      // 1b. Ẩn nếu loại này đã hết hạn mức riêng trong tháng (Đi muộn/Về
+      // sớm/Quên chấm công mỗi loại 1 lần/tháng độc lập, 2026-09-23 — xem
+      // get_explanation_quota_by_type() bên BE).
+      const quotaByType = attendanceStats?.explanation_quota_by_type;
+      const quotaTypeMap: Record<string, string> = {
+        late_minutes: 'LATE',
+        early_leave_minutes: 'EARLY_LEAVE',
+        incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
+      };
+      const quotaKey = quotaTypeMap[reason.id];
+      if (quotaKey && quotaByType?.[quotaKey] && quotaByType[quotaKey].remaining <= 0) {
+        return false;
+      }
+
+      // 2. Các logic lọc theo dữ liệu thực tế (giữ nguyên logic cũ nhưng làm gọn hơn)
+      const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
+      // NV thuộc rổ gộp Trưởng phòng: BE trả max_minutes=null (không giới
+      // hạn số phút lệch) — xem get_explanation_quota_by_type().
+      const maxMinutes = quotaByType?.max_minutes ?? 30;
+      const noMinutesCap = quotaByType?.is_manager_combined_quota === true;
+      // CS Xã Đàn: Đi muộn không giới hạn số phút (late_unlimited, HCNS SK 2026-10-28).
+      const lateNoMinutesCap = noMinutesCap || quotaByType?.late_unlimited === true;
+      if (reason.id === 'late_minutes') {
+        return !isIncomplete && (detail?.late_minutes || 0) > 0 && (lateNoMinutesCap || (detail?.late_minutes || 0) <= maxMinutes);
+      }
+      if (reason.id === 'early_leave_minutes') {
+        return !isIncomplete && (detail?.early_leave_minutes || 0) > 0 && (noMinutesCap || (detail?.early_leave_minutes || 0) <= maxMinutes);
+      }
+      if (reason.id === 'incomplete_attendance') return isIncomplete || detail?.status === 'ABSENT';
+      if (reason.id === 'machine_error') return isIncomplete || detail?.status === 'ABSENT';
+      if (reason.id === 'first_day') return !detail || detail.status === 'ABSENT' || detail?.status === 'INCOMPLETE_ATTENDANCE';
+      if (reason.id === 'business_trip') {
+        return !detail || detail.status === 'ABSENT' || (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || detail?.status === 'INCOMPLETE_ATTENDANCE';
+      }
+      return true;
+    });
+  };
+
   const registrationReasons: {
     id: RegistrationReason;
     label: string;
@@ -3283,11 +3344,6 @@ const AttendanceManagement: React.FC = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {(() => {
                           const registrations = selectedDayData?.registrations || [];
-                          const hasApprovedExplanation = registrations.some((r: any) => 
-                            r.status?.toUpperCase() === 'APPROVED' && 
-                            r.event_type?.toUpperCase() === 'EXPLANATION' &&
-                            r.data?.explanation_type !== 'LEAVE'
-                          );
                           const hasApprovedOnlineWork = registrations.some((r: any) => 
                             r.status?.toUpperCase() === 'APPROVED' && 
                             r.event_type?.toUpperCase() === 'ONLINE_WORK'
@@ -3298,11 +3354,8 @@ const AttendanceManagement: React.FC = () => {
                             r.data?.explanation_type === 'LEAVE'
                           );
 
-                          const detail = attendanceDetails[0];
-                          const statusStr = detail?.status?.toUpperCase() || '';
-                          const hasViolations = (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || ['LATE', 'EARLY_LEAVE', 'LATE_EARLY', 'INCOMPLETE_ATTENDANCE'].includes(statusStr);
-                          
-                          const showExplanationCard = (!isFullPresent || hasViolations) && !hasApprovedExplanation;
+                          // Chỉ ẩn khi không còn lý do giải trình nào chọn được (cùng hàm với bước 2).
+                          const showExplanationCard = getAvailableExplanationReasons(attendanceDetails[0], registrations).length > 0;
                           const showMonthlyLeaveCard = !hasApprovedLeave;
                           const showOnlineWorkCard = !hasApprovedOnlineWork;
 
@@ -3477,62 +3530,7 @@ const AttendanceManagement: React.FC = () => {
 
                               // Lọc lý do cho Đơn giải trình dựa trên thực tế chấm công
                               if (selectedContext === 'explanation') {
-                                const detail = attendanceDetails[0];
-                                const registrations = selectedDayData?.registrations || [];
-
-                                return reasons.filter(reason => {
-                                  // 1. Ngăn chặn nếu đã có đơn cùng loại được PHÊ DUYỆT
-                                  const isAlreadyApproved = registrations.some((r: any) => {
-                                    if (r.status?.toUpperCase() !== 'APPROVED' || r.event_type?.toUpperCase() !== 'EXPLANATION') return false;
-                                    const rData = r.data || r;
-                                    const targetType = (({
-                                      late_minutes: 'LATE',
-                                      early_leave_minutes: 'EARLY_LEAVE',
-                                      incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
-                                      machine_error: 'MACHINE_ERROR',
-                                      business_trip: 'BUSINESS_TRIP',
-                                      first_day: 'FIRST_DAY'
-                                    } as Record<string, string>)[reason.id]);
-                                    return rData?.explanation_type?.toUpperCase() === targetType;
-                                  });
-                                  if (isAlreadyApproved) return false;
-
-                                  // 1b. Ẩn nếu loại này đã hết hạn mức riêng trong tháng (Đi muộn/Về
-                                  // sớm/Quên chấm công mỗi loại 1 lần/tháng độc lập, 2026-09-23 — xem
-                                  // get_explanation_quota_by_type() bên BE).
-                                  const quotaByType = attendanceStats?.explanation_quota_by_type;
-                                  const quotaTypeMap: Record<string, string> = {
-                                    late_minutes: 'LATE',
-                                    early_leave_minutes: 'EARLY_LEAVE',
-                                    incomplete_attendance: 'INCOMPLETE_ATTENDANCE',
-                                  };
-                                  const quotaKey = quotaTypeMap[reason.id];
-                                  if (quotaKey && quotaByType?.[quotaKey] && quotaByType[quotaKey].remaining <= 0) {
-                                    return false;
-                                  }
-
-                                  // 2. Các logic lọc theo dữ liệu thực tế (giữ nguyên logic cũ nhưng làm gọn hơn)
-                                  const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
-                                  // NV thuộc rổ gộp Trưởng phòng: BE trả max_minutes=null (không giới
-                                  // hạn số phút lệch) — xem get_explanation_quota_by_type().
-                                  const maxMinutes = quotaByType?.max_minutes ?? 30;
-                                  const noMinutesCap = quotaByType?.is_manager_combined_quota === true;
-                                  // CS Xã Đàn: Đi muộn không giới hạn số phút (late_unlimited, HCNS SK 2026-10-28).
-                                  const lateNoMinutesCap = noMinutesCap || quotaByType?.late_unlimited === true;
-                                  if (reason.id === 'late_minutes') {
-                                    return !isIncomplete && (detail?.late_minutes || 0) > 0 && (lateNoMinutesCap || (detail?.late_minutes || 0) <= maxMinutes);
-                                  }
-                                  if (reason.id === 'early_leave_minutes') {
-                                    return !isIncomplete && (detail?.early_leave_minutes || 0) > 0 && (noMinutesCap || (detail?.early_leave_minutes || 0) <= maxMinutes);
-                                  }
-                                  if (reason.id === 'incomplete_attendance') return isIncomplete || detail?.status === 'ABSENT';
-                                  if (reason.id === 'machine_error') return isIncomplete || detail?.status === 'ABSENT';
-                                  if (reason.id === 'first_day') return !detail || detail.status === 'ABSENT' || detail?.status === 'INCOMPLETE_ATTENDANCE';
-                                  if (reason.id === 'business_trip') {
-                                    return !detail || detail.status === 'ABSENT' || (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || detail?.status === 'INCOMPLETE_ATTENDANCE';
-                                  }
-                                  return true;
-                                });
+                                return getAvailableExplanationReasons(attendanceDetails[0], selectedDayData?.registrations || []);
                               }
 
                               // Lọc lý do cho Đăng ký (OT, Trực...)
