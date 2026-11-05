@@ -20,6 +20,10 @@ interface SelectBoxProps<T> {
    *  này mất ý nghĩa (vd chọn "Tất cả tháng" thì ô Năm vô tác dụng) — khoá lại
    *  thay vì ẩn đi, để không làm xô lệch các nút bên cạnh. */
   disabled?: boolean;
+  /** Số kết quả tối đa hiện cùng lúc (kể cả khi ô tìm kiếm còn trống) — mặc định
+   *  100 để UI mượt với danh sách lớn. Danh sách chọn trong TOÀN BỘ nhân viên thì
+   *  truyền cao hơn để không cắt mất người ở cuối khi chưa gõ tìm kiếm. */
+  maxResults?: number;
 }
 
 // Danh sách thả xuống: trên điện thoại rộng bằng đúng ô chọn và cho nhãn dài
@@ -50,6 +54,7 @@ function SelectBoxInner<T>({
   size = 'default',
   portal = false,
   disabled = false,
+  maxResults = 100,
 }: SelectBoxProps<T>) {
   const [query, setQuery] = useState("");
 
@@ -62,9 +67,9 @@ function SelectBoxInner<T>({
           option.label.toLowerCase().includes(query.toLowerCase())
         );
 
-    // Limit to 100 results to keep UI snappy with large lists
-    return filtered.slice(0, 100);
-  }, [options, query]);
+    // Limit results to keep UI snappy with large lists
+    return filtered.slice(0, maxResults);
+  }, [options, query, maxResults]);
 
   const isLg = size === 'lg';
   const labelCls = isLg ? "block text-base font-semibold mb-1.5 text-gray-800" : "block text-sm font-medium mb-1 text-gray-700";

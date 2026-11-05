@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { employeesAPI, Employee } from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 import { formatDate } from '../utils/dateUtils';
 import { WORK_LOCATION_OPTIONS } from '../constants/onboarding';
 import PdfFrame from '../components/Common/PdfFrame';
+import EmployeeDeviceCodes from '../components/EmployeeDeviceCodes';
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -143,6 +145,13 @@ const EmployeeShow: React.FC = () => {
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [previewPdf, setPreviewPdf] = useState<string | null>(null);
+
+  // Admin / HCNS: thấy card "Mã chấm công trên máy" (gán / gỡ mã máy chấm công).
+  const { user } = useAuth();
+  const userRole = user?.role?.toUpperCase();
+  const isAdmin = !!(user?.is_superuser || user?.is_super_admin) || userRole === 'ADMIN';
+  const isHR = user?.is_staff === true || userRole === 'HR';
+  const canManageEmployee = isAdmin || isHR;
 
   useEffect(() => {
     if (id) loadEmployee(Number(id));
@@ -409,6 +418,9 @@ const EmployeeShow: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* ── Mã chấm công trên máy (HR) ── */}
+        {canManageEmployee && <EmployeeDeviceCodes employeeId={employee.id} />}
 
         {/* ── Thông tin người liên hệ khẩn cấp ── */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">

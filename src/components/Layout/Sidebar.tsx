@@ -31,6 +31,7 @@ import {
   MegaphoneIcon,
   ExclamationCircleIcon,
   CalendarDaysIcon,
+  FingerPrintIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavigationItem {
@@ -168,6 +169,12 @@ const navigationItems: NavigationItem[] = [
         icon: CloudArrowUpIcon,
         roles: ['ADMIN', 'HR'],
         departments: ['HCNS'],
+      },
+      {
+        name: 'Mã chấm công',
+        href: '/dashboard/attendance/device-users',
+        icon: FingerPrintIcon,
+        roles: ['ADMIN', 'HR'],
       },
       {
         name: 'Chốt công',

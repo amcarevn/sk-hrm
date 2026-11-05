@@ -28,6 +28,10 @@ export const employeesAPI = {
     ordering?: string;
     contract_type?: string;
     is_active?: boolean;
+    /** Lấy cả nhân viên is_active=False (mặc định backend chỉ trả is_active=True) */
+    include_inactive?: boolean;
+    /** Ngày nghỉ việc từ (YYYY-MM-DD), dùng kèm employment_status=INACTIVE */
+    end_date_from?: string;
   }): Promise<{
     count: number;
     next: string | null;
