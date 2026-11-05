@@ -55,6 +55,7 @@ import PositionEmployees from './pages/PositionEmployees';
 import AttendanceManagement from './pages/AttendanceManagement';
 import AttendanceUpload from './pages/AttendanceUpload';
 import AttendanceView from './pages/AttendanceView';
+import AttendanceDeviceUsers from './pages/AttendanceDeviceUsers';
 import Approvals from './pages/Approvals';
 import MyRequests from './pages/MyRequests';
 import SalaryAdvance from './pages/SalaryAdvance';
@@ -610,6 +611,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <AttendanceRanking />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/attendance/device-users"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+                <Layout>
+                  <AttendanceDeviceUsers />
                 </Layout>
               </ProtectedRoute>
             }
