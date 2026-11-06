@@ -117,6 +117,22 @@ const Home: React.FC = () => {
   const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
   const [showContractAlert, setShowContractAlert] = useState(false);
 
+  // Nhắc Admin/HCNS báo nhân viên nghỉ thai sản quay lại làm việc (sắp tới ngày, đã quá ngày
+  // mà vẫn để "Nghỉ thai sản", hoặc chưa nhập ngày đi làm lại).
+  type MaternityReturn = {
+    id: number;
+    employee_id: string;
+    full_name: string;
+    department_name: string | null;
+    maternity_leave_type_display: string | null;
+    maternity_return_date: string | null;
+    days_until_return: number | null;
+  };
+  const [maternityReturns, setMaternityReturns] = useState<MaternityReturn[]>([]);
+  const [maternityWindowDays, setMaternityWindowDays] = useState(7);
+  const [showMaternityAlert, setShowMaternityAlert] = useState(false);
+  const canSeeMaternityAlert = user?.role === 'admin' || user?.role === 'hr';
+
   // Employee's own contract — non-dismissable alert if no active contract
   type MyContract = { id: number; status: string; contract_type: string; end_date: string | null };
   // Các loại hợp đồng lao động thực sự — cam kết/thoả thuận (CONFIDENTIALITY, COMPANY_RULES, NURSING_COMMITMENT) không tính
@@ -137,6 +153,30 @@ const Home: React.FC = () => {
     fetchExpiringContracts();
     fetchMyContracts();
   }, []);
+
+  useEffect(() => {
+    if (canSeeMaternityAlert) fetchMaternityReturns();
+  }, [canSeeMaternityAlert]);
+
+  const fetchMaternityReturns = async () => {
+    try {
+      const res = await managementApi.get('/api-hrm/employees/maternity-return-alert/');
+      const { dismissed_today, employees, window_days } = res.data;
+      if (!employees?.length) return;
+      setMaternityReturns(employees);
+      if (window_days) setMaternityWindowDays(window_days);
+      if (!dismissed_today) setShowMaternityAlert(true);
+    } catch {
+      // Không phải Admin/HCNS → bỏ qua
+    }
+  };
+
+  const dismissMaternityAlert = async () => {
+    setShowMaternityAlert(false);
+    try {
+      await managementApi.post('/api-hrm/employees/maternity-return-alert/');
+    } catch { }
+  };
 
   const fetchExpiringContracts = async () => {
     try {
@@ -1114,6 +1154,111 @@ const Home: React.FC = () => {
         </div>,
         document.body
       )}
+
+      {/* Nhắc nhân viên hết thai sản — hiện sau khi đóng cảnh báo hợp đồng để hai popup không chồng nhau */}
+      {showMaternityAlert && !showContractAlert && maternityReturns.length > 0 && (() => {
+        const overdueCount = maternityReturns.filter(m => m.days_until_return !== null && m.days_until_return < 0).length;
+        const upcomingCount = maternityReturns.filter(m => m.days_until_return !== null && m.days_until_return >= 0).length;
+        const missingCount = maternityReturns.filter(m => m.days_until_return === null).length;
+        const summary = [
+          overdueCount ? `${overdueCount} người đã quá ngày đi làm lại` : null,
+          upcomingCount ? `${upcomingCount} người đi làm lại trong ${maternityWindowDays} ngày tới` : null,
+          missingCount ? `${missingCount} người chưa có ngày đi làm lại` : null,
+        ].filter(Boolean).join(' · ');
+        return createPortal(
+          <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4 bg-black/60">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
+              <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-t-2xl px-4 sm:px-6 py-5 flex items-start gap-3 sm:gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <BellAlertIcon className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold text-white">Nhắc nhân viên hết nghỉ thai sản</h3>
+                  <p className="text-sm text-white/80 mt-0.5">{summary}</p>
+                </div>
+                <button
+                  onClick={dismissMaternityAlert}
+                  className="p-1.5 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 px-4 sm:px-6 py-4 space-y-2">
+                <p className="text-xs text-gray-500">
+                  Liên hệ nhân viên xác nhận ngày quay lại, rồi đổi trạng thái về "Đang làm việc". Hệ thống nhắc hằng ngày cho tới khi đổi trạng thái.
+                </p>
+                {maternityReturns.map((m) => {
+                  const days = m.days_until_return;
+                  const missing = days === null;
+                  const overdue = days !== null && days <= 0;
+                  const tone = overdue ? 'red' : missing ? 'amber' : 'pink';
+                  const rowCls = {
+                    red: 'bg-red-50 border-red-200 hover:bg-red-100',
+                    amber: 'bg-amber-50 border-amber-200 hover:bg-amber-100',
+                    pink: 'bg-pink-50 border-pink-200 hover:bg-pink-100',
+                  }[tone];
+                  const iconCls = { red: 'text-red-500', amber: 'text-amber-500', pink: 'text-pink-500' }[tone];
+                  const badgeCls = {
+                    red: 'bg-red-100 text-red-700',
+                    amber: 'bg-amber-100 text-amber-700',
+                    pink: 'bg-pink-100 text-pink-700',
+                  }[tone];
+                  const badge = days === null
+                    ? 'Chưa có ngày'
+                    : days < 0
+                      ? `Quá ${-days} ngày`
+                      : days === 0
+                        ? 'Hôm nay'
+                        : `Còn ${days} ngày`;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => navigate(`/dashboard/employees/${m.id}/edit`)}
+                      className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors ${rowCls}`}
+                    >
+                      <ExclamationTriangleIcon className={`w-5 h-5 flex-shrink-0 ${iconCls}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {m.full_name} <span className="font-normal text-gray-500">· {m.employee_id}</span>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5 truncate">
+                          {[
+                            m.department_name,
+                            m.maternity_leave_type_display,
+                            m.maternity_return_date ? `Đi làm lại: ${new Date(m.maternity_return_date).toLocaleDateString('vi-VN')}` : null,
+                          ].filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
+                      <span className={`text-xs font-bold whitespace-nowrap px-2.5 py-1 rounded-full ${badgeCls}`}>{badge}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="px-4 sm:px-6 py-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                <button
+                  onClick={dismissMaternityAlert}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline"
+                >
+                  Không nhắc lại hôm nay
+                </button>
+                <button
+                  onClick={() => {
+                    dismissMaternityAlert();
+                    navigate('/dashboard/employees?status=MATERNITY_LEAVE');
+                  }}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-pink-600 hover:bg-pink-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                >
+                  Xem danh sách nghỉ thai sản
+                  <ArrowRightIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
 
       {/* Modal xem tài liệu onboarding — dùng Portal để thoát Layout stacking context */}
       {viewingDoc && createPortal(

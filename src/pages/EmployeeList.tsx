@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { employeesAPI, departmentsAPI, Employee, sendAccountEmailsAPI } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
@@ -24,7 +24,9 @@ const EmployeeList: React.FC = () => {
     other: 0
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  // ?status=MATERNITY_LEAVE — mở thẳng danh sách đã lọc (vd từ nhắc nghỉ thai sản ở trang chủ).
+  const [searchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState<string>(() => searchParams.get('status') || 'all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [contractTypeFilter, setContractTypeFilter] = useState<string>('all');
   const [expiringSoonFilter, setExpiringSoonFilter] = useState<string>('all');
@@ -61,7 +63,8 @@ const EmployeeList: React.FC = () => {
       const params: any = { page, page_size: pageSize };
       if (search) params.search = search;
       if (status !== 'all') params.employment_status = status;
-      if (search || status === 'PAUSED') params.include_inactive = true;
+      // Vô hiệu hoá / Nghỉ thai sản để is_active=false nên phải xin cả người không hoạt động.
+      if (search || status === 'PAUSED' || status === 'MATERNITY_LEAVE') params.include_inactive = true;
       if (department !== 'all') params.department = department;
       if (contractType !== 'all') params.contract_type = contractType;
       
@@ -338,6 +341,7 @@ const EmployeeList: React.FC = () => {
           case 'INACTIVE': return 'Đã nghỉ';
           case 'PROBATION': return 'Thử việc';
           case 'PAUSED': return 'Tạm dừng';
+          case 'MATERNITY_LEAVE': return 'Nghỉ thai sản';
           default: return status;
         }
       };
@@ -805,7 +809,7 @@ const EmployeeList: React.FC = () => {
       }
     };
 
-    applyDropdown('employment_status', ['Đang làm việc', 'Tạm dừng', 'Đã nghỉ']);
+    applyDropdown('employment_status', ['Đang làm việc', 'Tạm dừng', 'Nghỉ thai sản', 'Đã nghỉ']);
     applyDropdown('rank', ['Chủ tịch', 'Giám đốc', 'Phó Giám đốc', 'Leader', 'Trưởng phòng', 'Trưởng phòng tập sự', 'Phó phòng', 'Nhân viên', 'Thực tập sinh']);
     applyDropdown('work_form', ['Toàn thời gian', 'Bán thời gian', 'Hợp đồng', 'Thực tập', 'Cộng tác viên']);
     applyDropdown('education_level', ['Trung học phổ thông', 'Trung cấp', 'Cử nhân cao đẳng', 'Cử nhân đại học', 'Thạc sĩ', 'Tiến sĩ', 'Khác']);
@@ -1071,7 +1075,19 @@ const EmployeeList: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: string, isActive?: boolean) => {
+  const getStatusBadge = (status: string, isActive?: boolean, maternityReturnDate?: string | null) => {
+    // Nghỉ thai sản cũng để is_active=false, nên phải xét trước nhãn "Vô hiệu hoá".
+    if (status === 'MATERNITY_LEAVE') {
+      const returnText = maternityReturnDate ? new Date(maternityReturnDate).toLocaleDateString('vi-VN') : '';
+      return (
+        <span
+          className="px-2 py-1 text-xs font-semibold rounded-full bg-pink-100 text-pink-700"
+          title={returnText ? `Dự kiến đi làm lại: ${returnText}` : 'Chưa nhập ngày đi làm lại'}
+        >
+          Nghỉ thai sản
+        </span>
+      );
+    }
     if (isActive === false) {
       return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-200 text-gray-600">Vô hiệu hoá</span>;
     }
@@ -1199,6 +1215,7 @@ const EmployeeList: React.FC = () => {
                 { value: 'ACTIVE', label: 'Đang làm việc' },
                 { value: 'PROBATION', label: 'Thử việc' },
                 { value: 'PAUSED', label: 'Vô hiệu hoá' },
+                { value: 'MATERNITY_LEAVE', label: 'Nghỉ thai sản' },
                 { value: 'INACTIVE', label: 'Đã nghỉ' },
               ]}
               onChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}
@@ -1443,7 +1460,7 @@ const EmployeeList: React.FC = () => {
                         <div className="text-sm text-gray-900">{employee.position?.title || 'Chưa phân chức vụ'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(employee.employment_status, employee.is_active)}
+                        {getStatusBadge(employee.employment_status, employee.is_active, employee.maternity_return_date)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">

@@ -1008,6 +1008,7 @@ const OnboardingDetail: React.FC = () => {
             <InfoField label="Khối" value={safeDisplay(employeeProfile?.block || onboarding.block)} />
             <InfoField label="Trạng thái" value={
               employeeProfile?.employment_status === 'PAUSED' ? 'Tạm dừng' :
+              employeeProfile?.employment_status === 'MATERNITY_LEAVE' ? 'Nghỉ thai sản' :
               employeeProfile?.employment_status === 'INACTIVE' ? 'Đã nghỉ' :
               'Đang làm việc'
             } />
@@ -1492,6 +1493,8 @@ const OnboardingDetail: React.FC = () => {
               {ef('Trạng thái làm việc', 'employment_status', undefined, [
                 { value: 'ACTIVE', label: 'Đang làm việc' },
                 { value: 'PAUSED', label: 'Tạm dừng' },
+                // Ngày nghỉ / đi làm lại nhập ở trang Sửa nhân viên; chưa nhập thì nhắc ở trang chủ báo thiếu.
+                { value: 'MATERNITY_LEAVE', label: 'Nghỉ thai sản' },
                 { value: 'INACTIVE', label: 'Đã nghỉ' },
               ])}
               {ef('Ghi chú tình trạng công việc', 'employment_status_notes', 'textarea')}

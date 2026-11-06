@@ -34,8 +34,33 @@ const GENDER_OPTIONS = [
 const EMPLOYMENT_STATUS_OPTIONS = [
   { label: 'Đang làm việc', value: 'ACTIVE' },
   { label: 'Vô hiệu hoá', value: 'PAUSED' },
+  { label: 'Nghỉ thai sản', value: 'MATERNITY_LEAVE' },
   { label: 'Đã nghỉ', value: 'INACTIVE' },
 ];
+
+// Thời gian nghỉ thai sản theo quy định SK — khớp MATERNITY_LEAVE_MONTHS ở backend.
+const MATERNITY_LEAVE_TYPE_OPTIONS = [
+  { label: 'Sinh lần 1 (1 con) - 6 tháng', value: 'FIRST_SINGLE' },
+  { label: 'Sinh lần 1 (sinh đôi) - 7 tháng', value: 'FIRST_TWINS' },
+  { label: 'Sinh con lần 2 - 7 tháng', value: 'SECOND_CHILD' },
+];
+const MATERNITY_LEAVE_MONTHS: Record<string, number> = {
+  FIRST_SINGLE: 6,
+  FIRST_TWINS: 7,
+  SECOND_CHILD: 7,
+};
+
+/** Ngày đi làm lại = ngày bắt đầu nghỉ + số tháng (DD/MM/YYYY). 31/08 + 6 tháng = 28/02. */
+const calcMaternityReturnDate = (startDateDisplay: string, leaveType: string): string => {
+  const parts = (startDateDisplay || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const months = MATERNITY_LEAVE_MONTHS[leaveType];
+  if (!parts || !months) return '';
+  const day = parseInt(parts[1]);
+  const target = new Date(parseInt(parts[3]), parseInt(parts[2]) - 1 + months, 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(day, lastDay));
+  return `${String(target.getDate()).padStart(2, '0')}/${String(target.getMonth() + 1).padStart(2, '0')}/${target.getFullYear()}`;
+};
 
 const MARITAL_STATUS_OPTIONS = [
   { label: 'Độc thân', value: 'SINGLE' },
@@ -204,6 +229,9 @@ const EmployeeEdit: React.FC = () => {
     education_level: '',
     termination_reason: '',
     employment_status_notes: '',
+    maternity_leave_type: '',
+    maternity_start_date: '',
+    maternity_return_date: '',
 
     // Giấy tờ tùy thân
     cccd_number: '',
@@ -295,6 +323,9 @@ const EmployeeEdit: React.FC = () => {
         employment_status: e.employment_status || 'ACTIVE',
         start_date: toDisplayDate(e.start_date),
         end_date: toDisplayDate(e.end_date),
+        maternity_leave_type: e.maternity_leave_type || '',
+        maternity_start_date: toDisplayDate(e.maternity_start_date),
+        maternity_return_date: toDisplayDate(e.maternity_return_date),
         position_id: e.position?.id,
         department_id: e.department?.id,
         manager_id: typeof e.manager === 'number' ? e.manager : (e.manager?.id ?? null),
@@ -420,6 +451,10 @@ const EmployeeEdit: React.FC = () => {
       if (name === 'start_date' && prev.probation_months) {
         next.probation_end_date = calcProbationEndDate(value, prev.probation_months);
       }
+      if (name === 'maternity_start_date') {
+        const returnDate = calcMaternityReturnDate(value, prev.maternity_leave_type);
+        if (returnDate) next.maternity_return_date = returnDate;
+      }
       return next;
     });
   };
@@ -428,8 +463,13 @@ const EmployeeEdit: React.FC = () => {
     setFormData((prev: any) => {
       const next = { ...prev, [name]: value };
       if (name === 'employment_status') {
-        if (value === 'INACTIVE' || value === 'PAUSED') next.is_active = false;
+        // Nghỉ thai sản ẩn khỏi danh sách đang làm việc như Vô hiệu hoá (chấm công, lương giữ nguyên cách cũ).
+        if (value === 'INACTIVE' || value === 'PAUSED' || value === 'MATERNITY_LEAVE') next.is_active = false;
         else if (value === 'ACTIVE' || value === 'PROBATION') next.is_active = true;
+      }
+      if (name === 'maternity_leave_type') {
+        const returnDate = calcMaternityReturnDate(prev.maternity_start_date, value);
+        if (returnDate) next.maternity_return_date = returnDate;
       }
       return next;
     });
@@ -439,6 +479,11 @@ const EmployeeEdit: React.FC = () => {
     e.preventDefault();
     if (!formData.employee_id || !formData.full_name) {
       setError('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
+    }
+    const isMaternityLeave = formData.employment_status === 'MATERNITY_LEAVE';
+    if (isMaternityLeave && (!formData.maternity_leave_type || !toApiDate(formData.maternity_start_date))) {
+      setError('Nghỉ thai sản: chọn loại thai sản và nhập ngày bắt đầu nghỉ (DD/MM/YYYY)');
       return;
     }
     try {
@@ -470,6 +515,13 @@ const EmployeeEdit: React.FC = () => {
       add('start_date', toApiDate(formData.start_date));
       // end_date luôn gửi để cho phép xóa (null = xóa ngày nghỉ việc)
       payload['end_date'] = toApiDate(formData.end_date) || null;
+      // Chỉ ghi thông tin thai sản khi đang ở trạng thái này; đi làm lại thì giữ lần nghỉ gần nhất.
+      // Ngày đi làm lại để trống → backend tự tính từ ngày bắt đầu + loại.
+      if (isMaternityLeave) {
+        payload['maternity_leave_type'] = formData.maternity_leave_type;
+        payload['maternity_start_date'] = toApiDate(formData.maternity_start_date);
+        payload['maternity_return_date'] = toApiDate(formData.maternity_return_date) || null;
+      }
       add('position_id', formData.position_id);
       add('department_id', formData.department_id);
       // null = người dùng chọn "Không có" -> phải gửi 0 (quy ước xoá của backend
@@ -687,6 +739,33 @@ const EmployeeEdit: React.FC = () => {
               options={EMPLOYMENT_STATUS_OPTIONS}
               onChange={(v) => handleSelect('employment_status', v)}
             />
+
+            {formData.employment_status === 'MATERNITY_LEAVE' && (
+              <div className="md:col-span-2 rounded-xl border border-pink-100 bg-pink-50/60 p-4">
+                <p className="text-sm font-semibold text-pink-700 mb-3">Thông tin nghỉ thai sản</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <SelectBox
+                    label="Loại thai sản *"
+                    value={formData.maternity_leave_type}
+                    placeholder="Chọn loại"
+                    options={MATERNITY_LEAVE_TYPE_OPTIONS}
+                    onChange={(v) => handleSelect('maternity_leave_type', v)}
+                  />
+                  <Field label="Ngày bắt đầu nghỉ" required>
+                    <input type="text" placeholder="DD/MM/YYYY" name="maternity_start_date" value={formData.maternity_start_date}
+                      onChange={handleInput} className={inputClass} />
+                  </Field>
+                  <Field label="Ngày dự kiến đi làm lại">
+                    <input type="text" placeholder="DD/MM/YYYY" name="maternity_return_date" value={formData.maternity_return_date}
+                      onChange={handleInput} className={inputClass} />
+                  </Field>
+                </div>
+                <p className="text-xs text-pink-700/80 mt-2">
+                  Ngày đi làm lại tự tính theo loại thai sản, sửa tay được. Admin/HCNS sẽ được nhắc từ 7 ngày trước ngày này,
+                  và nhắc hằng ngày tới khi đổi trạng thái về "Đang làm việc".
+                </p>
+              </div>
+            )}
 
             <Field label="Ngày bắt đầu">
               <input type="text" placeholder="DD/MM/YYYY" name="start_date" value={formData.start_date}

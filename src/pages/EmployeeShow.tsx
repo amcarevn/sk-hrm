@@ -99,6 +99,7 @@ const getStatusBadge = (status: string) => {
   const config: Record<string, { label: string; color: string }> = {
     ACTIVE: { label: 'Đang làm việc', color: 'bg-emerald-100 text-emerald-600' },
     SUSPENDED: { label: 'Tạm dừng', color: 'bg-amber-100 text-amber-600' },
+    MATERNITY_LEAVE: { label: 'Nghỉ thai sản', color: 'bg-pink-100 text-pink-700' },
     INACTIVE: { label: 'Đã nghỉ', color: 'bg-red-100 text-red-600' },
     PROBATION: { label: 'Thử việc', color: 'bg-amber-100 text-amber-600' },
   };
@@ -295,9 +296,17 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Đơn vị" value={emp.company_unit?.name} />
             <InfoField label="Trạng thái" value={
               emp.employment_status === 'PAUSED' ? 'Tạm dừng' :
+              emp.employment_status === 'MATERNITY_LEAVE' ? 'Nghỉ thai sản' :
               emp.employment_status === 'INACTIVE' ? 'Đã nghỉ' :
               'Đang làm việc'
             } />
+            {emp.employment_status === 'MATERNITY_LEAVE' && (
+              <>
+                <InfoField label="Loại thai sản" value={emp.maternity_leave_type_display} />
+                <InfoField label="Ngày bắt đầu nghỉ thai sản" value={emp.maternity_start_date ? formatDate(emp.maternity_start_date) : null} />
+                <InfoField label="Ngày dự kiến đi làm lại" value={emp.maternity_return_date ? formatDate(emp.maternity_return_date) : null} />
+              </>
+            )}
             <InfoField label="Ghi chú công việc" value={emp.employment_status_notes} full />
           </div>
         </div>
