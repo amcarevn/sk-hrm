@@ -351,10 +351,15 @@ export interface Employee {
 
   // Trạng thái
   is_active?: boolean;
-  employment_status: 'ACTIVE' | 'PAUSED' | 'INACTIVE' | 'PROBATION';
+  employment_status: 'ACTIVE' | 'PAUSED' | 'MATERNITY_LEAVE' | 'INACTIVE' | 'PROBATION';
   employment_status_notes?: string;
   start_date?: string;
   end_date?: string;
+  // Nghỉ thai sản (khi employment_status = MATERNITY_LEAVE)
+  maternity_leave_type?: 'FIRST_SINGLE' | 'FIRST_TWINS' | 'SECOND_CHILD' | null;
+  maternity_leave_type_display?: string | null;
+  maternity_start_date?: string | null;
+  maternity_return_date?: string | null;
   termination_reason?: string;
   total_work_months?: number;
 
