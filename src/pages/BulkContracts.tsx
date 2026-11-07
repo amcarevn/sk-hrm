@@ -39,6 +39,11 @@ const effectiveStatus = (status: string, endDate: string | null | undefined): st
   return status;
 };
 
+// Hợp đồng giấy ký trước khi có HRM: backend tạo từ thông tin hợp đồng trên hồ sơ nhân
+// viên (đã ký / hết hạn, không mẫu, không PDF) — xem hrm/employee_contract_sync.py.
+const templateLabel = (c: { template: number | null; template_name: string | null; generated_file: string | null; status: string }) =>
+  c.template_name || (!c.template && !c.generated_file && ['SIGNED', 'EXPIRED'].includes(c.status) ? 'Hợp đồng giấy' : '—');
+
 // HĐ đã ký / đã huỷ không cho "Sửa thông tin": tạo lại PDF sẽ đưa HĐ về "Chờ ký".
 const isContractEditable = (status: string) => status !== 'SIGNED' && status !== 'CANCELLED';
 
@@ -1215,7 +1220,7 @@ const BulkContracts: React.FC = () => {
                                           portal
                                         />
                                       ) : (
-                                        <span className="text-gray-600">{c.template_name || '—'}</span>
+                                        <span className="text-gray-600">{templateLabel(c)}</span>
                                       )}
                                     </td>
                                     <td className="py-1.5 pr-4 text-gray-600">{fmtDate(c.start_date)}</td>
@@ -1307,7 +1312,7 @@ const BulkContracts: React.FC = () => {
                                       <td className="py-1.5 pr-4 text-gray-600">{fmtDate(c.created_at.split('T')[0])}</td>
                                       <td className="py-1.5 pr-4 text-gray-600">{c.contract_number || '—'}</td>
                                       <td className="py-1.5 pr-4 text-gray-600">{c.contract_type_display}</td>
-                                      <td className="py-1.5 pr-4 text-gray-600">{c.template_name || '—'}</td>
+                                      <td className="py-1.5 pr-4 text-gray-600">{templateLabel(c)}</td>
                                       <td className="py-1.5 pr-4 text-gray-600">{fmtDate(c.start_date)}</td>
                                       <td className="py-1.5 pr-4">
                                         <span className={`flex items-center gap-1 ${warn ? 'text-amber-500 font-medium' : 'text-gray-600'}`}>
@@ -1357,7 +1362,7 @@ const BulkContracts: React.FC = () => {
                                       <td className="py-1.5 pr-4 text-gray-500">{fmtDate(c.created_at.split('T')[0])}</td>
                                       <td className="py-1.5 pr-4 text-gray-500">{c.contract_number || '—'}</td>
                                       <td className="py-1.5 pr-4 text-gray-500">{c.contract_type_display}</td>
-                                      <td className="py-1.5 pr-4 text-gray-500">{c.template_name || '—'}</td>
+                                      <td className="py-1.5 pr-4 text-gray-500">{templateLabel(c)}</td>
                                       <td className="py-1.5 pr-4 text-gray-500">{fmtDate(c.start_date)}</td>
                                       <td className="py-1.5 pr-4 text-gray-500">{fmtDate(c.end_date) || '—'}</td>
                                       <td className="py-1.5 pr-4">
