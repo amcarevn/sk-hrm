@@ -6,6 +6,7 @@ import { SelectBox } from '../components/LandingLayout/SelectBox';
 import Pagination from '../components/Pagination';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import { UsersIcon } from '@heroicons/react/24/outline';
+import { personalDocumentService } from '../services/personalDocument.service';
 
 
 const EmployeeList: React.FC = () => {
@@ -54,6 +55,19 @@ const EmployeeList: React.FC = () => {
   const [changeManagerResult, setChangeManagerResult] = useState<{ count: number; message: string } | null>(null);
   const isAdmin = user?.role === 'admin' || user?.is_super_admin === true;
   const isSuperUser = user?.is_superuser === true || user?.is_super_admin === true;
+
+  // Hồ sơ giấy tờ còn thiếu (chỉ Admin/HCNS): {employee id: [tên loại còn thiếu]} — nhãn đỏ cạnh tên.
+  const canSeeDocuments = user?.role === 'admin' || user?.role === 'hr';
+  const [missingDocs, setMissingDocs] = useState<Record<number, string[]>>({});
+  useEffect(() => {
+    if (!canSeeDocuments) return;
+    personalDocumentService.report().then((res) => {
+      const labelOf = Object.fromEntries(res.types.map((t) => [t.code, t.label]));
+      setMissingDocs(Object.fromEntries(
+        res.results.filter((r) => r.missing_count > 0).map((r) => [r.id, r.missing.map((c) => labelOf[c])]),
+      ));
+    }).catch(() => { });
+  }, [canSeeDocuments]);
 
   const SEND_EMAIL_COOLDOWN_KEY = 'send_all_emails_cooldown_until';
   const COOLDOWN_DURATION = 120; // 2 phút (giây)
@@ -1445,6 +1459,14 @@ const EmployeeList: React.FC = () => {
                           {isExpiringSoon(employee) && (
                             <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-600" title="Sắp hết hạn hợp đồng/thử việc (≤ 5 ngày)">
                               ⚠️
+                            </span>
+                          )}
+                          {missingDocs[employee.id] && (
+                            <span
+                              className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"
+                              title={`Thiếu: ${missingDocs[employee.id].join(', ')}`}
+                            >
+                              Thiếu {missingDocs[employee.id].length} giấy tờ
                             </span>
                           )}
                         </div>

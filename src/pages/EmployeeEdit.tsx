@@ -1120,24 +1120,10 @@ const EmployeeEdit: React.FC = () => {
               </Field>
             </div>
 
-            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-primary-50 transition-colors">
-                <input type="checkbox" className="w-4 h-4 text-primary-600 rounded accent-primary-600" checked={formData.doc_resume} onChange={(e) => handleSelect('doc_resume', e.target.checked)} />
-                <span className="text-sm font-medium text-gray-700">Sơ yếu lý lịch</span>
-              </label>
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-primary-50 transition-colors">
-                <input type="checkbox" className="w-4 h-4 text-primary-600 rounded accent-primary-600" checked={formData.doc_cccd} onChange={(e) => handleSelect('doc_cccd', e.target.checked)} />
-                <span className="text-sm font-medium text-gray-700">CCCD</span>
-              </label>
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-primary-50 transition-colors">
-                <input type="checkbox" className="w-4 h-4 text-primary-600 rounded accent-primary-600" checked={formData.doc_degree} onChange={(e) => handleSelect('doc_degree', e.target.checked)} />
-                <span className="text-sm font-medium text-gray-700">Bằng cấp</span>
-              </label>
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:bg-primary-50 transition-colors">
-                <input type="checkbox" className="w-4 h-4 text-primary-600 rounded accent-primary-600" checked={formData.doc_health} onChange={(e) => handleSelect('doc_health', e.target.checked)} />
-                <span className="text-sm font-medium text-gray-700">Giấy khám sức khỏe</span>
-              </label>
-            </div>
+            <p className="md:col-span-2 text-xs text-gray-500">
+              File scan từng loại giấy tờ (sơ yếu lý lịch, khai sinh, hộ khẩu, khám sức khỏe, bằng cấp, hợp đồng,
+              bảo mật...) xem và tải lên ở mục <span className="font-semibold">Hồ sơ giấy tờ</span> trên trang chi tiết nhân viên.
+            </p>
           </div>
         </div>
 
