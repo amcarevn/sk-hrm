@@ -41,6 +41,7 @@ import BotPermissionEdit from './pages/BotPermissionEdit';
 import RoleEdit from './pages/RoleEdit';
 import EmployeeList from './pages/EmployeeList';
 import SocialInsuranceList from './pages/SocialInsuranceList';
+import PersonalDocumentReport from './pages/PersonalDocumentReport';
 import EmployeeCreate from './pages/EmployeeCreate';
 import EmployeeShow from './pages/EmployeeShow';
 import EmployeeEdit from './pages/EmployeeEdit';
@@ -449,6 +450,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <EmployeeList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/personal-documents"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+                <Layout>
+                  <PersonalDocumentReport />
                 </Layout>
               </ProtectedRoute>
             }

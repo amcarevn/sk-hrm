@@ -32,6 +32,7 @@ import {
   ExclamationCircleIcon,
   CalendarDaysIcon,
   FingerPrintIcon,
+  FolderOpenIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavigationItem {
@@ -89,6 +90,12 @@ const navigationItems: NavigationItem[] = [
         name: 'Quản lý BHXH',
         href: '/dashboard/social-insurance',
         icon: ShieldCheckIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Hồ sơ giấy tờ',
+        href: '/dashboard/personal-documents',
+        icon: FolderOpenIcon,
         roles: ['ADMIN', 'HR'],
       },
       {

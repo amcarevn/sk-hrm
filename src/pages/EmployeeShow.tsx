@@ -6,6 +6,7 @@ import { formatDate } from '../utils/dateUtils';
 import { WORK_LOCATION_OPTIONS } from '../constants/onboarding';
 import PdfFrame from '../components/Common/PdfFrame';
 import EmployeeDeviceCodes from '../components/EmployeeDeviceCodes';
+import PersonalDocumentsPanel from '../components/PersonalDocuments/PersonalDocumentsPanel';
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -394,13 +395,12 @@ const EmployeeShow: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <InfoField label="Trạng thái hồ sơ" value={emp.file_status_display || (emp.file_status ? FILE_STATUS_LABELS[emp.file_status] || emp.file_status : null)} />
-            <InfoField label="Sơ yếu lý lịch" value={emp.doc_resume === true ? 'Đã có' : (emp.doc_resume === false ? 'Chưa có' : null)} />
-            <InfoField label="Căn cước công dân" value={emp.doc_cccd === true ? 'Đã có' : (emp.doc_cccd === false ? 'Chưa có' : null)} />
-            <InfoField label="Bằng cấp" value={emp.doc_degree === true ? 'Đã có' : (emp.doc_degree === false ? 'Chưa có' : null)} />
-            <InfoField label="Giấy khám sức khỏe" value={emp.doc_health === true ? 'Đã có' : (emp.doc_health === false ? 'Chưa có' : null)} />
             <InfoField label="Ghi chú hồ sơ" value={emp.file_review_notes} full />
           </div>
         </div>
+
+        {/* ── Hồ sơ giấy tờ (file scan từng loại) — chỉ Admin/HCNS ── */}
+        {canManageEmployee && <PersonalDocumentsPanel employeeId={employee.id} />}
 
         {/* ── Thông tin tài khoản hệ thống ── */}
         {employee.user && (
