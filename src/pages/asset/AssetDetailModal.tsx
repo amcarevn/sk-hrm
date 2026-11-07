@@ -567,7 +567,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                             <div className="flex items-center space-x-2 mb-2">
                               <SparklesIcon className="h-4 w-4 text-slate-500" />
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lịch sử & Tình trạng vật tư</p>
+                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mô tả / Ghi chú</p>
                             </div>
                             <p className="text-sm text-gray-700 leading-relaxed italic bg-white/60 p-3 rounded-lg border border-white shadow-sm">
                               {asset.description}
