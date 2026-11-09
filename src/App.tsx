@@ -42,6 +42,8 @@ import RoleEdit from './pages/RoleEdit';
 import EmployeeList from './pages/EmployeeList';
 import SocialInsuranceList from './pages/SocialInsuranceList';
 import PersonalDocumentReport from './pages/PersonalDocumentReport';
+import PersonalDocumentScans from './pages/PersonalDocumentScans';
+import PersonalDocumentScanDetail from './pages/PersonalDocumentScanDetail';
 import JobDescriptionList from './pages/JobDescriptionList';
 import JobDescriptionEdit from './pages/JobDescriptionEdit';
 import MyJob from './pages/MyJob';
@@ -463,6 +465,26 @@ function App() {
               <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
                 <Layout>
                   <PersonalDocumentReport />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/personal-documents/scans"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+                <Layout>
+                  <PersonalDocumentScans />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/personal-documents/scans/:id"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+                <Layout>
+                  <PersonalDocumentScanDetail />
                 </Layout>
               </ProtectedRoute>
             }

@@ -4,6 +4,7 @@ import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
   CheckCircleIcon,
+  DocumentMagnifyingGlassIcon,
   ExclamationTriangleIcon,
   FolderOpenIcon,
   MagnifyingGlassIcon,
@@ -156,8 +157,12 @@ const PersonalDocumentReport: React.FC = () => {
           <ArrowDownTrayIcon className="h-4 w-4" /> Xuất Excel
         </button>
         <button onClick={() => setShowUpload(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold">
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50">
           <ArrowUpTrayIcon className="h-4 w-4" /> Tải lên hàng loạt
+        </button>
+        <button onClick={() => navigate('/dashboard/personal-documents/scans')}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold">
+          <DocumentMagnifyingGlassIcon className="h-4 w-4" /> Quét hồ sơ gộp (AI)
         </button>
       </div>
 
