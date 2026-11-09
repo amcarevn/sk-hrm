@@ -54,6 +54,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
       const isAllowedForStaff =
         currentPath === '/home' ||
         currentPath === '/dashboard/me' ||
+        currentPath === '/dashboard/my-job' ||
         (currentPath === '/dashboard/attendance' || currentPath === '/dashboard/attendance/view') ||
         currentPath === '/dashboard/organization-chart' ||
         currentPath === '/dashboard/approvals' ||
@@ -80,9 +81,10 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
       
       const isManager = user?.is_manager || false
 
-      const isAllowedForCustomer = 
+      const isAllowedForCustomer =
         currentPath === '/home' ||
         currentPath === '/dashboard/me' ||
+        currentPath === '/dashboard/my-job' ||
         currentPath === '/dashboard/attendance' ||
         currentPath === '/dashboard/attendance/view' ||
         currentPath === '/dashboard/organization-chart' ||

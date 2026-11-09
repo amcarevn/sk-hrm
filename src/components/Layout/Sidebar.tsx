@@ -33,6 +33,7 @@ import {
   CalendarDaysIcon,
   FingerPrintIcon,
   FolderOpenIcon,
+  ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavigationItem {
@@ -72,6 +73,12 @@ const navigationItems: NavigationItem[] = [
     icon: UserCircleIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
+  {
+    name: 'Công việc của tôi',
+    href: '/dashboard/my-job',
+    icon: ClipboardDocumentCheckIcon,
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
 
   // --- Nhân sự ---
   {
@@ -96,6 +103,12 @@ const navigationItems: NavigationItem[] = [
         name: 'Hồ sơ giấy tờ',
         href: '/dashboard/personal-documents',
         icon: FolderOpenIcon,
+        roles: ['ADMIN', 'HR'],
+      },
+      {
+        name: 'Mô tả công việc',
+        href: '/dashboard/job-descriptions',
+        icon: BriefcaseIcon,
         roles: ['ADMIN', 'HR'],
       },
       {
