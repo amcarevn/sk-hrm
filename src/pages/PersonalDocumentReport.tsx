@@ -51,6 +51,76 @@ const cellView = (state: PersonalDocState, required: boolean) => {
   }
 };
 
+/**
+ * Ô thống kê Đủ / Thiếu hồ sơ: rê chuột (hoặc chạm trên điện thoại) hiện danh sách tên
+ * (HCNS SK 2026-11-10). Danh sách nằm trong cùng khối `group` nên rê chuột xuống để cuộn / bấm tên vẫn mở.
+ */
+const PeopleStatCard: React.FC<{
+  tone: 'complete' | 'missing';
+  count: number;
+  people: ReportRow[];
+  requiredCount: number;
+  align: 'left' | 'right';
+  onOpen: (id: number) => void;
+}> = ({ tone, count, people, requiredCount, align, onOpen }) => {
+  const complete = tone === 'complete';
+  return (
+    <div className="relative group outline-none" tabIndex={0}>
+      <div className={`bg-white rounded-2xl border p-4 cursor-pointer transition-colors ${complete
+        ? 'border-gray-100 group-hover:border-emerald-300 group-focus-within:border-emerald-300'
+        : 'border-red-100 group-hover:border-red-300 group-focus-within:border-red-300'}`}>
+        <p className="text-xs font-medium text-gray-400 uppercase flex items-center gap-1">
+          {complete
+            ? <><CheckCircleIcon className="h-4 w-4 text-emerald-500" /> Đủ hồ sơ</>
+            : <><ExclamationTriangleIcon className="h-4 w-4 text-red-500" /> Thiếu hồ sơ</>}
+        </p>
+        <div className="flex items-end justify-between gap-2 mt-1">
+          <p className={`text-2xl font-extrabold ${complete ? 'text-emerald-600' : 'text-red-600'}`}>{count}</p>
+          <span className="text-[11px] text-gray-400 pb-1">
+            <span className="hidden sm:inline">Rê chuột để xem tên</span>
+            <span className="sm:hidden">Chạm để xem tên</span>
+          </span>
+        </div>
+      </div>
+
+      <div className={`absolute z-30 top-full pt-2 hidden group-hover:block group-focus-within:block left-0 right-0 sm:w-[28rem] ${align === 'right' ? 'sm:left-auto' : 'sm:right-auto'}`}>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+          <div className={`px-4 py-2.5 border-b text-sm font-semibold ${complete ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-red-50 text-red-800 border-red-100'}`}>
+            {people.length} nhân viên {complete ? 'đủ hồ sơ' : 'còn thiếu hồ sơ'}
+            {people.length > 0 && <span className="font-normal text-xs text-gray-500"> · bấm tên để mở hồ sơ</span>}
+          </div>
+          {people.length === 0 ? (
+            <p className="px-4 py-4 text-sm text-gray-500">{complete ? 'Chưa có ai đủ hồ sơ.' : 'Không có ai thiếu hồ sơ.'}</p>
+          ) : (
+            <ul className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+              {people.map((p) => (
+                <li key={p.id}>
+                  <button onClick={() => onOpen(p.id)} className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-start gap-3">
+                    <span className="font-mono text-xs text-gray-500 pt-0.5 w-16 flex-shrink-0">{p.employee_id}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-gray-900 truncate">{p.full_name}</span>
+                      {!complete && (
+                        <span className="block text-xs text-red-600">
+                          {p.missing.length >= requiredCount
+                            ? `Thiếu cả ${requiredCount} loại`
+                            : `Thiếu ${p.missing.map((c) => SHORT_LABELS[c] || c).join(', ')}`}
+                        </span>
+                      )}
+                    </span>
+                    {p.department_name && (
+                      <span className="text-xs text-gray-400 pt-0.5 max-w-[8rem] truncate flex-shrink-0">{p.department_name}</span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PersonalDocumentReport: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<ReportPayload | null>(null);
@@ -86,6 +156,11 @@ const PersonalDocumentReport: React.FC = () => {
       (!missingOnly || r.missing_count > 0)
       && (!term || r.employee_id.toLowerCase().includes(term) || r.full_name.toLowerCase().includes(term)));
   }, [data, search, missingOnly]);
+
+  // Danh sách cho 2 ô thống kê: cùng tập với summary (theo phòng ban, không theo ô tìm kiếm).
+  const completePeople = useMemo(() => (data?.results || []).filter((r) => r.missing_count === 0), [data]);
+  const missingPeople = useMemo(() => (data?.results || []).filter((r) => r.missing_count > 0), [data]);
+  const requiredCount = data?.types.filter((t) => t.required).length || 0;
 
   const exportExcel = async () => {
     if (!data) return;
@@ -172,18 +247,10 @@ const PersonalDocumentReport: React.FC = () => {
             <p className="text-xs font-medium text-gray-400 uppercase">Nhân sự hiện tại</p>
             <p className="text-2xl font-extrabold text-gray-900 mt-1">{summary.total}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-100 p-4">
-            <p className="text-xs font-medium text-gray-400 uppercase flex items-center gap-1">
-              <CheckCircleIcon className="h-4 w-4 text-emerald-500" /> Đủ hồ sơ
-            </p>
-            <p className="text-2xl font-extrabold text-emerald-600 mt-1">{summary.complete}</p>
-          </div>
-          <div className="bg-white rounded-2xl border border-red-100 p-4">
-            <p className="text-xs font-medium text-gray-400 uppercase flex items-center gap-1">
-              <ExclamationTriangleIcon className="h-4 w-4 text-red-500" /> Thiếu hồ sơ
-            </p>
-            <p className="text-2xl font-extrabold text-red-600 mt-1">{summary.incomplete}</p>
-          </div>
+          <PeopleStatCard tone="complete" count={summary.complete} people={completePeople} align="left"
+            requiredCount={requiredCount} onOpen={(id) => navigate(`/dashboard/employees/${id}`)} />
+          <PeopleStatCard tone="missing" count={summary.incomplete} people={missingPeople} align="right"
+            requiredCount={requiredCount} onOpen={(id) => navigate(`/dashboard/employees/${id}`)} />
         </div>
       )}
 
