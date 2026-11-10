@@ -42,6 +42,11 @@ import RoleEdit from './pages/RoleEdit';
 import EmployeeList from './pages/EmployeeList';
 import SocialInsuranceList from './pages/SocialInsuranceList';
 import PersonalDocumentReport from './pages/PersonalDocumentReport';
+import PersonalDocumentScans from './pages/PersonalDocumentScans';
+import PersonalDocumentScanDetail from './pages/PersonalDocumentScanDetail';
+import JobDescriptionList from './pages/JobDescriptionList';
+import JobDescriptionEdit from './pages/JobDescriptionEdit';
+import MyJob from './pages/MyJob';
 import EmployeeCreate from './pages/EmployeeCreate';
 import EmployeeShow from './pages/EmployeeShow';
 import EmployeeEdit from './pages/EmployeeEdit';
@@ -465,6 +470,26 @@ function App() {
             }
           />
           <Route
+            path="/dashboard/personal-documents/scans"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+                <Layout>
+                  <PersonalDocumentScans />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/personal-documents/scans/:id"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+                <Layout>
+                  <PersonalDocumentScanDetail />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/dashboard/social-insurance"
             element={
               <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
@@ -775,6 +800,37 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Profile />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Mô tả công việc theo vị trí: nhân viên xem + xác nhận; HCNS soạn / công bố */}
+          <Route
+            path="/dashboard/my-job"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <MyJob />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/job-descriptions"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+                <Layout>
+                  <JobDescriptionList />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/job-descriptions/:id"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+                <Layout>
+                  <JobDescriptionEdit />
                 </Layout>
               </ProtectedRoute>
             }
