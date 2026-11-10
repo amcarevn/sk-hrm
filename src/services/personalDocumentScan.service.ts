@@ -4,7 +4,8 @@ import { PersonalDocEmployee, PersonalDocState } from './personalDocument.servic
 /**
  * Quét hồ sơ giấy tờ scan gộp bằng AI — chỉ Admin/HCNS.
  * Backend: hrm/personal_document_scan_views.py (beautycare-backend, nhánh sk).
- * Tải PDF gộp `<mã NV>.pdf` → AI phân loại từng trang → HCNS duyệt → tách & lưu vào hồ sơ.
+ * Tải PDF gộp `<mã NV>.pdf` → AI phân loại từng trang → HCNS duyệt → ghi nhận các loại vào hồ sơ
+ * (không cắt PDF: mỗi loại trỏ về file gộp, ghi chú số trang).
  */
 
 const BASE = '/api-hrm/personal-document-scans';

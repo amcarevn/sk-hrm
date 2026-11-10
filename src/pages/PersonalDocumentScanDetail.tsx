@@ -24,8 +24,8 @@ import { scanStatusBadge } from './PersonalDocumentScans';
 
 /**
  * Duyệt một lượt quét hồ sơ gộp: bảng loại từng trang (AI gán, HCNS sửa), khung xem trang
- * PDF, danh sách file sẽ tạo và giấy tờ còn thiếu. "Tách & lưu" cắt PDF theo loại và lưu
- * vào hồ sơ giấy tờ của nhân viên.
+ * PDF, các loại giấy tờ sẽ ghi nhận và loại còn thiếu. "Lưu vào hồ sơ" ghi nhận từng loại vào
+ * hồ sơ giấy tờ của nhân viên, trỏ về chính file gộp (không cắt PDF, HCNS SK 2026-11-10).
  */
 
 const SHORT_LABELS: Record<string, string> = {
@@ -157,7 +157,7 @@ const PersonalDocumentScanDetail: React.FC = () => {
     try {
       accept(await personalDocumentScanService.apply(scan.id, payload()));
       setConfirming(false);
-      setNotice('Đã tách và lưu vào hồ sơ giấy tờ.');
+      setNotice('Đã lưu vào hồ sơ giấy tờ.');
     } catch (err) {
       setActionError(scanError(err));
     } finally {
@@ -236,12 +236,12 @@ const PersonalDocumentScanDetail: React.FC = () => {
 
       {hasResult && (
         <>
-          {/* Dải kế hoạch tách + nút lưu ở trên, để khung xem PDF bên dưới có trọn chiều cao màn hình. */}
+          {/* Dải các loại sẽ ghi nhận + nút lưu ở trên, để khung xem PDF bên dưới có trọn chiều cao màn hình. */}
           <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col xl:flex-row xl:items-start gap-4">
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h2 className="font-bold text-gray-900">
-                  {scan.status === 'APPLIED' ? `Đã lưu ${plan.length} file vào hồ sơ` : `Sẽ tạo ${plan.length} file`}
+                  {scan.status === 'APPLIED' ? `Đã ghi nhận ${plan.length} loại giấy tờ vào hồ sơ` : `Có ${plan.length} loại giấy tờ`}
                 </h2>
                 {dropped > 0 && <span className="text-xs text-gray-500">Bỏ {dropped} trang (không lưu)</span>}
               </div>
@@ -250,7 +250,7 @@ const PersonalDocumentScanDetail: React.FC = () => {
               ) : (
                 <ul className="flex flex-wrap gap-2">
                   {plan.map((g) => (
-                    <li key={g.docType} title={`${scan.employee.employee_id}_${g.docType}.pdf`}
+                    <li key={g.docType}
                       className="px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-xs">
                       <span className="font-semibold text-gray-800">{label(g.docType)}</span>
                       <span className="text-gray-500"> · tr. {pageRanges(g.numbers)}</span>
@@ -281,14 +281,14 @@ const PersonalDocumentScanDetail: React.FC = () => {
                   </button>
                   <button onClick={() => setConfirming(true)} disabled={saving || plan.length === 0}
                     className="flex-1 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold disabled:opacity-50">
-                    Tách &amp; lưu vào hồ sơ
+                    Lưu vào hồ sơ
                   </button>
                 </div>
               )}
               {editable && confirming && (
                 <div className="p-3 rounded-xl bg-primary-50 border border-primary-100 space-y-2">
                   <p className="text-sm text-gray-800">
-                    Tạo {plan.length} file vào hồ sơ giấy tờ của <b>{scan.employee.full_name}</b>?
+                    Ghi nhận {plan.length} loại giấy tờ vào hồ sơ của <b>{scan.employee.full_name}</b>? File gộp được lưu nguyên, không tách.
                     {reviewCount > 0 && ' Hãy chắc là đã xem các dòng vàng.'}
                   </p>
                   <div className="flex gap-2">
@@ -298,7 +298,7 @@ const PersonalDocumentScanDetail: React.FC = () => {
                     </button>
                     <button onClick={apply} disabled={saving}
                       className="flex-1 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold disabled:opacity-50">
-                      {saving ? 'Đang tách...' : 'Xác nhận lưu'}
+                      {saving ? 'Đang lưu...' : 'Xác nhận lưu'}
                     </button>
                   </div>
                 </div>
