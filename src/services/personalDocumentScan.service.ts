@@ -62,6 +62,15 @@ export interface ScanDetail extends ScanSummary {
   planned: { doc_type: string; label: string; pages: number[] }[];
   missing_after: string[];
   applied_documents: { doc_type: string; document_id: number; pages: number[] }[];
+  /** Sửa được loại trang: đang chờ duyệt, hoặc đã tự lưu (sửa là cập nhật luôn hồ sơ). */
+  editable: boolean;
+}
+
+export interface ScanPreviewRow {
+  file_name: string;
+  employee: PersonalDocEmployee | null;
+  error: string | null;
+  already_scanned: boolean;
 }
 
 export interface ScanListPayload {
@@ -102,6 +111,12 @@ export const personalDocumentScanService = {
     if (params.status) query.status = params.status;
     if (params.search) query.search = params.search;
     const res = await managementApi.get(`${BASE}/`, { params: query });
+    return res.data;
+  },
+
+  /** Tải lên hàng loạt: đọc mã NV trong tên từng file trước khi gửi. */
+  async preview(fileNames: string[]): Promise<{ ai_configured: boolean; results: ScanPreviewRow[] }> {
+    const res = await managementApi.post(`${BASE}/preview/`, { file_names: fileNames });
     return res.data;
   },
 

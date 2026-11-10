@@ -11,7 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { departmentsAPI } from '../utils/api';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
-import BulkUploadModal from '../components/PersonalDocuments/BulkUploadModal';
+import BulkScanUploadModal from '../components/PersonalDocuments/BulkScanUploadModal';
 import {
   PersonalDocState,
   ReportPayload,
@@ -156,13 +156,13 @@ const PersonalDocumentReport: React.FC = () => {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
           <ArrowDownTrayIcon className="h-4 w-4" /> Xuất Excel
         </button>
-        <button onClick={() => setShowUpload(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-          <ArrowUpTrayIcon className="h-4 w-4" /> Tải lên hàng loạt
-        </button>
         <button onClick={() => navigate('/dashboard/personal-documents/scans')}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+          <DocumentMagnifyingGlassIcon className="h-4 w-4" /> Kết quả quét AI
+        </button>
+        <button onClick={() => setShowUpload(true)}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold">
-          <DocumentMagnifyingGlassIcon className="h-4 w-4" /> Quét hồ sơ gộp (AI)
+          <ArrowUpTrayIcon className="h-4 w-4" /> Tải lên hàng loạt
         </button>
       </div>
 
@@ -269,7 +269,7 @@ const PersonalDocumentReport: React.FC = () => {
       </div>
 
       {showUpload && (
-        <BulkUploadModal onClose={(changed) => { setShowUpload(false); if (changed) load(); }} />
+        <BulkScanUploadModal onClose={(changed) => { setShowUpload(false); if (changed) load(); }} />
       )}
     </div>
   );
