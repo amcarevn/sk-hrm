@@ -19,7 +19,7 @@ import {
 /**
  * Quét hồ sơ gộp bằng AI (chỉ Admin/HCNS).
  * HCNS chọn các PDF gộp đặt tên theo mã NV (SK00346.pdf) → mỗi file tải lên một request,
- * AI đọc nền khoảng 30 giây / hồ sơ → mở từng lượt để duyệt và tách vào hồ sơ giấy tờ.
+ * AI đọc nền khoảng 30 giây / hồ sơ → mở từng lượt để duyệt và lưu vào hồ sơ giấy tờ.
  */
 
 type UploadLine = { name: string; state: 'waiting' | 'uploading' | 'done' | 'error'; message?: string; scanId?: number };
@@ -151,7 +151,7 @@ const PersonalDocumentScans: React.FC = () => {
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-gray-900">Quét hồ sơ gộp bằng AI</h1>
-          <p className="text-sm text-gray-500">AI chia file scan gộp theo từng loại giấy tờ. HCNS duyệt rồi lưu vào hồ sơ.</p>
+          <p className="text-sm text-gray-500">AI đọc file scan gộp, xác định có những loại giấy tờ nào. HCNS duyệt rồi lưu vào hồ sơ.</p>
         </div>
       </div>
 

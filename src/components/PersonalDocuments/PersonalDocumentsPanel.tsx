@@ -33,6 +33,15 @@ const formatSize = (bytes: number | null) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+/**
+ * Giấy tờ ghi nhận từ file scan gộp trỏ về cả file gộp; ghi chú bắt đầu bằng "Trang N…"
+ * (backend: hrm/personal_document_scan.py document_note) → mở file ngay trang đầu của loại đó.
+ */
+const withFirstPage = (url: string, note: string) => {
+  const m = /^Trang (\d+)/.exec(note || '');
+  return m ? `${url}#page=${m[1]}` : url;
+};
+
 const errorMessage = (err: any) =>
   err?.response?.data?.detail || err?.message || 'Lỗi không xác định';
 
@@ -163,6 +172,8 @@ const PersonalDocumentsPanel: React.FC<{ employeeId: number }> = ({ employeeId }
                     {docs.map((d) => (
                       <li key={d.id} className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
                         <span className="font-medium text-gray-800 break-all">{d.file_name}</span>
+                        {/* Ghi nhận từ file scan gộp: ghi chú "Trang 7, 9-14 trong SK00346.pdf (quét AI)". */}
+                        {d.note && <span className="text-gray-600">{d.note}</span>}
                         <span className="text-gray-400">
                           {[formatSize(d.file_size), new Date(d.uploaded_at).toLocaleDateString('vi-VN'), d.uploaded_by_name]
                             .filter(Boolean).join(' · ')}
@@ -170,7 +181,7 @@ const PersonalDocumentsPanel: React.FC<{ employeeId: number }> = ({ employeeId }
                         <span className="ml-auto flex items-center gap-1">
                           {d.file_url && (
                             <a
-                              href={d.file_url}
+                              href={withFirstPage(d.file_url, d.note)}
                               target="_blank"
                               rel="noreferrer"
                               className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-primary-700 hover:bg-primary-50"

@@ -97,7 +97,7 @@ const BulkUploadModal: React.FC<{ onClose: (changed: boolean) => void }> = ({ on
             <p className="text-xs text-gray-500 mt-1">
               Tên file dạng <code className="px-1 bg-gray-100 rounded">mãNV_loại.pdf</code>, ví dụ SK00346_HO_KHAU.pdf, SK00346_KHAM_SK.pdf.
               Loại: SYLL, KHAI_SINH, HO_KHAU, KHAM_SK, BANG_CAP, HOP_DONG, BAO_MAT, KHAC. Hồ sơ scan gộp cả người
-              (SK00346.pdf) thì dùng nút "Quét hồ sơ gộp (AI)" để tự tách theo loại.
+              (SK00346.pdf) thì dùng nút "Quét hồ sơ gộp (AI)" để AI nhận diện các loại giấy tờ.
             </p>
           </div>
           <button onClick={() => onClose(uploaded)} disabled={busy} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg">
