@@ -34,6 +34,8 @@ module.exports = {
       animation: {
         fadeIn: 'fadeIn 0.3s ease-out forwards',
         slideUp: 'slideUp 0.3s ease-out forwards',
+        // Nhấp nháy rõ hơn animate-pulse — cảnh báo "Thiếu hồ sơ" trên thanh đầu trang.
+        blink: 'blink 1.2s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -43,6 +45,10 @@ module.exports = {
         slideUp: {
           '0%': { opacity: '0', transform: 'translateY(20px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        blink: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.35' },
         },
       },
     },
