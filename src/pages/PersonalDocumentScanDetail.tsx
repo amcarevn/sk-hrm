@@ -235,108 +235,32 @@ const PersonalDocumentScanDetail: React.FC = () => {
       {notice && <p className="text-sm text-emerald-700">{notice}</p>}
 
       {hasResult && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
-          <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="px-4 py-3 border-b flex flex-wrap items-center gap-3">
-              <p className="text-sm text-gray-600 flex-1">
-                {editable
-                  ? 'Kiểm tra từng trang, sửa cột Loại nếu AI gán sai. Dòng vàng là trang nên xem lại.'
-                  : 'Kết quả phân loại đã lưu.'}
-              </p>
-              {reviewCount > 0 && (
-                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                  <input type="checkbox" checked={onlyReview} onChange={(e) => setOnlyReview(e.target.checked)}
-                    className="rounded border-gray-300 text-primary-600" />
-                  Chỉ trang cần xem ({reviewCount})
-                </label>
-              )}
-            </div>
-            <ul className="divide-y divide-gray-100">
-              {shownPages.map((p) => {
-                const isDrop = p.doc_type === DROP_TYPE;
-                const changed = p.doc_type !== p.ai_doc_type;
-                return (
-                  <li key={p.page}
-                    className={`px-4 py-3 flex flex-wrap sm:flex-nowrap items-start gap-3 ${p.needs_review ? 'bg-amber-50' : isDrop ? 'bg-gray-100/70' : ''} ${previewPage === p.page ? 'lg:ring-2 lg:ring-inset lg:ring-primary-400' : ''}`}>
-                    <button onClick={() => setPreviewPage(p.page)}
-                      className="w-14 flex-shrink-0 text-left text-sm font-bold text-gray-700 hover:text-primary-600">
-                      Tr. {p.page}
-                      {p.needs_review && (
-                        <span className="block mt-1 w-fit px-1.5 py-0.5 rounded bg-amber-200/70 text-amber-800 text-[10px] font-semibold">
-                          Cần xem
-                        </span>
-                      )}
-                    </button>
-                    <div className="w-full sm:w-44 flex-shrink-0 order-3 sm:order-none">
-                      <select value={p.doc_type} disabled={!editable} onChange={(e) => changeType(p.page, e.target.value)}
-                        className={`w-full rounded-lg border-gray-200 text-sm py-1.5 ${isDrop ? 'text-gray-500' : 'text-gray-900'} disabled:bg-transparent disabled:border-transparent disabled:px-0`}>
-                        {typeOptions.map((t) => <option key={t.code} value={t.code}>{label(t.code)}</option>)}
-                      </select>
-                      {changed && <p className="text-[11px] text-sky-700 mt-0.5">AI gán: {label(p.ai_doc_type)}</p>}
-                    </div>
-                    <div className="flex-1 min-w-0 text-sm">
-                      {p.person_name && <p className="text-gray-800">{p.person_name}</p>}
-                      {p.note && <p className="text-xs text-gray-500">{p.note}</p>}
-                      <p className={`text-[11px] mt-0.5 ${p.confidence === 'high' ? 'text-gray-400' : 'text-amber-700 font-semibold'}`}>
-                        Độ tin cậy: {CONFIDENCE_LABELS[p.confidence]}
-                      </p>
-                    </div>
-                    <button onClick={() => setPreviewPage(p.page)} title="Xem trang"
-                      className="hidden lg:inline-flex p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50">
-                      <EyeIcon className="h-4 w-4" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          <div className="lg:col-span-2 space-y-4 lg:sticky lg:top-4">
-            <div className="hidden lg:block bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="px-3 py-2 border-b flex items-center gap-2">
-                <button onClick={() => setPreviewPage((n) => Math.max(1, n - 1))} disabled={previewPage <= 1}
-                  className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30">
-                  <ChevronLeftIcon className="h-4 w-4" />
-                </button>
-                <span className="text-sm font-semibold text-gray-700">Trang {previewPage}/{pageCount}</span>
-                <button onClick={() => setPreviewPage((n) => Math.min(pageCount, n + 1))} disabled={previewPage >= pageCount}
-                  className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30">
-                  <ChevronRightIcon className="h-4 w-4" />
-                </button>
-                <span className="ml-auto text-xs text-gray-500">
-                  {label(pages.find((p) => p.page === previewPage)?.doc_type || '')}
-                </span>
+        <>
+          {/* Dải kế hoạch tách + nút lưu ở trên, để khung xem PDF bên dưới có trọn chiều cao màn hình. */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col xl:flex-row xl:items-start gap-4">
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 className="font-bold text-gray-900">
+                  {scan.status === 'APPLIED' ? `Đã lưu ${plan.length} file vào hồ sơ` : `Sẽ tạo ${plan.length} file`}
+                </h2>
+                {dropped > 0 && <span className="text-xs text-gray-500">Bỏ {dropped} trang (không lưu)</span>}
               </div>
-              {blobUrl ? (
-                <iframe key={previewPage} title="Xem trang" src={`${blobUrl}#page=${previewPage}&view=FitH`}
-                  className="w-full h-[60vh] bg-gray-100" />
-              ) : (
-                <p className="h-[60vh] flex items-center justify-center text-sm text-gray-500 px-4 text-center">
-                  {previewError || 'Đang tải file...'}
-                </p>
-              )}
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-              <h2 className="font-bold text-gray-900">
-                {scan.status === 'APPLIED' ? 'Đã lưu vào hồ sơ' : `Sẽ tạo ${plan.length} file`}
-              </h2>
               {plan.length === 0 ? (
                 <p className="text-sm text-gray-500">Mọi trang đang để "Bỏ".</p>
               ) : (
-                <ul className="space-y-1.5 text-sm">
+                <ul className="flex flex-wrap gap-2">
                   {plan.map((g) => (
-                    <li key={g.docType} className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="font-medium text-gray-800">{scan.employee.employee_id}_{g.docType}.pdf</span>
-                      <span className="text-xs text-gray-500">{label(g.docType)} · trang {pageRanges(g.numbers)}</span>
+                    <li key={g.docType} title={`${scan.employee.employee_id}_${g.docType}.pdf`}
+                      className="px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-100 text-xs">
+                      <span className="font-semibold text-gray-800">{label(g.docType)}</span>
+                      <span className="text-gray-500"> · tr. {pageRanges(g.numbers)}</span>
                       {editable && (scan.current_file_counts[g.docType] || 0) > 0 && (
-                        <span className="text-xs text-amber-700">(hồ sơ đã có {scan.current_file_counts[g.docType]} file loại này)</span>
+                        <span className="text-amber-700"> · hồ sơ đã có {scan.current_file_counts[g.docType]} file</span>
                       )}
                     </li>
                   ))}
                 </ul>
               )}
-              {dropped > 0 && <p className="text-xs text-gray-500">Bỏ {dropped} trang (không lưu).</p>}
               {missingAfter.length > 0 ? (
                 <p className="text-sm text-red-600">
                   {scan.status === 'APPLIED' ? 'Còn thiếu' : 'Sau khi lưu vẫn thiếu'}: {missingAfter.map(label).join(', ')}
@@ -346,9 +270,11 @@ const PersonalDocumentScanDetail: React.FC = () => {
                   <CheckCircleIcon className="h-4 w-4" /> Đủ giấy tờ bắt buộc
                 </p>
               )}
+            </div>
 
+            <div className="xl:w-80 flex-shrink-0 space-y-2">
               {editable && !confirming && (
-                <div className="flex flex-wrap gap-2 pt-1">
+                <div className="flex flex-wrap gap-2">
                   <button onClick={save} disabled={!dirty || saving}
                     className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                     Lưu chỉnh sửa
@@ -391,7 +317,88 @@ const PersonalDocumentScanDetail: React.FC = () => {
               )}
             </div>
           </div>
-        </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          <div className="lg:col-span-6 xl:col-span-5 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="px-4 py-3 border-b flex flex-wrap items-center gap-3">
+              <p className="text-sm text-gray-600 flex-1">
+                {editable
+                  ? 'Kiểm tra từng trang, sửa cột Loại nếu AI gán sai. Dòng vàng là trang nên xem lại.'
+                  : 'Kết quả phân loại đã lưu.'}
+              </p>
+              {reviewCount > 0 && (
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" checked={onlyReview} onChange={(e) => setOnlyReview(e.target.checked)}
+                    className="rounded border-gray-300 text-primary-600" />
+                  Chỉ trang cần xem ({reviewCount})
+                </label>
+              )}
+            </div>
+            <ul className="divide-y divide-gray-100">
+              {shownPages.map((p) => {
+                const isDrop = p.doc_type === DROP_TYPE;
+                const changed = p.doc_type !== p.ai_doc_type;
+                return (
+                  <li key={p.page} onClick={() => setPreviewPage(p.page)}
+                    className={`px-4 py-2.5 lg:cursor-pointer ${p.needs_review ? 'bg-amber-50' : isDrop ? 'bg-gray-100/70' : 'lg:hover:bg-gray-50'} ${previewPage === p.page ? 'lg:ring-2 lg:ring-inset lg:ring-primary-400' : ''}`}>
+                    {/* Tầng 1: số trang, loại (sửa được), nhãn. Tầng 2: người trên trang + ghi chú AI. */}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="w-12 flex-shrink-0 text-sm font-bold text-gray-700">Tr. {p.page}</span>
+                      <select value={p.doc_type} disabled={!editable} onChange={(e) => changeType(p.page, e.target.value)}
+                        className={`flex-1 min-w-[150px] sm:flex-none sm:w-44 rounded-lg border-gray-200 text-sm py-1.5 ${isDrop ? 'text-gray-500' : 'text-gray-900'} disabled:bg-transparent disabled:border-transparent disabled:px-0`}>
+                        {typeOptions.map((t) => <option key={t.code} value={t.code}>{label(t.code)}</option>)}
+                      </select>
+                      {p.needs_review && (
+                        <span className="px-1.5 py-0.5 rounded bg-amber-200/70 text-amber-800 text-[10px] font-semibold">Cần xem</span>
+                      )}
+                      {changed && <span className="text-[11px] text-sky-700">AI gán: {label(p.ai_doc_type)}</span>}
+                      <EyeIcon className={`hidden lg:block ml-auto h-4 w-4 ${previewPage === p.page ? 'text-primary-600' : 'text-gray-300'}`} />
+                    </div>
+                    {(p.person_name || p.note || p.confidence !== 'high') && (
+                      <div className="mt-1 pl-14 text-sm break-words">
+                        {p.person_name && <span className="font-medium text-gray-800">{p.person_name}</span>}
+                        {p.person_name && p.note && <span className="text-gray-300"> · </span>}
+                        {p.note && <span className="text-xs text-gray-500">{p.note}</span>}
+                        {p.confidence !== 'high' && (
+                          <span className="block text-[11px] font-semibold text-amber-700">Độ tin cậy: {CONFIDENCE_LABELS[p.confidence]}</span>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {/* Khung xem trang: rộng hơn bảng, cao gần trọn màn hình, bám theo khi cuộn danh sách trang. */}
+          <div className="hidden lg:flex lg:flex-col lg:col-span-6 xl:col-span-7 lg:sticky lg:top-4 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="px-3 py-2 border-b flex items-center gap-2">
+              <button onClick={() => setPreviewPage((n) => Math.max(1, n - 1))} disabled={previewPage <= 1}
+                className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30">
+                <ChevronLeftIcon className="h-4 w-4" />
+              </button>
+              <span className="text-sm font-semibold text-gray-700">Trang {previewPage}/{pageCount}</span>
+              <button onClick={() => setPreviewPage((n) => Math.min(pageCount, n + 1))} disabled={previewPage >= pageCount}
+                className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-30">
+                <ChevronRightIcon className="h-4 w-4" />
+              </button>
+              <span className="ml-auto text-xs font-medium text-gray-600">
+                {label(pages.find((p) => p.page === previewPage)?.doc_type || '')}
+              </span>
+            </div>
+            {blobUrl ? (
+              // navpanes=0: ẩn cột thumbnail của trình xem PDF để trang hiện to hơn. Chrome không nhận
+              // view=FitH nên giữ mặc định vừa trang; cần đọc kỹ thì bấm + trên thanh công cụ.
+              <iframe key={previewPage} title="Xem trang" src={`${blobUrl}#page=${previewPage}&navpanes=0`}
+                className="w-full h-[calc(100vh-150px)] min-h-[480px] bg-gray-100" />
+            ) : (
+              <p className="h-[calc(100vh-150px)] min-h-[480px] flex items-center justify-center text-sm text-gray-500 px-4 text-center">
+                {previewError || 'Đang tải file...'}
+              </p>
+            )}
+          </div>
+          </div>
+        </>
       )}
     </div>
   );
