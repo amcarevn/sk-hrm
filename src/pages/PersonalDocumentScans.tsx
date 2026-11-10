@@ -150,8 +150,8 @@ const PersonalDocumentScans: React.FC = () => {
           <DocumentMagnifyingGlassIcon className="h-6 w-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-gray-900">Quét hồ sơ gộp bằng AI</h1>
-          <p className="text-sm text-gray-500">AI đọc file scan gộp, xác định có những loại giấy tờ nào. HCNS duyệt rồi lưu vào hồ sơ.</p>
+          <h1 className="text-xl font-bold text-gray-900">Kết quả quét hồ sơ bằng AI</h1>
+          <p className="text-sm text-gray-500">AI đọc file scan gộp, xác định có những loại giấy tờ nào rồi tự lưu vào hồ sơ. Mở từng lượt để xem hoặc sửa.</p>
         </div>
       </div>
 
@@ -175,7 +175,7 @@ const PersonalDocumentScans: React.FC = () => {
           </button>
           <p className="text-xs text-gray-500 flex-1 min-w-[220px]">
             Mỗi nhân viên một file, tên bắt đầu bằng mã nhân viên, ví dụ <code className="px-1 bg-gray-100 rounded">SK00346.pdf</code>.
-            Ảnh giấy tờ được gửi cho AI (Claude) để đọc. Mỗi hồ sơ mất khoảng 30 giây.
+            Ảnh giấy tờ được gửi cho AI (Claude) để đọc, mỗi hồ sơ khoảng 30–40 giây, đọc xong tự lưu vào hồ sơ.
           </p>
         </div>
         {lines.length > 0 && (
@@ -246,8 +246,11 @@ const PersonalDocumentScans: React.FC = () => {
                   <td className="px-4 py-3">
                     <div className="flex flex-col gap-1 items-start">
                       {scanStatusBadge(s)}
-                      {s.status === 'READY' && s.review_count > 0 && (
-                        <span className="text-xs text-amber-700">{s.review_count} trang cần xem lại</span>
+                      {(s.status === 'READY' || s.status === 'APPLIED') && s.review_count > 0 && (
+                        <span className="text-xs text-amber-700">{s.review_count} trang nên xem lại</span>
+                      )}
+                      {s.status === 'READY' && s.error && (
+                        <span className="text-xs text-amber-700 max-w-xs">{s.error}</span>
                       )}
                       {(s.status === 'FAILED' || s.is_stuck) && s.error && (
                         <span className="text-xs text-red-600 max-w-xs">{s.error}</span>

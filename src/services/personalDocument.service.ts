@@ -3,7 +3,7 @@ import { managementApi } from '../utils/api';
 /**
  * Hồ sơ giấy tờ cá nhân của nhân viên — chỉ Admin/HCNS.
  * Backend: hrm/personal_document_views.py (beautycare-backend, nhánh sk).
- * Tải lên hàng loạt theo tên file `<mã NV>_<loại>.pdf`, vd SK00346_HO_KHAU.pdf.
+ * Tải lên hàng loạt hồ sơ scan gộp (mỗi nhân viên 1 file) đi qua AI: personalDocumentScan.service.ts.
  */
 
 const BASE = '/api-hrm/personal-documents';
@@ -59,15 +59,6 @@ export interface ReportPayload {
   results: ReportRow[];
 }
 
-export interface BulkResult {
-  file_name: string;
-  employee: PersonalDocEmployee | null;
-  doc_type: string | null;
-  doc_type_display: string | null;
-  error: string | null;
-  status?: 'uploaded' | 'skipped' | 'error';
-}
-
 export const STATE_LABELS: Record<PersonalDocState, string> = {
   FILE: 'Đã có',
   SYSTEM_CONTRACT: 'Đã ký trên HRM',
@@ -108,20 +99,5 @@ export const personalDocumentService = {
     if (params.missing_only) query.missing_only = '1';
     const res = await managementApi.get(`${BASE}/report/`, { params: query });
     return res.data;
-  },
-
-  async bulkPreview(fileNames: string[]): Promise<BulkResult[]> {
-    const res = await managementApi.post(`${BASE}/bulk-preview/`, { file_names: fileNames });
-    return res.data.results;
-  },
-
-  async bulkUpload(files: File[]): Promise<BulkResult[]> {
-    const form = new FormData();
-    files.forEach((f) => form.append('files', f));
-    const res = await managementApi.post(`${BASE}/bulk-upload/`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 10 * 60 * 1000,
-    });
-    return res.data.results;
   },
 };
