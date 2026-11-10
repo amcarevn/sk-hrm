@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { hrmAPI } from '@/utils/api';
 import { useNotificationDrawer } from '@/contexts/NotificationDrawerContext';
 import { userDisplayName } from '@/utils/userName';
+import MissingDocumentsAlert from '@/components/PersonalDocuments/MissingDocumentsAlert';
 
 const PRIORITY_BORDER: Record<string, string> = {
   URGENT: 'border-red-500',
@@ -145,7 +146,10 @@ export default function Header({ onOpenMobileNav }: HeaderProps) {
               name="search"
             />
           </form>
-          <div className="flex items-center gap-x-4 lg:gap-x-6">
+          <div className="flex items-center gap-x-3 sm:gap-x-4 lg:gap-x-6">
+            {/* Nhân viên còn thiếu giấy tờ bắt buộc: nút đỏ nhấp nháy, bấm xem thiếu gì */}
+            <MissingDocumentsAlert />
+
             {/* Bell + Notification Dropdown */}
             <div className="relative" ref={bellRef}>
               <button

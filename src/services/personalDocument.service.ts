@@ -1,7 +1,7 @@
 import { managementApi } from '../utils/api';
 
 /**
- * Hồ sơ giấy tờ cá nhân của nhân viên — chỉ Admin/HCNS.
+ * Hồ sơ giấy tờ cá nhân của nhân viên — chỉ Admin/HCNS, trừ mine(): nhân viên xem mình thiếu gì.
  * Backend: hrm/personal_document_views.py (beautycare-backend, nhánh sk).
  * Tải lên hàng loạt hồ sơ scan gộp (mỗi nhân viên 1 file) đi qua AI: personalDocumentScan.service.ts.
  */
@@ -59,6 +59,14 @@ export interface ReportPayload {
   results: ReportRow[];
 }
 
+/** /me/: chỉ trạng thái từng loại của chính mình, không có file. employee = null: không cảnh báo. */
+export interface MyDocumentsPayload {
+  employee: { id: number; employee_id: string; full_name: string } | null;
+  types: PersonalDocType[];
+  status: Record<string, PersonalDocState>;
+  missing: string[];
+}
+
 export const STATE_LABELS: Record<PersonalDocState, string> = {
   FILE: 'Đã có',
   SYSTEM_CONTRACT: 'Đã ký trên HRM',
@@ -98,6 +106,12 @@ export const personalDocumentService = {
     if (params.search) query.search = params.search;
     if (params.missing_only) query.missing_only = '1';
     const res = await managementApi.get(`${BASE}/report/`, { params: query });
+    return res.data;
+  },
+
+  /** Mọi nhân viên: giấy tờ của chính mình còn thiếu loại nào (cảnh báo "Thiếu hồ sơ" trên thanh đầu trang). */
+  async mine(): Promise<MyDocumentsPayload> {
+    const res = await managementApi.get(`${BASE}/me/`);
     return res.data;
   },
 };
