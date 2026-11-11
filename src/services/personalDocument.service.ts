@@ -67,6 +67,16 @@ export interface MyDocumentsPayload {
   missing: string[];
 }
 
+/**
+ * Giấy tờ ghi nhận từ file scan gộp trỏ về cả file gộp; ghi chú dạng "Trang 7, 9-14 trong SK00346.pdf (quét AI)"
+ * (backend: hrm/personal_document_scan.py document_note). first: trang đầu để mở PDF đúng chỗ; ranges: "7, 9-14".
+ */
+export const notePages = (note: string | null | undefined): { first: number | null; ranges: string | null } => {
+  const m = /^Trang ([\d,\s-]+?) trong /.exec(note || '');
+  if (!m) return { first: null, ranges: null };
+  return { first: parseInt(m[1], 10) || null, ranges: m[1].trim() };
+};
+
 export const STATE_LABELS: Record<PersonalDocState, string> = {
   FILE: 'Đã có',
   SYSTEM_CONTRACT: 'Đã ký trên HRM',
@@ -106,6 +116,12 @@ export const personalDocumentService = {
     if (params.search) query.search = params.search;
     if (params.missing_only) query.missing_only = '1';
     const res = await managementApi.get(`${BASE}/report/`, { params: query });
+    return res.data;
+  },
+
+  /** Nội dung file 1 giấy tờ (qua API, có kiểm tra quyền) để hiện trong khung xem, mở đúng trang. */
+  async fileBlob(documentId: number): Promise<Blob> {
+    const res = await managementApi.get(`${BASE}/${documentId}/file/`, { responseType: 'blob', timeout: 5 * 60 * 1000 });
     return res.data;
   },
 

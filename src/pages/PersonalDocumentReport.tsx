@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
   CheckCircleIcon,
+  ChevronRightIcon,
   DocumentMagnifyingGlassIcon,
   ExclamationTriangleIcon,
   FolderOpenIcon,
@@ -12,6 +13,7 @@ import {
 import { departmentsAPI } from '../utils/api';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import BulkScanUploadModal from '../components/PersonalDocuments/BulkScanUploadModal';
+import EmployeeDocumentsDropdown from '../components/PersonalDocuments/EmployeeDocumentsDropdown';
 import {
   PersonalDocState,
   ReportPayload,
@@ -131,6 +133,18 @@ const PersonalDocumentReport: React.FC = () => {
   const [search, setSearch] = useState('');
   const [missingOnly, setMissingOnly] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
+  // Bấm 1 nhân viên → xổ xuống giấy tờ của người đó (trước đây chuyển sang trang hồ sơ nhân viên).
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const tableBoxRef = useRef<HTMLDivElement>(null);
+  const [tableBoxWidth, setTableBoxWidth] = useState<number | null>(null);
+
+  useEffect(() => {
+    const box = tableBoxRef.current;
+    if (!box || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setTableBoxWidth(box.clientWidth));
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -291,7 +305,7 @@ const PersonalDocumentReport: React.FC = () => {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-auto">
+      <div ref={tableBoxRef} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
             <tr>
@@ -314,9 +328,13 @@ const PersonalDocumentReport: React.FC = () => {
               </td></tr>
             )}
             {!loading && data && rows.map((r) => (
-              <tr key={r.id} onClick={() => navigate(`/dashboard/employees/${r.id}`)}
-                className="hover:bg-gray-50 cursor-pointer">
-                <td className="px-3 py-2.5 font-mono text-xs text-gray-700 whitespace-nowrap">{r.employee_id}</td>
+              <React.Fragment key={r.id}>
+              <tr onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
+                className={`cursor-pointer ${expandedId === r.id ? 'bg-primary-50/60' : 'hover:bg-gray-50'}`}>
+                <td className="px-3 py-2.5 font-mono text-xs text-gray-700 whitespace-nowrap">
+                  <ChevronRightIcon className={`inline h-3.5 w-3.5 mr-1 -mt-0.5 text-gray-400 transition-transform ${expandedId === r.id ? 'rotate-90 text-primary-600' : ''}`} />
+                  {r.employee_id}
+                </td>
                 <td className="px-3 py-2.5 font-medium text-gray-900 whitespace-nowrap">{r.full_name}</td>
                 <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.department_name || '—'}</td>
                 {data.types.map((t) => (
@@ -330,6 +348,17 @@ const PersonalDocumentReport: React.FC = () => {
                     : <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Đủ</span>}
                 </td>
               </tr>
+              {expandedId === r.id && (
+                <tr className="bg-gray-50/80">
+                  <td colSpan={data.types.length + 4} className="p-0">
+                    {/* Bảng rộng hơn màn hình (điện thoại) thì phần xổ xuống vẫn vừa khung nhìn, không trượt theo bảng. */}
+                    <div className="sticky left-0 border-l-4 border-primary-500" style={tableBoxWidth ? { width: tableBoxWidth } : undefined}>
+                      <EmployeeDocumentsDropdown employeeId={r.id} employeeName={r.full_name} />
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
