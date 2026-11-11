@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BriefcaseIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { BriefcaseIcon, DocumentArrowUpIcon, PlusIcon } from '@heroicons/react/24/outline';
+import JobDescriptionPdfModal from '../components/JobDescription/JobDescriptionPdfModal';
 import { JobDescriptionItem, errorMessage, jobDescriptionService } from '../services/jobDescription.service';
 
 /**
@@ -24,13 +25,16 @@ const JobDescriptionList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [creating, setCreating] = useState(false);
+  const [showPdf, setShowPdf] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
     jobDescriptionService.list()
       .then(setItems)
       .catch((err) => setError(errorMessage(err, 'Không tải được danh sách')))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(load, []);
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +70,10 @@ const JobDescriptionList: React.FC = () => {
           <button type="submit" disabled={!newTitle.trim() || creating}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold disabled:opacity-50">
             <PlusIcon className="h-4 w-4" /> Thêm
+          </button>
+          <button type="button" onClick={() => setShowPdf(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 whitespace-nowrap">
+            <DocumentArrowUpIcon className="h-4 w-4" /> Thêm từ PDF
           </button>
         </form>
       </div>
@@ -127,6 +135,10 @@ const JobDescriptionList: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {showPdf && (
+        <JobDescriptionPdfModal onClose={(created) => { setShowPdf(false); if (created) load(); }} />
+      )}
     </div>
   );
 };
