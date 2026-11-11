@@ -131,6 +131,33 @@ export interface JobDescriptionUpdate {
   draft_content?: JobContent;
 }
 
+/** "Thêm từ PDF": bản mô tả đã có cùng mã / tên, và vị trí HRM trùng tên sẽ tự gắn khi tạo. */
+interface PdfTitleMatch {
+  code: string;
+  existing: { id: number; title: string } | null;
+  matched_positions: string[];
+}
+
+export interface PdfPosition extends PdfTitleMatch {
+  title: string;
+  pages: string;
+  summary: string;
+}
+
+export interface PdfOutline {
+  page_count: number;
+  ai_model: string;
+  positions: PdfPosition[];
+}
+
+export interface PdfExtract extends PdfTitleMatch {
+  title: string;
+  content: JobContent;
+  notes: string;
+  kpi_total: number;
+  ai_model: string;
+}
+
 export const DUTY_LABELS: Record<DutyFrequency, string> = {
   daily: 'Hằng ngày',
   weekly: 'Hằng tuần',
@@ -203,6 +230,28 @@ export const jobDescriptionService = {
 
   async acknowledge(versionId: number): Promise<MyPayload> {
     const res = await managementApi.post(`${MY_BASE}/acknowledge/`, { version: versionId });
+    return res.data;
+  },
+
+  /** "Thêm từ PDF" bước 1: AI liệt kê các vị trí có mô tả trong file (không lưu gì). */
+  async pdfOutline(file: File): Promise<PdfOutline> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await managementApi.post(`${BASE}/from-pdf/`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' }, timeout: 3 * 60 * 1000,
+    });
+    return res.data;
+  },
+
+  /** "Thêm từ PDF" bước 2: AI lấy nội dung 6 khối của 1 vị trí (không lưu gì — gọi create để tạo nháp). */
+  async pdfExtract(file: File, title: string, pages: string): Promise<PdfExtract> {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('title', title);
+    form.append('pages', pages);
+    const res = await managementApi.post(`${BASE}/from-pdf/`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' }, timeout: 3 * 60 * 1000,
+    });
     return res.data;
   },
 
