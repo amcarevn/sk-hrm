@@ -20,7 +20,7 @@ import {
   jobDescriptionService,
   kpiTotal,
 } from '../services/jobDescription.service';
-import { statusBadge } from './JobDescriptionList';
+import { confirmDeleteJobDescription, statusBadge } from './JobDescriptionList';
 
 /**
  * Soạn / công bố một bản mô tả công việc (Admin/HCNS).
@@ -143,10 +143,9 @@ const JobDescriptionEdit: React.FC = () => {
   };
 
   const remove = async () => {
-    if (!window.confirm(`Xoá bản mô tả "${meta.title}"? Bản này chưa công bố nên xoá được.`)) return;
+    if (!detail) return;
     try {
-      await jobDescriptionService.remove(jdId);
-      navigate('/dashboard/job-descriptions');
+      if (await confirmDeleteJobDescription(detail)) navigate('/dashboard/job-descriptions');
     } catch (err) {
       setError(errorMessage(err, 'Không xoá được'));
     }
@@ -188,11 +187,9 @@ const JobDescriptionEdit: React.FC = () => {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {!detail.current_version && (
-            <button onClick={remove} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50">
-              <TrashIcon className="h-4 w-4" /> Xoá
-            </button>
-          )}
+          <button onClick={remove} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50">
+            <TrashIcon className="h-4 w-4" /> Xoá
+          </button>
           <button onClick={save} disabled={busy || !dirty}
             className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
             Lưu nháp

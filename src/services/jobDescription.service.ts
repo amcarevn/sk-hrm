@@ -204,8 +204,10 @@ export const jobDescriptionService = {
     return res.data;
   },
 
-  async remove(id: number): Promise<void> {
-    await managementApi.delete(`${BASE}/${id}/`);
+  /** Xoá (cả bản đã công bố). Đã có nhân viên xác nhận đọc thì backend trả 400 code
+   * "has_acknowledgements" — hỏi lại HCNS rồi gọi với force = true. */
+  async remove(id: number, force = false): Promise<void> {
+    await managementApi.delete(`${BASE}/${id}/`, { params: force ? { force: 1 } : undefined });
   },
 
   async publish(id: number, changeNote: string): Promise<JobDescriptionDetail> {

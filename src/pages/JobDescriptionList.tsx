@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BriefcaseIcon, DocumentArrowUpIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { BriefcaseIcon, DocumentArrowUpIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import JobDescriptionPdfModal from '../components/JobDescription/JobDescriptionPdfModal';
 import { JobDescriptionItem, errorMessage, jobDescriptionService } from '../services/jobDescription.service';
 
@@ -18,6 +18,29 @@ export const statusBadge = (jd: Pick<JobDescriptionItem, 'is_active' | 'current_
   return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">Đã công bố v{jd.current_version.version}</span>;
 };
 
+/**
+ * Hỏi xác nhận rồi xoá 1 bản mô tả (HCNS SK 2026-11-11: xoá được cả bản đã công bố). Đã có nhân viên
+ * xác nhận đọc thì hỏi lần 2, ghi rõ số lượt xác nhận sẽ mất. true = đã xoá; lỗi khác thì throw.
+ */
+export const confirmDeleteJobDescription = async (
+  jd: Pick<JobDescriptionItem, 'id' | 'title' | 'current_version' | 'employee_count'>,
+): Promise<boolean> => {
+  const intro = jd.current_version
+    ? `Bản "${jd.title}" đã công bố v${jd.current_version.version}`
+      + `${jd.employee_count ? `, đang áp dụng cho ${jd.employee_count} nhân viên` : ''}. Xoá thì nhân viên không còn thấy bản này.`
+    : `Xoá bản nháp "${jd.title}"?`;
+  if (!window.confirm(`${intro}\n\nXoá vĩnh viễn, không khôi phục được. Tiếp tục?`)) return false;
+  try {
+    await jobDescriptionService.remove(jd.id);
+  } catch (err: any) {
+    const data = err?.response?.data;
+    if (data?.code !== 'has_acknowledgements') throw err;
+    if (!window.confirm(`${data.detail}\n\nVẫn xoá, kể cả ${data.acknowledgement_count} lượt xác nhận?`)) return false;
+    await jobDescriptionService.remove(jd.id, true);
+  }
+  return true;
+};
+
 const JobDescriptionList: React.FC = () => {
   const navigate = useNavigate();
   const [items, setItems] = useState<JobDescriptionItem[]>([]);
@@ -26,6 +49,19 @@ const JobDescriptionList: React.FC = () => {
   const [newTitle, setNewTitle] = useState('');
   const [creating, setCreating] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const remove = async (jd: JobDescriptionItem) => {
+    setError(null);
+    setDeletingId(jd.id);
+    try {
+      if (await confirmDeleteJobDescription(jd)) setItems((prev) => prev.filter((x) => x.id !== jd.id));
+    } catch (err) {
+      setError(errorMessage(err, 'Không xoá được mô tả công việc'));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const load = () => {
     jobDescriptionService.list()
@@ -94,12 +130,13 @@ const JobDescriptionList: React.FC = () => {
               <th className="text-left px-4 py-3">Vị trí áp dụng</th>
               <th className="text-left px-4 py-3 whitespace-nowrap">Trạng thái</th>
               <th className="text-left px-4 py-3 whitespace-nowrap">Đã xác nhận</th>
+              <th className="px-2 py-3"><span className="sr-only">Thao tác</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {loading && <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">Đang tải...</td></tr>}
+            {loading && <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">Đang tải...</td></tr>}
             {!loading && items.length === 0 && (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">Chưa có mô tả công việc nào.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">Chưa có mô tả công việc nào.</td></tr>
             )}
             {items.map((jd) => {
               const pct = jd.employee_count ? Math.round((jd.acknowledged_count / jd.employee_count) * 100) : 0;
@@ -128,6 +165,13 @@ const JobDescriptionList: React.FC = () => {
                         </div>
                       </div>
                     ) : <span className="text-gray-400">—</span>}
+                  </td>
+                  <td className="px-2 py-3 text-right">
+                    <button onClick={(e) => { e.stopPropagation(); remove(jd); }} disabled={deletingId === jd.id}
+                      title="Xoá mô tả công việc" aria-label={`Xoá ${jd.title}`}
+                      className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-40">
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
                   </td>
                 </tr>
               );
