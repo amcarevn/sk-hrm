@@ -94,6 +94,38 @@ export type SalaryAdvanceCreationLockState = SalaryAdvanceApprovalLockState & {
   ineligible_reason?: string | null;
 };
 
+/** GET /api-hrm/salary-advance/config/ — quy định tạm ứng lương lấy từ backend (cùng nguồn backend dùng để
+ * kiểm tra khi tạo / duyệt đơn; cùng đường dẫn và dạng dữ liệu với Trung Anh). Web không tự ghi số / khung
+ * ngày. Chỉ khai báo phần web dùng. */
+export type SalaryAdvanceConfig = {
+  /** Trần tuyệt đối (đ); null = không có trần (SK chỉ giới hạn theo % lương cơ bản). */
+  max_amount: number | null;
+  /** Tỷ lệ trên lương cơ bản (0.5 = 50%). */
+  max_ratio: number;
+  max_ratio_percent: number;
+  /** Tháng lương được tạm ứng nếu tạo đơn lúc này, "MM/YYYY". */
+  advance_month: string;
+  /** Khung tạo đơn (giờ server): text = 'từ ngày 1 đến hết ngày 5', open = đang trong khung. */
+  window: { enabled: boolean; first_day: number; last_day: number; text: string; open: boolean };
+  /** Admin đã mở khoá tạo đơn ngoài khung (chỉ tháng này). */
+  creation_unlocked: boolean;
+  /** Tạo được ngay lúc này (trong khung hoặc đã mở khoá) — chưa xét điều kiện cá nhân. */
+  can_create: boolean;
+  /** Khung duyệt đơn. */
+  approval_window: { enabled: boolean; first_day: number; last_day: number; text: string; open: boolean };
+  /** Điều kiện để hiển thị. */
+  conditions: string[];
+  /** Của người đang đăng nhập — reasons cùng câu báo lỗi backend khi tạo đơn. */
+  me: {
+    basic_salary_set: boolean;
+    cap: number | null;
+    eligible: boolean;
+    reasons: string[];
+    /** Riêng điều kiện thử việc / lương cơ bản — web khoá nút tạo đơn và hiện lý do này. */
+    ineligible_reason: string | null;
+  } | null;
+};
+
 class GenericRequestService {
   private base = '/api-hrm/generic-requests/';
 
@@ -179,6 +211,12 @@ class GenericRequestService {
   }
 
   /** Trạng thái khoá/mở khoá rule "chỉ TẠO đơn tạm ứng lương trong 3 ngày đầu tháng" */
+  /** Quy định tạm ứng lương (mức tối đa, khung ngày, điều kiện) theo backend. */
+  async getSalaryAdvanceConfig(): Promise<SalaryAdvanceConfig> {
+    const res = await managementApi.get('/api-hrm/salary-advance/config/');
+    return res.data;
+  }
+
   async getCreationLock(): Promise<SalaryAdvanceCreationLockState> {
     const res = await managementApi.get(`${this.base}creation-lock/`);
     return res.data;
