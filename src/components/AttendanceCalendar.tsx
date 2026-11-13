@@ -1345,10 +1345,10 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
         ))}
       </div>
 
-      {/* Explanation Quota Info - hạn mức riêng theo từng loại (2026-09-23):
-          Đi muộn/Về sớm/Quên chấm công mỗi loại 1 lượt/tháng độc lập, không
-          còn gộp chung 1 hạn mức 3 lượt như trước — xem
-          get_explanation_quota_by_type() (hrm/stats_utils.py). */}
+      {/* Hạn mức giải trình — hiển thị đúng các nhóm backend trả về
+          (get_explanation_quota_by_type()["groups"], hrm/stats_utils.py): NV thường
+          Về sớm / Đi muộn / Quên chấm công mỗi loại 1 rổ; Trưởng phòng "Đi muộn/Về sớm"
+          gộp 1 rổ + "Quên chấm công" rổ riêng. Web không tự biết loại nào gộp hay mức bao nhiêu. */}
       {engineSummary && engineSummary.explanation_quota_by_type && (
         <div className="px-2.5 py-2.5 md:px-6 md:py-3 border-b border-gray-100 bg-amber-50/30">
           <div className="flex items-center gap-2 md:gap-3 mb-2">
@@ -1360,28 +1360,24 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
             </p>
           </div>
           <div className="flex flex-wrap gap-2 md:gap-2.5 pl-0.5">
-            {([
-              { key: 'EARLY_LEAVE', label: 'Về sớm', capMinutes: true },
-              { key: 'LATE', label: 'Đi muộn', capMinutes: true },
-              { key: 'INCOMPLETE_ATTENDANCE', label: 'Quên chấm công', capMinutes: false },
-            ] as const).map((row) => {
-              const q = engineSummary.explanation_quota_by_type?.[row.key] || { used: 0, max: 1, remaining: 1 };
-              const maxMinutes = engineSummary.explanation_quota_by_type?.max_minutes;
-              const noMinutesCap = engineSummary.explanation_quota_by_type?.is_manager_combined_quota === true;
+            {((engineSummary.explanation_quota_by_type?.groups || []) as Array<{
+              key: string; label: string; used: number; max: number; remaining: number;
+              unlimited?: boolean; max_minutes?: number | null;
+            }>).map((g) => {
               // CS Xã Đàn: Đi muộn không giới hạn số lần lẫn số phút (HCNS SK 2026-10-28).
-              const unlimited = (q as { unlimited?: boolean }).unlimited === true;
-              const isExhausted = !unlimited && q.remaining <= 0;
+              const unlimited = g.unlimited === true;
+              const isExhausted = !unlimited && g.remaining <= 0;
               return (
                 <div
-                  key={row.key}
+                  key={g.key}
                   className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[11px] md:text-xs font-semibold ${
                     isExhausted ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-amber-200 text-amber-800'
                   }`}
                 >
-                  <span>{row.label}:</span>
-                  <span className="font-black">{unlimited ? `${q.used} lần (không giới hạn)` : `${q.used}/${q.max} lần`}</span>
-                  {row.capMinutes && !noMinutesCap && !unlimited && (
-                    <span className="text-[9px] md:text-[10px] font-normal text-gray-400">(không quá {maxMinutes ?? 30}p)</span>
+                  <span>{g.label}:</span>
+                  <span className="font-black">{unlimited ? `${g.used} lần (không giới hạn)` : `${g.used}/${g.max} lần`}</span>
+                  {g.max_minutes != null && (
+                    <span className="text-[9px] md:text-[10px] font-normal text-gray-400">(không quá {g.max_minutes}p)</span>
                   )}
                 </div>
               );

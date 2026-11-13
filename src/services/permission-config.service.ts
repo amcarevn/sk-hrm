@@ -102,6 +102,11 @@ export interface ManagerExplanationQuotaConfig {
   id: number;
   eligible_employees: number[];
   eligible_employees_detail: ManagerExplanationQuotaEmployeeDetail[];
+  /** Đi muộn + Về sớm GỘP CHUNG — tối đa lần/tháng (lưu ở DB, HCNS sửa được). */
+  max_late_early_explanations: number;
+  /** Quên chấm công (rổ riêng) — tối đa lần/tháng. */
+  max_incomplete_attendance_explanations: number;
+  /** @deprecated tên cũ, = max_late_early_explanations */
   max_explanations: number;
   updated_at: string;
 }
@@ -112,7 +117,9 @@ export async function getManagerExplanationQuotaConfig(): Promise<ManagerExplana
 }
 
 export async function updateManagerExplanationQuotaConfig(data: {
-  eligible_employees: number[];
+  eligible_employees?: number[];
+  max_late_early_explanations?: number;
+  max_incomplete_attendance_explanations?: number;
 }): Promise<ManagerExplanationQuotaConfig> {
   const response = await managementApi.put('/api-hrm/manager-explanation-quota-config/', data);
   return response.data;

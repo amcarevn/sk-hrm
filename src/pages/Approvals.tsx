@@ -710,8 +710,6 @@ const Approvals: React.FC = () => {
     if (isReg) return null; // Không hiện hạn mức cho đơn đăng ký/tăng ca
 
     // Thống kê từ backend (đã bọc trong item khi list)
-    const qUsed = item.quota_used ?? 0;
-    const mExp = item.max_explanation_quota ?? 3;
     const owUsed = item.online_work_used ?? 0;
     const mOnl = item.max_online_quota ?? 3;
     const lUsed = item.leave_used ?? 0;
@@ -732,9 +730,24 @@ const Approvals: React.FC = () => {
       label = 'Phép';
     }
     else {
-      used = qUsed;
-      max = mExp;
-      label = 'Giải trình';
+      // Hạn mức của RỔ mà đơn giải trình này bị tính vào — backend tính theo đúng rule
+      // (duyet-don `explanation_quota`): NV thường mỗi loại 1 rổ; Trưởng phòng Đi muộn + Về
+      // sớm gộp, Quên chấm công riêng. Loại đơn không tính hạn mức thì không hiện badge.
+      const q = item.explanation_quota as
+        | { label: string; used: number; max: number; unlimited?: boolean }
+        | null
+        | undefined;
+      if (!q) return null;
+      if (q.unlimited) {
+        return (
+          <div className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-xs font-bold tracking-tighter uppercase bg-gray-50 text-gray-500 border-gray-100">
+            {q.label} {q.used} (không giới hạn)
+          </div>
+        );
+      }
+      used = q.used;
+      max = q.max;
+      label = q.label;
     }
 
     const ratio = max > 0 ? used / max : 0;
@@ -1213,39 +1226,31 @@ const Approvals: React.FC = () => {
       return groups;
     };
 
-    // 1. Đơn Giải trình — check quota (LATE, EARLY_LEAVE, LATE_EARLY, INCOMPLETE_ATTENDANCE)
+    // 1. Đơn Giải trình tính hạn mức (LATE, EARLY_LEAVE, LATE_EARLY, INCOMPLETE_ATTENDANCE):
+    // hỏi backend XEM TRƯỚC (smart_bulk_approve dry_run) — đúng thuật toán + hạn mức backend
+    // dùng khi duyệt thật (NV thường mỗi loại 1 rổ; Trưởng phòng Đi muộn + Về sớm gộp, Quên
+    // chấm công riêng; Quên chấm công luôn được duyệt, vượt hạn mức thì bị phạt).
     if (quotaItems.length > 0) {
-      Object.entries(groupByEmpMonth(quotaItems)).forEach(([_key, group]) => {
-        const defaultMax = Number(group[0]?.max_explanation_quota) || 3;
-        const minRemaining = group.reduce((min, item) => {
-          const rem = item.quota_remaining !== undefined ? Number(item.quota_remaining) : (Number(item.max_explanation_quota || 3) - Number(item.quota_used || 0));
-          return Math.min(min, isNaN(rem) ? defaultMax : rem);
-        }, defaultMax);
-
-        const sortedGroup = [...group].sort((a, b) => {
-          const isAForget = (a.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
-          const isBForget = (b.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
-          if (isAForget !== isBForget) return isAForget ? -1 : 1;
-          const penaltyA = Number(a.penalty_amount) || 0;
-          const penaltyB = Number(b.penalty_amount) || 0;
-          if (penaltyA !== penaltyB) return penaltyB - penaltyA;
-          // FCFS: đơn tạo sớm nhất được ưu tiên duyệt trước
-          const tsA = a.created_at ? new Date(a.created_at).getTime() : 0;
-          const tsB = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return tsA - tsB;
-        });
-
-        let currentRemaining = Math.max(0, minRemaining);
-        sortedGroup.forEach(item => {
-          const isForget = (item.explanation_type || '').toUpperCase() === 'INCOMPLETE_ATTENDANCE';
-          if (isForget) {
-            if (currentRemaining > 0) { approvalItems.push(item); currentRemaining--; }
-            else { approvalItems.push({ ...item, is_penalty: true }); }
-          } else {
-            if (currentRemaining > 0) { approvalItems.push(item); currentRemaining--; }
-            else { rejectionItems.push(item); }
-          }
-        });
+      let preview: Awaited<ReturnType<typeof approvalService.previewSmartBulkApproveAttendanceExplanations>>;
+      try {
+        preview = await approvalService.previewSmartBulkApproveAttendanceExplanations(quotaItems.map(i => i.id));
+      } catch (error: any) {
+        const msg = error.response?.status === 423 && error.response?.data?.error === 'FINALIZATION_LOCKED'
+          ? error.response.data.message || 'Tháng này đã đóng chốt công. Không thể phê duyệt.'
+          : 'Không tính được hạn mức giải trình để duyệt nhanh: ' + (error.response?.data?.error || error.message);
+        setErrorMessage(msg);
+        setErrorModalOpen(true);
+        return;
+      }
+      const approvedIds = new Set(preview.approved);
+      const overQuotaIds = new Set(preview.over_quota);
+      const rejectNotes = new Map(preview.rejected.map(r => [r.id, r.note]));
+      quotaItems.forEach(item => {
+        if (approvedIds.has(item.id)) {
+          approvalItems.push(overQuotaIds.has(item.id) ? { ...item, is_penalty: true } : item);
+        } else if (rejectNotes.has(item.id)) {
+          rejectionItems.push({ ...item, reject_note: rejectNotes.get(item.id) });
+        }
       });
     }
 
@@ -2977,10 +2982,20 @@ const Approvals: React.FC = () => {
                                             const getMonthlyQuota = (type: string): number | null =>
                                               empQuotas && type in empQuotas ? empQuotas[type] : null;
 
+                                            // Mức tối đa lấy từ backend (không ghi số ở web):
+                                            // giải trình theo đúng các rổ backend trả (explanation_quota_groups —
+                                            // NV thường mỗi loại 1 rổ; Trưởng phòng Đi muộn/Về sớm gộp + Quên chấm
+                                            // công riêng); nghỉ phép / online theo max_*_quota của đơn.
+                                            const quotaGroups: Array<{ key: string; label: string; used: number; max: number; unlimited?: boolean }> =
+                                              items.find((i: any) => Array.isArray(i.explanation_quota_groups))?.explanation_quota_groups || [];
+                                            const maxOf = (field: string): number | null => {
+                                              const v = items.find((i: any) => i[field] !== undefined && i[field] !== null)?.[field];
+                                              return v === undefined ? null : Number(v);
+                                            };
                                             const quotas = [
-                                              { id: 'exp', label: 'Giải trình', value: getMonthlyQuota('EXPLANATION'), max: 3, color: 'amber', bg: 'bg-amber-50/70', text: 'text-amber-700', border: 'border-amber-200' },
-                                              { id: 'leave', label: 'Nghỉ phép tháng', value: getMonthlyQuota('LEAVE'), max: 1, color: 'primary', bg: 'bg-primary-50/70', text: 'text-primary-700', border: 'border-primary-200' },
-                                              { id: 'online', label: 'Làm việc online', value: getMonthlyQuota('ONLINE_WORK'), max: 3, color: 'emerald', bg: 'bg-emerald-50/70', text: 'text-emerald-700', border: 'border-emerald-200' },
+                                              ...quotaGroups.map(g => ({ id: `exp-${g.key}`, label: g.label, value: g.used, max: g.unlimited ? null : g.max, color: 'amber', bg: 'bg-amber-50/70', text: 'text-amber-700', border: 'border-amber-200' })),
+                                              { id: 'leave', label: 'Nghỉ phép tháng', value: getMonthlyQuota('LEAVE'), max: maxOf('max_leave_quota'), color: 'primary', bg: 'bg-primary-50/70', text: 'text-primary-700', border: 'border-primary-200' },
+                                              { id: 'online', label: 'Làm việc online', value: getMonthlyQuota('ONLINE_WORK'), max: maxOf('max_online_quota'), color: 'emerald', bg: 'bg-emerald-50/70', text: 'text-emerald-700', border: 'border-emerald-200' },
                                               { id: 'reg', label: 'Đăng ký', value: getMonthlyQuota('REGISTRATION'), max: null, color: 'primary', bg: 'bg-primary-50/70', text: 'text-primary-700', border: 'border-primary-200' },
                                             ];
 
