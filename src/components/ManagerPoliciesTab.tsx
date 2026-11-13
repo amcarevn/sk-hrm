@@ -26,7 +26,8 @@ const toggle = (set: Set<number>, id: number, on: boolean) => {
 /**
  * Chế độ Trưởng phòng — gộp 2 danh sách HCNS tự chọn cho cùng nhóm Trưởng phòng
  * (backend vẫn là 2 cấu hình riêng):
- *  - Giải trình gộp: Đi muộn/Về sớm/Quên chấm công gộp tối đa N lần/tháng
+ *  - Hạn mức giải trình: Đi muộn + Về sớm gộp chung tối đa N lần/tháng, Quên chấm công
+ *    tối đa M lần/tháng (N, M lưu ở backend, sửa ngay trên tab này)
  *    (ManagerExplanationQuotaConfig).
  *  - Phạt thiếu công: TP không lương cứng đi thiếu công chuẩn thì phạt
  *    mốc lương / công chuẩn × số công thiếu, tính lúc chốt công (MissingWorkdayPenaltyConfig).
@@ -37,7 +38,9 @@ const ManagerPoliciesTab: React.FC = () => {
   const [rowIds, setRowIds] = useState<number[]>([]);
   const [quotaIds, setQuotaIds] = useState<Set<number>>(new Set());
   const [penaltyIds, setPenaltyIds] = useState<Set<number>>(new Set());
-  const [maxExplanations, setMaxExplanations] = useState(5);
+  // Hạn mức giải trình cấp TP — lấy từ backend (ManagerExplanationQuotaConfig), không đặt sẵn số ở web.
+  const [maxLateEarly, setMaxLateEarly] = useState('');
+  const [maxIncomplete, setMaxIncomplete] = useState('');
   const [baseAmount, setBaseAmount] = useState('10000000');
   const [withBasicSalary, setWithBasicSalary] = useState<Set<number>>(new Set());
 
@@ -54,7 +57,8 @@ const ManagerPoliciesTab: React.FC = () => {
     setQuotaIds(new Set(quota.eligible_employees));
     setPenaltyIds(new Set(penalty.eligible_employees));
     setRowIds(Array.from(new Set([...quota.eligible_employees, ...penalty.eligible_employees])));
-    setMaxExplanations(quota.max_explanations);
+    setMaxLateEarly(String(quota.max_late_early_explanations));
+    setMaxIncomplete(String(quota.max_incomplete_attendance_explanations));
     setBaseAmount(String(Math.round(Number(penalty.base_amount))));
     setWithBasicSalary(new Set(penalty.eligible_employees_detail.filter(e => e.has_basic_salary).map(e => e.id)));
   };
@@ -83,7 +87,7 @@ const ManagerPoliciesTab: React.FC = () => {
 
   const addRow = (e: Employee) => {
     setRowIds(prev => (prev.includes(e.id) ? prev : [...prev, e.id]));
-    // Thêm mới: mặc định được giải trình gộp; phạt thiếu công chỉ tick sẵn cho người
+    // Thêm mới: mặc định áp hạn mức giải trình TP; phạt thiếu công chỉ tick sẵn cho người
     // hồ sơ đang không có lương cơ bản.
     setQuotaIds(prev => toggle(prev, e.id, true));
     if (e.basic_salary !== undefined && !(Number(e.basic_salary) > 0)) {
@@ -103,11 +107,22 @@ const ManagerPoliciesTab: React.FC = () => {
       setError('Mốc lương tính phạt phải lớn hơn 0');
       return;
     }
+    const lateEarly = Number(maxLateEarly);
+    const incomplete = Number(maxIncomplete);
+    if (maxLateEarly === '' || maxIncomplete === '' || !Number.isInteger(lateEarly) || !Number.isInteger(incomplete)
+        || lateEarly < 0 || incomplete < 0) {
+      setError('Hạn mức giải trình phải là số nguyên ≥ 0');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       const [quota, penalty] = await Promise.all([
-        updateManagerExplanationQuotaConfig({ eligible_employees: Array.from(quotaIds) }),
+        updateManagerExplanationQuotaConfig({
+          eligible_employees: Array.from(quotaIds),
+          max_late_early_explanations: lateEarly,
+          max_incomplete_attendance_explanations: incomplete,
+        }),
         updateMissingWorkdayPenaltyConfig({ eligible_employees: Array.from(penaltyIds), base_amount: amount }),
       ]);
       applyConfigs(quota, penalty);
@@ -146,8 +161,10 @@ const ManagerPoliciesTab: React.FC = () => {
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-1.5">
         <p className="text-sm font-medium text-amber-800">Chế độ Trưởng phòng — HCNS tự chọn từng người</p>
         <p className="text-xs text-amber-700 leading-relaxed">
-          <strong>Giải trình gộp:</strong> Đi muộn/Về sớm/Quên chấm công được giải trình gộp chung tối đa{' '}
-          <strong>{maxExplanations} lần/tháng</strong>, không tách mỗi loại 1 lần/tháng như nhân viên thường.
+          <strong>Hạn mức giải trình:</strong> Đi muộn + Về sớm gộp chung tối đa{' '}
+          <strong>{maxLateEarly || '—'} lần/tháng</strong>, Quên chấm công tối đa{' '}
+          <strong>{maxIncomplete || '—'} lần/tháng</strong>, không giới hạn số phút đi muộn / về sớm — thay cho hạn
+          mức từng loại của nhân viên thường.
         </p>
         <p className="text-xs text-amber-700 leading-relaxed">
           <strong>Phạt thiếu công</strong> (TP không có lương cứng): không đi đủ công chuẩn của tháng (số ngày trong
@@ -164,16 +181,40 @@ const ManagerPoliciesTab: React.FC = () => {
         </div>
       )}
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-gray-700 sm:w-80">
-        Mốc lương tính phạt thiếu công (VNĐ)
-        <input
-          type="text"
-          inputMode="numeric"
-          value={amountNumber ? formatVnd(amountNumber) : ''}
-          onChange={e => setBaseAmount(e.target.value.replace(/\D/g, ''))}
-          className="input-field"
-        />
-      </label>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3">
+        <label className="flex flex-col gap-1 text-sm font-medium text-gray-700 sm:w-60">
+          Đi muộn + Về sớm (lần/tháng)
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={maxLateEarly}
+            onChange={e => setMaxLateEarly(e.target.value)}
+            className="input-field"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-medium text-gray-700 sm:w-60">
+          Quên chấm công (lần/tháng)
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={maxIncomplete}
+            onChange={e => setMaxIncomplete(e.target.value)}
+            className="input-field"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-medium text-gray-700 sm:w-80">
+          Mốc lương tính phạt thiếu công (VNĐ)
+          <input
+            type="text"
+            inputMode="numeric"
+            value={amountNumber ? formatVnd(amountNumber) : ''}
+            onChange={e => setBaseAmount(e.target.value.replace(/\D/g, ''))}
+            className="input-field"
+          />
+        </label>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-2 border border-gray-100 rounded-2xl p-4 flex flex-col gap-3">
@@ -226,7 +267,7 @@ const ManagerPoliciesTab: React.FC = () => {
             <div>
               <p className="text-sm font-bold text-gray-900">Trưởng phòng</p>
               <p className="text-xs text-gray-400">
-                {rows.length} người · giải trình gộp {quotaIds.size} · phạt thiếu công {penaltyIds.size}
+                {rows.length} người · hạn mức giải trình TP {quotaIds.size} · phạt thiếu công {penaltyIds.size}
               </p>
             </div>
           </div>
@@ -236,7 +277,7 @@ const ManagerPoliciesTab: React.FC = () => {
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold">Nhân viên</th>
                   <th className="px-3 py-2 text-center font-semibold whitespace-nowrap">
-                    Giải trình gộp {maxExplanations} lần
+                    Hạn mức giải trình TP
                   </th>
                   <th className="px-3 py-2 text-center font-semibold whitespace-nowrap">Phạt thiếu công</th>
                   <th className="px-3 py-2" />
@@ -259,7 +300,7 @@ const ManagerPoliciesTab: React.FC = () => {
                     <td className="px-3 py-2 text-center">
                       <input
                         type="checkbox"
-                        aria-label={`Giải trình gộp — ${e.full_name}`}
+                        aria-label={`Hạn mức giải trình TP — ${e.full_name}`}
                         className="rounded border-gray-300 text-primary-600 focus:ring-primary-400"
                         checked={quotaIds.has(e.id)}
                         onChange={ev => setQuotaIds(prev => toggle(prev, e.id, ev.target.checked))}

@@ -547,9 +547,9 @@ const AttendanceManagement: React.FC = () => {
       });
       if (isAlreadyApproved) return false;
 
-      // 1b. Ẩn nếu loại này đã hết hạn mức riêng trong tháng (Đi muộn/Về
-      // sớm/Quên chấm công mỗi loại 1 lần/tháng độc lập, 2026-09-23 — xem
-      // get_explanation_quota_by_type() bên BE).
+      // 1b. Ẩn nếu loại này đã hết hạn mức trong tháng — theo đúng số backend tính
+      // (get_explanation_quota_by_type): NV thường mỗi loại 1 rổ riêng; Trưởng phòng
+      // Đi muộn + Về sớm chung 1 rổ (LATE / EARLY_LEAVE trả cùng số), Quên chấm công rổ riêng.
       const quotaByType = attendanceStats?.explanation_quota_by_type;
       const quotaTypeMap: Record<string, string> = {
         late_minutes: 'LATE',
@@ -563,17 +563,17 @@ const AttendanceManagement: React.FC = () => {
 
       // 2. Các logic lọc theo dữ liệu thực tế (giữ nguyên logic cũ nhưng làm gọn hơn)
       const isIncomplete = detail?.status === 'INCOMPLETE_ATTENDANCE';
-      // NV thuộc rổ gộp Trưởng phòng: BE trả max_minutes=null (không giới
-      // hạn số phút lệch) — xem get_explanation_quota_by_type().
-      const maxMinutes = quotaByType?.max_minutes ?? 30;
-      const noMinutesCap = quotaByType?.is_manager_combined_quota === true;
+      // Ngưỡng phút do backend trả (get_explanation_quota_by_type): Trưởng phòng
+      // max_minutes=null (không giới hạn); chưa tải được thì không lọc ở web (backend vẫn chặn).
+      const maxMinutes: number | null | undefined = quotaByType?.max_minutes;
+      const noMinutesCap = maxMinutes == null || quotaByType?.is_manager_combined_quota === true;
       // CS Xã Đàn: Đi muộn không giới hạn số phút (late_unlimited, HCNS SK 2026-10-28).
       const lateNoMinutesCap = noMinutesCap || quotaByType?.late_unlimited === true;
       if (reason.id === 'late_minutes') {
-        return !isIncomplete && (detail?.late_minutes || 0) > 0 && (lateNoMinutesCap || (detail?.late_minutes || 0) <= maxMinutes);
+        return !isIncomplete && (detail?.late_minutes || 0) > 0 && (lateNoMinutesCap || (detail?.late_minutes || 0) <= (maxMinutes as number));
       }
       if (reason.id === 'early_leave_minutes') {
-        return !isIncomplete && (detail?.early_leave_minutes || 0) > 0 && (noMinutesCap || (detail?.early_leave_minutes || 0) <= maxMinutes);
+        return !isIncomplete && (detail?.early_leave_minutes || 0) > 0 && (noMinutesCap || (detail?.early_leave_minutes || 0) <= (maxMinutes as number));
       }
       if (reason.id === 'incomplete_attendance') return isIncomplete || detail?.status === 'ABSENT';
       if (reason.id === 'machine_error') return isIncomplete || detail?.status === 'ABSENT';
