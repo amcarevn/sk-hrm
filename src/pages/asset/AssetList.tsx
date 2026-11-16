@@ -15,6 +15,7 @@ import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
   DocumentArrowDownIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import AssetCreateModal from './AssetCreateModal';
 import AssetEditModal from './AssetEditModal';
@@ -26,7 +27,7 @@ import AssetBulkReturnModal from './AssetBulkReturnModal';
 import { Asset, AssetStats } from '../../utils/api';
 import { SelectBox, SelectOption, MultiSelectBox } from '../../components/LandingLayout/SelectBox';
 import FeedbackDialog, { FeedbackVariant } from '../../components/FeedbackDialog';
-import { assetTypeOptionsFrom, isMultiHolderType } from './assetTypes';
+import { assetTypeOptionsFrom, isMultiHolderType, isoToVnDate, resignedHolderWarning } from './assetTypes';
 
 // Màu badge loại tài sản — chỉ dùng màu semantic được phép trong design system
 const ASSET_TYPE_COLOR_MAP: Record<string, string> = {
@@ -94,6 +95,8 @@ export default function AssetList() {
   const [dateTo, setDateTo] = useState('');
   const [positions, setPositions] = useState<SelectOption<string>[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
+  // Chỉ xem tài sản đang giao cho người đã nghỉ việc (bấm từ banner cảnh báo).
+  const [onlyResigned, setOnlyResigned] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -254,9 +257,13 @@ export default function AssetList() {
     const matchesDateFrom = !dateFrom || assetDate >= dateFrom;
     const matchesDateTo = !dateTo || assetDate <= dateTo;
     const matchesLocation = !locationFilter || String((asset.specifications as any)?.position_id ?? '') === locationFilter;
+    const matchesResigned = !onlyResigned || (asset.resigned_holders?.length ?? 0) > 0;
 
-    return matchesSearch && matchesStatus && matchesType && matchesCondition && matchesDateFrom && matchesDateTo && matchesLocation;
+    return matchesSearch && matchesStatus && matchesType && matchesCondition && matchesDateFrom && matchesDateTo && matchesLocation && matchesResigned;
   }).sort((a, b) => a.asset_code.localeCompare(b.asset_code, 'vi', { numeric: true, sensitivity: 'base' }));
+
+  // Tài sản đang giao cho người đã nghỉ việc = không ai dùng (vd hotline của người nghỉ).
+  const resignedCount = assets.filter((a) => (a.resigned_holders?.length ?? 0) > 0).length;
 
   const handleEditClick = (asset: Asset) => {
     setEditingAsset(asset);
@@ -595,6 +602,32 @@ export default function AssetList() {
       {/* Stats + Filters — KHÔNG sticky: khối này cao (thống kê + 2 hàng filter), ghim lại
           thì cuộn xuống nó che mất phần bảng. Bảng có khung cuộn riêng + tiêu đề cột cố định. */}
       <div className="-mx-4 px-4 sm:-mx-6 sm:px-6 py-4 space-y-4">
+        {/* Cảnh báo: người đang giữ tài sản đã nghỉ việc — tự hiện theo ngày nghỉ việc. */}
+        {(resignedCount > 0 || onlyResigned) && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-2xl border border-red-200 bg-red-50">
+            <div className="flex items-start gap-2.5 flex-1 min-w-0">
+              <ExclamationTriangleIcon className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800">
+                {resignedCount > 0 ? (
+                  <>
+                    <span className="font-semibold">{formatNumber(resignedCount)} tài sản không ai dùng</span>
+                    {' '}— đang bàn giao cho người đã nghỉ việc (vd hotline của nhân viên đã nghỉ). Thu hồi hoặc bàn giao lại cho người khác.
+                  </>
+                ) : (
+                  'Không còn tài sản nào đang giao cho người đã nghỉ việc.'
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOnlyResigned((v) => !v)}
+              className="self-start sm:self-auto flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border border-red-300 bg-white text-red-700 hover:bg-red-100 transition-all"
+            >
+              {onlyResigned ? 'Xem tất cả tài sản' : 'Xem danh sách'}
+            </button>
+          </div>
+        )}
+
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
@@ -869,7 +902,7 @@ export default function AssetList() {
                         Không có tài sản nào
                       </h3>
                       <p className="mt-1 text-sm text-gray-500">
-                        {searchTerm || statusFilter !== 'all' || typeFilter.length > 0
+                        {searchTerm || statusFilter !== 'all' || typeFilter.length > 0 || onlyResigned
                           ? 'Không tìm thấy tài sản phù hợp với bộ lọc.'
                           : 'Bắt đầu bằng cách thêm tài sản mới.'
                         }
@@ -976,9 +1009,11 @@ export default function AssetList() {
                               {shown.map((h) => (
                                 <div
                                   key={h.employee_id}
-                                  className="text-xs font-medium text-emerald-700 bg-emerald-50 inline-flex rounded-full px-2 py-0.5 w-fit"
+                                  title={h.resigned ? `Đã nghỉ việc${h.end_date ? ` từ ${isoToVnDate(h.end_date)}` : ''} — cần thu hồi` : undefined}
+                                  className={`text-xs font-medium inline-flex items-center gap-1 rounded-full px-2 py-0.5 w-fit ${h.resigned ? 'text-red-700 bg-red-50' : 'text-emerald-700 bg-emerald-50'}`}
                                 >
-                                  {h.name} ({h.assigned_quantity})
+                                  {h.resigned && <ExclamationTriangleIcon className="h-3 w-3" />}
+                                  {h.name} ({h.assigned_quantity}){h.resigned && ' · đã nghỉ'}
                                 </div>
                               ))}
                               {extra > 0 && (
@@ -991,6 +1026,20 @@ export default function AssetList() {
                           );
                         }
                         if (asset.assigned_to_name) {
+                          const left = asset.resigned_holders?.[0];
+                          if (left) {
+                            return (
+                              <div className="flex flex-col" title={resignedHolderWarning(asset) ?? undefined}>
+                                <div className="text-sm font-medium text-red-700 bg-red-50 inline-flex items-center gap-1 rounded-full px-2 py-0.5 w-fit">
+                                  <ExclamationTriangleIcon className="h-3.5 w-3.5" />
+                                  {asset.assigned_to_name}
+                                </div>
+                                <div className="text-xs font-semibold text-red-600 mt-0.5">
+                                  Không ai dùng · nghỉ từ {isoToVnDate(left.end_date) || '—'}
+                                </div>
+                              </div>
+                            );
+                          }
                           return (
                             <div className="flex flex-col">
                               <div className="text-sm font-medium text-emerald-700 bg-emerald-50 inline-flex rounded-full px-2 py-0.5 w-fit">
