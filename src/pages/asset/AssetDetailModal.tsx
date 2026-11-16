@@ -1,7 +1,7 @@
 import React, { Fragment, useState, useEffect } from 'react';
-import { isMultiHolderType } from './assetTypes';
+import { isMultiHolderType, resignedHolderWarning } from './assetTypes';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
-import { XMarkIcon, ComputerDesktopIcon, CalendarIcon, UserIcon, BuildingOfficeIcon, ShieldCheckIcon, ShoppingBagIcon, CpuChipIcon, ServerStackIcon, Square3Stack3DIcon, CircleStackIcon, DeviceTabletIcon, BoltIcon, ArrowUturnLeftIcon, IdentificationIcon, TagIcon, BuildingStorefrontIcon, SparklesIcon, ClockIcon, UserPlusIcon, XCircleIcon, CheckCircleIcon, PhotoIcon, WrenchScrewdriverIcon, ClipboardDocumentCheckIcon, PlusIcon, BanknotesIcon, QrCodeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ComputerDesktopIcon, CalendarIcon, UserIcon, BuildingOfficeIcon, ShieldCheckIcon, ShoppingBagIcon, CpuChipIcon, ServerStackIcon, Square3Stack3DIcon, CircleStackIcon, DeviceTabletIcon, BoltIcon, ArrowUturnLeftIcon, IdentificationIcon, TagIcon, BuildingStorefrontIcon, SparklesIcon, ClockIcon, UserPlusIcon, XCircleIcon, CheckCircleIcon, PhotoIcon, WrenchScrewdriverIcon, ClipboardDocumentCheckIcon, PlusIcon, BanknotesIcon, QrCodeIcon, ArrowDownTrayIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Asset, AssetAssignmentHistory, AssetMaintenance, AssetInventoryCheck, positionsAPI, assetsAPI } from '../../utils/api';
 import AssetReturnModal from './AssetReturnModal';
 import AssetMaintenanceFormModal from './AssetMaintenanceFormModal';
@@ -36,6 +36,7 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
   const holders = asset.holders || [];
   const isManager = viewMode === 'manager';
   const isEmployee = viewMode === 'employee';
+  const resignedWarning = resignedHolderWarning(asset);
 
   useEffect(() => {
     const posId = (asset?.specifications as any)?.position_id;
@@ -346,6 +347,14 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                       <h4 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest border-b pb-2">
                         {isEmployee ? 'Thông tin tài sản đang giữ' : 'Nhân sự phụ trách'}
                       </h4>
+
+                      {/* Người đang giữ đã nghỉ việc → tài sản không ai dùng (tự hiện theo ngày nghỉ việc). */}
+                      {isManager && resignedWarning && (
+                        <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                          <ExclamationTriangleIcon className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm font-medium text-red-800">{resignedWarning}</p>
+                        </div>
+                      )}
 
                       {/* MONITOR multi-holder: Manager view — full holder list + Thu hồi buttons */}
                       {isMultiHolder && isManager && (

@@ -700,7 +700,12 @@ export interface Asset {
     assigned_quantity: number;
     assigned_date: string;
     assignment_notes?: string;
+    /** Người giữ đã nghỉ việc (ngày nghỉ việc <= hôm nay). */
+    resigned?: boolean;
+    end_date?: string | null;
   }>;
+  /** Người đang giữ tài sản nhưng đã nghỉ việc → tài sản / số đó không còn ai dùng. */
+  resigned_holders?: AssetResignedHolder[];
   pending_assignment?: {
     id: number;
     assigned_to?: number;
@@ -709,6 +714,13 @@ export interface Asset {
     assigned_by_name?: string;
     assignment_notes?: string;
   } | null;
+}
+
+export interface AssetResignedHolder {
+  employee_id: number;
+  employee_code: string;
+  name: string;
+  end_date: string | null;
 }
 
 export type AssetAssignmentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED' | 'RETURNED';
