@@ -529,6 +529,13 @@ const AttendanceManagement: React.FC = () => {
   // thẻ hễ ngày đó có BẤT KỲ đơn giải trình nào đã duyệt, nên duyệt "Đi công tác"
   // buổi sáng xong thì không giải trình được "Về sớm" buổi chiều (SK00753 28/10/2026;
   // Trung Anh đã sửa tương tự ở 8f3eb81). Chỉ loại đúng loại đã duyệt.
+  const isPastOrTodayDate = (date: Date | null) => {
+    if (!date) return false;
+    const today = new Date();
+    const key = (d: Date) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    return key(date) <= key(today);
+  };
+
   const getAvailableExplanationReasons = (detail: any, registrations: any[]) => {
     return explanationReasons.filter(reason => {
       // 1. Ngăn chặn nếu đã có đơn cùng loại được PHÊ DUYỆT
@@ -575,8 +582,12 @@ const AttendanceManagement: React.FC = () => {
       if (reason.id === 'early_leave_minutes') {
         return !isIncomplete && (detail?.early_leave_minutes || 0) > 0 && (noMinutesCap || (detail?.early_leave_minutes || 0) <= (maxMinutes as number));
       }
-      if (reason.id === 'incomplete_attendance') return isIncomplete || detail?.status === 'ABSENT';
-      if (reason.id === 'machine_error') return isIncomplete || detail?.status === 'ABSENT';
+      // Ngày đã qua / hôm nay mà máy không ghi nhận lần quẹt nào thì KHÔNG có bản ghi chấm
+      // công (detail rỗng) — vẫn phải giải trình được Lỗi MCC / Quên chấm công "cả vào lẫn ra"
+      // như ngày Vắng (TA01237 15/11/2026 không thấy Lỗi MCC). Ngày tương lai thì không.
+      const noPunchRecordPastDay = !detail && isPastOrTodayDate(selectedDate);
+      if (reason.id === 'incomplete_attendance') return isIncomplete || detail?.status === 'ABSENT' || noPunchRecordPastDay;
+      if (reason.id === 'machine_error') return isIncomplete || detail?.status === 'ABSENT' || noPunchRecordPastDay;
       if (reason.id === 'first_day') return !detail || detail.status === 'ABSENT' || detail?.status === 'INCOMPLETE_ATTENDANCE';
       if (reason.id === 'business_trip') {
         return !detail || detail.status === 'ABSENT' || (detail?.late_minutes || 0) > 0 || (detail?.early_leave_minutes || 0) > 0 || detail?.status === 'INCOMPLETE_ATTENDANCE';
