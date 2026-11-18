@@ -6,6 +6,7 @@ import type {
   AssetMaintenance,
   AssetInventoryCheck,
   AssetStats,
+  ResignedHolderAsset,
 } from './types';
 
 // Assets API
@@ -111,6 +112,12 @@ export const assetsAPI = {
     const response: AxiosResponse<AssetAssignmentHistory[]> = await managementApi.get(
       `/api-hrm/assets/recent_returns/?days=${days}`,
     );
+    return response.data;
+  },
+
+  /** Tài sản / hotline đang giao cho người đã nghỉ việc — chỉ Admin/HCNS (403 với người khác). */
+  resignedHolders: async (): Promise<{ count: number; results: ResignedHolderAsset[] }> => {
+    const response = await managementApi.get('/api-hrm/assets/resigned-holders/');
     return response.data;
   },
 
