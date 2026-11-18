@@ -40,6 +40,8 @@ export interface User {
     [key: string]: any;
   };
   employee_permission?: EmployeePermissions;
+  /** Được xem "Dữ liệu phòng ban" (trưởng phòng / Ban Giám đốc / Admin / HCNS) — backend tính. */
+  department_data_access?: boolean;
   [key: string]: any; // Allow additional properties
 }
 

@@ -337,6 +337,36 @@ export const jobDescriptionService = {
     return res.data;
   },
 
+  /** "Xuất dữ liệu lương" (HCNS SK phần 3): file .xlsx theo phòng ban — chỉ Admin/HCNS. Lỗi 400/403 trả
+   * về dạng Blob nên đọc lại để lấy câu báo lỗi của backend. */
+  async salaryExport(departmentId?: number | null, departmentCode?: string): Promise<{ blob: Blob; filename: string }> {
+    try {
+      const res = await managementApi.get(`${BASE}/salary-export/`, {
+        params: departmentId ? { department: departmentId } : undefined,
+        responseType: 'blob',
+        timeout: 2 * 60 * 1000,
+      });
+      const disposition: string = res.headers?.['content-disposition'] || '';
+      const match = disposition.match(/filename="?([^";]+)"?/);
+      // Header có thể bị CORS che (không expose Content-Disposition) → tự đặt tên giống backend.
+      const filename = match ? match[1]
+        : `du-lieu-luong${departmentCode ? `-${departmentCode}` : ''}-${new Date().toLocaleDateString('sv-SE')}.xlsx`;
+      return { blob: res.data, filename };
+    } catch (err: any) {
+      const data = err?.response?.data;
+      if (data instanceof Blob) {
+        let detail = '';
+        try {
+          detail = JSON.parse(await data.text())?.detail || '';
+        } catch {
+          // không phải JSON
+        }
+        throw new Error(detail || 'Không tạo được file Excel, vui lòng thử lại.');
+      }
+      throw new Error(errorMessage(err, 'Không tạo được file Excel, vui lòng thử lại.'));
+    }
+  },
+
   /** Link file tài liệu gắn với mô tả công việc của mình; backend ghi luôn lượt xem. */
   async openDocument(documentId: number): Promise<string> {
     const res = await managementApi.post(`${MY_BASE}/open-document/`, { document: documentId });

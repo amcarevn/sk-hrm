@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BriefcaseIcon, DocumentArrowUpIcon, DocumentTextIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, BriefcaseIcon, DocumentArrowUpIcon, DocumentTextIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import JobDescriptionPdfModal from '../components/JobDescription/JobDescriptionPdfModal';
 import JobDescriptionDocxModal from '../components/JobDescription/JobDescriptionDocxModal';
+import SalaryExportModal from '../components/JobDescription/SalaryExportModal';
 import { JobDescriptionItem, errorMessage, jobDescriptionService } from '../services/jobDescription.service';
 
 /**
@@ -52,6 +53,7 @@ const JobDescriptionList: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
   const [showDocx, setShowDocx] = useState(false);
+  const [showSalaryExport, setShowSalaryExport] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const remove = async (jd: JobDescriptionItem) => {
@@ -97,7 +99,7 @@ const JobDescriptionList: React.FC = () => {
         <div className="h-10 w-10 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center">
           <BriefcaseIcon className="h-6 w-6" />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-[16rem]">
           <h1 className="text-xl font-bold text-gray-900">Mô tả công việc theo vị trí</h1>
           <p className="text-sm text-gray-500">
             Soạn, công bố và theo dõi nhân viên đã xác nhận đọc. Khung lương theo vị trí chỉ HCNS / Admin thấy; nhân viên
@@ -118,6 +120,10 @@ const JobDescriptionList: React.FC = () => {
           <button type="button" onClick={() => setShowPdf(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 whitespace-nowrap">
             <DocumentArrowUpIcon className="h-4 w-4" /> Thêm từ PDF
+          </button>
+          <button type="button" onClick={() => setShowSalaryExport(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 whitespace-nowrap">
+            <ArrowDownTrayIcon className="h-4 w-4" /> Xuất dữ liệu lương
           </button>
         </form>
       </div>
@@ -194,6 +200,7 @@ const JobDescriptionList: React.FC = () => {
       {showDocx && (
         <JobDescriptionDocxModal onClose={(changed) => { setShowDocx(false); if (changed) load(); }} />
       )}
+      {showSalaryExport && <SalaryExportModal onClose={() => setShowSalaryExport(false)} />}
       {showPdf && (
         <JobDescriptionPdfModal onClose={(created) => { setShowPdf(false); if (created) load(); }} />
       )}
