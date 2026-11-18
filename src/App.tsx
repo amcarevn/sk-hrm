@@ -48,6 +48,7 @@ import JobDescriptionList from './pages/JobDescriptionList';
 import JobDescriptionEdit from './pages/JobDescriptionEdit';
 import MyJob from './pages/MyJob';
 import DisciplineRules from './pages/DisciplineRules';
+import DepartmentData from './pages/DepartmentData';
 import EmployeeCreate from './pages/EmployeeCreate';
 import EmployeeShow from './pages/EmployeeShow';
 import EmployeeEdit from './pages/EmployeeEdit';
@@ -823,6 +824,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <DisciplineRules />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Kho dữ liệu phòng ban (HCNS SK phần 5): TP / Ban Giám đốc / Admin / HCNS */}
+          <Route
+            path="/dashboard/department-data"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DepartmentData />
                 </Layout>
               </ProtectedRoute>
             }

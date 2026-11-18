@@ -35,6 +35,7 @@ import {
   FolderOpenIcon,
   ClipboardDocumentCheckIcon,
   ScaleIcon,
+  CircleStackIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavigationItem {
@@ -85,6 +86,13 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard/discipline-rules',
     icon: ScaleIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
+  {
+    // Kho dữ liệu phòng ban: Admin / HCNS, và trưởng phòng / Ban Giám đốc (cờ department_data_access).
+    name: 'Dữ liệu phòng ban',
+    href: '/dashboard/department-data',
+    icon: CircleStackIcon,
+    roles: ['ADMIN', 'HR'],
   },
 
   // --- Nhân sự ---
@@ -467,6 +475,9 @@ export default function Sidebar({ onCollapseChange, mobileOpen: sidebarOpen, onM
       if (item.departments.includes(userDepartmentCode)) {
         return item.roles.some(role => role.toUpperCase() === userRole);
       }
+    }
+    if (item.name === 'Dữ liệu phòng ban' && user?.department_data_access) {
+      return true;
     }
     if (isManager && item.name === 'Onboard nhân sự') {
       return true;
