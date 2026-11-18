@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AcademicCapIcon,
   ArrowsRightLeftIcon,
@@ -6,14 +7,19 @@ import {
   CalendarDaysIcon,
   ChartBarIcon,
   ExclamationTriangleIcon,
+  ScaleIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { DUTY_LABELS, DutyFrequency, JobContent, kpiTotal } from '../../services/jobDescription.service';
+import { DisciplineGroup } from '../../services/disciplineRule.service';
+import DisciplineRulesTable from '../Discipline/DisciplineRulesTable';
 
 /**
  * Hiển thị (chỉ đọc) 6 khối của một bản mô tả công việc.
  * Dùng ở "Công việc của tôi" và khi HCNS xem trước / xem phiên bản cũ.
- * Khối lương / thưởng / phạt chỉ hiện khi `showCompensation` (Admin/HCNS).
+ * Khung lương / thưởng theo vị trí chỉ hiện khi `showCompensation` (Admin/HCNS).
+ * Nội quy & mức phạt (HCNS SK 2026-11-17) là quy định chung — ai cũng thấy: `disciplineGroups` là các
+ * nhóm đã chọn kèm bảng lỗi (lấy từ trang "Nội quy & mức phạt").
  */
 
 const Section: React.FC<{ icon: React.ElementType; title: string; children: React.ReactNode }> = ({ icon: Icon, title, children }) => (
@@ -32,7 +38,42 @@ const Field: React.FC<{ label: string; value?: string }> = ({ label, value }) =>
   </div>
 );
 
-const JobDescriptionContent: React.FC<{ content: JobContent; showCompensation?: boolean }> = ({ content, showCompensation = false }) => {
+const DisciplineSection: React.FC<{ content: JobContent; groups?: DisciplineGroup[] }> = ({ content, groups }) => {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const codes = content.discipline?.groups || [];
+  const notes = content.discipline?.notes || '';
+  if (!codes.length && !notes) return null;
+  const byCode = new Map((groups || []).map((g) => [g.code, g]));
+  return (
+    <Section icon={ScaleIcon} title="Nội quy & mức phạt áp dụng">
+      {notes && <p className="text-sm text-gray-800 whitespace-pre-line mb-3">{notes}</p>}
+      <div className="space-y-2">
+        {codes.map((code) => {
+          const group = byCode.get(code);
+          const isOpen = !!open[code];
+          return (
+            <div key={code} className="rounded-xl border border-gray-100">
+              <button type="button" onClick={() => setOpen((o) => ({ ...o, [code]: !isOpen }))}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
+                <span className="flex-1 text-sm font-semibold text-gray-900">{group?.title || code}</span>
+                <span className="text-xs text-gray-500">{group ? `${group.rules.length} lỗi` : 'chưa có dữ liệu'}</span>
+                <span className="text-sm font-semibold text-primary-700">{isOpen ? 'Thu gọn' : 'Xem'}</span>
+              </button>
+              {isOpen && group && <div className="px-3 pb-3"><DisciplineRulesTable group={group} /></div>}
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-xs text-gray-500">
+        Toàn bộ quy định xem ở trang <Link to="/dashboard/discipline-rules" className="font-semibold text-primary-700 hover:underline">Nội quy & mức phạt</Link>.
+      </p>
+    </Section>
+  );
+};
+
+const JobDescriptionContent: React.FC<{ content: JobContent; showCompensation?: boolean; disciplineGroups?: DisciplineGroup[] }> = ({
+  content, showCompensation = false, disciplineGroups,
+}) => {
   const { governance, workflows, duties, knowledge, kpis } = content;
   const total = kpiTotal(kpis);
 
@@ -99,14 +140,15 @@ const JobDescriptionContent: React.FC<{ content: JobContent; showCompensation?: 
       </Section>
 
       {showCompensation && content.compensation && (
-        <Section icon={BanknotesIcon} title="Lương, thưởng KPI & kỷ luật (chỉ HCNS / Admin thấy)">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Section icon={BanknotesIcon} title="Khung lương / thưởng theo vị trí (chỉ HCNS / Admin thấy)">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Lương cứng" value={content.compensation.base_salary} />
             <Field label="Cơ chế thưởng doanh số / KPI" value={content.compensation.bonus} />
-            <Field label="Chế tài phạt" value={content.compensation.penalties} />
           </div>
         </Section>
       )}
+
+      <DisciplineSection content={content} groups={disciplineGroups} />
 
       <Section icon={ChartBarIcon} title="Khung đánh giá KPI cuối tháng">
         {kpis.length === 0 ? <p className="text-sm text-gray-400">—</p> : (

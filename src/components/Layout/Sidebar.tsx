@@ -34,6 +34,7 @@ import {
   FingerPrintIcon,
   FolderOpenIcon,
   ClipboardDocumentCheckIcon,
+  ScaleIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavigationItem {
@@ -77,6 +78,12 @@ const navigationItems: NavigationItem[] = [
     name: 'Công việc của tôi',
     href: '/dashboard/my-job',
     icon: ClipboardDocumentCheckIcon,
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
+  {
+    name: 'Nội quy & mức phạt',
+    href: '/dashboard/discipline-rules',
+    icon: ScaleIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
 

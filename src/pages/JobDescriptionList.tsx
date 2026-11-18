@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BriefcaseIcon, DocumentArrowUpIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { BriefcaseIcon, DocumentArrowUpIcon, DocumentTextIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import JobDescriptionPdfModal from '../components/JobDescription/JobDescriptionPdfModal';
+import JobDescriptionDocxModal from '../components/JobDescription/JobDescriptionDocxModal';
 import { JobDescriptionItem, errorMessage, jobDescriptionService } from '../services/jobDescription.service';
 
 /**
  * Mô tả công việc theo vị trí — danh sách cho Admin/HCNS.
  * Mỗi bản gắn với các vị trí trên HRM; công bố xong nhân viên thấy ở "Công việc của tôi".
+ * Bản có thể dành riêng cho một cơ sở / phòng ban (HCNS SK 2026-11-17), nơi khác theo bản chung.
  */
 
 export const statusBadge = (jd: Pick<JobDescriptionItem, 'is_active' | 'current_version' | 'has_unpublished_changes'>) => {
@@ -49,6 +51,7 @@ const JobDescriptionList: React.FC = () => {
   const [newTitle, setNewTitle] = useState('');
   const [creating, setCreating] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
+  const [showDocx, setShowDocx] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const remove = async (jd: JobDescriptionItem) => {
@@ -97,15 +100,20 @@ const JobDescriptionList: React.FC = () => {
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-gray-900">Mô tả công việc theo vị trí</h1>
           <p className="text-sm text-gray-500">
-            Soạn, công bố và theo dõi nhân viên đã xác nhận đọc. Phần lương / thưởng / phạt chỉ HCNS và Admin thấy.
+            Soạn, công bố và theo dõi nhân viên đã xác nhận đọc. Khung lương theo vị trí chỉ HCNS / Admin thấy; nhân viên
+            chỉ thấy lương thưởng của chính mình. Nội quy & mức phạt ai cũng xem.
           </p>
         </div>
-        <form onSubmit={create} className="flex gap-2 w-full sm:w-auto">
+        <form onSubmit={create} className="flex flex-wrap gap-2 w-full sm:w-auto">
           <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Tên vị trí mới, vd Bảo vệ"
             className="flex-1 sm:w-56 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
           <button type="submit" disabled={!newTitle.trim() || creating}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold disabled:opacity-50">
             <PlusIcon className="h-4 w-4" /> Thêm
+          </button>
+          <button type="button" onClick={() => setShowDocx(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 whitespace-nowrap">
+            <DocumentTextIcon className="h-4 w-4" /> Thêm từ Word
           </button>
           <button type="button" onClick={() => setShowPdf(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 whitespace-nowrap">
@@ -117,7 +125,7 @@ const JobDescriptionList: React.FC = () => {
       {unmappedCount > 0 && (
         <p className="text-sm text-amber-800 bg-amber-50 rounded-xl p-3">
           {unmappedCount} bản mô tả chưa gắn vị trí nào trên HRM nên chưa nhân viên nào thấy. Mở từng bản, vào tab
-          "Vị trí & tài liệu" để gắn.
+          "Phòng ban, vị trí & tài liệu" để gắn.
         </p>
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -145,6 +153,9 @@ const JobDescriptionList: React.FC = () => {
                   <td className="px-4 py-3">
                     <p className="font-semibold text-gray-900">{jd.title}</p>
                     <p className="text-xs font-mono text-gray-400">{jd.code}</p>
+                    {(jd.departments || []).length > 0 && (
+                      <p className="mt-0.5 text-xs text-emerald-700">Riêng: {jd.departments.map((d) => d.name).join(', ')}</p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {jd.positions.length ? (
@@ -180,6 +191,9 @@ const JobDescriptionList: React.FC = () => {
         </table>
       </div>
 
+      {showDocx && (
+        <JobDescriptionDocxModal onClose={(changed) => { setShowDocx(false); if (changed) load(); }} />
+      )}
       {showPdf && (
         <JobDescriptionPdfModal onClose={(created) => { setShowPdf(false); if (created) load(); }} />
       )}
