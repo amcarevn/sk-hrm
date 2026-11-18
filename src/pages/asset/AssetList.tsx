@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { assetsAPI, positionsAPI } from '../../utils/api';
 import {
@@ -95,8 +95,13 @@ export default function AssetList() {
   const [dateTo, setDateTo] = useState('');
   const [positions, setPositions] = useState<SelectOption<string>[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
-  // Chỉ xem tài sản đang giao cho người đã nghỉ việc (bấm từ banner cảnh báo).
-  const [onlyResigned, setOnlyResigned] = useState(false);
+  // Chỉ xem tài sản đang giao cho người đã nghỉ việc (bấm từ banner cảnh báo, hoặc vào từ nút
+  // cảnh báo đầu trang với ?resigned=1).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [onlyResigned, setOnlyResigned] = useState(() => searchParams.get('resigned') === '1');
+  // Đang ở sẵn trang này mà bấm lại nút cảnh báo đầu trang → không mount lại, bật lọc theo URL.
+  const resignedParam = searchParams.get('resigned');
+  useEffect(() => { if (resignedParam === '1') setOnlyResigned(true); }, [resignedParam]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -620,7 +625,15 @@ export default function AssetList() {
             </div>
             <button
               type="button"
-              onClick={() => setOnlyResigned((v) => !v)}
+              onClick={() => {
+                setOnlyResigned((v) => !v);
+                // Bỏ ?resigned=1 khỏi URL để lần sau bấm nút cảnh báo đầu trang thì lọc bật lại được.
+                if (searchParams.has('resigned')) {
+                  const next = new URLSearchParams(searchParams);
+                  next.delete('resigned');
+                  setSearchParams(next, { replace: true });
+                }
+              }}
               className="self-start sm:self-auto flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold border border-red-300 bg-white text-red-700 hover:bg-red-100 transition-all"
             >
               {onlyResigned ? 'Xem tất cả tài sản' : 'Xem danh sách'}

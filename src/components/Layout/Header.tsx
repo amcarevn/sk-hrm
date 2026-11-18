@@ -11,6 +11,7 @@ import { hrmAPI } from '@/utils/api';
 import { useNotificationDrawer } from '@/contexts/NotificationDrawerContext';
 import { userDisplayName } from '@/utils/userName';
 import MissingDocumentsAlert from '@/components/PersonalDocuments/MissingDocumentsAlert';
+import ResignedHoldersAlert from '@/components/Asset/ResignedHoldersAlert';
 
 const PRIORITY_BORDER: Record<string, string> = {
   URGENT: 'border-red-500',
@@ -149,6 +150,9 @@ export default function Header({ onOpenMobileNav }: HeaderProps) {
           <div className="flex items-center gap-x-3 sm:gap-x-4 lg:gap-x-6">
             {/* Nhân viên còn thiếu giấy tờ bắt buộc: nút đỏ nhấp nháy, bấm xem thiếu gì */}
             <MissingDocumentsAlert />
+
+            {/* HCNS/Admin: người đã nghỉ việc còn giữ hotline / tài sản → nút đỏ, bấm xem danh sách */}
+            {(user?.role === 'admin' || user?.role === 'hr') && <ResignedHoldersAlert />}
 
             {/* Bell + Notification Dropdown */}
             <div className="relative" ref={bellRef}>

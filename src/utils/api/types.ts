@@ -723,6 +723,17 @@ export interface AssetResignedHolder {
   end_date: string | null;
 }
 
+/** Một dòng của GET assets/resigned-holders/ — tài sản đang giao cho người đã nghỉ việc. */
+export interface ResignedHolderAsset {
+  id: number;
+  asset_code: string;
+  name: string;
+  asset_type: string;
+  phone_number: string;
+  department_name: string;
+  resigned_holders: AssetResignedHolder[];
+}
+
 export type AssetAssignmentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED' | 'RETURNED';
 
 export interface AssetAssignmentHistory {
