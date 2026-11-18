@@ -47,6 +47,7 @@ import PersonalDocumentScanDetail from './pages/PersonalDocumentScanDetail';
 import JobDescriptionList from './pages/JobDescriptionList';
 import JobDescriptionEdit from './pages/JobDescriptionEdit';
 import MyJob from './pages/MyJob';
+import DisciplineRules from './pages/DisciplineRules';
 import EmployeeCreate from './pages/EmployeeCreate';
 import EmployeeShow from './pages/EmployeeShow';
 import EmployeeEdit from './pages/EmployeeEdit';
@@ -811,6 +812,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <MyJob />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Nội quy & mức phạt: quy định chung, ai cũng xem; HCNS nhập từ Excel (HCNS SK 2026-11-17) */}
+          <Route
+            path="/dashboard/discipline-rules"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DisciplineRules />
                 </Layout>
               </ProtectedRoute>
             }

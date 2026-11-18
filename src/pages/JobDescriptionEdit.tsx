@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeftIcon,
   EyeIcon,
@@ -20,12 +20,15 @@ import {
   jobDescriptionService,
   kpiTotal,
 } from '../services/jobDescription.service';
+import { DisciplineGroup, disciplineRuleService } from '../services/disciplineRule.service';
 import { confirmDeleteJobDescription, statusBadge } from './JobDescriptionList';
 
 /**
  * Soạn / công bố một bản mô tả công việc (Admin/HCNS).
  * - Soạn nội dung theo 6 khối, "Lưu nháp" bất cứ lúc nào; nhân viên chưa thấy bản nháp.
  * - "Công bố" tạo phiên bản mới (tổng KPI phải = 100%); nhân viên phải xác nhận lại.
+ * - HCNS SK 2026-11-17: phạt chọn theo nhóm trong "Nội quy & mức phạt" (ai cũng xem); khung lương theo
+ *   vị trí vẫn chỉ HCNS thấy. Bản có thể dành riêng cho phòng ban / cơ sở (vd "Lễ tân – CS Xã Đàn").
  */
 
 type Tab = 'content' | 'mapping' | 'acks' | 'history';
@@ -58,6 +61,8 @@ const JobDescriptionEdit: React.FC = () => {
   const [dutyText, setDutyText] = useState<Record<DutyFrequency, string>>({ daily: '', weekly: '', monthly: '' });
   const [meta, setMeta] = useState({ title: '', code: '', is_active: true });
   const [positionIds, setPositionIds] = useState<number[]>([]);
+  const [departmentIds, setDepartmentIds] = useState<number[]>([]);
+  const [disciplineGroups, setDisciplineGroups] = useState<DisciplineGroup[]>([]);
   const [documentIds, setDocumentIds] = useState<number[]>([]);
   const [options, setOptions] = useState<Options | null>(null);
   const [acks, setAcks] = useState<AckReport | null>(null);
@@ -75,7 +80,11 @@ const JobDescriptionEdit: React.FC = () => {
   const applyDetail = (d: JobDescriptionDetail) => {
     setDetail(d);
     const base = emptyContent();
-    setDraft({ ...base, ...d.draft_content, compensation: d.draft_content.compensation || base.compensation });
+    setDraft({
+      ...base, ...d.draft_content,
+      compensation: d.draft_content.compensation || base.compensation,
+      discipline: d.draft_content.discipline || base.discipline,
+    });
     setDutyText({
       daily: (d.draft_content.duties?.daily || []).join('\n'),
       weekly: (d.draft_content.duties?.weekly || []).join('\n'),
@@ -83,6 +92,7 @@ const JobDescriptionEdit: React.FC = () => {
     });
     setMeta({ title: d.title, code: d.code, is_active: d.is_active });
     setPositionIds(d.positions.map((p) => p.id));
+    setDepartmentIds((d.departments || []).map((x) => x.id));
     setDocumentIds(d.documents.map((x) => x.id));
     setDirty(false);
   };
@@ -90,6 +100,7 @@ const JobDescriptionEdit: React.FC = () => {
   useEffect(() => {
     jobDescriptionService.get(jdId).then(applyDetail).catch((err) => setError(errorMessage(err, 'Không tải được mô tả công việc')));
     jobDescriptionService.options().then(setOptions).catch(() => { });
+    disciplineRuleService.list().then(setDisciplineGroups).catch(() => { });
   }, [jdId]);
 
   useEffect(() => {
@@ -112,7 +123,7 @@ const JobDescriptionEdit: React.FC = () => {
     setError(null);
     try {
       applyDetail(await jobDescriptionService.update(jdId, {
-        ...meta, position_ids: positionIds, document_ids: documentIds, draft_content: content,
+        ...meta, position_ids: positionIds, department_ids: departmentIds, document_ids: documentIds, draft_content: content,
       }));
       setNotice('Đã lưu bản nháp. Nhân viên chưa thấy thay đổi cho tới khi bấm "Công bố".');
       return true;
@@ -166,7 +177,7 @@ const JobDescriptionEdit: React.FC = () => {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'content', label: 'Soạn nội dung' },
-    { key: 'mapping', label: `Vị trí & tài liệu (${positionIds.length})` },
+    { key: 'mapping', label: `Phòng ban, vị trí & tài liệu (${positionIds.length})` },
     { key: 'acks', label: 'Xác nhận của nhân viên' },
     { key: 'history', label: `Lịch sử phiên bản (${detail.versions.length})` },
   ];
@@ -250,7 +261,7 @@ const JobDescriptionEdit: React.FC = () => {
             </button>
           </div>
 
-          {preview ? <JobDescriptionContent content={content} /> : (
+          {preview ? <JobDescriptionContent content={content} disciplineGroups={disciplineGroups} /> : (
             <>
               <Card title="1. Quản trị">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -307,15 +318,50 @@ const JobDescriptionEdit: React.FC = () => {
                     onChange={(e) => edit((c) => ({ ...c, knowledge: { ...c.knowledge, trainer: e.target.value } }))} /></div>
               </Card>
 
-              <Card title="5. Lương, thưởng KPI & kỷ luật — chỉ HCNS / Admin thấy" tone="private">
-                <p className="text-xs text-amber-700">Nhân viên không thấy khối này ở "Công việc của tôi".</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {([['base_salary', 'Lương cứng'], ['bonus', 'Cơ chế thưởng doanh số / KPI'], ['penalties', 'Chế tài phạt']] as const).map(([key, label]) => (
+              <Card title="5. Khung lương / thưởng theo vị trí — chỉ HCNS / Admin thấy" tone="private">
+                <p className="text-xs text-amber-700">
+                  Nhân viên không thấy khối này. Ở "Công việc của tôi" mỗi nhân viên chỉ thấy lương / thưởng của chính
+                  mình (lương cơ bản, phụ cấp, % doanh số, % lợi nhuận trong hồ sơ nhân sự).
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {([['base_salary', 'Lương cứng'], ['bonus', 'Cơ chế thưởng doanh số / KPI']] as const).map(([key, label]) => (
                     <div key={key}><Label>{label}</Label>
                       <textarea rows={3} className={inputCls} value={draft.compensation?.[key] || ''}
                         onChange={(e) => edit((c) => ({ ...c, compensation: { ...(c.compensation || emptyContent().compensation!), [key]: e.target.value } }))} /></div>
                   ))}
                 </div>
+              </Card>
+
+              <Card title="Nội quy & mức phạt áp dụng — mọi nhân viên đều thấy">
+                <p className="text-xs text-gray-500">
+                  Chọn các nhóm trong trang <Link to="/dashboard/discipline-rules" className="font-semibold text-primary-700 hover:underline">Nội quy & mức phạt</Link>
+                  {' '}áp dụng cho vị trí này. Bảng lỗi luôn lấy bản mới nhất HCNS đã nhập.
+                </p>
+                {(options?.discipline_groups || []).length === 0 ? (
+                  <p className="text-sm text-amber-700">Chưa có nhóm nội quy nào — vào trang Nội quy & mức phạt để nhập từ Excel.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {(options?.discipline_groups || []).map((g) => {
+                      const checked = draft.discipline.groups.includes(g.code);
+                      return (
+                        <label key={g.code} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm cursor-pointer ${checked ? 'border-primary-300 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                          <input type="checkbox" className="rounded border-gray-300" checked={checked}
+                            onChange={() => edit((c) => ({
+                              ...c,
+                              discipline: {
+                                ...c.discipline,
+                                groups: checked ? c.discipline.groups.filter((x) => x !== g.code) : [...c.discipline.groups, g.code],
+                              },
+                            }))} />
+                          {g.title} <span className="text-xs text-gray-400">{g.rule_count} lỗi</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <div><Label hint="không bắt buộc">Ghi chú thêm về kỷ luật cho vị trí này</Label>
+                  <textarea rows={2} className={inputCls} value={draft.discipline.notes}
+                    onChange={(e) => edit((c) => ({ ...c, discipline: { ...c.discipline, notes: e.target.value } }))} /></div>
               </Card>
 
               <Card title="6. Khung đánh giá KPI cuối tháng">
@@ -361,18 +407,41 @@ const JobDescriptionEdit: React.FC = () => {
             </label>
           </Card>
 
+          <Card title="Phòng ban / cơ sở áp dụng">
+            <p className="text-xs text-gray-500">
+              Để trống = bản dùng chung. Chọn cơ sở (vd Cơ sở Nha Khoa SK - Xã Đàn) để làm bản riêng: nhân viên các vị trí
+              bên dưới thuộc cơ sở đó sẽ theo bản này thay cho bản chung; cơ sở chưa có bản riêng vẫn theo bản chung.
+            </p>
+            <div className="max-h-60 overflow-auto grid grid-cols-1 sm:grid-cols-2 gap-x-3 border border-gray-100 rounded-xl p-2">
+              {(options?.departments || []).map((d) => (
+                <label key={d.id} className="flex items-center gap-2 px-2 py-1.5 text-sm hover:bg-gray-50 rounded-lg cursor-pointer">
+                  <input type="checkbox" className="rounded border-gray-300" checked={departmentIds.includes(d.id)}
+                    onChange={() => toggle(departmentIds, d.id, setDepartmentIds)} />
+                  <span className="flex-1">{d.name} <span className="text-xs font-mono text-gray-400">{d.code}</span></span>
+                </label>
+              ))}
+            </div>
+          </Card>
+
           <Card title="Vị trí áp dụng trên HRM">
-            <p className="text-xs text-gray-500">Nhân viên đang giữ các vị trí được chọn sẽ thấy bản mô tả này. Mỗi vị trí chỉ theo một bản.</p>
+            <p className="text-xs text-gray-500">
+              Nhân viên đang giữ các vị trí được chọn sẽ thấy bản mô tả này. Mỗi vị trí chỉ theo một bản cho mỗi phòng ban:
+              một bản chung và các bản riêng từng cơ sở được phép cùng gắn một vị trí.
+            </p>
             <input className={inputCls} placeholder="Tìm vị trí" value={positionSearch} onChange={(e) => setPositionSearch(e.target.value)} />
             <div className="max-h-80 overflow-auto divide-y divide-gray-50 border border-gray-100 rounded-xl">
               {filteredPositions.map((p) => {
-                const takenBy = p.job_description && p.job_description.id !== jdId ? p.job_description : null;
+                const others = (p.job_descriptions || []).filter((j) => j.id !== jdId);
                 return (
-                  <label key={p.id} className={`flex items-center gap-2 px-3 py-2 text-sm ${takenBy ? 'opacity-50' : 'hover:bg-gray-50 cursor-pointer'}`}>
-                    <input type="checkbox" className="rounded border-gray-300" disabled={!!takenBy}
+                  <label key={p.id} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" className="rounded border-gray-300"
                       checked={positionIds.includes(p.id)} onChange={() => toggle(positionIds, p.id, setPositionIds)} />
                     <span className="flex-1">{p.title} <span className="text-xs font-mono text-gray-400">{p.code}</span></span>
-                    {takenBy && <span className="text-xs text-gray-500">đang theo "{takenBy.title}"</span>}
+                    {others.length > 0 && (
+                      <span className="text-xs text-gray-500 text-right">
+                        đang theo {others.map((j) => `"${j.title}"${j.departments.length ? ` (${j.departments.join(', ')})` : ' (chung)'}`).join(', ')}
+                      </span>
+                    )}
                   </label>
                 );
               })}
@@ -396,7 +465,7 @@ const JobDescriptionEdit: React.FC = () => {
               {options && options.documents.length === 0 && <p className="px-3 py-4 text-sm text-gray-400">Chưa có tài liệu công ty nào.</p>}
             </div>
           </Card>
-          <p className="text-xs text-gray-500">Thay đổi vị trí và tài liệu có hiệu lực ngay khi bấm "Lưu nháp", không cần công bố lại.</p>
+          <p className="text-xs text-gray-500">Thay đổi phòng ban, vị trí và tài liệu có hiệu lực ngay khi bấm "Lưu nháp", không cần công bố lại.</p>
         </div>
       )}
 
@@ -453,7 +522,7 @@ const JobDescriptionEdit: React.FC = () => {
                   {v.change_note && <span className="text-sm text-gray-600">· {v.change_note}</span>}
                   <span className="ml-auto text-sm text-primary-700">{openVersion === v.id ? 'Thu gọn' : 'Xem'}</span>
                 </button>
-                {openVersion === v.id && <div className="px-4 pb-4"><JobDescriptionContent content={v.content} showCompensation /></div>}
+                {openVersion === v.id && <div className="px-4 pb-4"><JobDescriptionContent content={v.content} showCompensation disciplineGroups={disciplineGroups} /></div>}
               </div>
             ))}
           </div>

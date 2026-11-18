@@ -1,23 +1,59 @@
 import React, { useEffect, useState } from 'react';
 import {
+  BanknotesIcon,
   BriefcaseIcon,
   CheckBadgeIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import JobDescriptionContent from '../components/JobDescription/JobDescriptionContent';
 import {
+  MyCompensation,
   MyJobDescription,
   MyPayload,
   errorMessage,
+  formatMoney,
   jobDescriptionService,
 } from '../services/jobDescription.service';
 
 /**
  * Công việc của tôi — mô tả công việc của vị trí mình (bản công bố mới nhất).
  * Nhân viên đọc rồi bấm "Tôi đã đọc và hiểu"; có phiên bản mới thì phải xác nhận lại.
- * Không có phần lương / thưởng / phạt (chỉ HCNS xem).
+ * Lương / thưởng: chỉ số liệu CỦA CHÍNH MÌNH trong hồ sơ (HCNS SK 2026-11-17) — không có khung lương
+ * theo vị trí. Nội quy & mức phạt là quy định chung, hiện theo các nhóm HCNS chọn cho vị trí.
  */
+
+const MyCompensationCard: React.FC<{ data: MyCompensation }> = ({ data }) => {
+  const rows: [string, string | null][] = [
+    ['Lương cơ bản', data.basic_salary != null ? formatMoney(data.basic_salary) : null],
+    ['Phụ cấp', data.allowance != null ? formatMoney(data.allowance) : null],
+    ['Tỷ lệ % doanh số hưởng', data.revenue_percentage],
+    ['Tỷ lệ % lợi nhuận hưởng', data.profit_percentage],
+    ['Tỷ lệ hưởng thử việc', data.probation_rate],
+  ];
+  return (
+    <section className="bg-white rounded-2xl border border-emerald-100 shadow-sm p-4 sm:p-5">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900 uppercase tracking-wide">
+          <BanknotesIcon className="h-5 w-5 text-emerald-600" /> Lương & thưởng của bạn
+        </h3>
+        <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+          <LockClosedIcon className="h-3.5 w-3.5" /> Chỉ bạn và HCNS thấy
+        </span>
+      </div>
+      <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {rows.filter(([, v]) => v).map(([label, value]) => (
+          <div key={label} className="rounded-xl bg-emerald-50/60 px-3 py-2.5">
+            <dt className="text-xs font-medium text-gray-500">{label}</dt>
+            <dd className="text-sm font-bold text-gray-900 mt-0.5">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="mt-3 text-xs text-gray-500">Số liệu theo hồ sơ nhân sự. Có sai lệch vui lòng liên hệ HCNS.</p>
+    </section>
+  );
+};
 
 const fmt = (iso: string) => new Date(iso).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
 
@@ -82,7 +118,7 @@ const JobCard: React.FC<{ item: MyJobDescription; onChange: (p: MyPayload) => vo
         )}
       </div>
 
-      <JobDescriptionContent content={item.content} />
+      <JobDescriptionContent content={item.content} disciplineGroups={item.discipline_groups} />
 
       {item.documents.length > 0 && (
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
@@ -155,6 +191,8 @@ const MyJob: React.FC = () => {
       </div>
 
       {loading && <p className="text-sm text-gray-500">Đang tải...</p>}
+
+      {data?.compensation && <MyCompensationCard data={data.compensation} />}
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {!loading && data && data.job_descriptions.length === 0 && (

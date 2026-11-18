@@ -8,8 +8,13 @@ import { managementApi } from '../utils/api';
  *   thành phiên bản mới (v1, v2...).
  * - Nhân viên xem bản công bố mới nhất của vị trí mình ở "Công việc của tôi" và bấm
  *   "Đã đọc và hiểu". Có phiên bản mới thì phải xác nhận lại.
- * - Khối lương / thưởng / phạt chỉ Admin/HCNS thấy (API nhân viên không trả về).
+ * - Khung lương / thưởng theo vị trí chỉ Admin/HCNS thấy (API nhân viên không trả về). Nhân viên xem
+ *   lương / thưởng CỦA CHÍNH MÌNH (số liệu hồ sơ) — HCNS SK 2026-11-17.
+ * - Nội quy & mức phạt là quy định chung, ai cũng xem: khối "discipline" chọn các nhóm trong trang
+ *   "Nội quy & mức phạt" (disciplineRule.service.ts).
+ * - Mỗi cơ sở có thể có bản riêng (departments); nơi chưa có bản riêng dùng bản chung.
  */
+import { DisciplineGroup } from './disciplineRule.service';
 
 const BASE = '/api-hrm/job-descriptions';
 const MY_BASE = '/api-hrm/my-job-description';
@@ -40,8 +45,17 @@ export interface JobContent {
   workflows: Workflow[];
   duties: Record<DutyFrequency, string[]>;
   knowledge: { core_skills: string; trainer: string };
-  compensation?: { base_salary: string; bonus: string; penalties: string };
+  /** Khung lương / thưởng theo vị trí — chỉ Admin/HCNS (API nhân viên bỏ khối này). */
+  compensation?: { base_salary: string; bonus: string };
+  /** Nội quy & mức phạt áp dụng — công khai: mã nhóm + ghi chú thêm. */
+  discipline: { groups: string[]; notes: string };
   kpis: Kpi[];
+}
+
+export interface DepartmentRef {
+  id: number;
+  code: string;
+  name: string;
 }
 
 export interface VersionSummary {
@@ -71,6 +85,8 @@ export interface JobDescriptionItem {
   title: string;
   is_active: boolean;
   positions: { id: number; title: string; code: string }[];
+  /** Phòng ban / cơ sở áp dụng — rỗng = dùng chung. */
+  departments: DepartmentRef[];
   documents: LinkedDocument[];
   current_version: VersionSummary | null;
   has_unpublished_changes: boolean;
@@ -101,9 +117,24 @@ export interface AckReport {
   results: AckRow[];
 }
 
+export interface PositionMapping {
+  id: number;
+  title: string;
+  /** Các phòng ban của bản đó (rỗng = bản chung). */
+  departments: string[];
+}
+
 export interface Options {
-  positions: { id: number; title: string; code: string; job_description: { id: number; title: string } | null }[];
+  positions: {
+    id: number;
+    title: string;
+    code: string;
+    job_description: { id: number; title: string } | null;
+    job_descriptions: PositionMapping[];
+  }[];
   documents: LinkedDocument[];
+  departments: DepartmentRef[];
+  discipline_groups: { code: string; title: string; rule_count: number }[];
 }
 
 export interface MyJobDescription {
@@ -112,14 +143,26 @@ export interface MyJobDescription {
   title: string;
   version: VersionSummary;
   content: JobContent;
+  /** Nội quy & mức phạt của các nhóm đã chọn (bảng hiện hành). */
+  discipline_groups: DisciplineGroup[];
   documents: LinkedDocument[];
   acknowledged_at: string | null;
   acknowledged_older_version: boolean;
 }
 
+/** Lương / thưởng của chính nhân viên (số liệu hồ sơ nhân sự) — chỉ chính chủ và HCNS thấy. */
+export interface MyCompensation {
+  basic_salary: number | null;
+  allowance: number | null;
+  revenue_percentage: string | null;
+  profit_percentage: string | null;
+  probation_rate: string | null;
+}
+
 export interface MyPayload {
   employee: { id: number; employee_id: string; full_name: string; position_title: string | null } | null;
   job_descriptions: MyJobDescription[];
+  compensation: MyCompensation | null;
 }
 
 export interface JobDescriptionUpdate {
@@ -127,8 +170,29 @@ export interface JobDescriptionUpdate {
   code?: string;
   is_active?: boolean;
   position_ids?: number[];
+  department_ids?: number[];
   document_ids?: number[];
   draft_content?: JobContent;
+}
+
+/** "Thêm từ Word": mỗi vị trí đọc được trong file + đề xuất tạo / cập nhật bản nháp. */
+export interface DocxPosition {
+  title: string;
+  code: string;
+  source_title: string;
+  content: JobContent;
+  notes: string[];
+  kpi_total: number;
+  publish_errors: string[];
+  base: { id: number; title: string } | null;
+  positions: { id: number; title: string }[];
+  existing: { id: number; title: string; published: boolean } | null;
+}
+
+export interface DocxResult {
+  file_name: string;
+  department: DepartmentRef | null;
+  positions: DocxPosition[];
 }
 
 /** "Thêm từ PDF": bản mô tả đã có cùng mã / tên, và vị trí HRM trùng tên sẽ tự gắn khi tạo. */
@@ -169,9 +233,13 @@ export const emptyContent = (): JobContent => ({
   workflows: [],
   duties: { daily: [], weekly: [], monthly: [] },
   knowledge: { core_skills: '', trainer: '' },
-  compensation: { base_salary: '', bonus: '', penalties: '' },
+  compensation: { base_salary: '', bonus: '' },
+  discipline: { groups: [], notes: '' },
   kpis: [],
 });
+
+export const formatMoney = (n: number | null | undefined): string =>
+  n == null ? '' : `${n.toLocaleString('vi-VN')} đ`;
 
 /** Tổng trọng số KPI (bỏ qua ô không phải số) — để báo ngay khi HCNS đang gõ. */
 export const kpiTotal = (kpis: Kpi[]): number =>
@@ -253,6 +321,18 @@ export const jobDescriptionService = {
     form.append('pages', pages);
     const res = await managementApi.post(`${BASE}/from-pdf/`, form, {
       headers: { 'Content-Type': 'multipart/form-data' }, timeout: 3 * 60 * 1000,
+    });
+    return res.data;
+  },
+
+  /** "Thêm từ Word": đọc thẳng các bảng trong file .docx (không AI, không lưu gì). Có departmentId thì
+   * đề xuất bản RIÊNG của cơ sở đó, lấy vị trí áp dụng từ bản chung cùng tên. */
+  async fromDocx(file: File, departmentId?: number | null): Promise<DocxResult> {
+    const form = new FormData();
+    form.append('file', file);
+    if (departmentId) form.append('department_id', String(departmentId));
+    const res = await managementApi.post(`${BASE}/from-docx/`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' }, timeout: 2 * 60 * 1000,
     });
     return res.data;
   },

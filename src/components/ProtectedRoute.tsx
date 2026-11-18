@@ -55,6 +55,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         currentPath === '/home' ||
         currentPath === '/dashboard/me' ||
         currentPath === '/dashboard/my-job' ||
+        currentPath === '/dashboard/discipline-rules' ||
         (currentPath === '/dashboard/attendance' || currentPath === '/dashboard/attendance/view') ||
         currentPath === '/dashboard/organization-chart' ||
         currentPath === '/dashboard/approvals' ||
@@ -85,6 +86,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         currentPath === '/home' ||
         currentPath === '/dashboard/me' ||
         currentPath === '/dashboard/my-job' ||
+        currentPath === '/dashboard/discipline-rules' ||
         currentPath === '/dashboard/attendance' ||
         currentPath === '/dashboard/attendance/view' ||
         currentPath === '/dashboard/organization-chart' ||
