@@ -161,10 +161,9 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN'],
     children: [
       {
-        name: 'Quản lý đơn vị',
+        name: 'Quản lý pháp nhân',
         href: '/dashboard/company-units',
         icon: BuildingOfficeIcon,
-        hidden: true,
         roles: ['ADMIN'],
         employeePermission: 'can_manage_company_config',
       },

@@ -24,7 +24,8 @@ const CompanyUnitList: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
-    prefix_code: '',
+    tax_code: '',
+    address: '',
     description: '',
     is_active: true,
   });
@@ -74,7 +75,7 @@ const CompanyUnitList: React.FC = () => {
       setUnits(response.results || []);
       setError(null);
     } catch (err: any) {
-      setError(err.message || 'Không thể tải danh sách đơn vị làm việc');
+      setError(err.message || 'Không thể tải danh sách pháp nhân');
       console.error('Error fetching company units:', err);
     } finally {
       setLoading(false);
@@ -108,7 +109,8 @@ const CompanyUnitList: React.FC = () => {
     setFormData({
       name: '',
       code: '',
-      prefix_code: '',
+      tax_code: '',
+      address: '',
       description: '',
       is_active: true,
     });
@@ -122,7 +124,8 @@ const CompanyUnitList: React.FC = () => {
     setFormData({
       name: unit.name || '',
       code: unit.code || '',
-      prefix_code: unit.prefix_code || '',
+      tax_code: unit.tax_code || '',
+      address: unit.address || '',
       description: unit.description || '',
       is_active: unit.is_active !== undefined ? unit.is_active : true,
     });
@@ -133,8 +136,8 @@ const CompanyUnitList: React.FC = () => {
   // Handle Submit Add / Edit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.code.trim() || !formData.prefix_code.trim()) {
-      setModalError('Vui lòng nhập đầy đủ Tên, Mã định danh và Mã nhận diện.');
+    if (!formData.name.trim() || !formData.code.trim()) {
+      setModalError('Vui lòng nhập đầy đủ Tên pháp nhân và Mã pháp nhân.');
       return;
     }
 
@@ -145,17 +148,18 @@ const CompanyUnitList: React.FC = () => {
       const payload = {
         name: formData.name.trim(),
         code: formData.code.trim().toUpperCase(),
-        prefix_code: formData.prefix_code.trim().toUpperCase(),
+        tax_code: formData.tax_code.trim(),
+        address: formData.address.trim(),
         description: formData.description.trim(),
         is_active: formData.is_active,
       };
 
       if (editingUnit) {
         await companyUnitsAPI.update(editingUnit.id, payload);
-        showFeedback('success', 'Lưu thành công', 'Đã cập nhật thông tin đơn vị làm việc.');
+        showFeedback('success', 'Lưu thành công', 'Đã cập nhật thông tin pháp nhân.');
       } else {
         await companyUnitsAPI.create(payload);
-        showFeedback('success', 'Lưu thành công', 'Đã thêm mới đơn vị làm việc thành công.');
+        showFeedback('success', 'Lưu thành công', 'Đã thêm pháp nhân.');
       }
 
       setIsModalOpen(false);
@@ -175,7 +179,8 @@ const CompanyUnitList: React.FC = () => {
       await companyUnitsAPI.update(unit.id, {
         name: unit.name,
         code: unit.code,
-        prefix_code: unit.prefix_code,
+        tax_code: unit.tax_code,
+        address: unit.address,
         description: unit.description,
         is_active: nextStatus,
       });
@@ -184,7 +189,7 @@ const CompanyUnitList: React.FC = () => {
         prevUnits.map(u => (u.id === unit.id ? { ...u, is_active: nextStatus } : u))
       );
 
-      showFeedback('success', 'Cập nhật trạng thái', `Đã chuyển trạng thái đơn vị sang ${nextStatus ? 'Hoạt động' : 'Ngừng hoạt động'}.`);
+      showFeedback('success', 'Cập nhật trạng thái', `Đã chuyển trạng thái pháp nhân sang ${nextStatus ? 'Hoạt động' : 'Ngừng hoạt động'}.`);
     } catch (err: any) {
       showFeedback('error', 'Thay đổi trạng thái thất bại', err.message || 'Đã có lỗi mạng xảy ra.');
     }
@@ -194,15 +199,15 @@ const CompanyUnitList: React.FC = () => {
     setConfirm({
       open: true,
       variant: 'danger',
-      title: 'Xác nhận xóa đơn vị',
-      message: `Bạn có chắc chắn muốn xóa đơn vị làm việc "${unit.name}"? Thao tác này không thể hoàn tác.`,
+      title: 'Xác nhận xóa pháp nhân',
+      message: `Bạn có chắc chắn muốn xóa pháp nhân "${unit.name}"? Thao tác này không thể hoàn tác.`,
       loading: false,
       onConfirm: async () => {
         try {
           setConfirm(prev => ({ ...prev, loading: true }));
           await companyUnitsAPI.delete(unit.id);
           setConfirm(prev => ({ ...prev, open: false, loading: false }));
-          showFeedback('success', 'Xóa thành công', 'Đơn vị làm việc đã được loại bỏ khỏi hệ thống.');
+          showFeedback('success', 'Xóa thành công', 'Pháp nhân đã được loại bỏ khỏi hệ thống.');
           fetchUnits(searchTerm, statusFilter);
         } catch (err: any) {
           setConfirm(prev => ({ ...prev, open: false, loading: false }));
@@ -216,9 +221,9 @@ const CompanyUnitList: React.FC = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Quản lý Đơn vị làm việc</h1>
+        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Quản lý pháp nhân</h1>
         <p className="text-sm text-gray-900 mt-1">
-          Quản lý danh sách các công ty thành viên, chi nhánh, cấu hình mã định danh và mã nhận diện sinh nhân viên.
+          Các công ty ký hợp đồng lao động (pháp nhân). Mã số thuế và địa chỉ in ở đầu Sổ quản lý lao động.
         </p>
       </div>
 
@@ -228,7 +233,7 @@ const CompanyUnitList: React.FC = () => {
         {/* Filter Bar */}
         <div className="mb-6 bg-gray-50 p-4 rounded-2xl border border-gray-100">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-bold text-gray-900">Tìm kiếm đơn vị</h3>
+            <h3 className="text-sm font-bold text-gray-900">Tìm kiếm pháp nhân</h3>
             {loading && (
               <div className="flex items-center text-xs text-gray-400">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600 mr-2"></div>
@@ -248,7 +253,7 @@ const CompanyUnitList: React.FC = () => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="input-field w-full"
-                  placeholder="Nhập tên đơn vị, mã hoặc tiền tố..."
+                  placeholder="Nhập tên hoặc mã pháp nhân..."
                 />
               </div>
 
@@ -281,14 +286,14 @@ const CompanyUnitList: React.FC = () => {
         {/* Table Actions Bar */}
         <div className="flex justify-between items-center mb-5">
           <div>
-            <h2 className="text-sm font-bold text-gray-900">Danh sách Đơn vị</h2>
-            <p className="text-xs text-gray-900 mt-0.5">Tổng số: {units.length} đơn vị</p>
+            <h2 className="text-sm font-bold text-gray-900">Danh sách pháp nhân</h2>
+            <p className="text-xs text-gray-900 mt-0.5">Tổng số: {units.length} pháp nhân</p>
           </div>
           <button
             className="btn-primary"
             onClick={openAddModal}
           >
-            + Thêm đơn vị làm việc
+            + Thêm pháp nhân
           </button>
         </div>
 
@@ -319,9 +324,9 @@ const CompanyUnitList: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="table-header">Mã định danh</th>
-                  <th className="table-header">Mã nhận diện</th>
-                  <th className="table-header">Tên Đơn vị</th>
+                  <th className="table-header">Mã pháp nhân</th>
+                  <th className="table-header">Mã số thuế</th>
+                  <th className="table-header">Tên pháp nhân</th>
                   <th className="table-header">Thao tác</th>
                 </tr>
               </thead>
@@ -334,8 +339,8 @@ const CompanyUnitList: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                       </div>
-                      <p className="text-sm font-bold text-gray-900">Chưa có đơn vị làm việc nào</p>
-                      <p className="text-xs text-gray-400 mt-1">Nhấn "+ Thêm đơn vị làm việc" để bắt đầu</p>
+                      <p className="text-sm font-bold text-gray-900">Chưa có pháp nhân nào</p>
+                      <p className="text-xs text-gray-400 mt-1">Nhấn "+ Thêm pháp nhân" để bắt đầu</p>
                     </div>
                   </td>
                 </tr>
@@ -347,9 +352,9 @@ const CompanyUnitList: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="table-header">Mã định danh</th>
-                  <th className="table-header">Mã nhận diện</th>
-                  <th className="table-header">Tên Đơn vị</th>
+                  <th className="table-header">Mã pháp nhân</th>
+                  <th className="table-header">Mã số thuế</th>
+                  <th className="table-header">Tên pháp nhân</th>
                   <th className="table-header">Mô tả</th>
                   <th className="table-header">Trạng thái</th>
                   <th className="table-header">Thao tác</th>
@@ -364,12 +369,11 @@ const CompanyUnitList: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold">
-                        {unit.prefix_code || '—'}
-                      </span>
+                      <span className="text-xs text-gray-600">{unit.tax_code || '—'}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="table-cell font-medium">{unit.name}</div>
+                      {unit.address && <div className="text-xs text-gray-400 truncate max-w-xs" title={unit.address}>{unit.address}</div>}
                     </td>
                     <td className="px-6 py-4 max-w-xs truncate">
                       <div className="text-xs text-gray-400 truncate" title={unit.description}>
@@ -443,7 +447,7 @@ const CompanyUnitList: React.FC = () => {
                 {/* Modal Header */}
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                   <h3 className="text-sm font-bold text-gray-900">
-                    {editingUnit ? 'Chỉnh sửa đơn vị làm việc' : 'Thêm đơn vị làm việc mới'}
+                    {editingUnit ? 'Chỉnh sửa pháp nhân' : 'Thêm pháp nhân'}
                   </h3>
                   <button
                     type="button"
@@ -468,7 +472,7 @@ const CompanyUnitList: React.FC = () => {
                   <div className="grid grid-cols-1 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Tên Đơn vị <span className="text-red-500">*</span>
+                        Tên pháp nhân <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -476,14 +480,14 @@ const CompanyUnitList: React.FC = () => {
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className="input-field w-full"
-                        placeholder="Ví dụ: Công ty TNHH Thương mại Amcare"
+                        placeholder="Ví dụ: Công ty Cổ phần Meta Dental"
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Mã định danh <span className="text-red-500">*</span>
+                          Mã pháp nhân <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -491,24 +495,37 @@ const CompanyUnitList: React.FC = () => {
                           value={formData.code}
                           onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                           className="input-field w-full uppercase"
-                          placeholder="Ví dụ: AMCARE"
+                          placeholder="Ví dụ: META"
                         />
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Mã nhận diện <span className="text-red-500">*</span>
+                          Mã số thuế
                         </label>
                         <input
                           type="text"
-                          required
-                          maxLength={5}
-                          value={formData.prefix_code}
-                          onChange={(e) => setFormData({ ...formData, prefix_code: e.target.value })}
-                          className="input-field w-full uppercase"
-                          placeholder="Ví dụ: AC"
+                          maxLength={32}
+                          value={formData.tax_code}
+                          onChange={(e) => setFormData({ ...formData, tax_code: e.target.value })}
+                          className="input-field w-full"
+                          placeholder="Ví dụ: 0110473464"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Địa chỉ
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={500}
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        className="input-field w-full"
+                        placeholder="Địa chỉ trụ sở (in ở đầu sổ quản lý lao động)"
+                      />
                     </div>
 
                     <div>

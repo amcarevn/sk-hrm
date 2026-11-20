@@ -19,6 +19,7 @@ import {
   PhoneIcon,
   PaperClipIcon,
   ArrowLeftIcon,
+  BookOpenIcon,
 } from '@heroicons/react/24/outline';
 
 // ============================================
@@ -169,6 +170,19 @@ const Field: React.FC<FieldProps> = ({ label, required, children }) => (
   </div>
 );
 
+/** Mục chữ của sổ quản lý lao động (Employee, HCNS SK phần 4). */
+const LABOR_BOOK_TEXT_FIELDS = [
+  'professional_qualification',
+  'skill_level',
+  'vocational_training',
+  'discipline_notes',
+  'occupational_accident_notes',
+  'foreign_language',
+  'practice_certificate',
+  'paper_file_link',
+  'labor_book_notes',
+] as const;
+
 const inputClass = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all";
 const textareaClass = "w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none";
 
@@ -275,6 +289,18 @@ const EmployeeEdit: React.FC = () => {
     emergency_contact_dob: '',
     emergency_contact_occupation: '',
     emergency_contact_address: '',
+
+    // Sổ quản lý lao động
+    professional_qualification: '',
+    skill_level: '',
+    vocational_training: '',
+    discipline_notes: '',
+    occupational_accident_notes: '',
+    foreign_language: '',
+    practice_certificate: '',
+    paper_file_link: '',
+    labor_book_notes: '',
+    occupational_insurance: '',
 
     // Checklist hồ sơ
     doc_resume: false,
@@ -385,6 +411,16 @@ const EmployeeEdit: React.FC = () => {
         emergency_contact_dob: toDisplayDate(e.emergency_contact_dob),
         emergency_contact_occupation: e.emergency_contact_occupation || '',
         emergency_contact_address: e.emergency_contact_address || '',
+        professional_qualification: (e as any).professional_qualification || '',
+        skill_level: (e as any).skill_level || '',
+        vocational_training: (e as any).vocational_training || '',
+        discipline_notes: (e as any).discipline_notes || '',
+        occupational_accident_notes: (e as any).occupational_accident_notes || '',
+        foreign_language: (e as any).foreign_language || '',
+        practice_certificate: (e as any).practice_certificate || '',
+        paper_file_link: (e as any).paper_file_link || '',
+        labor_book_notes: (e as any).labor_book_notes || '',
+        occupational_insurance: (e as any).occupational_insurance == null ? '' : String((e as any).occupational_insurance),
       });
       setVneidCurrentUrl(e.vneid_screenshot_url || (e.vneid_screenshot ? String(e.vneid_screenshot) : null));
       setVneidFile(null);
@@ -593,6 +629,10 @@ const EmployeeEdit: React.FC = () => {
       add('emergency_contact_dob', toApiDate(formData.emergency_contact_dob));
       add('emergency_contact_occupation', formData.emergency_contact_occupation?.trim());
       add('emergency_contact_address', formData.emergency_contact_address?.trim());
+
+      // Sổ quản lý lao động — luôn gửi để xoá được ô
+      for (const key of LABOR_BOOK_TEXT_FIELDS) payload[key] = formData[key]?.trim() || null;
+      payload['occupational_insurance'] = formData.occupational_insurance === '' ? null : formData.occupational_insurance === 'true';
 
       await employeesAPI.partialUpdate(parseInt(id!), payload);
 
@@ -878,9 +918,9 @@ const EmployeeEdit: React.FC = () => {
             />
 
             <SelectBox
-              label="Đơn vị"
+              label="Pháp nhân"
               value={formData.company_unit_id?.toString() ?? ''}
-              placeholder="Chọn đơn vị"
+              placeholder="Chọn pháp nhân"
               options={[
                 { value: '', label: 'Không có' },
                 ...(companyUnits || []).map((u) => ({ value: String(u.id), label: u.name })),
@@ -1162,6 +1202,72 @@ const EmployeeEdit: React.FC = () => {
                   onChange={handleInput} rows={2}
                   placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"
                   className={textareaClass} />
+              </Field>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Sổ quản lý lao động (HCNS SK phần 4) ── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <SectionTitle icon={<BookOpenIcon className="h-5 w-5" />} iconBg="bg-amber-100 text-amber-600" title="Sổ quản lý lao động" />
+          <p className="text-xs text-gray-500 -mt-2 mb-4">
+            Các mục riêng của sổ quản lý lao động. Ngày nghỉ, giờ làm thêm, nâng lương, chế độ thai sản tự lấy từ HRM khi xuất sổ;
+            ô để trống sẽ ghi "Chưa phát sinh" / "Chưa xác định bậc kỹ năng nghề".
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <Field label="Trình độ chuyên môn kỹ thuật">
+              <input type="text" name="professional_qualification" value={formData.professional_qualification}
+                onChange={handleInput} placeholder="VD: Cao đẳng Điều dưỡng" className={inputClass} maxLength={255} />
+            </Field>
+            <Field label="Bậc trình độ kỹ năng nghề">
+              <input type="text" name="skill_level" value={formData.skill_level}
+                onChange={handleInput} placeholder="Trống = Chưa xác định bậc kỹ năng nghề" className={inputClass} maxLength={255} />
+            </Field>
+            <Field label="Trình độ ngoại ngữ">
+              <input type="text" name="foreign_language" value={formData.foreign_language}
+                onChange={handleInput} placeholder="VD: Tiếng Anh B1" className={inputClass} maxLength={255} />
+            </Field>
+            <Field label="Chứng chỉ chuyên môn (chứng chỉ hành nghề)">
+              <input type="text" name="practice_certificate" value={formData.practice_certificate}
+                onChange={handleInput} placeholder="Số chứng chỉ hành nghề (vị trí bác sĩ)" className={inputClass} maxLength={255} />
+            </Field>
+            <SelectBox
+              label="Tham gia BH tai nạn lao động, bệnh nghề nghiệp"
+              value={formData.occupational_insurance}
+              placeholder="Chưa chọn"
+              options={[
+                { value: '', label: 'Chưa chọn' },
+                { value: 'true', label: 'Có' },
+                { value: 'false', label: 'Không' },
+              ]}
+              onChange={(v) => handleSelect('occupational_insurance', v)}
+            />
+            <Field label="Link hồ sơ (bản cứng)">
+              <input type="text" name="paper_file_link" value={formData.paper_file_link}
+                onChange={handleInput} placeholder="Link thư mục scan / vị trí lưu hồ sơ giấy" className={inputClass} maxLength={500} />
+            </Field>
+            <div className="md:col-span-2">
+              <Field label="Học nghề, đào tạo, bồi dưỡng, nâng cao trình độ kỹ năng nghề">
+                <textarea name="vocational_training" value={formData.vocational_training}
+                  onChange={handleInput} rows={2} placeholder="Trống = Chưa phát sinh" className={textareaClass} />
+              </Field>
+            </div>
+            <div className="md:col-span-2">
+              <Field label="Kỷ luật lao động, trách nhiệm vật chất">
+                <textarea name="discipline_notes" value={formData.discipline_notes}
+                  onChange={handleInput} rows={2} placeholder="VD: 03/2026 – Khiển trách. Trống = Chưa phát sinh" className={textareaClass} />
+              </Field>
+            </div>
+            <div className="md:col-span-2">
+              <Field label="Tai nạn lao động, bệnh nghề nghiệp">
+                <textarea name="occupational_accident_notes" value={formData.occupational_accident_notes}
+                  onChange={handleInput} rows={2} placeholder="Trống = Chưa phát sinh" className={textareaClass} />
+              </Field>
+            </div>
+            <div className="md:col-span-2">
+              <Field label="Ghi chú sổ lao động">
+                <textarea name="labor_book_notes" value={formData.labor_book_notes}
+                  onChange={handleInput} rows={2} className={textareaClass} />
               </Field>
             </div>
           </div>
