@@ -53,6 +53,7 @@ import EmployeeCreate from './pages/EmployeeCreate';
 import EmployeeShow from './pages/EmployeeShow';
 import EmployeeEdit from './pages/EmployeeEdit';
 import DepartmentList from './pages/DepartmentList';
+import CompanyUnitList from './pages/CompanyUnitList';
 import DepartmentCreate from './pages/DepartmentCreate';
 import DepartmentEdit from './pages/DepartmentEdit';
 import DepartmentEmployees from './pages/DepartmentEmployees';
@@ -527,6 +528,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <EmployeeEdit />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Pháp nhân (CompanyUnit) — MST + địa chỉ cho Sổ quản lý lao động */}
+          <Route
+            path="/dashboard/company-units"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CompanyUnitList />
                 </Layout>
               </ProtectedRoute>
             }

@@ -119,7 +119,7 @@ const RequestFormDialog: React.FC<Props> = ({
       return 'Vui lòng chọn ngày nghỉ việc dự kiến';
     }
     if (requestType === 'RESIGNATION' && !companyUnitId) {
-      return 'Vui lòng chọn đơn vị làm việc';
+      return 'Vui lòng chọn pháp nhân';
     }
     if (requestType === 'RESIGNATION' && !extraData.work_form) {
       return 'Vui lòng chọn hình thức làm việc';
@@ -296,7 +296,7 @@ const RequestFormDialog: React.FC<Props> = ({
               {isAdminMode ? (
                 <>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Đơn vị làm việc <span className="text-red-500">*</span>
+                    Pháp nhân <span className="text-red-500">*</span>
                   </label>
                   <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 text-sm text-gray-700">
                     {companyUnits.find((u) => u.id === companyUnitId)?.name
@@ -307,14 +307,14 @@ const RequestFormDialog: React.FC<Props> = ({
               ) : (
                 <>
                   <SelectBox<number | ''>
-                    label="Đơn vị làm việc *"
+                    label="Pháp nhân *"
                     value={companyUnitId}
                     options={companyUnits.map((u) => ({ value: u.id as number | '', label: u.name }))}
                     onChange={(v) => setCompanyUnitId(v)}
-                    placeholder="-- Chọn đơn vị --"
+                    placeholder="-- Chọn pháp nhân --"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Hệ thống sẽ tự động lấy mẫu đơn theo đơn vị bạn chọn
+                    Hệ thống sẽ tự động lấy mẫu đơn theo pháp nhân bạn chọn
                   </p>
                 </>
               )}

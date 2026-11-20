@@ -5,7 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
 import Pagination from '../components/Pagination';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
-import { UsersIcon } from '@heroicons/react/24/outline';
+import { BookOpenIcon, UsersIcon } from '@heroicons/react/24/outline';
+import LaborBookExportModal from '../components/Employee/LaborBookExportModal';
 import { personalDocumentService } from '../services/personalDocument.service';
 
 
@@ -58,6 +59,8 @@ const EmployeeList: React.FC = () => {
 
   // Hồ sơ giấy tờ còn thiếu (chỉ Admin/HCNS): {employee id: [tên loại còn thiếu]} — nhãn đỏ cạnh tên.
   const canSeeDocuments = user?.role === 'admin' || user?.role === 'hr';
+  // Sổ quản lý lao động (HCNS SK phần 4) — Admin / HCNS.
+  const [showLaborBook, setShowLaborBook] = useState(false);
   const [missingDocs, setMissingDocs] = useState<Record<number, string[]>>({});
   useEffect(() => {
     if (!canSeeDocuments) return;
@@ -737,7 +740,7 @@ const EmployeeList: React.FC = () => {
       { header: 'Ghi chú công việc', key: 'employment_status_notes', width: 28 },
       { header: 'Ngày kết thúc thử việc', key: 'probation_end_date', width: 22 },
       { header: 'Ngày chính thức', key: 'official_start_date', width: 18 },
-      { header: 'Đơn vị', key: 'company_unit', width: 20 },
+      { header: 'Pháp nhân', key: 'company_unit', width: 20 },
       { header: 'Loại hợp đồng', key: 'contract_type', width: 28 },
       { header: 'Ngày bắt đầu hợp đồng', key: 'contract_start_date', width: 22 },
       { header: 'Ngày kết thúc hợp đồng', key: 'contract_end_date', width: 22 },
@@ -1348,6 +1351,16 @@ const EmployeeList: React.FC = () => {
                   Xuất toàn bộ
                 </button>
 
+              {canSeeDocuments && (
+                <button
+                  className="bg-slate-700 text-white px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors flex items-center text-sm xl:text-base"
+                  onClick={() => setShowLaborBook(true)}
+                >
+                  <BookOpenIcon className="w-4 h-4 mr-2" />
+                  Sổ lao động
+                </button>
+              )}
+
               <button 
                 className="btn-primary text-sm xl:text-base"
                 onClick={() => navigate('/dashboard/employees/create')}
@@ -1800,6 +1813,7 @@ const EmployeeList: React.FC = () => {
         </div>
       </div>
     )}
+    {showLaborBook && <LaborBookExportModal onClose={() => setShowLaborBook(false)} />}
     </>
   );
 };

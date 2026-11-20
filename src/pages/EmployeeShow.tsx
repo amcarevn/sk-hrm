@@ -24,6 +24,7 @@ import {
   ShieldCheckIcon,
   PhoneIcon,
   PaperClipIcon,
+  BookOpenIcon,
 } from '@heroicons/react/24/outline';
 
 // ============================================
@@ -294,7 +295,7 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Địa điểm làm việc" value={emp.work_location ? (WORK_LOCATION_OPTIONS.find(o => o.value === emp.work_location)?.label || emp.work_location) : null} />
             <InfoField label="Vùng/Miền" value={emp.region} />
             <InfoField label="Khối" value={emp.block} />
-            <InfoField label="Đơn vị" value={emp.company_unit?.name} />
+            <InfoField label="Pháp nhân" value={emp.company_unit?.name} />
             <InfoField label="Trạng thái" value={
               emp.employment_status === 'PAUSED' ? 'Tạm dừng' :
               emp.employment_status === 'MATERNITY_LEAVE' ? 'Nghỉ thai sản' :
@@ -398,6 +399,31 @@ const EmployeeShow: React.FC = () => {
             <InfoField label="Ghi chú hồ sơ" value={emp.file_review_notes} full />
           </div>
         </div>
+
+        {/* ── Sổ quản lý lao động (HCNS SK phần 4) — chỉ Admin/HCNS ── */}
+        {canManageEmployee && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="h-9 w-9 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center">
+                <BookOpenIcon className="h-5 w-5" />
+              </div>
+              <h3 className="text-sm font-bold text-gray-900">Sổ quản lý lao động</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <InfoField label="Trình độ chuyên môn kỹ thuật" value={emp.professional_qualification} />
+              <InfoField label="Bậc trình độ kỹ năng nghề" value={emp.skill_level || 'Chưa xác định bậc kỹ năng nghề'} />
+              <InfoField label="Trình độ ngoại ngữ" value={emp.foreign_language} />
+              <InfoField label="Chứng chỉ chuyên môn" value={emp.practice_certificate} />
+              <InfoField label="BH tai nạn lao động, bệnh nghề nghiệp"
+                value={emp.occupational_insurance == null ? null : emp.occupational_insurance ? 'Có' : 'Không'} />
+              <InfoField label="Link hồ sơ (bản cứng)" value={emp.paper_file_link} />
+              <InfoField label="Học nghề, đào tạo, bồi dưỡng" value={emp.vocational_training || 'Chưa phát sinh'} full />
+              <InfoField label="Kỷ luật lao động, trách nhiệm vật chất" value={emp.discipline_notes || 'Chưa phát sinh'} full />
+              <InfoField label="Tai nạn lao động, bệnh nghề nghiệp" value={emp.occupational_accident_notes || 'Chưa phát sinh'} full />
+              <InfoField label="Ghi chú sổ lao động" value={emp.labor_book_notes} full />
+            </div>
+          </div>
+        )}
 
         {/* ── Hồ sơ giấy tờ (file scan từng loại) — chỉ Admin/HCNS ── */}
         {canManageEmployee && <PersonalDocumentsPanel employeeId={employee.id} />}

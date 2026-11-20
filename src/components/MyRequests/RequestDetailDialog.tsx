@@ -313,7 +313,7 @@ const RequestDetailDialog: React.FC<Props> = ({ request, onClose, onPreviewPdf }
               <dd className="text-gray-900 mt-1">{request.employee_position || '—'}</dd>
             </div>
             <div>
-              <dt className="text-gray-500 font-medium">Đơn vị</dt>
+              <dt className="text-gray-500 font-medium">Pháp nhân</dt>
               <dd className="text-gray-900 mt-1">
                 {request.extra_data?.company_unit_name || '—'}
               </dd>

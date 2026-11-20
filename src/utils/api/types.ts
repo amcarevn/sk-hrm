@@ -1107,6 +1107,9 @@ export interface CompanyUnit {
   name: string;
   code: string;
   prefix_code?: string;
+  /** Mã số thuế, địa chỉ của pháp nhân — in ở đầu Sổ quản lý lao động. */
+  tax_code?: string;
+  address?: string;
   description?: string;
   is_active: boolean;
   created_at: string;
