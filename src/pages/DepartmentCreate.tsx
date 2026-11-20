@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { departmentsAPI, Department } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
+import { useManagerOptions } from '../hooks/useManagerOptions';
 
 const DepartmentCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const DepartmentCreate: React.FC = () => {
     parent_department: '',
     manager: '',
   });
+  const { options: managerOptions, loading: loadingManagers } = useManagerOptions(formData.manager);
 
   useEffect(() => {
     loadDepartments();
@@ -56,7 +58,8 @@ const DepartmentCreate: React.FC = () => {
         code: formData.code.trim(),
         ...(formData.description && { description: formData.description.trim() }),
         ...(formData.parent_department && { parent_department: Number(formData.parent_department) }),
-        ...(formData.manager && { manager: Number(formData.manager) }),
+        // Luôn gửi: chọn "Chưa chỉ định" phải xoá được trưởng phòng cũ.
+        manager: formData.manager ? Number(formData.manager) : null,
       };
 
       await departmentsAPI.create(departmentData);
@@ -164,12 +167,14 @@ const DepartmentCreate: React.FC = () => {
               <SelectBox<string>
                 label="Trưởng phòng"
                 value={formData.manager}
-                options={[
-                  { value: '', label: 'Chưa chỉ định' },
-                ]}
+                searchable={true}
+                placeholder={loadingManagers ? 'Đang tải danh sách nhân viên…' : 'Chưa chỉ định'}
+                options={managerOptions}
                 onChange={(v) => setFormData(prev => ({ ...prev, manager: v }))}
               />
-              <p className="text-xs text-gray-500 mt-1">Có thể chỉ định sau khi tạo phòng ban</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Gõ tên hoặc mã nhân viên để tìm. Trưởng phòng xem và quản lý "Dữ liệu phòng ban" của phòng này.
+              </p>
             </div>
           </div>
 
