@@ -1172,7 +1172,8 @@ const AttendanceManagement: React.FC = () => {
       return;
     }
 
-    if (!formNote?.trim() && selectedReason !== 'incomplete_attendance' && selectedContext !== 'monthly_leave' && selectedReason !== 'off_duty') {
+    // Quên chấm công cũng bắt buộc ghi lý do như đi muộn / về sớm (yêu cầu SK 2026-11-20: QLCS đối chiếu với NV).
+    if (!formNote?.trim() && selectedContext !== 'monthly_leave' && selectedReason !== 'off_duty') {
       showNotify(
         'error',
         'Thiếu ghi chú',
@@ -4922,9 +4923,9 @@ const AttendanceManagement: React.FC = () => {
 
 
 
-                    {/* === Lý do cho Lỗi MCC — bắt buộc để HCNS đối chiếu với máy chấm công === */}
+                    {/* === Lý do cho Lỗi MCC / Quên chấm công — bắt buộc để QLCS, HCNS đối chiếu === */}
                     {selectedContext === 'explanation' &&
-                      selectedReason === 'machine_error' && (
+                      (selectedReason === 'machine_error' || selectedReason === 'incomplete_attendance') && (
                         <div className="space-y-3 mb-6 animate-fadeIn">
                           <label
                             htmlFor="machine-error-note"
@@ -4937,7 +4938,9 @@ const AttendanceManagement: React.FC = () => {
                             rows={3}
                             value={formNote}
                             onChange={(e) => setFormNote(e.target.value)}
-                            placeholder="VD: Đã quẹt vân tay lúc 17:30 nhưng máy không ghi nhận"
+                            placeholder={selectedReason === 'machine_error'
+                              ? 'VD: Đã quẹt vân tay lúc 17:30 nhưng máy không ghi nhận'
+                              : 'VD: Quên check-out vì ra ngoài gặp khách, về thẳng nhà lúc 17:40'}
                             className="block w-full rounded-xl border-2 border-gray-200 shadow-sm focus:border-violet-500 focus:ring-violet-500 sm:text-sm p-3 transition-colors duration-200 resize-none"
                           />
                         </div>
