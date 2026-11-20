@@ -160,7 +160,7 @@ const DisciplineRules: React.FC = () => {
   const current = groups.find((g) => g.code === active);
 
   return (
-    <div className="space-y-5 max-w-6xl">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
         <div className="h-10 w-10 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center">
           <ScaleIcon className="h-6 w-6" />

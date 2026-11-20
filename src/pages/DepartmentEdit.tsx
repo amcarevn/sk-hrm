@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { departmentsAPI, Department } from '../utils/api';
 import { useNavigate, useParams } from 'react-router-dom';
 import { SelectBox } from '../components/LandingLayout/SelectBox';
+import { useManagerOptions } from '../hooks/useManagerOptions';
 
 const DepartmentEdit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,9 @@ const DepartmentEdit: React.FC = () => {
     parent_department: '',
     manager: '',
   });
+  // Phòng này + các bộ phận con trực tiếp: nhân viên ở đó có vị trí "Trưởng phòng / Trưởng nhóm…" được gợi ý trước.
+  const ownDepartmentIds = [Number(id), ...departments.filter((d) => Number(d.parent_department) === Number(id)).map((d) => d.id)];
+  const { options: managerOptions, loading: loadingManagers, suggested } = useManagerOptions(formData.manager, ownDepartmentIds);
 
   useEffect(() => {
     if (id) {
@@ -82,7 +86,8 @@ const DepartmentEdit: React.FC = () => {
         code: formData.code.trim(),
         ...(formData.description && { description: formData.description.trim() }),
         ...(formData.parent_department && { parent_department: Number(formData.parent_department) }),
-        ...(formData.manager && { manager: Number(formData.manager) }),
+        // Luôn gửi: chọn "Chưa chỉ định" phải xoá được trưởng phòng cũ.
+        manager: formData.manager ? Number(formData.manager) : null,
       };
 
       await departmentsAPI.update(Number(id), departmentData);
@@ -201,12 +206,17 @@ const DepartmentEdit: React.FC = () => {
               <SelectBox<string>
                 label="Trưởng phòng"
                 value={formData.manager}
-                options={[
-                  { value: '', label: 'Chưa chỉ định' },
-                ]}
+                searchable={true}
+                placeholder={loadingManagers ? 'Đang tải danh sách nhân viên…' : 'Chưa chỉ định'}
+                options={managerOptions}
                 onChange={(v) => setFormData(prev => ({ ...prev, manager: v }))}
               />
-              <p className="text-xs text-gray-500 mt-1">Có thể chỉ định sau khi cập nhật phòng ban</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {suggested > 0
+                  ? `★ ${suggested} người của phòng này có vị trí Trưởng phòng / Trưởng nhóm, xếp đầu danh sách. `
+                  : ''}
+                Gõ tên hoặc mã nhân viên để tìm. Trưởng phòng xem và quản lý "Dữ liệu phòng ban" của phòng này.
+              </p>
             </div>
           </div>
 
