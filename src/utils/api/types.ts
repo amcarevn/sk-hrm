@@ -618,6 +618,25 @@ export interface EmployeeUpdateData {
 }
 
 // Asset API Types
+/** 1 lần đổi nơi sử dụng tài sản (Phòng ban sử dụng / Khu vực / Mã cơ sở) — HCNS SK 2026-11-23. */
+export interface AssetLocationHistoryEntry {
+  id: number;
+  moved_date: string | null;
+  from_usage_department: number | null;
+  from_department_name: string;
+  from_usage_area: string;
+  from_facility_code: string;
+  to_usage_department: number | null;
+  to_department_name: string;
+  to_usage_area: string;
+  to_facility_code: string;
+  note: string;
+  source: 'TRANSFER' | 'EDIT' | 'IMPORT';
+  source_display: string;
+  changed_by_name: string | null;
+  created_at: string | null;
+}
+
 export interface Asset {
   id: number;
   asset_code: string;
@@ -644,6 +663,8 @@ export interface Asset {
   usage_department?: number;
   usage_department_name?: string;
   usage_department_code?: string;
+  /** Lịch sử nơi sử dụng (chuyển cơ sở) — chỉ có ở API chi tiết (getById), mới nhất trước. */
+  location_history?: AssetLocationHistoryEntry[];
   managed_by?: number;
   managed_by_name?: string;
   managed_by_employee_id?: string;

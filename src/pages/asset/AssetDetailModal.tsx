@@ -6,6 +6,8 @@ import { Asset, AssetAssignmentHistory, AssetMaintenance, AssetInventoryCheck, p
 import AssetReturnModal from './AssetReturnModal';
 import AssetMaintenanceFormModal from './AssetMaintenanceFormModal';
 import AssetInventoryCheckFormModal from './AssetInventoryCheckFormModal';
+import AssetTransferLocationModal from './AssetTransferLocationModal';
+import { ArrowRightIcon, ArrowsRightLeftIcon } from '@heroicons/react/24/outline';
 
 interface AssetDetailModalProps {
   isOpen: boolean;
@@ -37,6 +39,24 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
   const isManager = viewMode === 'manager';
   const isEmployee = viewMode === 'employee';
   const resignedWarning = resignedHolderWarning(asset);
+
+  // Bản chi tiết (getById) — danh sách không có lịch sử nơi sử dụng; sau "Chuyển cơ sở" cũng cập nhật từ đây.
+  const [detail, setDetail] = useState<Asset | null>(null);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const loc: Asset = detail && detail.id === asset.id ? detail : asset;
+  const placeLabel = (dept?: string | null, area?: string | null, code?: string | null) =>
+    [dept, area, code].filter((v) => v && String(v).trim()).join(' · ') || '(trống)';
+
+  useEffect(() => {
+    setDetail(null);
+    setShowTransfer(false);
+    if (!isOpen || !asset?.id || !isManager) return;
+    let alive = true;
+    assetsAPI.getById(asset.id)
+      .then((full) => { if (alive) setDetail(full); })
+      .catch((err) => console.error('Error fetching asset detail:', err));
+    return () => { alive = false; };
+  }, [isOpen, asset?.id, isManager]);
 
   useEffect(() => {
     const posId = (asset?.specifications as any)?.position_id;
@@ -537,36 +557,75 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
                       </div>
                       )}
 
-                      {/* Thông tin sử dụng thực tế — chỉ hiện khi có ít nhất 1 field được điền */}
-                      {(asset.dimensions || asset.usage_area || asset.usage_department_name || asset.facility_code) && (
+                      {/* Thông tin sử dụng thực tế — người thường: chỉ hiện khi có dữ liệu; quản lý: luôn hiện
+                          để bấm "Chuyển cơ sở" + xem lịch sử nơi sử dụng (HCNS SK 2026-11-23). */}
+                      {(isManager || loc.dimensions || loc.usage_area || loc.usage_department_name || loc.facility_code) && (
                         <div className="bg-sky-50 rounded-xl p-4 border border-sky-100">
-                          <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest mb-2">Thông tin sử dụng thực tế</p>
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest">Thông tin sử dụng thực tế</p>
+                            {isManager && (
+                              <button
+                                type="button"
+                                onClick={() => setShowTransfer(true)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-sky-700 bg-white border border-sky-200 hover:bg-sky-100"
+                              >
+                                <ArrowsRightLeftIcon className="h-3.5 w-3.5" />
+                                Chuyển cơ sở
+                              </button>
+                            )}
+                          </div>
+                          {!(loc.dimensions || loc.usage_area || loc.usage_department_name || loc.facility_code) && (
+                            <p className="text-sm text-gray-500 italic">Chưa ghi nơi sử dụng.</p>
+                          )}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                            {asset.dimensions && (
+                            {loc.dimensions && (
                               <div>
                                 <p className="text-[10px] text-slate-500 uppercase tracking-wide">Kích thước</p>
-                                <p className="text-gray-900">{asset.dimensions}</p>
+                                <p className="text-gray-900">{loc.dimensions}</p>
                               </div>
                             )}
-                            {asset.usage_area && (
+                            {loc.usage_area && (
                               <div>
                                 <p className="text-[10px] text-slate-500 uppercase tracking-wide">Khu vực sử dụng</p>
-                                <p className="text-gray-900">{asset.usage_area}</p>
+                                <p className="text-gray-900">{loc.usage_area}</p>
                               </div>
                             )}
-                            {asset.usage_department_name && (
+                            {loc.usage_department_name && (
                               <div>
                                 <p className="text-[10px] text-slate-500 uppercase tracking-wide">Phòng ban sử dụng</p>
-                                <p className="text-gray-900">{asset.usage_department_name}{asset.usage_department_code ? ` (${asset.usage_department_code})` : ''}</p>
+                                <p className="text-gray-900">{loc.usage_department_name}{loc.usage_department_code ? ` (${loc.usage_department_code})` : ''}</p>
                               </div>
                             )}
-                            {asset.facility_code && (
+                            {loc.facility_code && (
                               <div>
                                 <p className="text-[10px] text-slate-500 uppercase tracking-wide">Mã cơ sở</p>
-                                <p className="text-gray-900">{asset.facility_code}</p>
+                                <p className="text-gray-900">{loc.facility_code}</p>
                               </div>
                             )}
                           </div>
+
+                          {/* Lịch sử nơi sử dụng: từ … sang … (vết tích cơ sở cũ) */}
+                          {isManager && (loc.location_history?.length ?? 0) > 0 && (
+                            <div className="mt-3 border-t border-sky-100 pt-3">
+                              <p className="text-[10px] font-bold text-sky-600 uppercase tracking-widest mb-2">Lịch sử nơi sử dụng</p>
+                              <ol className="space-y-2">
+                                {loc.location_history!.map((h) => (
+                                  <li key={h.id} className="rounded-lg bg-white border border-sky-100 px-3 py-2 text-xs">
+                                    <div className="flex flex-wrap items-center gap-1.5 text-gray-800">
+                                      <span className="font-semibold tabular-nums">{formatDate(h.moved_date)}</span>
+                                      <span className="text-gray-300">|</span>
+                                      <span>{placeLabel(h.from_department_name, h.from_usage_area, h.from_facility_code)}</span>
+                                      <ArrowRightIcon className="h-3 w-3 text-sky-600 flex-shrink-0" />
+                                      <span className="font-semibold text-sky-800">{placeLabel(h.to_department_name, h.to_usage_area, h.to_facility_code)}</span>
+                                    </div>
+                                    <p className="mt-0.5 text-gray-500">
+                                      {h.source_display}{h.changed_by_name ? ` · ${h.changed_by_name}` : ''}{h.note ? ` · ${h.note}` : ''}
+                                    </p>
+                                  </li>
+                                ))}
+                              </ol>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -1222,6 +1281,17 @@ export default function AssetDetailModal({ isOpen, onClose, asset, onAfterReturn
         </div>
       </Dialog>
     </Transition>
+    {isManager && (
+      <AssetTransferLocationModal
+        isOpen={showTransfer}
+        onClose={() => setShowTransfer(false)}
+        asset={loc}
+        onDone={(updated) => {
+          setDetail(updated);
+          onAfterReturn?.(); // làm mới danh sách (cột phòng ban / mã cơ sở)
+        }}
+      />
+    )}
     {returnTarget && (
       <AssetReturnModal
         isOpen={!!returnTarget}

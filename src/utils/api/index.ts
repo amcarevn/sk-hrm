@@ -34,6 +34,7 @@ export type {
   EmployeeUpdateData,
   Asset,
   AssetAssignmentHistory,
+  AssetLocationHistoryEntry,
   AssetMaintenance,
   AssetInventoryCheck,
   AssetInventoryCheckResult,

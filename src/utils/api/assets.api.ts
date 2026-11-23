@@ -174,6 +174,18 @@ export const assetsAPI = {
     return response.data;
   },
 
+  /** Chuyển cơ sở / nơi sử dụng — backend ghi lịch sử (location_history) để còn vết tích nơi cũ. */
+  transferLocation: async (id: number, data: {
+    usage_department_id: number | null;
+    usage_area: string;
+    facility_code: string;
+    moved_date: string;
+    note?: string;
+  }): Promise<Asset> => {
+    const response: AxiosResponse<Asset> = await managementApi.post(`/api-hrm/assets/${id}/transfer_location/`, data);
+    return response.data;
+  },
+
   returnAsset: async (id: number, data: {
     return_date?: string;
     condition?: string;
