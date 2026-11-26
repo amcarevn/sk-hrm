@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Cog6ToothIcon,
+  PuzzlePieceIcon,
   Squares2X2Icon,
   XMarkIcon,
   ChevronLeftIcon,
@@ -85,6 +86,12 @@ const navigationItems: NavigationItem[] = [
     name: 'Nội quy & mức phạt',
     href: '/dashboard/discipline-rules',
     icon: ScaleIcon,
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
+  {
+    name: 'Minigame Flip Flash',
+    href: '/dashboard/flip-flash',
+    icon: PuzzlePieceIcon,
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
   {
