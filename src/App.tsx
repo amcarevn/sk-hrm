@@ -48,6 +48,7 @@ import JobDescriptionList from './pages/JobDescriptionList';
 import JobDescriptionEdit from './pages/JobDescriptionEdit';
 import MyJob from './pages/MyJob';
 import DisciplineRules from './pages/DisciplineRules';
+import FlipFlash from './pages/FlipFlash';
 import DepartmentData from './pages/DepartmentData';
 import EmployeeCreate from './pages/EmployeeCreate';
 import EmployeeShow from './pages/EmployeeShow';
@@ -836,6 +837,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <DisciplineRules />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* Minigame Flip Flash – Memory Challenge (HCNS SK 2026-11-26): mọi nhân sự chơi, HCNS quản lý đợt */}
+          <Route
+            path="/dashboard/flip-flash"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <FlipFlash />
                 </Layout>
               </ProtectedRoute>
             }
