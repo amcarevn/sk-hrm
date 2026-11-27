@@ -488,7 +488,7 @@ const Yep: React.FC = () => {
                 <textarea className={input} rows={4} value={comment} maxLength={choices.comment_max_length} required
                   onChange={(e) => setComment(e.target.value)} placeholder="Chia sẻ điều bạn tự hào hoặc nuối tiếc trong năm vừa qua..." />
               </label>
-              <p className="text-xs text-gray-500">Chỉ hiện biệt danh — hệ thống không lưu tên người gửi.</p>
+              <p className="text-xs text-gray-500">Chỉ hiện biệt danh trên trang.</p>
               {commentHasLink && <p className="text-sm text-red-600">Bình luận không được chứa đường link.</p>}
               {cmtError && <p className="text-sm text-red-600">{cmtError}</p>}
               <button type="submit" disabled={cmtBusy || commentHasLink || !me?.can_register} className={primaryBtn}>
