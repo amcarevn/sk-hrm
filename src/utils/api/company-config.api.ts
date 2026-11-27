@@ -343,6 +343,12 @@ export const hrmAPI = {
     return response.data;
   },
 
+  /** Thông báo tôi phải đọc (popup bắt buộc khi vào HRM): đang hiệu lực, áp dụng cho tôi, chưa đọc. */
+  getMustReadAnnouncements: async (): Promise<any[]> => {
+    const response: AxiosResponse<any[]> = await managementApi.get('/api-hrm/company-announcements/must_read/');
+    return response.data;
+  },
+
   acknowledgeAnnouncement: async (announcementId: number): Promise<void> => {
     await managementApi.post(`/api-hrm/company-announcements/${announcementId}/acknowledge/`);
   },
