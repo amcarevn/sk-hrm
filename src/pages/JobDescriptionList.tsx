@@ -7,7 +7,7 @@ import SalaryExportModal from '../components/JobDescription/SalaryExportModal';
 import { JobDescriptionItem, errorMessage, jobDescriptionService } from '../services/jobDescription.service';
 
 /**
- * Mô tả công việc theo vị trí — danh sách cho Admin/HCNS.
+ * Mô tả công việc theo vị trí — danh sách cho Admin / HCNS / Giám sát nội bộ (backend quyết định: job_description_access).
  * Mỗi bản gắn với các vị trí trên HRM; công bố xong nhân viên thấy ở "Công việc của tôi".
  * Bản có thể dành riêng cho một cơ sở / phòng ban (HCNS SK 2026-11-17), nơi khác theo bản chung.
  */
@@ -54,6 +54,7 @@ const JobDescriptionList: React.FC = () => {
   const [showPdf, setShowPdf] = useState(false);
   const [showDocx, setShowDocx] = useState(false);
   const [showSalaryExport, setShowSalaryExport] = useState(false);
+  const [canExportSalary, setCanExportSalary] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const remove = async (jd: JobDescriptionItem) => {
@@ -70,7 +71,10 @@ const JobDescriptionList: React.FC = () => {
 
   const load = () => {
     jobDescriptionService.list()
-      .then(setItems)
+      .then((data) => {
+        setItems(data.results);
+        setCanExportSalary(data.can_export_salary);
+      })
       .catch((err) => setError(errorMessage(err, 'Không tải được danh sách')))
       .finally(() => setLoading(false));
   };
@@ -102,7 +106,7 @@ const JobDescriptionList: React.FC = () => {
         <div className="flex-1 min-w-[16rem]">
           <h1 className="text-xl font-bold text-gray-900">Mô tả công việc theo vị trí</h1>
           <p className="text-sm text-gray-500">
-            Soạn, công bố và theo dõi nhân viên đã xác nhận đọc. Khung lương theo vị trí chỉ HCNS / Admin thấy; nhân viên
+            Soạn, công bố và theo dõi nhân viên đã xác nhận đọc. Khung lương theo vị trí chỉ người quản lý trang này thấy; nhân viên
             chỉ thấy lương thưởng của chính mình. Nội quy & mức phạt ai cũng xem.
           </p>
         </div>
@@ -121,10 +125,12 @@ const JobDescriptionList: React.FC = () => {
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 whitespace-nowrap">
             <DocumentArrowUpIcon className="h-4 w-4" /> Thêm từ PDF
           </button>
-          <button type="button" onClick={() => setShowSalaryExport(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 whitespace-nowrap">
-            <ArrowDownTrayIcon className="h-4 w-4" /> Xuất dữ liệu lương
-          </button>
+          {canExportSalary && (
+            <button type="button" onClick={() => setShowSalaryExport(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 whitespace-nowrap">
+              <ArrowDownTrayIcon className="h-4 w-4" /> Xuất dữ liệu lương
+            </button>
+          )}
         </form>
       </div>
 

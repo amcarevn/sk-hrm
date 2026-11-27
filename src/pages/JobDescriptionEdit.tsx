@@ -24,11 +24,11 @@ import { DisciplineGroup, disciplineRuleService } from '../services/disciplineRu
 import { confirmDeleteJobDescription, statusBadge } from './JobDescriptionList';
 
 /**
- * Soạn / công bố một bản mô tả công việc (Admin/HCNS).
+ * Soạn / công bố một bản mô tả công việc (Admin / HCNS / Giám sát nội bộ — backend quyết định: job_description_access).
  * - Soạn nội dung theo 6 khối, "Lưu nháp" bất cứ lúc nào; nhân viên chưa thấy bản nháp.
  * - "Công bố" tạo phiên bản mới (tổng KPI phải = 100%); nhân viên phải xác nhận lại.
  * - HCNS SK 2026-11-17: phạt chọn theo nhóm trong "Nội quy & mức phạt" (ai cũng xem); khung lương theo
- *   vị trí vẫn chỉ HCNS thấy. Bản có thể dành riêng cho phòng ban / cơ sở (vd "Lễ tân – CS Xã Đàn").
+ *   vị trí chỉ người quản lý trang này thấy. Bản có thể dành riêng cho phòng ban / cơ sở (vd "Lễ tân – CS Xã Đàn").
  */
 
 type Tab = 'content' | 'mapping' | 'acks' | 'history';
@@ -318,7 +318,7 @@ const JobDescriptionEdit: React.FC = () => {
                     onChange={(e) => edit((c) => ({ ...c, knowledge: { ...c.knowledge, trainer: e.target.value } }))} /></div>
               </Card>
 
-              <Card title="5. Khung lương / thưởng theo vị trí — chỉ HCNS / Admin thấy" tone="private">
+              <Card title="5. Khung lương / thưởng theo vị trí — chỉ người quản lý trang này thấy" tone="private">
                 <p className="text-xs text-amber-700">
                   Nhân viên không thấy khối này. Ở "Công việc của tôi" mỗi nhân viên chỉ thấy lương / thưởng của chính
                   mình (lương cơ bản, phụ cấp, % doanh số, % lợi nhuận trong hồ sơ nhân sự).

@@ -44,6 +44,8 @@ export interface User {
   department_data_access?: boolean;
   /** Được vào trang YEP: Admin / HCNS luôn có; nhân viên chỉ khi HCNS đã "Mở trang cho nhân viên" — backend tính. */
   yep_access?: boolean;
+  /** Được quản lý trang "Mô tả công việc": Admin / HCNS / vị trí Giám sát nội bộ — backend tính. */
+  job_description_access?: boolean;
   [key: string]: any; // Allow additional properties
 }
 

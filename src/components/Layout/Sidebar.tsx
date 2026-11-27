@@ -495,6 +495,11 @@ export default function Sidebar({ onCollapseChange, mobileOpen: sidebarOpen, onM
     if (item.name === 'YEP – Year End Party' && user?.yep_access) {
       return true;
     }
+    // Mô tả công việc: thêm vị trí Giám sát nội bộ (cờ job_description_access, backend tính) — nhóm "Nhân sự"
+    // hiện ra nhưng bên trong chỉ có mục này (các mục khác vẫn theo vai trò Admin / HCNS).
+    if ((item.name === 'Nhân sự' || item.name === 'Mô tả công việc') && user?.job_description_access) {
+      return true;
+    }
     if (isManager && item.name === 'Onboard nhân sự') {
       return true;
     }

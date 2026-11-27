@@ -252,9 +252,10 @@ export const errorMessage = (err: any, fallback: string): string =>
   err?.response?.data?.detail || err?.message || fallback;
 
 export const jobDescriptionService = {
-  async list(): Promise<JobDescriptionItem[]> {
+  /** can_export_salary: file Excel lương từng người chỉ Admin / HCNS (Giám sát nội bộ quản lý trang nhưng không xuất). */
+  async list(): Promise<{ results: JobDescriptionItem[]; can_export_salary: boolean }> {
     const res = await managementApi.get(`${BASE}/`);
-    return res.data.results;
+    return { results: res.data.results, can_export_salary: res.data.can_export_salary !== false };
   },
 
   async get(id: number): Promise<JobDescriptionDetail> {
