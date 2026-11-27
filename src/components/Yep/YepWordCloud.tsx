@@ -46,14 +46,14 @@ const YepWordCloud: React.FC<{ comments: YepComment[] }> = ({ comments }) => {
       <p className="text-sm text-gray-500">
         Những chia sẻ của mọi người trong năm qua. Chia sẻ được nhiều người cùng gửi sẽ to hơn và nằm ở giữa.
       </p>
-      <div className="min-h-[220px] rounded-2xl bg-[#F0F7F0] p-4 sm:p-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center">
+      <div className="yep-wc-canvas">
         {chips.length === 0 ? (
           <div className="text-sm text-gray-400 flex flex-col items-center gap-2">
             <CloudIcon className="h-10 w-10" /> Chưa có chia sẻ để tạo word cloud
           </div>
         ) : chips.map((c, i) => (
           <span key={c.text} title={c.frequency > 1 ? `${c.frequency} người cùng chia sẻ` : undefined}
-            className={`yep-wc-chip yep-wc-${c.size} leading-snug`}
+            className={`yep-wc-chip yep-wc-${c.size}`}
             style={{ '--chip-color': c.color, '--delay': `${Math.min(i * 0.03, 0.9)}s` } as React.CSSProperties}>
             {c.text}
           </span>

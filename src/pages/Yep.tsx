@@ -286,7 +286,7 @@ const Yep: React.FC = () => {
         </div>
       )}
       {/* ── Banner kiểu poster ─────────────────────────────────────────── */}
-      <header className="yep-hero px-4 pt-12 pb-16 sm:pt-16 sm:pb-20 text-center text-white">
+      <header className="yep-hero px-4 pt-[52px] pb-[60px] sm:px-6 sm:pt-20 sm:pb-24 text-center text-white">
         {isManager && (
           <button onClick={() => setShowManager(true)}
             className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-sm font-semibold backdrop-blur">
@@ -294,12 +294,14 @@ const Yep: React.FC = () => {
           </button>
         )}
         <div className="relative z-[1] max-w-3xl mx-auto">
-          <img src={YEP_ASSETS.logoWhite} alt={event.company_name} className="h-16 sm:h-20 w-auto mx-auto mb-5 drop-shadow-lg" />
-          <h1 className="yep-title mb-3" aria-label={event.name}>
+          <img src={YEP_ASSETS.logoWhite} alt={event.company_name} className="h-[76px] sm:h-24 w-auto mx-auto mb-[18px] sm:mb-[22px] drop-shadow-lg" />
+          <h1 className="yep-title" aria-label={event.name}>
             <span className="yep-title-main" aria-hidden="true">Year End</span>
             <span className="yep-title-script" aria-hidden="true">Party</span>
             <span className="yep-title-year" aria-hidden="true">{event.year}</span>
           </h1>
+          {/* Repo yep nhánh hoangph-sk: cùng font với "YEAR END"; năm = năm sự kiện + 1 */}
+          <p className="yep-newyear">Happy New Year {event.year + 1}</p>
           <p className="max-w-xl mx-auto mb-6 text-base sm:text-lg font-medium text-white/90">Cả năm làm hết mình – Year End chơi hết nấc!</p>
           <div className="flex flex-wrap justify-center gap-3 mb-7">
             {meta.map(([Icon, label, value]) => (
