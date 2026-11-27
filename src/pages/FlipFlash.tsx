@@ -13,11 +13,12 @@ import {
   flipFlashService,
   formatDay,
   formatDuration,
+  formatRange,
 } from '../services/flipFlash.service';
 
 /**
  * Minigame Flip Flash – Memory Challenge (HCNS SK 2026-11-26).
- * Mỗi đợt: Tuần 1–4 + Vòng chung kết cho người thắng tuần. Mỗi người chơi 1 lượt / vòng; nhanh nhất thắng.
+ * Mỗi đợt: Tuần 1–3 (T2–CN), Tuần 4 (T2–T7) + Chung kết vào Chủ nhật tuần 4 cho người thắng tuần. Mỗi người chơi 1 lượt / vòng; nhanh nhất thắng.
  * Luật & tính giải ở backend (hrm/flip_flash.py) — trang chỉ hiển thị.
  */
 
@@ -37,7 +38,7 @@ const RoundCard: React.FC<{ r: FlipRound; current: boolean }> = ({ r, current })
       <span className={`text-[10px] font-semibold rounded px-1.5 py-0.5 ${r.status === 'ongoing' ? 'bg-emerald-100 text-emerald-700'
         : r.status === 'ended' ? 'bg-gray-100 text-gray-600' : 'bg-sky-50 text-sky-700'}`}>{statusText[r.status]}</span>
     </div>
-    <div className="text-xs text-gray-500 mb-2">{formatDay(r.start)} – {formatDay(r.end)}</div>
+    <div className="text-xs text-gray-500 mb-2">{formatRange(r.start, r.end)}</div>
     {r.winner ? (
       <div className="flex items-start gap-1.5"><TrophyIcon className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" /><Person e={r.winner} /></div>
     ) : r.leader ? (
@@ -63,8 +64,9 @@ const Rules: React.FC<{ overview: FlipOverview }> = ({ overview }) => {
         <li>Xếp hạng theo thời gian, bằng nhau thì ai ít lượt hơn xếp trên.</li>
         <li>Hết mỗi tuần, người nhanh nhất <b>chưa từng thắng tuần nào</b> trong đợt nhận giải tuần — người đã thắng vẫn chơi
           và lên bảng xếp hạng bình thường.</li>
-        <li>Sau Tuần 4 là <b>Vòng chung kết</b>{s ? ` (${s.final_days} ngày)` : ''} chỉ dành cho những người thắng tuần —
-          ai nhanh nhất là Vô địch.</li>
+        <li>Tuần 1–3 tính từ thứ Hai đến Chủ nhật; Tuần 4 từ thứ Hai đến thứ Bảy.</li>
+        <li><b>Chủ nhật của Tuần 4</b>{s ? ` (${formatDay(s.end_date)})` : ''} là <b>Vòng chung kết</b>, chỉ dành cho những
+          người thắng tuần — ai nhanh nhất là Vô địch.</li>
       </ul>
     </details>
   );

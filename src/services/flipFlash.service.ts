@@ -64,7 +64,6 @@ export interface FlipConfig {
   symbol_count: number;
   min_side: number;
   max_side: number;
-  max_final_days: number;
 }
 
 export interface FlipOverview {
@@ -78,7 +77,6 @@ export interface FlipOverview {
     note: string;
     start_date: string;
     end_date: string;
-    final_days: number;
     rows: number;
     cols: number;
     status: PhaseStatus;
@@ -126,7 +124,6 @@ export interface FlipSeason {
   id: number;
   name: string;
   start_date: string;
-  final_days: number;
   rows: number;
   cols: number;
   note: string;
@@ -134,7 +131,7 @@ export interface FlipSeason {
   attempt_count: number;
 }
 
-export type FlipSeasonInput = Pick<FlipSeason, 'name' | 'start_date' | 'final_days' | 'rows' | 'cols' | 'note'>;
+export type FlipSeasonInput = Pick<FlipSeason, 'name' | 'start_date' | 'rows' | 'cols' | 'note'>;
 
 /** Lỗi DRF: {detail} hoặc {field: [msg]} → 1 câu. */
 export const flipErrorMessage = (err: any, fallback: string): string => {
@@ -214,4 +211,13 @@ export const formatDuration = (ms: number | null | undefined): string => {
 export const formatDay = (iso: string, withYear = false): string => {
   const [y, m, d] = iso.split('-');
   return withYear ? `${d}/${m}/${y}` : `${d}/${m}`;
+};
+
+const WEEKDAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+/** Khoảng ngày của 1 vòng: "23/11 – 28/11"; vòng 1 ngày (Chung kết) → "CN 29/11". */
+export const formatRange = (start: string, end: string, withYear = false): string => {
+  if (start !== end) return `${formatDay(start)} – ${formatDay(end, withYear)}`;
+  const [y, m, d] = start.split('-').map(Number);
+  return `${WEEKDAYS[new Date(y, m - 1, d).getDay()]} ${formatDay(start, withYear)}`;
 };

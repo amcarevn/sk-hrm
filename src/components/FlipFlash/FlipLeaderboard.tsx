@@ -5,7 +5,7 @@ import {
   type Leaderboard,
   flipErrorMessage,
   flipFlashService,
-  formatDay,
+  formatRange,
   formatDuration,
 } from '../../services/flipFlash.service';
 
@@ -94,7 +94,7 @@ const FlipLeaderboard: React.FC<Props> = ({ seasonId, rounds, initialRound, myCo
 
       {current && (
         <p className="text-xs text-gray-500">
-          {formatDay(current.start)} – {formatDay(current.end, true)} ·{' '}
+          {formatRange(current.start, current.end, true)} ·{' '}
           {current.status === 'ongoing' ? 'Đang diễn ra' : current.status === 'upcoming' ? 'Chưa bắt đầu' : 'Đã kết thúc'}
           {current.round_no < rounds.length && ' · Giải tuần dành cho người nhanh nhất chưa thắng tuần nào trước đó'}
         </p>
