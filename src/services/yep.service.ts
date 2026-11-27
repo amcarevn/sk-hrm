@@ -24,6 +24,8 @@ export interface YepEvent {
   venue_city: string;
   dresscode: string;
   registration_open: boolean;
+  /** Tắt = chỉ Admin / HCNS thấy trang (xem trước / chạy thử). */
+  open_to_staff: boolean;
   prizes: { type: string; label: string; amount: string | null }[];
 }
 
@@ -72,6 +74,9 @@ export interface YepOverview {
     program_max_length: number;
   };
   is_manager: boolean;
+  /** Trang chưa mở cho nhân viên (chỉ trả cho người không phải Admin / HCNS). */
+  closed: boolean;
+  closed_message?: string;
   event: YepEvent | null;
   me: YepMe | null;
   comments: YepComment[];

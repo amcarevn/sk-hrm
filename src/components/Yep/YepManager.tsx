@@ -18,7 +18,7 @@ const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/
 const toForm = (e: YepEvent) => ({
   name: e.name, short_name: e.short_name, year: e.year, company_name: e.company_name, company_address: e.company_address,
   event_date: e.event_date || '', event_time: e.event_time || '', venue_name: e.venue_name, venue_address: e.venue_address,
-  venue_city: e.venue_city, dresscode: e.dresscode, registration_open: e.registration_open,
+  venue_city: e.venue_city, dresscode: e.dresscode, registration_open: e.registration_open, open_to_staff: e.open_to_staff,
   cultural_prizes: Object.fromEntries(e.prizes.map((p) => [p.type, p.amount || ''])) as Record<string, string>,
 });
 
@@ -31,6 +31,7 @@ const YepManager: React.FC<{ event: YepEvent; onClose: (changed: boolean) => voi
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [changed, setChanged] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(event.open_to_staff);
 
   const load = () => {
     yepService.manage().then(setData).catch((err) => setError(yepErrorMessage(err, 'Không tải được danh sách')));
@@ -38,12 +39,18 @@ const YepManager: React.FC<{ event: YepEvent; onClose: (changed: boolean) => voi
   useEffect(load, []);
 
   const save = async () => {
+    if (form.open_to_staff && !savedOpen
+      && !window.confirm('Mở trang YEP cho toàn bộ nhân viên? Nhân viên sẽ thấy menu "YEP – Year End Party" và đăng ký được.')) {
+      return;
+    }
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       const payload: YepEventInput = { ...form, event_date: form.event_date || null, event_time: form.event_time || null };
-      setForm(toForm(await yepService.updateEvent(payload)));
+      const saved = await yepService.updateEvent(payload);
+      setForm(toForm(saved));
+      setSavedOpen(saved.open_to_staff);
       setChanged(true);
       setNotice('Đã lưu thông tin sự kiện.');
     } catch (err) {
@@ -144,6 +151,17 @@ const YepManager: React.FC<{ event: YepEvent; onClose: (changed: boolean) => voi
                   ))}
                 </div>
               </div>
+              <label className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${form.open_to_staff ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                <input type="checkbox" checked={form.open_to_staff} onChange={(e) => set({ open_to_staff: e.target.checked })}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600" />
+                <span>
+                  <b className="text-gray-900">Mở trang YEP cho toàn bộ nhân viên</b>
+                  <span className="block text-xs text-gray-600">
+                    Tắt: chỉ Admin / HCNS thấy menu và trang (xem trước, chạy thử). Bật: mọi nhân viên thấy menu
+                    "YEP – Year End Party" (nhân viên đang mở HRM cần tải lại trang).
+                  </span>
+                </span>
+              </label>
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                 <input type="checkbox" checked={form.registration_open} onChange={(e) => set({ registration_open: e.target.checked })}
                   className="h-4 w-4 rounded border-gray-300 text-primary-600" />
