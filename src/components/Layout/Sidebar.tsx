@@ -95,10 +95,11 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
   {
+    // YEP: Admin / HCNS luôn thấy; nhân viên chỉ khi HCNS đã mở trang (cờ yep_access) — HCNS SK 2026-11-27.
     name: 'YEP – Year End Party',
     href: '/dashboard/yep',
     icon: SparklesIcon,
-    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+    roles: ['ADMIN', 'HR'],
   },
   {
     // Kho dữ liệu phòng ban: Admin / HCNS, và trưởng phòng / Ban Giám đốc (cờ department_data_access).
@@ -489,6 +490,9 @@ export default function Sidebar({ onCollapseChange, mobileOpen: sidebarOpen, onM
       }
     }
     if (item.name === 'Dữ liệu phòng ban' && user?.department_data_access) {
+      return true;
+    }
+    if (item.name === 'YEP – Year End Party' && user?.yep_access) {
       return true;
     }
     if (isManager && item.name === 'Onboard nhân sự') {

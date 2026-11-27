@@ -57,7 +57,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         currentPath === '/dashboard/my-job' ||
         currentPath === '/dashboard/discipline-rules' ||
         currentPath === '/dashboard/flip-flash' ||
-        currentPath === '/dashboard/yep' ||
+        (user?.yep_access && currentPath === '/dashboard/yep') ||
         (user?.department_data_access && currentPath === '/dashboard/department-data') ||
         (currentPath === '/dashboard/attendance' || currentPath === '/dashboard/attendance/view') ||
         currentPath === '/dashboard/organization-chart' ||
@@ -91,7 +91,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         currentPath === '/dashboard/my-job' ||
         currentPath === '/dashboard/discipline-rules' ||
         currentPath === '/dashboard/flip-flash' ||
-        currentPath === '/dashboard/yep' ||
+        (user?.yep_access && currentPath === '/dashboard/yep') ||
         (user?.department_data_access && currentPath === '/dashboard/department-data') ||
         currentPath === '/dashboard/attendance' ||
         currentPath === '/dashboard/attendance/view' ||

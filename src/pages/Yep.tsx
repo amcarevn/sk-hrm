@@ -5,6 +5,7 @@ import {
   CheckCircleIcon,
   Cog6ToothIcon,
   EnvelopeOpenIcon,
+  EyeSlashIcon,
   GiftIcon,
   MapPinIcon,
   MusicalNoteIcon,
@@ -160,7 +161,9 @@ const Yep: React.FC = () => {
   if (!event) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-sm text-gray-500">
-        Chưa có sự kiện YEP nào. HCNS sẽ thông báo khi mở đăng ký.
+        {data.closed
+          ? (data.closed_message || 'Trang YEP chưa mở cho nhân viên. HCNS sẽ thông báo khi mở đăng ký.')
+          : 'Chưa có sự kiện YEP nào. HCNS sẽ thông báo khi mở đăng ký.'}
       </div>
     );
   }
@@ -261,6 +264,21 @@ const Yep: React.FC = () => {
   ];
 
   return (
+    <div className="space-y-3">
+    {isManager && !event.open_to_staff && (
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <EyeSlashIcon className="h-5 w-5 shrink-0" />
+        <p className="flex-1 min-w-[220px]">
+          <b>Đang xem trước — nhân viên chưa thấy trang này.</b> Chỉ Admin / HCNS vào được. Đăng ký thử lúc này vẫn được
+          lưu và chiếm số may mắn, nên xoá dữ liệu thử trước khi mở. Khi sẵn sàng, bật "Mở trang YEP cho toàn bộ nhân viên"
+          trong Quản lý YEP.
+        </p>
+        <button onClick={() => setShowManager(true)}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white ring-1 ring-amber-300 font-semibold hover:bg-amber-100">
+          <Cog6ToothIcon className="h-4 w-4" /> Quản lý YEP
+        </button>
+      </div>
+    )}
     <div className="yep-page -mx-1 sm:mx-0 rounded-3xl overflow-hidden">
       {/* ── Banner kiểu poster ─────────────────────────────────────────── */}
       <header className="yep-hero px-4 pt-12 pb-16 sm:pt-16 sm:pb-20 text-center text-white">
@@ -502,6 +520,7 @@ const Yep: React.FC = () => {
           if (changed) load();
         }} />
       )}
+    </div>
     </div>
   );
 };

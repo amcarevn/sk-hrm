@@ -42,6 +42,8 @@ export interface User {
   employee_permission?: EmployeePermissions;
   /** Được xem "Dữ liệu phòng ban" (trưởng phòng / Ban Giám đốc / Admin / HCNS) — backend tính. */
   department_data_access?: boolean;
+  /** Được vào trang YEP: Admin / HCNS luôn có; nhân viên chỉ khi HCNS đã "Mở trang cho nhân viên" — backend tính. */
+  yep_access?: boolean;
   [key: string]: any; // Allow additional properties
 }
 
