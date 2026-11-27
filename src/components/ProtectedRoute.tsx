@@ -59,7 +59,6 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
         currentPath === '/dashboard/flip-flash' ||
         (user?.yep_access && currentPath === '/dashboard/yep') ||
         (user?.department_data_access && currentPath === '/dashboard/department-data') ||
-        (user?.job_description_access && (currentPath === '/dashboard/job-descriptions' || currentPath.startsWith('/dashboard/job-descriptions/'))) ||
         (currentPath === '/dashboard/attendance' || currentPath === '/dashboard/attendance/view') ||
         currentPath === '/dashboard/organization-chart' ||
         currentPath === '/dashboard/approvals' ||
