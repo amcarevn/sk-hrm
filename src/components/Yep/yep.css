@@ -1,0 +1,98 @@
+/* YEP – Year End Party (chuyển từ repo yep: templates/mini_game/styles.css, nhánh sk).
+   Chỉ giữ phần khó làm bằng Tailwind: nền poster lấp lánh, banner có rèm 2 bên, chữ tiêu đề phủ gradient.
+   Font tiêu đề (Cinzel / Great Vibes / Montserrat) được trang Yep.tsx chèn <link> khi mở — @import ở đây sẽ nằm
+   giữa bundle CSS sau khi Vite gộp file và bị trình duyệt bỏ qua. */
+
+.yep-page {
+  --yep-gold: #F2C75C;
+  background-color: #135A1B;
+  background-image: url('/yep/hero-sparkles.webp'),
+    linear-gradient(180deg, #0F4D16 0%, #135A1B 18%, #15601E 60%, #125519 100%);
+  background-size: 1400px auto, 100% 100%;
+  background-repeat: repeat, no-repeat;
+}
+
+.yep-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 55% 18% at 50% 84%, rgba(150, 230, 150, 0.3) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 65% at 50% 45%, rgba(46, 140, 56, 0.45) 0%, transparent 72%);
+}
+/* Rèm + ly ở hai mép (ảnh nền đen) hoà sáng lên nền trang */
+.yep-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    url('/yep/hero-side-left.jpg') left center / auto 100% no-repeat,
+    url('/yep/hero-side-right.jpg') right center / auto 100% no-repeat;
+  mix-blend-mode: screen;
+}
+/* Vệt sáng sàn sân khấu */
+.yep-hero::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 28px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(220, 255, 220, 0.85), transparent);
+  box-shadow: 0 0 18px 4px rgba(170, 240, 170, 0.45);
+  pointer-events: none;
+}
+
+.yep-title > span {
+  display: block;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.05;
+}
+.yep-title-main {
+  font-family: 'Cinzel', 'Times New Roman', serif;
+  font-weight: 700;
+  font-size: clamp(2.2rem, 6vw, 4.4rem);
+  letter-spacing: 0.03em;
+  background-image: linear-gradient(180deg, #FFFFFF 0%, #E3F2E4 55%, #B9D8BE 100%);
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.28));
+}
+.yep-title-script {
+  font-family: 'Great Vibes', 'Brush Script MT', cursive;
+  font-weight: 400;
+  font-size: clamp(2.9rem, 7.6vw, 5.8rem);
+  line-height: 1.15 !important;
+  margin: -0.18em 0 -0.2em 1.1em;
+  padding: 0 0.15em;
+  background-image: linear-gradient(135deg, #FFE9A8 0%, var(--yep-gold) 45%, #C9922E 100%);
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+.yep-title-year {
+  font-family: 'Montserrat', 'Be Vietnam Pro', sans-serif;
+  font-weight: 800;
+  font-size: clamp(2.5rem, 6.4vw, 4.8rem);
+  background-image: linear-gradient(180deg, #FAFFFA 0%, #D6ECD8 45%, #ACCEB0 62%, #E8F6E9 100%);
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.32));
+}
+
+.yep-gold {
+  background: linear-gradient(135deg, #FFE9A8 0%, var(--yep-gold) 50%, #D9A23A 100%);
+  color: #0D240D;
+}
+
+/* Viên chữ của word cloud — cỡ 1–5 như trang cũ */
+.yep-wc-chip { animation: yep-pop 0.5s ease both; animation-delay: var(--delay, 0s); color: var(--chip-color); }
+.yep-wc-1 { font-size: 0.85rem; }
+.yep-wc-2 { font-size: 1rem; }
+.yep-wc-3 { font-size: 1.2rem; font-weight: 600; }
+.yep-wc-4 { font-size: 1.45rem; font-weight: 700; }
+.yep-wc-5 { font-size: 1.75rem; font-weight: 800; }
+@keyframes yep-pop {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yep-wc-chip { animation: none; }
+}

@@ -49,6 +49,7 @@ import JobDescriptionEdit from './pages/JobDescriptionEdit';
 import MyJob from './pages/MyJob';
 import DisciplineRules from './pages/DisciplineRules';
 import FlipFlash from './pages/FlipFlash';
+import Yep from './pages/Yep';
 import DepartmentData from './pages/DepartmentData';
 import EmployeeCreate from './pages/EmployeeCreate';
 import EmployeeShow from './pages/EmployeeShow';
@@ -837,6 +838,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <DisciplineRules />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          {/* YEP – Year End Party: chuyển từ yep.amcare.vn vào HRM (HCNS SK 2026-11-27), mọi nhân sự đăng ký */}
+          <Route
+            path="/dashboard/yep"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Yep />
                 </Layout>
               </ProtectedRoute>
             }

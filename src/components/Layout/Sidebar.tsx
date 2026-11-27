@@ -95,6 +95,12 @@ const navigationItems: NavigationItem[] = [
     roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
   },
   {
+    name: 'YEP – Year End Party',
+    href: '/dashboard/yep',
+    icon: SparklesIcon,
+    roles: ['ADMIN', 'USER', 'CUSTOMER', 'STAFF', 'HR'],
+  },
+  {
     // Kho dữ liệu phòng ban: Admin / HCNS, và trưởng phòng / Ban Giám đốc (cờ department_data_access).
     name: 'Dữ liệu phòng ban',
     href: '/dashboard/department-data',
