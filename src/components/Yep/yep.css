@@ -190,3 +190,96 @@
 @media (prefers-reduced-motion: reduce) {
   .yep-wc-chip { animation: none; transition: none; }
 }
+
+/* ── Giao diện sáng / tối (nút mặt trăng / mặt trời như trang YEP cũ) ───────────────────────────────
+   Các thẻ, chữ, ô nhập của trang YEP lấy màu từ các biến dưới đây; bật tối chỉ đổi giá trị biến
+   (không dùng dark: của Tailwind, không ảnh hưởng trang khác của HRM). */
+.yep-page {
+  --yep-card: #FFFFFF;
+  --yep-panel: #F0F7F0;
+  --yep-raised: #FFFFFF;
+  --yep-field: #FFFFFF;
+  --yep-locked: #F9FAFB;
+  --yep-line: #E5E7EB;
+  --yep-line-soft: #F3F4F6;
+  --yep-ticket-line: #D1FAE5;
+  --yep-details-border: rgba(46, 122, 46, 0.35);
+  --yep-title: #1D4E1D;
+  --yep-greeting: #1D4E1D;
+  --yep-strong: #111827;
+  --yep-text: #374151;
+  --yep-muted: #6B7280;
+  --yep-icon: #2E7A2E;
+  --yep-gold-text: #B7791F;
+  --yep-ok: #047857;
+  --yep-err: #DC2626;
+}
+
+/* Bảng màu tối của repo yep (nhánh hoangph-sk, bản đã chỉnh sáng hơn): --dm-page #193E19, --dm-card #2C592C,
+   --dm-surface #366836, --dm-input #173617, --dm-border #427B42, --dm-border-strong #499C49 */
+.yep-page.yep-dark {
+  color-scheme: dark;
+  --yep-card: #2C592C;
+  --yep-panel: #366836;
+  --yep-raised: #366836;
+  --yep-field: #173617;
+  --yep-locked: #173617;
+  --yep-line: #427B42;
+  --yep-line-soft: #427B42;
+  --yep-ticket-line: rgba(255, 255, 255, 0.12);
+  --yep-details-border: #499C49;
+  --yep-title: #FFFFFF;
+  --yep-greeting: #72C272;
+  --yep-strong: #FFFFFF;
+  --yep-text: #F0F7F0;
+  --yep-muted: #A9DBA9;
+  --yep-icon: #72C272;
+  --yep-gold-text: #F2C75C;
+  --yep-ok: #A9DBA9;
+  --yep-err: #FCA5A5;
+  /* Cùng hạt lấp lánh nhưng trên nền xanh tối hơn */
+  background-color: #193E19;
+  background-image: url('/yep/hero-sparkles.webp');
+  background-size: 1400px auto;
+  background-repeat: repeat;
+}
+.yep-dark .yep-hero {
+  background:
+    radial-gradient(ellipse 55% 18% at 50% 84%, rgba(150, 230, 150, 0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 65% at 50% 45%, rgba(46, 140, 56, 0.30) 0%, transparent 72%);
+}
+.yep-dark .yep-ticket {
+  background: linear-gradient(135deg, #2C592C 0%, #366836 100%);
+  --tw-ring-color: #4CA84C;
+  --tw-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+.yep-dark .yep-wc-canvas {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(114, 194, 114, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 82% 80%, rgba(242, 199, 92, 0.10) 0%, transparent 45%),
+    #366836;
+  box-shadow: inset 0 0 0 1px #427B42;
+}
+/* Pha màu với trắng trước để cả các tông xanh rất đậm vẫn nổi trên nền tối */
+.yep-dark .yep-wc-chip {
+  color: color-mix(in srgb, var(--chip-color) 30%, white);
+  background: color-mix(in srgb, color-mix(in srgb, var(--chip-color) 55%, white) 20%, transparent);
+  border-color: color-mix(in srgb, color-mix(in srgb, var(--chip-color) 55%, white) 35%, transparent);
+}
+/* Danh sách chọn (loại tiết mục) của trình duyệt: chữ sáng trên nền tối */
+.yep-dark select option {
+  background-color: #173617;
+  color: #F0F7F0;
+}
+
+.yep-theme-toggle {
+  background: #FFFFFF;
+  color: #2E7A2E;
+  border: 1px solid rgba(46, 122, 46, 0.15);
+  box-shadow: 0 10px 30px rgba(29, 78, 29, 0.18);
+}
+.yep-dark .yep-theme-toggle {
+  background: #2C592C;
+  border-color: #427B42;
+  color: #F2C75C;
+}

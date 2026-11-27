@@ -106,11 +106,11 @@ async function drawPoster(event: YepEvent, name: string, department: string, luc
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 const Row: React.FC<{ icon: React.ElementType; label: string; value: string; strong?: boolean }> = ({ icon: Icon, label, value, strong }) => (
-  <div className="flex items-center justify-between gap-3 py-2 border-b border-dashed border-emerald-100 last:border-0">
-    <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 shrink-0">
-      <Icon className="h-4 w-4 text-[#2E7A2E]" /> {label}
+  <div className="flex items-center justify-between gap-3 py-2 border-b border-dashed border-[color:var(--yep-ticket-line)] last:border-0">
+    <span className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--yep-muted)] shrink-0">
+      <Icon className="h-4 w-4 text-[color:var(--yep-icon)]" /> {label}
     </span>
-    <span className={`text-right ${strong ? 'text-xl font-extrabold text-[#B7791F] tracking-widest' : 'text-sm font-bold text-gray-900'}`}>{value}</span>
+    <span className={`text-right ${strong ? 'text-xl font-extrabold text-[color:var(--yep-gold-text)] tracking-widest' : 'text-sm font-bold text-[color:var(--yep-strong)]'}`}>{value}</span>
   </div>
 );
 
@@ -173,15 +173,15 @@ const YepTicket: React.FC<Props> = ({ event, me, previewParticipation }) => {
 
   return (
     <div className="space-y-4">
-      <div className="mx-auto max-w-md rounded-2xl overflow-hidden shadow-xl bg-white ring-1 ring-emerald-100">
+      <div className="mx-auto max-w-md rounded-2xl overflow-hidden yep-ticket shadow-xl bg-white ring-1 ring-emerald-100">
         <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-br from-[#2E7A2E] to-[#1D4E1D] text-white">
           <div className="h-11 w-11 rounded-full bg-white/15 flex items-center justify-center text-2xl">🦷</div>
           <div className="flex-1 min-w-0">
             <div className="text-lg font-extrabold tracking-wide">VÉ THAM DỰ</div>
             <div className="text-xs text-white/80 tracking-wider">MINI GAME {event.short_name.toUpperCase()}</div>
           </div>
-          <div className="h-12 w-12 rounded-lg bg-white flex items-center justify-center">
-            <QrCodeIcon className="h-8 w-8 text-[#1D4E1D]" />
+          <div className="h-12 w-12 rounded-lg bg-[var(--yep-field)] flex items-center justify-center">
+            <QrCodeIcon className="h-8 w-8 text-[color:var(--yep-title)]" />
           </div>
         </div>
         <div className="px-5 py-3">
@@ -191,16 +191,16 @@ const YepTicket: React.FC<Props> = ({ event, me, previewParticipation }) => {
           <Row icon={TicketIcon} label="Số may mắn" value={lucky} strong />
           <Row icon={CheckBadgeIcon} label="Trạng thái" value={status} />
         </div>
-        <div className="px-5 py-3 bg-[#F0F7F0] text-xs text-gray-700 grid gap-1">
+        <div className="px-5 py-3 bg-[var(--yep-panel)] text-xs text-[color:var(--yep-text)] grid gap-1">
           {([[CalendarDaysIcon, 'Ngày', formatEventDate(event.event_date) || TBA], [ClockIcon, 'Giờ', event.event_time || TBA],
             [MapPinIcon, 'Địa điểm', event.venue_name || TBA]] as [React.ElementType, string, string][]).map(([Icon, label, value]) => (
             <div key={label} className="flex items-start gap-1.5">
-              <Icon className="h-4 w-4 text-[#2E7A2E] shrink-0 mt-px" />
+              <Icon className="h-4 w-4 text-[color:var(--yep-icon)] shrink-0 mt-px" />
               <span>{label}: <b>{value}</b></span>
             </div>
           ))}
         </div>
-        <div className="border-t-2 border-dashed border-emerald-200 px-5 py-2 text-center text-[11px] font-bold tracking-[0.3em] text-[#2E7A2E]">
+        <div className="border-t-2 border-dashed border-[color:var(--yep-ticket-line)] px-5 py-2 text-center text-[11px] font-bold tracking-[0.3em] text-[color:var(--yep-icon)]">
           {event.company_name.toUpperCase()}
         </div>
       </div>
@@ -208,10 +208,10 @@ const YepTicket: React.FC<Props> = ({ event, me, previewParticipation }) => {
         <button onClick={download} disabled={!reg || busy} className={`${btn} yep-gold shadow`}>
           <ArrowDownTrayIcon className="h-4 w-4" /> {busy ? 'Đang tạo...' : 'Tải vé'}
         </button>
-        <button onClick={share} disabled={!reg} className={`${btn} bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50`}>
+        <button onClick={share} disabled={!reg} className={`${btn} bg-[var(--yep-raised)] text-[color:var(--yep-text)] ring-1 ring-[color:var(--yep-line)] hover:bg-[var(--yep-panel)]`}>
           <ShareIcon className="h-4 w-4" /> Chia sẻ
         </button>
-        <button onClick={print} disabled={!reg} className={`${btn} bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50`}>
+        <button onClick={print} disabled={!reg} className={`${btn} bg-[var(--yep-raised)] text-[color:var(--yep-text)] ring-1 ring-[color:var(--yep-line)] hover:bg-[var(--yep-panel)]`}>
           <PrinterIcon className="h-4 w-4" /> In vé
         </button>
       </div>

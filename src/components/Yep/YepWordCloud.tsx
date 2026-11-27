@@ -43,12 +43,12 @@ const YepWordCloud: React.FC<{ comments: YepComment[] }> = ({ comments }) => {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-[color:var(--yep-muted)]">
         Những chia sẻ của mọi người trong năm qua. Chia sẻ được nhiều người cùng gửi sẽ to hơn và nằm ở giữa.
       </p>
       <div className="yep-wc-canvas">
         {chips.length === 0 ? (
-          <div className="text-sm text-gray-400 flex flex-col items-center gap-2">
+          <div className="text-sm text-[color:var(--yep-muted)] flex flex-col items-center gap-2">
             <CloudIcon className="h-10 w-10" /> Chưa có chia sẻ để tạo word cloud
           </div>
         ) : chips.map((c, i) => (
@@ -60,9 +60,9 @@ const YepWordCloud: React.FC<{ comments: YepComment[] }> = ({ comments }) => {
         ))}
       </div>
       <div className="grid gap-2 sm:grid-cols-3 text-sm">
-        <div className="rounded-xl bg-white ring-1 ring-gray-100 px-3 py-2">Tổng chia sẻ: <b>{total}</b></div>
-        <div className="rounded-xl bg-white ring-1 ring-gray-100 px-3 py-2 truncate" title={top}>Nổi bật nhất: <b>{top}</b></div>
-        <div className="rounded-xl bg-white ring-1 ring-gray-100 px-3 py-2">Chia sẻ khác nhau: <b>{distinct}</b></div>
+        <div className="rounded-xl bg-[var(--yep-raised)] ring-1 ring-[color:var(--yep-line)] px-3 py-2">Tổng chia sẻ: <b>{total}</b></div>
+        <div className="rounded-xl bg-[var(--yep-raised)] ring-1 ring-[color:var(--yep-line)] px-3 py-2 truncate" title={top}>Nổi bật nhất: <b>{top}</b></div>
+        <div className="rounded-xl bg-[var(--yep-raised)] ring-1 ring-[color:var(--yep-line)] px-3 py-2">Chia sẻ khác nhau: <b>{distinct}</b></div>
       </div>
     </div>
   );
