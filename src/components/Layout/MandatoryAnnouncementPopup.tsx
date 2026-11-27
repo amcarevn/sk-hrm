@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   ArrowDownTrayIcon,
   CalendarDaysIcon,
@@ -9,6 +9,7 @@ import {
   UserIcon,
 } from '@heroicons/react/24/outline';
 import { hrmAPI } from '../../utils/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNotificationDrawer } from '../../contexts/NotificationDrawerContext';
 import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import PdfFrame from '../Common/PdfFrame';
@@ -20,6 +21,8 @@ import './MandatoryAnnouncementPopup.css';
  * mình, chưa đọc) thì hiện ngay giữa màn hình — không đóng được bằng bấm ra ngoài / phím Esc, chỉ đóng bằng nút
  * "Đã đọc, đóng" (ghi nhận đã đọc qua acknowledge) rồi dùng HRM bình thường. Nhiều thông báo thì hiện lần lượt.
  * Danh sách & thứ tự do backend quyết định: GET company-announcements/must_read/.
+ * Hỏi backend khi: vào HRM / đăng nhập (kể cả đổi nick trong cùng tab), chuyển trang hoặc quay lại tab HRM
+ * (2 trường hợp sau tối đa 1 lần / phút) → thông báo đăng lúc nhân viên đang mở HRM cũng hiện ra.
  */
 
 type Attachment = { id: number | string; file_name: string; file_url: string };
@@ -45,11 +48,50 @@ const TYPE_BADGE: Record<string, string> = {
   OTHER: 'bg-gray-100 text-gray-600',
 };
 
-/** Mỗi trang của HRM tự dựng lại Layout → giữ hàng đợi ở mức module để chuyển trang (kể cả nút Back) popup
- *  vẫn còn, và chỉ hỏi lại backend tối đa 5 phút / lần. */
-const RECHECK_MS = 5 * 60 * 1000;
-let pendingQueue: any[] = [];
-let lastCheckedAt = 0;
+/** Mỗi trang của HRM tự dựng lại Layout → giữ trạng thái popup ở mức module để chuyển trang (kể cả nút Back)
+ *  popup vẫn còn. Trạng thái gắn với TÀI KHOẢN đang đăng nhập: đăng xuất rồi đăng nhập nick khác trong cùng tab
+ *  (SPA, không tải lại trang) thì làm mới và hỏi backend ngay. Lỗi 2026-11-27: trước đây giữ "vừa hỏi" (5 phút)
+ *  của nick trước → đăng thông báo bằng nick admin rồi vào nick staff không thấy popup. */
+type PopupState = {
+  user: string; // tài khoản đang đăng nhập
+  queue: any[]; // thông báo còn phải đọc (đang hiện cái đầu)
+  total: number; // tổng số của lượt đang hiện → "2/3"
+  checkedAt: number; // lần hỏi backend gần nhất
+  loading: boolean;
+  acked: ReadonlySet<number>; // đã bấm "Đã đọc" trong phiên — không hiện lại trong lúc chờ backend ghi nhận
+};
+
+const RECHECK_MS = 60 * 1000;
+const initialState = (user: string): PopupState => ({ user, queue: [], total: 0, checkedAt: 0, loading: false, acked: new Set() });
+let popupState = initialState('');
+const listeners = new Set<() => void>();
+const subscribe = (fn: () => void) => {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+};
+const getPopupState = () => popupState;
+const setPopupState = (patch: Partial<PopupState>) => {
+  popupState = { ...popupState, ...patch };
+  listeners.forEach((fn) => fn());
+};
+
+/** Hỏi backend danh sách phải đọc — bỏ qua khi đang hiện popup hoặc vừa hỏi chưa tới 1 phút. */
+function checkMustRead() {
+  const { user, loading, queue, checkedAt } = popupState;
+  if (!user || loading || queue.length || Date.now() - checkedAt < RECHECK_MS) return;
+  setPopupState({ loading: true, checkedAt: Date.now() });
+  hrmAPI.getMustReadAnnouncements()
+    .then((items) => {
+      if (popupState.user !== user) return; // đã đổi tài khoản trong lúc chờ
+      const list = (items || []).filter((a: any) => !popupState.acked.has(a.id));
+      setPopupState(list.length ? { loading: false, queue: list, total: list.length } : { loading: false });
+    })
+    .catch(() => {
+      if (popupState.user === user) setPopupState({ loading: false, checkedAt: 0 }); // lỗi mạng: lần sau thử lại
+    });
+}
 
 const formatDate = (iso?: string | null) => {
   if (!iso) return '';
@@ -70,46 +112,53 @@ const attachmentsOf = (a: any): Attachment[] => {
 };
 
 export default function MandatoryAnnouncementPopup() {
+  const { user } = useAuth();
   const { refreshUnread } = useNotificationDrawer();
-  const [queue, setQueue] = useState<any[]>(pendingQueue);
-  const [total, setTotal] = useState(pendingQueue.length);
+  const userKey = user ? String(user.username || user.id || 'me') : '';
+  const state = useSyncExternalStore(subscribe, getPopupState);
   const [preview, setPreview] = useState<Attachment | null>(null);
+  const queue = state.user === userKey ? state.queue : []; // không bao giờ hiện hàng đợi của nick trước
   const current = queue[0] ?? null;
   useLockBodyScroll(!!current);
 
   useEffect(() => {
-    if (pendingQueue.length || Date.now() - lastCheckedAt < RECHECK_MS) return;
-    lastCheckedAt = Date.now();
-    hrmAPI.getMustReadAnnouncements()
-      .then((items) => {
-        if (!items?.length) return;
-        pendingQueue = items;
-        setQueue(items);
-        setTotal(items.length);
-      })
-      .catch(() => {
-        lastCheckedAt = 0; // lỗi mạng: lần chuyển trang sau thử lại
-      });
-  }, []);
+    if (!userKey) return;
+    if (popupState.user !== userKey) setPopupState(initialState(userKey)); // đăng nhập / đổi nick
+    checkMustRead();
+    // HRM để mở sẵn ở tab khác rồi quay lại → kiểm tra thông báo mới đăng trong lúc đó
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') checkMustRead();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [userKey]);
 
   if (!current) return null;
 
   // Bấm là đóng / sang thông báo tiếp ngay, ghi nhận "đã đọc" chạy nền. Đã xác nhận từ trước (400) thì bỏ qua;
-  // lỗi mạng thì backend chưa ghi → lần sau vào HRM popup hiện lại thông báo đó.
+  // lỗi khác (mạng…) thì backend chưa ghi → lần kiểm tra sau popup hiện lại thông báo đó.
   const acknowledge = () => {
     const id = current.id;
+    const owner = popupState.user;
+    setPopupState({
+      queue: popupState.queue.filter((a) => a.id !== id),
+      acked: new Set(popupState.acked).add(id),
+    });
     hrmAPI.acknowledgeAnnouncement(id)
-      .catch(() => undefined)
+      .catch((err) => {
+        if (err?.response?.status === 400 || popupState.user !== owner) return;
+        const acked = new Set(popupState.acked);
+        acked.delete(id);
+        setPopupState({ acked });
+      })
       .finally(() => {
-        if (!pendingQueue.length) refreshUnread(); // cập nhật số chưa đọc ở chuông thông báo
+        if (popupState.user === owner && !popupState.queue.length) refreshUnread(); // cập nhật chuông thông báo
       });
-    pendingQueue = pendingQueue.filter((a) => a.id !== id);
-    setQueue(pendingQueue);
   };
 
   const files = attachmentsOf(current);
   const inlinePdf = files.find((f) => isPdf(f.file_name) || isPdf(f.file_url));
-  const position = total - queue.length + 1;
+  const position = state.total - queue.length + 1;
   const hasNext = queue.length > 1;
 
   return (
@@ -126,8 +175,8 @@ export default function MandatoryAnnouncementPopup() {
               <div className="text-base font-bold leading-tight">Thông báo mới — vui lòng đọc</div>
               <div className="text-xs text-white/85">Đọc xong bấm "Đã đọc, đóng" để tiếp tục dùng HRM.</div>
             </div>
-            {total > 1 && (
-              <span className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold tabular-nums">{position}/{total}</span>
+            {state.total > 1 && (
+              <span className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold tabular-nums">{position}/{state.total}</span>
             )}
           </div>
 
