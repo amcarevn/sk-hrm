@@ -186,8 +186,9 @@ export const flipFlashService = {
     return res.data;
   },
 
-  async deleteSeason(id: number): Promise<void> {
-    await managementApi.delete(`${SEASONS}/${id}/`);
+  /** Đợt đã có người chơi: backend bắt gửi kèm đúng tên đợt (`confirm`) — xoá luôn mọi kết quả. */
+  async deleteSeason(id: number, confirmName?: string): Promise<void> {
+    await managementApi.delete(`${SEASONS}/${id}/`, { params: confirmName ? { confirm: confirmName } : {} });
   },
 };
 
