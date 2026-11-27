@@ -12,7 +12,7 @@ import {
 
 /** Admin / HCNS: tạo / sửa / xoá đợt Flip Flash. Mọi kiểm tra (thứ Hai, trùng lịch, số thẻ) do backend làm. */
 
-const EMPTY: FlipSeasonInput = { name: '', start_date: '', final_days: 3, rows: 6, cols: 6, note: '' };
+const EMPTY: FlipSeasonInput = { name: '', start_date: '', rows: 6, cols: 6, note: '' };
 
 const FlipSeasonManager: React.FC<{ config: FlipConfig | null; onClose: (changed: boolean) => void }> = ({ config, onClose }) => {
   const [seasons, setSeasons] = useState<FlipSeason[]>([]);
@@ -67,7 +67,7 @@ const FlipSeasonManager: React.FC<{ config: FlipConfig | null; onClose: (changed
 
         <div className="p-5 space-y-4">
           <p className="text-xs text-gray-500">
-            Mỗi đợt gồm Tuần 1–4 (thứ Hai → Chủ nhật, tính từ ngày bắt đầu) và Vòng chung kết ngay sau Tuần 4 cho những người thắng tuần.
+            Mỗi đợt 4 tuần tính từ ngày bắt đầu: Tuần 1–3 từ thứ Hai đến Chủ nhật, Tuần 4 từ thứ Hai đến thứ Bảy, và Vòng chung kết vào Chủ nhật của Tuần 4 cho những người thắng tuần.
             Không đổi được ngày bắt đầu / số thẻ khi đợt đã có người chơi.
           </p>
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -80,15 +80,10 @@ const FlipSeasonManager: React.FC<{ config: FlipConfig | null; onClose: (changed
                   onChange={(e) => set({ name: e.target.value })} />
               </label>
               <div className="grid grid-cols-2 gap-3">
-                <label className="block text-sm">
+                <label className="block text-sm col-span-2">
                   <span className="font-semibold text-gray-700">Ngày bắt đầu (thứ Hai)</span>
                   <input type="date" className={field} value={editing.form.start_date} disabled={locked}
                     onChange={(e) => set({ start_date: e.target.value })} />
-                </label>
-                <label className="block text-sm">
-                  <span className="font-semibold text-gray-700">Số ngày chung kết</span>
-                  <input type="number" min={1} max={config?.max_final_days} className={field} value={editing.form.final_days}
-                    onChange={(e) => set({ final_days: Number(e.target.value) })} />
                 </label>
                 <label className="block text-sm">
                   <span className="font-semibold text-gray-700">Số hàng thẻ</span>
@@ -129,11 +124,11 @@ const FlipSeasonManager: React.FC<{ config: FlipConfig | null; onClose: (changed
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm text-gray-900 truncate">{s.name}</div>
                   <div className="text-xs text-gray-500">
-                    {formatDay(s.start_date)} – {formatDay(s.end_date, true)} · {s.rows}×{s.cols} thẻ · chung kết {s.final_days} ngày · {s.attempt_count} lượt chơi
+                    {formatDay(s.start_date)} – {formatDay(s.end_date, true)} · {s.rows}×{s.cols} thẻ · {s.attempt_count} lượt chơi
                   </div>
                 </div>
                 <button title="Sửa" onClick={() => {
-                  setEditing({ id: s.id, form: { name: s.name, start_date: s.start_date, final_days: s.final_days, rows: s.rows, cols: s.cols, note: s.note } });
+                  setEditing({ id: s.id, form: { name: s.name, start_date: s.start_date, rows: s.rows, cols: s.cols, note: s.note } });
                   setError(null);
                 }} className="p-1.5 rounded-lg hover:bg-gray-100"><PencilSquareIcon className="h-4 w-4 text-gray-500" /></button>
                 {s.attempt_count === 0 && (
