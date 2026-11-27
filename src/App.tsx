@@ -847,7 +847,7 @@ function App() {
             path="/dashboard/yep"
             element={
               <ProtectedRoute>
-                <Layout>
+                <Layout fullBleed>
                   <Yep />
                 </Layout>
               </ProtectedRoute>
