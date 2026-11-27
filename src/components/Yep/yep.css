@@ -5,9 +5,10 @@
 
 .yep-page {
   --yep-gold: #F2C75C;
-  background-color: #135A1B;
+  /* Xanh sáng hơn bản đầu — theo repo yep nhánh hoangph-sk (sửa ngày 19/11, chưa commit bên đó) */
+  background-color: #23702A;
   background-image: url('/yep/hero-sparkles.webp'),
-    linear-gradient(180deg, #0F4D16 0%, #135A1B 18%, #15601E 60%, #125519 100%);
+    linear-gradient(180deg, #1F6124 0%, #23702A 18%, #277C2E 60%, #23702A 100%);
   background-size: 1400px auto, 100% 100%;
   background-repeat: repeat, no-repeat;
 }
@@ -36,7 +37,7 @@
   position: absolute;
   left: 18%;
   right: 18%;
-  bottom: 28px;
+  bottom: 34px;
   height: 2px;
   border-radius: 2px;
   background: linear-gradient(90deg, transparent, rgba(220, 255, 220, 0.85), transparent);
@@ -54,7 +55,7 @@
 .yep-title-main {
   font-family: 'Cinzel', 'Times New Roman', serif;
   font-weight: 700;
-  font-size: clamp(2.2rem, 6vw, 4.4rem);
+  font-size: clamp(2.5rem, 6vw, 4.6rem);
   letter-spacing: 0.03em;
   background-image: linear-gradient(180deg, #FFFFFF 0%, #E3F2E4 55%, #B9D8BE 100%);
   filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.28));
@@ -62,7 +63,7 @@
 .yep-title-script {
   font-family: 'Great Vibes', 'Brush Script MT', cursive;
   font-weight: 400;
-  font-size: clamp(2.9rem, 7.6vw, 5.8rem);
+  font-size: clamp(3.2rem, 7.6vw, 6rem);
   line-height: 1.15 !important;
   margin: -0.18em 0 -0.2em 1.1em;
   padding: 0 0.15em;
@@ -72,9 +73,52 @@
 .yep-title-year {
   font-family: 'Montserrat', 'Be Vietnam Pro', sans-serif;
   font-weight: 800;
-  font-size: clamp(2.5rem, 6.4vw, 4.8rem);
+  font-size: clamp(2.8rem, 6.4vw, 5rem);
   background-image: linear-gradient(180deg, #FAFFFA 0%, #D6ECD8 45%, #ACCEB0 62%, #E8F6E9 100%);
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.32));
+}
+
+/* Dòng "Happy New Year ..." dưới năm (repo yep nhánh hoangph-sk): cùng font Cinzel với "YEAR END", nhỏ hơn,
+   giãn chữ rộng, hai bên có đường kẻ mảnh màu vàng */
+.yep-newyear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 10px auto 22px;
+  font-family: 'Cinzel', 'Times New Roman', serif;
+  font-weight: 700;
+  font-size: clamp(1.4rem, 2.6vw, 2.1rem);
+  letter-spacing: 0.16em;
+  line-height: 1.2;
+  background-image: linear-gradient(180deg, #FFFFFF 0%, #E3F2E4 55%, #B9D8BE 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.25));
+}
+.yep-newyear::before,
+.yep-newyear::after {
+  content: '';
+  flex: 0 0 auto;
+  width: clamp(28px, 6vw, 72px);
+  height: 1px;
+}
+.yep-newyear::before { background: linear-gradient(90deg, transparent, var(--yep-gold)); }
+.yep-newyear::after { background: linear-gradient(90deg, var(--yep-gold), transparent); }
+
+/* Điện thoại (như trang cũ): bỏ rèm / ly hai mép vì đè lên chữ, giữ nền lấp lánh; "Happy New Year" vừa một hàng */
+@media (max-width: 600px) {
+  .yep-hero {
+    background:
+      radial-gradient(ellipse 80% 14% at 50% 86%, rgba(150, 230, 150, 0.3) 0%, transparent 70%),
+      radial-gradient(ellipse 80% 60% at 50% 40%, rgba(46, 140, 56, 0.45) 0%, transparent 72%);
+  }
+  .yep-hero::before { display: none; }
+  .yep-hero::after { left: 10%; right: 10%; bottom: 24px; }
+  .yep-newyear { font-size: min(1.5rem, 6.4vw); letter-spacing: 0.06em; gap: 0; }
+  .yep-newyear::before,
+  .yep-newyear::after { display: none; }
 }
 
 .yep-gold {
@@ -82,17 +126,67 @@
   color: #0D240D;
 }
 
-/* Viên chữ của word cloud — cỡ 1–5 như trang cũ */
-.yep-wc-chip { animation: yep-pop 0.5s ease both; animation-delay: var(--delay, 0s); color: var(--chip-color); }
+/* Word cloud (như trang cũ): mỗi câu là một "viên" bo tròn trong khung flex-wrap nên không chồng nhau;
+   màu lấy từ --chip-color do YepWordCloud gán, cỡ chữ 1–5 theo mức nổi bật */
+.yep-wc-canvas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: flex-start;
+  align-content: safe center; /* nhiều câu hơn chiều cao khung thì xếp từ trên xuống, không tràn lên trên */
+  align-items: center;
+  gap: 12px 14px;
+  min-height: 240px;
+  padding: 32px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(114, 194, 114, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 82% 80%, rgba(242, 199, 92, 0.18) 0%, transparent 45%),
+    #FFFFFF;
+  box-shadow: inset 0 0 0 1px rgba(46, 122, 46, 0.12);
+}
+.yep-wc-chip {
+  display: inline-block;
+  max-width: min(100%, 440px);
+  padding: 0.5em 1em;
+  border-radius: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--chip-color);
+  background: color-mix(in srgb, var(--chip-color) 11%, white);
+  border: 1px solid color-mix(in srgb, var(--chip-color) 24%, white);
+  cursor: default;
+  /* backwards: xong hiệu ứng thì bỏ transform để hover còn nhấc viên lên được */
+  animation: yep-pop 0.5s ease backwards;
+  animation-delay: var(--delay, 0s);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.yep-wc-chip:hover {
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--chip-color) 28%, transparent);
+}
 .yep-wc-1 { font-size: 0.85rem; }
-.yep-wc-2 { font-size: 1rem; }
-.yep-wc-3 { font-size: 1.2rem; font-weight: 600; }
-.yep-wc-4 { font-size: 1.45rem; font-weight: 700; }
-.yep-wc-5 { font-size: 1.75rem; font-weight: 800; }
+.yep-wc-2 { font-size: 0.98rem; }
+.yep-wc-3 { font-size: 1.12rem; }
+.yep-wc-4 { font-size: 1.32rem; }
+.yep-wc-5 { font-size: 1.6rem; }
 @keyframes yep-pop {
   from { opacity: 0; transform: scale(0.85); }
   to { opacity: 1; transform: scale(1); }
 }
+/* Điện thoại: chữ nhỏ hơn để mỗi hàng chứa 2–3 câu ngắn, ra dáng "đám mây" */
+@media (max-width: 768px) {
+  .yep-wc-canvas { padding: 14px; gap: 8px; }
+  .yep-wc-chip { padding: 0.4em 0.75em; border-radius: 14px; }
+  .yep-wc-1 { font-size: 0.76rem; }
+  .yep-wc-2 { font-size: 0.82rem; }
+  .yep-wc-3 { font-size: 0.9rem; }
+  .yep-wc-4 { font-size: 1rem; }
+  .yep-wc-5 { font-size: 1.12rem; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .yep-wc-chip { animation: none; }
+  .yep-wc-chip { animation: none; transition: none; }
 }
