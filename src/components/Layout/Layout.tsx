@@ -2,6 +2,7 @@ import { ReactNode, useState } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import NotificationDrawer from './NotificationDrawer';
+import MandatoryAnnouncementPopup from './MandatoryAnnouncementPopup';
 import { NotificationDrawerProvider, useNotificationDrawer } from '@/contexts/NotificationDrawerContext';
 
 function LayoutInner({ children, fullBleed = false }: { children: ReactNode; fullBleed?: boolean }) {
@@ -33,6 +34,9 @@ function LayoutInner({ children, fullBleed = false }: { children: ReactNode; ful
         unreadIds={unreadIds}
         onMarkRead={markRead}
       />
+
+      {/* Thông báo mới chưa đọc → popup bắt buộc đọc ngay khi vào HRM (HCNS SK 2026-11-27) */}
+      <MandatoryAnnouncementPopup />
     </div>
   );
 }

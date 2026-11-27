@@ -1,0 +1,29 @@
+/* Popup thông báo bắt buộc đọc (HCNS SK 2026-11-27: "nhảy tưng tưng, bắt người ta phải mở ra đọc").
+   Khung bật lên kiểu nảy mỗi khi hiện một thông báo; biểu tượng loa nảy liên tục cho tới khi đóng. */
+@keyframes ann-pop {
+  0% { opacity: 0; transform: translateY(48px) scale(0.6); }
+  55% { opacity: 1; transform: translateY(-14px) scale(1.04); }
+  72% { transform: translateY(7px) scale(0.98); }
+  86% { transform: translateY(-3px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ann-pop {
+  animation: ann-pop 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes ann-bounce {
+  0%, 100% { transform: translateY(0) rotate(-10deg); }
+  25% { transform: translateY(-7px) rotate(10deg); }
+  50% { transform: translateY(0) rotate(-10deg); }
+  75% { transform: translateY(-4px) rotate(6deg); }
+}
+.ann-bounce {
+  animation: ann-bounce 1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ann-pop,
+  .ann-bounce {
+    animation: none;
+  }
+}
