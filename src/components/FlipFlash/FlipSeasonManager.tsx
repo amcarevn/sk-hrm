@@ -43,9 +43,23 @@ const FlipSeasonManager: React.FC<{ config: FlipConfig | null; onClose: (changed
   };
 
   const remove = async (s: FlipSeason) => {
-    if (!window.confirm(`Xoá đợt "${s.name}"?`)) return;
+    let confirmName: string | undefined;
+    if (s.attempt_count > 0) {
+      const typed = window.prompt(
+        `Đợt "${s.name}" đã có ${s.attempt_count} lượt chơi. Xoá đợt sẽ xoá luôn toàn bộ kết quả và bảng xếp hạng, `
+        + 'không khôi phục được.\n\nGõ đúng tên đợt để xác nhận xoá:',
+      );
+      if (typed == null) return;
+      if (typed.trim() !== s.name.trim()) {
+        setError('Tên đợt gõ chưa đúng — chưa xoá gì.');
+        return;
+      }
+      confirmName = typed.trim();
+    } else if (!window.confirm(`Xoá đợt "${s.name}"?`)) {
+      return;
+    }
     try {
-      await flipFlashService.deleteSeason(s.id);
+      await flipFlashService.deleteSeason(s.id, confirmName);
       setChanged(true);
       load();
     } catch (err) {
@@ -68,7 +82,7 @@ const FlipSeasonManager: React.FC<{ config: FlipConfig | null; onClose: (changed
         <div className="p-5 space-y-4">
           <p className="text-xs text-gray-500">
             Mỗi đợt 4 tuần tính từ ngày bắt đầu: Tuần 1–3 từ thứ Hai đến Chủ nhật, Tuần 4 từ thứ Hai đến thứ Bảy, và Vòng chung kết vào Chủ nhật của Tuần 4 cho những người thắng tuần.
-            Không đổi được ngày bắt đầu / số thẻ khi đợt đã có người chơi.
+            Không đổi được ngày bắt đầu / số thẻ khi đợt đã có người chơi. Xoá đợt đã có người chơi sẽ xoá luôn mọi kết quả.
           </p>
           {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -131,9 +145,8 @@ const FlipSeasonManager: React.FC<{ config: FlipConfig | null; onClose: (changed
                   setEditing({ id: s.id, form: { name: s.name, start_date: s.start_date, rows: s.rows, cols: s.cols, note: s.note } });
                   setError(null);
                 }} className="p-1.5 rounded-lg hover:bg-gray-100"><PencilSquareIcon className="h-4 w-4 text-gray-500" /></button>
-                {s.attempt_count === 0 && (
-                  <button title="Xoá" onClick={() => remove(s)} className="p-1.5 rounded-lg hover:bg-red-50"><TrashIcon className="h-4 w-4 text-red-500" /></button>
-                )}
+                <button title={s.attempt_count > 0 ? 'Xoá đợt (xoá luôn kết quả)' : 'Xoá'} onClick={() => remove(s)}
+                  className="p-1.5 rounded-lg hover:bg-red-50"><TrashIcon className="h-4 w-4 text-red-500" /></button>
               </div>
             ))}
           </div>
