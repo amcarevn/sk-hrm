@@ -4,7 +4,7 @@ import Header from './Header';
 import NotificationDrawer from './NotificationDrawer';
 import { NotificationDrawerProvider, useNotificationDrawer } from '@/contexts/NotificationDrawerContext';
 
-function LayoutInner({ children }: { children: ReactNode }) {
+function LayoutInner({ children, fullBleed = false }: { children: ReactNode; fullBleed?: boolean }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { drawerOpen, drawerInitialItem, unreadIds, markRead, closeDrawer } = useNotificationDrawer();
@@ -20,8 +20,9 @@ function LayoutInner({ children }: { children: ReactNode }) {
       <div className={`flex flex-col flex-1 min-h-0 transition-all duration-300 ${isSidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64'}`}>
         <Header onOpenMobileNav={() => setMobileNavOpen(true)} />
 
-        <main className="flex flex-col flex-1 min-h-0 overflow-y-auto py-4 sm:py-6">
-          <div className="flex flex-col flex-1 min-h-0 w-full min-w-0 px-4 sm:px-6">{children}</div>
+        {/* fullBleed: trang tự lo khoảng cách + nền phủ kín vùng nội dung (vd trang YEP) — bỏ padding mặc định */}
+        <main className={`flex flex-col flex-1 min-h-0 overflow-y-auto ${fullBleed ? '' : 'py-4 sm:py-6'}`}>
+          <div className={`flex flex-col flex-1 min-h-0 w-full min-w-0 ${fullBleed ? '' : 'px-4 sm:px-6'}`}>{children}</div>
         </main>
       </div>
 
@@ -38,12 +39,14 @@ function LayoutInner({ children }: { children: ReactNode }) {
 
 interface LayoutProps {
   children: ReactNode;
+  /** Bỏ padding quanh nội dung để trang phủ nền kín vùng nội dung (trang tự thêm khoảng cách bên trong). */
+  fullBleed?: boolean;
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({ children, fullBleed = false }: LayoutProps) {
   return (
     <NotificationDrawerProvider>
-      <LayoutInner>{children}</LayoutInner>
+      <LayoutInner fullBleed={fullBleed}>{children}</LayoutInner>
     </NotificationDrawerProvider>
   );
 }
